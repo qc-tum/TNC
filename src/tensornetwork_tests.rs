@@ -1,3 +1,7 @@
+#![feature(test)]
+
+extern crate test;
+
 #[cfg(test)]
 mod tests {
     use rand::distributions::{Distribution, Uniform};
@@ -5,6 +9,7 @@ mod tests {
     use crate::tensornetwork::TensorNetwork;
     use crate::tensornetwork::Maximum;
     use crate::tensornetwork::tensor::Tensor;
+    use super::test::Bencher;
 
     fn setup() -> TensorNetwork {
         TensorNetwork::new(
@@ -73,4 +78,20 @@ mod tests {
         let bad_bond_dims = vec![12, 32, 2];
         t.push_tensor(bad_tensor, Some(bad_bond_dims));
     }
+
+    #[bench]
+    fn build_tensor(b: &mut Bencher) {
+        b.iter(||{
+            let tensors = vec![
+            Tensor::new(vec![4, 3, 2]),
+            Tensor::new(vec![0, 1, 3, 2]),
+        ];
+        let bond_dims = vec![17, 18, 19, 12, 22];
+        let t = TensorNetwork::new(tensors, bond_dims.clone());
+        for leg in 0..t.tensors.maximum() as usize {
+            assert_eq!(t.bond_dims[&(leg as i32)], bond_dims[leg]);
+        }
+        } )
+    }
+
 }
