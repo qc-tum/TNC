@@ -1,11 +1,10 @@
-#![feature(test)]
-
 extern crate test;
 
 #[cfg(test)]
 mod tests {
-    use rand::distributions::{Distribution, Uniform};
+    // use rand::distributions::{Distribution, Uniform};
     // TODO: Use random tensors
+    use std::collections::HashMap;
     use crate::tensornetwork::TensorNetwork;
     use crate::tensornetwork::Maximum;
     use crate::tensornetwork::tensor::Tensor;
@@ -33,11 +32,22 @@ mod tests {
             Tensor::new(vec![4, 3, 2]),
             Tensor::new(vec![0, 1, 3, 2]),
         ];
+        let mut edge_sol = HashMap::<i32, (Option<i32>, Option<i32>)>::new();
+        edge_sol.entry(0).or_insert((Some(1), None));
+        edge_sol.entry(1).or_insert((Some(1), None));
+        edge_sol.entry(2).or_insert((Some(0), Some(1)));
+        edge_sol.entry(3).or_insert((Some(0), Some(1)));
+        edge_sol.entry(4).or_insert((Some(0), None));
         let bond_dims = vec![17, 18, 19, 12, 22];
         let t = TensorNetwork::new(tensors, bond_dims.clone());
         for leg in 0..t.tensors.maximum() as usize {
             assert_eq!(t.bond_dims[&(leg as i32)], bond_dims[leg]);
         }
+
+        for edge_key in 0i32..4{
+            assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
+        }
+
     }
 
     #[test]
@@ -77,6 +87,13 @@ mod tests {
         let bad_tensor = Tensor::new(vec![0, 1, 4]);
         let bad_bond_dims = vec![12, 32, 2];
         t.push_tensor(bad_tensor, Some(bad_bond_dims));
+    }
+
+    #[test]
+    fn test_contract_tensor() {
+        let mut t = setup();
+        t.contraction(0,1);
+        
     }
 
     #[bench]
