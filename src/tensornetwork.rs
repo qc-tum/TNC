@@ -1,7 +1,6 @@
+use array_tool::vec::{Intersect, Union};
 use std::collections::HashMap;
 use std::fmt;
-use array_tool::vec::Union;
-
 
 pub mod contraction;
 pub mod tensor;
@@ -16,7 +15,7 @@ pub trait Maximum {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TensorNetwork{
+pub struct TensorNetwork {
     tensors: Vec<Tensor>,
     bond_dims: HashMap<i32, u32>,
     edges: HashMap<i32, (Option<i32>, Option<i32>)>,
@@ -45,21 +44,26 @@ impl TensorNetwork {
         }
     }
 
+    pub fn get_edges(&self) -> &HashMap<i32, (Option<i32>, Option<i32>)>{
+        &self.edges
+    }
+
     // Creating custom implementation that accepts list of bond_dims
     pub fn new(tensors: Vec<Tensor>, bond_dims: Vec<u32>) -> Self {
         assert!(tensors.maximum() < bond_dims.capacity() as i32);
         let mut edges: HashMap<i32, (Option<i32>, Option<i32>)> = HashMap::new();
-        for index in 0usize..tensors.capacity(){
-            for leg in tensors[index].get_legs(){
-                edges.entry(*leg)
-                .and_modify(|&mut mut edge| {edge.1 = Some(index as i32)})
-                .or_insert((Some(index as i32), None));
+        for index in 0usize..tensors.capacity() {
+            for leg in tensors[index].get_legs() {
+                edges
+                    .entry(*leg)
+                    .and_modify(|edge| edge.1 = Some(index as i32))
+                    .or_insert((Some(index as i32), None));
             }
         }
         Self {
             tensors,
             bond_dims: (0i32..).zip(bond_dims).collect(),
-            edges
+            edges,
         }
     }
 
@@ -94,7 +98,50 @@ impl TensorNetwork {
         self.tensors.push(tensor);
     }
 
+    //implementation for Tensor as vec<i32>
+    pub fn contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (i32, i32) {
+        let mut tensor_a_legs = self.tensors[tensor_a_loc].get_legs();
+        let tensor_b_legs = self.tensors[tensor_b_loc].get_legs();
 
+        let tensor_union = tensor_a_legs.union(tensor_b_legs.to_vec());
+        let tensor_intersect = tensor_a_legs.intersect(tensor_b_legs.to_vec());
+
+        let mut tensor_difference: Vec<i32> = Vec::new();
+        for leg in tensor_union.iter() {
+            if tensor_intersect.iter().any(|&i| i == *leg) {
+                tensor_difference.push(*leg);
+            }
+        }
+
+        let time_complexity: i32 = tensor_union.iter().product::<i32>();
+        let space_complexity: i32 = tensor_a_legs.iter().product::<i32>()
+            + tensor_b_legs.iter().product::<i32>()
+            + tensor_difference.iter().product::<i32>();
+
+        tensor_a_legs = &tensor_difference;
+        for leg in tensor_difference.iter() {
+            let mut edge = self.edges[&leg];
+            if self.edges[&leg].0.unwrap_or_default() == tensor_b_loc as i32 {
+                edge.0 = Some(tensor_a_loc as i32);
+            } else {
+                edge.1 = Some(tensor_a_loc as i32);
+            }
+        }
+        (time_complexity, space_complexity)
+    }
+
+    //implementation for Tensor as vec<i32>
+    pub fn contraction_hash(&mut self, tensor_a: Tensor, tensor_b: Tensor) -> (i32, i32) {
+        let tensor_union = tensor_a.get_legs().union(tensor_b.get_legs().to_vec());
+        let tensor_intersect = tensor_a.get_legs().intersect(tensor_b.get_legs().to_vec());
+        let mut tensor_difference = Vec::new();
+        for leg in tensor_union {
+            if tensor_intersect.iter().any(|&i| i == leg) {
+                tensor_difference.push(leg);
+            }
+        }
+        (3, 2)
+    }
 }
 
 impl fmt::Display for TensorNetwork {
