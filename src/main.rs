@@ -1,3 +1,4 @@
+#![feature(test)]
 pub mod tensornetwork;
 
 use crate::tensornetwork::tensor::Tensor;
