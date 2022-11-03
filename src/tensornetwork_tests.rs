@@ -115,15 +115,8 @@ mod tests {
     #[bench]
     fn build_tensor(b: &mut Bencher) {
         b.iter(||{
-            let tensors = vec![
-            Tensor::new(vec![4, 3, 2]),
-            Tensor::new(vec![0, 1, 3, 2]),
-        ];
-        let bond_dims = vec![17, 18, 19, 12, 22];
-        let t = TensorNetwork::new(tensors, bond_dims.clone());
-        for leg in 0..t.tensors.max_leg() as usize {
-            assert_eq!(t.bond_dims[&(leg as i32)], bond_dims[leg]);
-        }
+            let mut t = setup();
+            t.contraction(0, 1);
         } )
     }
 
