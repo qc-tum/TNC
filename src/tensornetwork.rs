@@ -10,8 +10,8 @@ use crate::tensornetwork::tensor::Tensor;
 #[path = "tensornetwork_tests.rs"]
 mod tensornetwork_tests;
 
-pub trait Maximum {
-    fn maximum(&self) -> i32;
+pub trait MaximumLeg {
+    fn max_leg(&self) -> i32;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -21,16 +21,16 @@ pub struct TensorNetwork {
     edges: HashMap<i32, (Option<i32>, Option<i32>)>,
 }
 
-impl Maximum for Vec<Tensor> {
-    fn maximum(&self) -> i32 {
-        let mut m = self[0].maximum();
+impl MaximumLeg for Vec<Tensor> {
+    fn max_leg(&self) -> i32 {
+        let mut m = self[0].iter().max();
         for tensor in self.iter() {
-            let n = tensor.maximum();
+            let n = tensor.iter().max();
             if n > m {
                 m = n;
             }
         }
-        m
+        *m.unwrap_or_else(|| &0)
     }
 }
 
@@ -44,13 +44,17 @@ impl TensorNetwork {
         }
     }
 
-    pub fn get_edges(&self) -> &HashMap<i32, (Option<i32>, Option<i32>)>{
+    pub fn get_edges(&self) -> &HashMap<i32, (Option<i32>, Option<i32>)> {
         &self.edges
+    }
+
+    pub fn get_tensors(&self) -> &Vec<Tensor> {
+        &self.tensors
     }
 
     // Creating custom implementation that accepts list of bond_dims
     pub fn new(tensors: Vec<Tensor>, bond_dims: Vec<u32>) -> Self {
-        assert!(tensors.maximum() < bond_dims.capacity() as i32);
+        assert!(tensors.max_leg() < bond_dims.capacity() as i32);
         let mut edges: HashMap<i32, (Option<i32>, Option<i32>)> = HashMap::new();
         for index in 0usize..tensors.capacity() {
             for leg in tensors[index].get_legs() {
@@ -99,8 +103,8 @@ impl TensorNetwork {
     }
 
     //implementation for Tensor as vec<i32>
-    pub fn contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (i32, i32) {
-        let mut tensor_a_legs = self.tensors[tensor_a_loc].get_legs();
+    pub fn contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (u32, u32) {
+        let tensor_a_legs = self.tensors[tensor_a_loc].get_legs();
         let tensor_b_legs = self.tensors[tensor_b_loc].get_legs();
 
         let tensor_union = tensor_a_legs.union(tensor_b_legs.to_vec());
@@ -108,25 +112,41 @@ impl TensorNetwork {
 
         let mut tensor_difference: Vec<i32> = Vec::new();
         for leg in tensor_union.iter() {
-            if tensor_intersect.iter().any(|&i| i == *leg) {
+            if !tensor_intersect.iter().any(|&i| i == *leg) {
                 tensor_difference.push(*leg);
             }
         }
 
-        let time_complexity: i32 = tensor_union.iter().product::<i32>();
-        let space_complexity: i32 = tensor_a_legs.iter().product::<i32>()
-            + tensor_b_legs.iter().product::<i32>()
-            + tensor_difference.iter().product::<i32>();
+        let time_complexity = tensor_union
+            .iter()
+            .map(|x| self.bond_dims.get(x).unwrap())
+            .product();
+        let space_complexity : u32= tensor_a_legs
+            .iter()
+            .map(|x| self.bond_dims.get(x).unwrap())
+            .product::<u32>()
+            + tensor_b_legs
+                .iter()
+                .map(|x| self.bond_dims.get(x).unwrap())
+                .product::<u32>()
+            + tensor_difference
+                .iter()
+                .map(|x| self.bond_dims.get(x).unwrap())
+                .product::<u32>();
 
-        tensor_a_legs = &tensor_difference;
-        for leg in tensor_difference.iter() {
-            let mut edge = self.edges[&leg];
+        for leg in tensor_b_legs.iter() {
             if self.edges[&leg].0.unwrap_or_default() == tensor_b_loc as i32 {
-                edge.0 = Some(tensor_a_loc as i32);
+                self.edges
+                    .entry(*leg)
+                    .and_modify(|e| e.0 = Some(tensor_a_loc as i32));
             } else {
-                edge.1 = Some(tensor_a_loc as i32);
+                self.edges
+                    .entry(*leg)
+                    .and_modify(|e| e.1 = Some(tensor_a_loc as i32));
             }
         }
+        self.tensors[tensor_a_loc] = Tensor::new(tensor_difference);
+
         (time_complexity, space_complexity)
     }
 
