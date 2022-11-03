@@ -115,6 +115,12 @@ mod tests {
     #[bench]
     fn build_tensor(b: &mut Bencher) {
         b.iter(||{
+            setup();
+        } )
+    }
+    #[bench]
+    fn contract_tensor(b: &mut Bencher) {
+        b.iter(||{
             let mut t = setup();
             t.contraction(0, 1);
         } )

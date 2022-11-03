@@ -149,19 +149,6 @@ impl TensorNetwork {
 
         (time_complexity, space_complexity)
     }
-
-    //implementation for Tensor as vec<i32>
-    pub fn contraction_hash(&mut self, tensor_a: Tensor, tensor_b: Tensor) -> (i32, i32) {
-        let tensor_union = tensor_a.get_legs().union(tensor_b.get_legs().to_vec());
-        let tensor_intersect = tensor_a.get_legs().intersect(tensor_b.get_legs().to_vec());
-        let mut tensor_difference = Vec::new();
-        for leg in tensor_union {
-            if tensor_intersect.iter().any(|&i| i == leg) {
-                tensor_difference.push(leg);
-            }
-        }
-        (3, 2)
-    }
 }
 
 impl fmt::Display for TensorNetwork {
