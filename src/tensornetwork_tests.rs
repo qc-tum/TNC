@@ -6,8 +6,8 @@ mod tests {
     // TODO: Use random tensors
     use std::collections::HashMap;
     use crate::tensornetwork::TensorNetwork;
-    use crate::tensornetwork::Maximum;
     use crate::tensornetwork::tensor::Tensor;
+    use crate::tensornetwork::MaximumLeg;
     use super::test::Bencher;
 
     fn setup() -> TensorNetwork {
@@ -40,7 +40,7 @@ mod tests {
         edge_sol.entry(4).or_insert((Some(0), None));
         let bond_dims = vec![17, 18, 19, 12, 22];
         let t = TensorNetwork::new(tensors, bond_dims.clone());
-        for leg in 0..t.tensors.maximum() as usize {
+        for leg in 0..t.tensors.max_leg() as usize {
             assert_eq!(t.bond_dims[&(leg as i32)], bond_dims[leg]);
         }
 
@@ -52,6 +52,7 @@ mod tests {
 
     #[test]
     fn test_push_tensor_good() {
+        //TODO: Add test to check for edge update
         let mut t = setup();
         let good_tensor = Tensor::new(vec![0, 1, 4]);
         t.push_tensor(good_tensor, None);
@@ -90,10 +91,25 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_tensor() {
+    fn test_tensor_contraction_good() {
         let mut t = setup();
-        t.contraction(0,1);
-        
+        let (time_complexity, space_complexity) = t.contraction(0, 1);
+        // contraction should maintain leg order
+        let tensor_sol = Tensor::new(vec![4, 0, 1]);
+        let mut edge_sol = HashMap::<i32, (Option<i32>, Option<i32>)>::new();
+        edge_sol.entry(0).or_insert((Some(0), None));
+        edge_sol.entry(1).or_insert((Some(0), None));
+        edge_sol.entry(2).or_insert((Some(0), Some(0)));
+        edge_sol.entry(3).or_insert((Some(0), Some(0)));
+        edge_sol.entry(4).or_insert((Some(0), None));
+
+        assert_eq!(t.get_tensors()[0], tensor_sol);
+        for edge_key in 0i32..4{
+            assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
+        }
+
+        assert_eq!(time_complexity, 1534896);
+        assert_eq!(space_complexity, 81516);
     }
 
     #[bench]
@@ -105,7 +121,7 @@ mod tests {
         ];
         let bond_dims = vec![17, 18, 19, 12, 22];
         let t = TensorNetwork::new(tensors, bond_dims.clone());
-        for leg in 0..t.tensors.maximum() as usize {
+        for leg in 0..t.tensors.max_leg() as usize {
             assert_eq!(t.bond_dims[&(leg as i32)], bond_dims[leg]);
         }
         } )
