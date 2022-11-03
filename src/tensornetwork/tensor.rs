@@ -1,23 +1,10 @@
 use std::fmt;
-use crate::tensornetwork::Maximum;
 
 #[derive(Eq, Ord, PartialEq, PartialOrd, Debug, Clone)]
 pub struct Tensor {
     legs: Vec<i32>,
 }
 
-
-impl Maximum for Tensor{
-    fn maximum(&self) -> i32 {
-        let mut m = self.legs[0];
-        for leg in self.legs.iter() {
-            if *leg > m {
-                m = *leg;
-            }
-        }
-        m
-    }
-}
 
 
 impl Tensor {
@@ -27,6 +14,10 @@ impl Tensor {
 
     pub fn get_legs(&self) -> &Vec<i32> {
         &self.legs
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<'_,i32>{
+        self.legs.iter()
     }
 }
 
