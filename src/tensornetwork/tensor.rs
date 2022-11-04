@@ -5,8 +5,6 @@ pub struct Tensor {
     legs: Vec<i32>,
 }
 
-
-
 impl Tensor {
     pub fn new(legs: Vec<i32>) -> Self {
         Self { legs }
@@ -16,7 +14,7 @@ impl Tensor {
         &self.legs
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_,i32>{
+    pub fn iter(&self) -> std::slice::Iter<'_, i32> {
         self.legs.iter()
     }
 }
