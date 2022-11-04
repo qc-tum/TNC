@@ -1,10 +1,8 @@
 #![feature(test)]
 pub mod tensornetwork;
-pub mod hashtensornetwork;
 
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::TensorNetwork;
-use crate::hashtensornetwork::HashTensorNetwork;
 
 pub trait MaximumLeg {
     fn max_leg(&self) -> i32;
