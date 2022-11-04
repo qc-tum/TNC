@@ -54,9 +54,9 @@ impl TensorNetwork {
 
     // Creating custom implementation that accepts list of bond_dims
     pub fn new(tensors: Vec<Tensor>, bond_dims: Vec<u32>) -> Self {
-        assert!(tensors.max_leg() < bond_dims.capacity() as i32);
+        assert!(tensors.max_leg() < bond_dims.len() as i32);
         let mut edges: HashMap<i32, (Option<i32>, Option<i32>)> = HashMap::new();
-        for index in 0usize..tensors.capacity() {
+        for index in 0usize..tensors.len() {
             for leg in tensors[index].get_legs() {
                 edges
                     .entry(*leg)
@@ -68,6 +68,44 @@ impl TensorNetwork {
             tensors,
             bond_dims: (0i32..).zip(bond_dims).collect(),
             edges,
+        }
+    }
+
+    fn update_edges(&mut self, tensors: &Vec<Tensor>) {
+        // Always push tensor after updating edges
+        let start = self.tensors.len();
+        for index in start..(tensors.len() + start) {
+            for leg in tensors[index].get_legs() {
+                self.edges
+                    .entry(*leg)
+                    .and_modify(|edge|
+                        if edge.1.is_some(){
+                            panic!(
+                                "edge {leg} connects Tensor {t1} and {t2}. attempting to connect to third Tensor {t3}", 
+                                leg=leg, t1=edge.0.unwrap(), t2=edge.1.unwrap(), t3=index);
+                        } else{
+                        edge.1 = Some(index as i32);
+                    })
+                    .or_insert((Some(index as i32), None));
+            }
+        }
+    }
+
+    fn update_edge(&mut self, tensor: &Tensor) {
+        // Always push tensor after updating edges
+        let index = self.tensors.len();
+        for leg in tensor.get_legs() {
+            self.edges
+                .entry(*leg)
+                .and_modify(|edge|
+                    if edge.1.is_some(){
+                        panic!(
+                            "edge {leg} connects Tensor {t1} and {t2}. attempting to connect to third Tensor {t3}", 
+                            leg=leg, t1=edge.0.unwrap(), t2=edge.1.unwrap(), t3=index);
+                    } else{
+                    edge.1 = Some(index as i32);
+                })
+                .or_insert((Some(index as i32), None));
         }
     }
 
@@ -98,7 +136,8 @@ impl TensorNetwork {
                 }
             }
         }
-
+        //ensure that new tensor is connected
+        self.update_edge(&tensor);
         self.tensors.push(tensor);
     }
 
@@ -121,7 +160,7 @@ impl TensorNetwork {
             .iter()
             .map(|x| self.bond_dims.get(x).unwrap())
             .product();
-        let space_complexity : u32= tensor_a_legs
+        let space_complexity: u32 = tensor_a_legs
             .iter()
             .map(|x| self.bond_dims.get(x).unwrap())
             .product::<u32>()
