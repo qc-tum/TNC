@@ -1,12 +1,5 @@
-#![feature(test)]
-pub mod tensornetwork;
+use tensorcontraction::tensornetwork::{TensorNetwork, tensor::Tensor};
 
-use crate::tensornetwork::tensor::Tensor;
-use crate::tensornetwork::TensorNetwork;
-
-pub trait MaximumLeg {
-    fn max_leg(&self) -> i32;
-}
 fn main() {
     let tn = TensorNetwork::new(
         vec![Tensor::new(vec![4, 3, 2]), Tensor::new(vec![0, 1, 3, 2])],
