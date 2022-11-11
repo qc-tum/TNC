@@ -452,6 +452,16 @@ impl fmt::Display for TensorNetwork {
     }
 }
 
+impl Default for TensorNetwork {
+    fn default() -> Self {
+        Self {
+            tensors: Vec::<Tensor>::new(),
+            bond_dims: HashMap::new(),
+            edges: HashMap::new(),
+        }
+    }
+}
+
 mod tests {
     // use rand::distributions::{Distribution, Uniform};
     // TODO: Use random tensors
@@ -481,7 +491,7 @@ mod tests {
 
     #[test]
     fn test_empty_tensor_network() {
-        let t = TensorNetwork::empty_tensor_network();
+        let t = TensorNetwork::default();
         assert!(t.tensors.is_empty());
         assert!(t.bond_dims.is_empty());
     }
