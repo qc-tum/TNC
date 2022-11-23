@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use array_tool::vec::{Intersect, Union};
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
@@ -119,7 +119,7 @@ impl TensorNetwork {
     /// Each edge id must have an accompanying bond dimension.
     /// Thus, it is assumed that `bond_dim.len()` is g.e. to `tensor.max_leg()`.
     /// # Arguments
-    /// 
+    ///
     /// * `tensors` - A Vector of Tensor objects
     /// * `bond_dims` - A Vector of u32 bond dimensions corresponding to edge ids in `tensors`.
     ///
@@ -165,10 +165,10 @@ impl TensorNetwork {
     /// dimensions.  All edge ids in the list of Tensors must have an accompanying bond dimension.
     ///
     /// # Arguments
-    /// 
+    ///
     /// * `tensors` - A Vector of Tensor objects
     /// * `bond_dims` - A HashMap taking using edge ids as keys and returning the corresponding bond dimension.
-    /// 
+    ///
     /// # Examples
     ///
     /// ```
@@ -204,10 +204,8 @@ impl TensorNetwork {
         let mut edges: HashMap<i32, (Option<i32>, Option<i32>)> = HashMap::new();
         for index in 0usize..tensors.len() {
             for leg in tensors[index].get_legs() {
-                if !bond_dims.contains_key(&leg){
-                    panic!(
-                        "Leg {} bond dimension is not defined", leg
-                    );
+                if !bond_dims.contains_key(&leg) {
+                    panic!("Leg {} bond dimension is not defined", leg);
                 }
                 edges
                     .entry(*leg)
@@ -222,16 +220,15 @@ impl TensorNetwork {
         }
     }
 
-
     /// Private function that updates `TensorNetwork::edges`. Used to modify edge
     /// connections after contraction or when new Tensor objects are appended
     /// Does not perform checks to ensure that each new edge id has a corresponding
     /// bond_dim entry.
     ///
     /// # Arguments
-    /// 
+    ///
     /// * `tensors` - A Vector of Tensor objects
-    /// 
+    ///
     /// # Panics
     ///
     /// Panics when an edge id appears in more than two Tensor objects.
@@ -259,9 +256,9 @@ impl TensorNetwork {
     /// connections after contraction or when a new Tensor object is appended
     /// Does not perform checks to ensure that each new edge id has a corresponding
     /// bond_dim entry.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `tensors` - A Vector of Tensor objects
     ///
     /// # Panics
@@ -290,10 +287,10 @@ impl TensorNetwork {
     /// new Tensor object and ignores any other edge ids in HashMap.
     ///
     /// # Arguments
-    /// 
+    ///
     /// * `tensor` - A Tensor object
     /// * `bond_dims` - - A HashMap taking using edge ids as keys and returning the corresponding bond dimension.
-    /// 
+    ///
     /// # Examples
     ///
     /// ```
@@ -328,9 +325,9 @@ impl TensorNetwork {
     /// let bond_dims_new = HashMap::from([(5, 17)]);
     /// tn.push_tensor(v3, Some(bond_dims_new));
     /// ```
-    /// 
+    ///
     /// Panics when an existing bond dimension is redefined
-    /// 
+    ///
     /// ```should_panic
     /// # use tensorcontraction::tensornetwork::TensorNetwork;
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
@@ -357,15 +354,13 @@ impl TensorNetwork {
             let bond_dims = bond_dims.unwrap();
             for leg in tensor.get_legs().iter() {
                 if !self.bond_dims.contains_key(leg) {
-                    if !bond_dims.contains_key(leg){
-                        panic!(                        
-                        "Edge id {} bond dimension is not defined.",
-                        leg);
+                    if !bond_dims.contains_key(leg) {
+                        panic!("Edge id {} bond dimension is not defined.", leg);
                     }
-                    self.bond_dims
-                        .entry(*leg)
-                        .or_insert(bond_dims[&leg]);
-                } else if bond_dims.contains_key(leg) && *self.bond_dims.get(leg).unwrap() != bond_dims[leg] {
+                    self.bond_dims.entry(*leg).or_insert(bond_dims[&leg]);
+                } else if bond_dims.contains_key(leg)
+                    && *self.bond_dims.get(leg).unwrap() != bond_dims[leg]
+                {
                     panic!(
                         "Attempt to update bond {} with value: {}, previous value: {}",
                         leg,
@@ -382,14 +377,14 @@ impl TensorNetwork {
 
     /// Returns Schroedinger time and space contraction costs of contracting Tensor objects at index `i` and `j` in
     /// TensorNetwork object as Tuple of unsigned integers
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `tensor_a_loc` - Index of first Tensor to be contracted
     /// * `tensor_b_loc` - Index of second Tensor to be contracted
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use tensorcontraction::tensornetwork::TensorNetwork;
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
@@ -537,11 +532,7 @@ mod tests {
     fn test_push_tensor_good_newlegs() {
         let mut t = setup();
         let good_tensor = Tensor::new(vec![7, 9, 12]);
-        let good_bond_dims = HashMap::from([
-            (7, 55), 
-            (9, 5), 
-            (12, 6)
-            ]);
+        let good_bond_dims = HashMap::from([(7, 55), (9, 5), (12, 6)]);
         println!("{:?}", good_bond_dims);
         t.push_tensor(good_tensor.clone(), Some(good_bond_dims.clone()));
         for legs in good_tensor.get_legs() {
@@ -582,11 +573,7 @@ mod tests {
     fn test_push_tensor_bad_rewrite() {
         let mut t = setup();
         let bad_tensor = Tensor::new(vec![0, 1, 4]);
-        let bad_bond_dims = HashMap::from([
-            (0, 12), 
-            (1, 32), 
-            (4, 2)
-            ]);
+        let bad_bond_dims = HashMap::from([(0, 12), (1, 32), (4, 2)]);
         t.push_tensor(bad_tensor, Some(bad_bond_dims));
     }
 
