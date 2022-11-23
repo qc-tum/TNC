@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
-// pub mod contractionpath;
+pub mod contractionpath;
 pub mod tensor;
 
 use tensor::Tensor;
