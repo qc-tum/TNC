@@ -1,7 +1,6 @@
 
 extern crate tensorcontraction;
 use tensorcontraction::tensornetwork::{TensorNetwork, tensor::Tensor};
-use tensorcontraction::tensornetwork::contractionpath::{contract_cost, contract_size};
 
 fn main() {
     let tn = TensorNetwork::from_vector(
@@ -11,6 +10,4 @@ fn main() {
     for edge in tn.get_edges(){
         println!("{:}->({:}, {:})", edge.0, (*edge.1).0.unwrap_or_else(|| -1) , (*edge.1).1.unwrap_or_else(|| -1));
     }
-    println!("{}", contract_cost(&tn, 0, 1));
-    println!("{}", contract_size(&tn, 0, 1));
 }
