@@ -6,7 +6,7 @@ extern crate test;
 use test::Bencher;
 
 fn setup() -> TensorNetwork {
-    TensorNetwork::new(
+    TensorNetwork::from_vector(
         vec![Tensor::new(vec![4, 3, 2]), Tensor::new(vec![0, 1, 3, 2])],
         vec![17, 18, 19, 12, 22],
     )
