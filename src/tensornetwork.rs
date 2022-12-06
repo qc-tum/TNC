@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
-pub mod contractionpath;
 pub mod tensor;
 
 use tensor::Tensor;
@@ -22,7 +21,7 @@ pub struct TensorNetwork {
     /// Vector of Tensor objects in tensor network
     tensors: Vec<Tensor>,
     /// Returns bond dimension of edge based on edge id.
-    bond_dims: HashMap<i32, u32>,
+    bond_dims: HashMap<i32, u64>,
     /// Hashmap for easy lookup of edge connectivity based on edge id.
     edges: HashMap<i32, (Option<i32>, Option<i32>)>,
 }
@@ -110,7 +109,7 @@ impl TensorNetwork {
     /// let tensors = tn.get_tensors();
     /// assert_eq!(tensors.is_empty(), true);
     /// ```
-    pub fn get_bond_dims(&self) -> &HashMap<i32, u32> {
+    pub fn get_bond_dims(&self) -> &HashMap<i32, u64> {
         &self.bond_dims
     }
 
@@ -143,7 +142,7 @@ impl TensorNetwork {
     /// let bond_dims = vec![17, 19];
     /// let tn = TensorNetwork::from_vector(vec![v1], bond_dims);
     /// ```
-    pub fn from_vector(tensors: Vec<Tensor>, bond_dims: Vec<u32>) -> Self {
+    pub fn from_vector(tensors: Vec<Tensor>, bond_dims: Vec<u64>) -> Self {
         assert!(tensors.max_leg() < bond_dims.len() as i32);
         let mut edges: HashMap<i32, (Option<i32>, Option<i32>)> = HashMap::new();
         for index in 0usize..tensors.len() {
@@ -200,7 +199,7 @@ impl TensorNetwork {
     /// ]);
     /// let tn = TensorNetwork::new(vec![v1, v2], bond_dims);
     /// ```    
-    pub fn new(tensors: Vec<Tensor>, bond_dims: HashMap<i32, u32>) -> Self {
+    pub fn new(tensors: Vec<Tensor>, bond_dims: HashMap<i32, u64>) -> Self {
         let mut edges: HashMap<i32, (Option<i32>, Option<i32>)> = HashMap::new();
         for index in 0usize..tensors.len() {
             for leg in tensors[index].get_legs() {
@@ -340,7 +339,7 @@ impl TensorNetwork {
     /// let bond_dims_new = HashMap::from([(4, 3), (5, 17), (6,19)]);
     /// tn.push_tensor(v3, Some(bond_dims_new));
     /// ```
-    pub fn push_tensor(&mut self, tensor: Tensor, bond_dims: Option<HashMap<i32, u32>>) {
+    pub fn push_tensor(&mut self, tensor: Tensor, bond_dims: Option<HashMap<i32, u64>>) {
         if bond_dims.is_none() {
             for leg in tensor.get_legs() {
                 if !self.bond_dims.contains_key(leg) {
@@ -395,7 +394,7 @@ impl TensorNetwork {
     /// let mut tn = TensorNetwork::new(vec![v1,v2], bond_dims);
     /// assert_eq!(tn.contraction(0,1), (372096, 50248));
     /// ```
-    pub fn contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (u32, u32) {
+    pub fn contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (u64, u64) {
         let tensor_a_legs = self.tensors[tensor_a_loc].get_legs();
         let tensor_b_legs = self.tensors[tensor_b_loc].get_legs();
 
@@ -413,18 +412,18 @@ impl TensorNetwork {
             .iter()
             .map(|x| self.bond_dims.get(x).unwrap())
             .product();
-        let space_complexity: u32 = tensor_a_legs
+        let space_complexity: u64 = tensor_a_legs
             .iter()
             .map(|x| self.bond_dims.get(x).unwrap())
-            .product::<u32>()
+            .product::<u64>()
             + tensor_b_legs
                 .iter()
                 .map(|x| self.bond_dims.get(x).unwrap())
-                .product::<u32>()
+                .product::<u64>()
             + tensor_difference
                 .iter()
                 .map(|x| self.bond_dims.get(x).unwrap())
-                .product::<u32>();
+                .product::<u64>();
 
         for leg in tensor_b_legs.iter() {
             if self.edges[&leg].0.unwrap_or_default() == tensor_b_loc as i32 {
@@ -479,7 +478,6 @@ mod tests {
             vec![17, 18, 19, 12, 22],
         )
     }
-
     #[test]
     fn test_empty_tensor_network() {
         let t = TensorNetwork::empty_tensor_network();
@@ -550,7 +548,7 @@ mod tests {
         let bond_dims = vec![55, 5, 6];
         let mut x = bond_dims.iter();
         for leg in good_tensor.get_legs() {
-            assert_eq!(t.bond_dims[leg], *x.next().unwrap() as u32);
+            assert_eq!(t.bond_dims[leg], *x.next().unwrap());
         }
 
         for edge_key in 0i32..4 {

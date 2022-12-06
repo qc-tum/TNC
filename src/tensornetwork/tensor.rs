@@ -71,7 +71,7 @@ impl Tensor {
     /// hm.insert(3, 8);
     /// assert_eq!(tensor.size(&hm), 600);
     /// ```
-    pub fn size(&self, bond_dim: &HashMap<i32, u32>) -> u32{
+    pub fn size(&self, bond_dim: &HashMap<i32, u64>) -> u64{
         self.legs.iter().map(|e| bond_dim[e]).product()
     }
 }
