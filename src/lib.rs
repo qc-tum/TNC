@@ -7,3 +7,4 @@
 pub mod tensornetwork;
 pub mod contractionpath;
 pub mod random;
+pub mod qasm;

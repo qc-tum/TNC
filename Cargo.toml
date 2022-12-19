@@ -15,3 +15,4 @@ rand = "0.8.5"
 random = "0.13.2"
 taco-sys = { git = "ssh://gitlab.lrz.de/quantum-research/taco-sys.git", tag = "v0.5.0", version = "0.5.0" }
 
+antlr-rust = "0.3.0-beta"
