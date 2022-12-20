@@ -1,7 +1,6 @@
 
 extern crate tensorcontraction;
 use tensorcontraction::tensornetwork::{TensorNetwork, tensor::Tensor};
-use tensorcontraction::contractionpath::contraction_cost::{contract_cost, contract_size};
 
 
 fn main() {
