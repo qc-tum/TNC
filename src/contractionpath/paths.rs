@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use std::cmp::max;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 // use std::iter::zip;
 
 use crate::contractionpath::contraction_cost::{_contract_cost, _contract_size, size};
@@ -112,25 +112,18 @@ impl BranchBound {
                     return None;
                 }
                 let best_flops: u64;
-                if self
-                    .best_progress
-                    .contains_key(&remaining.len())
-                {
+                if self.best_progress.contains_key(&remaining.len()) {
                     best_flops = self.best_progress[&remaining.len()];
                 } else {
                     best_flops = flops;
-                    self.best_progress
-                        .entry(remaining.len())
-                        .or_insert(flops);
+                    self.best_progress.entry(remaining.len()).or_insert(flops);
                 }
 
                 if flops < best_flops as u64 {
                     self.best_progress
                         .entry(remaining.len())
                         .insert_entry(flops);
-                } else if flops
-                    > self.cutoff_flops_factor * self.best_progress[&remaining.len()]
-                {
+                } else if flops > self.cutoff_flops_factor * self.best_progress[&remaining.len()] {
                     return None;
                 }
 
@@ -152,7 +145,8 @@ impl BranchBound {
             if candidates.is_empty() {
                 break;
             }
-            let (new_flops, new_size, (i, j), k12, _k12_tensor) = candidates.pop().unwrap().unwrap();
+            let (new_flops, new_size, (i, j), k12, _k12_tensor) =
+                candidates.pop().unwrap().unwrap();
             new_remaining = remaining.clone();
             new_remaining.retain(|e| *e != i as u32);
             new_remaining.retain(|e| *e != j as u32);
@@ -186,6 +180,7 @@ impl OptimizePath for BranchBound {
     }
 }
 
+#[cfg(test)]
 mod tests {
     // use rand::distributions::{Distribution, Uniform};
     // TODO: Use random tensors
@@ -194,8 +189,6 @@ mod tests {
     use crate::contractionpath::paths::OptimizePath;
     use crate::tensornetwork::tensor::Tensor;
     use crate::tensornetwork::TensorNetwork;
-    use std::collections::HashMap;
-
 
     fn setup_simple() -> TensorNetwork {
         TensorNetwork::from_vector(
@@ -237,7 +230,10 @@ mod tests {
         let tn = setup_complex();
         let mut opt = BranchBound::new(tn, None, 20, BranchBoundType::Flops);
         opt._optimize_path(None);
-        assert_eq!(opt.best_path, vec![(0, 1), (2, 5), (3, 4), (6, 17), (18, 304)]);
+        assert_eq!(
+            opt.best_path,
+            vec![(0, 1), (2, 5), (3, 4), (6, 17), (18, 304)]
+        );
         assert_eq!(opt.best_flops, 5614200);
         assert_eq!(opt.best_size, 3963645);
     }

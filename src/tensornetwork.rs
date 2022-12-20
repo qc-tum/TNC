@@ -462,6 +462,7 @@ impl Default for TensorNetwork {
     }
 }
 
+#[cfg(test)]
 mod tests {
     // use rand::distributions::{Distribution, Uniform};
     // TODO: Use random tensors
