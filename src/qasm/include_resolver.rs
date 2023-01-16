@@ -3,27 +3,26 @@ use std::fs;
 use std::path::PathBuf;
 
 use antlr_rust::common_token_stream::CommonTokenStream;
-use antlr_rust::tree::{ParseTree, ParseTreeVisitorCompat};
+use antlr_rust::tree::{ParseTree, ParseTreeVisitorCompat, Visitable};
 use antlr_rust::InputStream;
 
 use super::qasm2lexer::Qasm2Lexer;
 use super::qasm2parser::Qasm2ParserContextType;
 use super::qasm2parser::{IncludeStatementContextAttrs, Qasm2Parser};
 use super::qasm2parservisitor::Qasm2ParserVisitorCompat;
-use antlr_rust::tree::Visitable;
 
 static QELIB: &'static str = include_str!("qelib1.inc");
 
 /// Holds the position and content of an include statement in a string.
 #[derive(Clone, Debug)]
-pub struct IncludeInstruction {
+struct IncludeInstruction {
     path: String,
     start: usize,
     end: usize,
 }
 
 /// Visitor collecting all include statements in a file.
-pub struct IncludeVisitor {
+struct IncludeVisitor {
     result: Vec<IncludeInstruction>,
 }
 
@@ -118,20 +117,5 @@ pub fn expand_includes(code: &mut String) {
         // Include code in the root code
         code.replace_range(include.start..=include.end, included_text);
         already_included.insert(path);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use std::fs;
-
-    use crate::qasm::parsing::expand_includes;
-
-    #[test]
-    fn it_works() {
-        let mut code = fs::read_to_string("test.qasm").unwrap();
-        expand_includes(&mut code);
-        println!("{code}");
     }
 }
