@@ -1,11 +1,11 @@
-use std::fmt;
 use std::collections::HashMap;
-use std::ops::{Index,IndexMut};
+use std::fmt;
+use std::ops::{Index, IndexMut};
 
 #[derive(Eq, Ord, PartialEq, PartialOrd, Debug, Clone)]
 /// Abstract representation of a tensor. Stores a Vector of edge ids, used to indicate
 /// contractions between Tensors. Edge dimensions are stored in a separate HashMap object. 
-/// See [`TensorNetwork`].
+/// See [TensorNetwork].
 pub struct Tensor {
     /// Stores edge ids in a Vector.
     legs: Vec<i32>,
@@ -71,7 +71,7 @@ impl Tensor {
     /// hm.insert(3, 8);
     /// assert_eq!(tensor.size(&hm), 600);
     /// ```
-    pub fn size(&self, bond_dim: &HashMap<i32, u64>) -> u64{
+    pub fn size(&self, bond_dim: &HashMap<i32, u64>) -> u64 {
         self.legs.iter().map(|e| bond_dim[e]).product()
     }
 }
@@ -84,7 +84,7 @@ impl fmt::Display for Tensor {
 }
 
 /// Implementation of indexing for Tensor.
-impl Index<usize> for Tensor{
+impl Index<usize> for Tensor {
     type Output = i32;
     
     fn index(&self, index: usize) -> &Self::Output {
@@ -93,8 +93,8 @@ impl Index<usize> for Tensor{
 }
 
 /// Implementation of indexing of mutable Tensor object.
-impl IndexMut<usize> for Tensor{
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output{
+impl IndexMut<usize> for Tensor {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.legs[index]
     }
 }
