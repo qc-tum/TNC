@@ -5,10 +5,10 @@ use std::fmt;
 use std::fmt::Write;
 use std::ops::{Index, IndexMut};
 
+pub mod contraction;
 pub mod tensor;
 
 use tensor::Tensor;
-// use contractionpath::contract_cost;
 
 /// Helper function that returns the largest edge id.
 pub trait MaximumLeg {
@@ -54,6 +54,8 @@ impl IndexMut<usize> for TensorNetwork {
         &mut self.tensors[index]
     }
 }
+
+
 
 impl TensorNetwork {
     /// Creates an empty TensorNetwork
@@ -395,8 +397,6 @@ impl TensorNetwork {
     ///
     /// * `tensor_a_loc` - Index of first Tensor to be contracted
     /// * `tensor_b_loc` - Index of second Tensor to be contracted
-    ///
-    /// ```
     fn _contraction(&mut self, tensor_a_loc: &usize, tensor_b_loc: &usize) -> (Vec<i32>, Vec<i32>) {
         let tensor_a_legs = self.tensors[*tensor_a_loc].get_legs();
         let tensor_b_legs = self.tensors[*tensor_b_loc].get_legs();
