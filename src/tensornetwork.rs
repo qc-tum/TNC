@@ -2,6 +2,7 @@
 use array_tool::vec::{Intersect, Union};
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::Write;
 use std::ops::{Index, IndexMut};
 
 pub mod tensor;
@@ -439,6 +440,55 @@ impl TensorNetwork {
         self.tensors[tensor_a_loc] = Tensor::new(tensor_difference);
 
         (time_complexity, space_complexity)
+    }
+
+    /// Constructs Graphviz code showing the tensor network as a graph. The tensor numbering corresponds to their
+    /// tensor index (i.e., their position in the tensors vector). The edges are annotated with the bond dims,
+    /// as well as the edge id in smaller font.
+    pub fn to_graphviz(&self) -> String {
+        let mut out = String::new();
+        let mut invis_counter = 0u32;
+        out.push_str("graph tn {\n");
+
+        for (i, tensor) in self.tensors.iter().enumerate() {
+            for leg in tensor.get_legs() {
+                let connection = self.edges[leg];
+
+                if let (Some(idx1), Some(_)) = connection {
+                    if idx1 == i as i32 {
+                        // prevent each edge being added twice, by only considering
+                        // edges where this tensor is in the first place
+                        continue;
+                    }
+                }
+
+                // Get tensor1 name (or create an invisible node if None)
+                let t1 = if let Some(idx) = connection.0 {
+                    format!("t{}", idx)
+                } else {
+                    let name = format!("i{}", invis_counter);
+                    writeln!(out, "\t{} [style=\"invis\"];", name).unwrap();
+                    invis_counter += 1;
+                    name
+                };
+
+                // Get tensor2 name (or create an invisible node if None)
+                let t2 = if let Some(idx) = connection.1 {
+                    format!("t{}", idx)
+                } else {
+                    let name = format!("i{}", invis_counter);
+                    writeln!(out, "\t{} [style=\"invis\"];", name).unwrap();
+                    invis_counter += 1;
+                    name
+                };
+
+                // Write edge between tensors
+                writeln!(out, "\t{} -- {} [label=\"{}\", taillabel=\"{}\", headlabel=\"{}\", labelfontsize=\"8pt\"];", t1, t2, self.bond_dims[leg], leg, leg).unwrap();
+            }
+        }
+
+        out.push_str("}");
+        out
     }
 }
 
