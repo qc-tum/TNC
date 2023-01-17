@@ -1,7 +1,9 @@
 #![feature(stmt_expr_attributes)]
 #![feature(entry_insert)]
 #![allow(dead_code)]
+#![feature(slice_pattern)]
 
 
 pub mod tensornetwork;
 pub mod contractionpath;
+pub mod random;
