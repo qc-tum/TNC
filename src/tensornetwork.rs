@@ -114,6 +114,19 @@ impl TensorNetwork {
         &self.bond_dims
     }
 
+    /// Returns true if tensor network is empty
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tensorcontraction::tensornetwork::TensorNetwork;
+    /// let tn = TensorNetwork::empty_tensor_network();
+    /// assert_eq!(tn.is_empty(), true);
+    /// ```
+    pub fn is_empty(&self) -> bool{
+        self.tensors.is_empty()
+    }
+
     /// Constructs a TensorNetwork object based on an input Vector of Tensors and a list of bond
     /// dimensions.  Edge ids in the list of Tensors are assumed to be sequential starting from 0.
     /// Each edge id must have an accompanying bond dimension.
@@ -375,32 +388,21 @@ impl TensorNetwork {
         self.tensors.push(tensor);
     }
 
-    /// Returns Schroedinger time and space contraction costs of contracting Tensor objects at index `i` and `j` in
-    /// TensorNetwork object as Tuple of unsigned integers
+    /// Updates TensorNetwork object by contracting two tensors, replacing the first contracted tensor with the
+    /// resulting tensor. `tn.edges` is then updated replacing all connections to the second tensor.
     ///
     /// # Arguments
     ///
     /// * `tensor_a_loc` - Index of first Tensor to be contracted
     /// * `tensor_b_loc` - Index of second Tensor to be contracted
     ///
-    /// # Examples
-    ///
     /// ```
-    /// # use tensorcontraction::tensornetwork::TensorNetwork;
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use std::collections::HashMap;
-    /// let v1 = Tensor::new(vec![2,1,0]);
-    /// let v2 = Tensor::new(vec![2,3,4]);
-    /// let bond_dims = HashMap::from([(0, 17), (1, 19), (2, 8), (3, 12), (4, 12)]);
-    /// let mut tn = TensorNetwork::new(vec![v1,v2], bond_dims);
-    /// assert_eq!(tn.contraction(0,1), (372096, 50248));
-    /// ```
-    pub fn contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (u64, u64) {
-        let tensor_a_legs = self.tensors[tensor_a_loc].get_legs();
-        let tensor_b_legs = self.tensors[tensor_b_loc].get_legs();
+    fn _contraction(&mut self, tensor_a_loc: &usize, tensor_b_loc: &usize) -> (Vec<i32>, Vec<i32>) {
+        let tensor_a_legs = self.tensors[*tensor_a_loc].get_legs();
+        let tensor_b_legs = self.tensors[*tensor_b_loc].get_legs();
 
-        let tensor_union = tensor_a_legs.union(tensor_b_legs.to_vec());
-        let tensor_intersect = tensor_a_legs.intersect(tensor_b_legs.to_vec());
+        let tensor_union = tensor_b_legs.union(tensor_a_legs.to_vec());
+        let tensor_intersect = tensor_b_legs.intersect(tensor_a_legs.to_vec());
 
         let mut tensor_difference: Vec<i32> = Vec::new();
         for leg in tensor_union.iter() {
@@ -409,38 +411,22 @@ impl TensorNetwork {
             }
         }
 
-        let time_complexity = tensor_union
-            .iter()
-            .map(|x| self.bond_dims.get(x).unwrap())
-            .product();
-        let space_complexity: u64 = tensor_a_legs
-            .iter()
-            .map(|x| self.bond_dims.get(x).unwrap())
-            .product::<u64>()
-            + tensor_b_legs
-                .iter()
-                .map(|x| self.bond_dims.get(x).unwrap())
-                .product::<u64>()
-            + tensor_difference
-                .iter()
-                .map(|x| self.bond_dims.get(x).unwrap())
-                .product::<u64>();
-
         for leg in tensor_b_legs.iter() {
-            if self.edges[&leg].0.unwrap_or_default() == tensor_b_loc as i32 {
+            if self.edges[&leg].0.unwrap_or_default() == *tensor_b_loc as i32 {
                 self.edges
                     .entry(*leg)
-                    .and_modify(|e| e.0 = Some(tensor_a_loc as i32));
+                    .and_modify(|e| e.0 = Some(*tensor_a_loc as i32));
             } else {
                 self.edges
                     .entry(*leg)
-                    .and_modify(|e| e.1 = Some(tensor_a_loc as i32));
+                    .and_modify(|e| e.1 = Some(*tensor_a_loc as i32));
             }
         }
-        self.tensors[tensor_a_loc] = Tensor::new(tensor_difference);
+        self.tensors[*tensor_a_loc] = Tensor::new(tensor_difference.clone());
 
-        (time_complexity, space_complexity)
+        (tensor_intersect, tensor_difference)
     }
+
 
     /// Constructs Graphviz code showing the tensor network as a graph. The tensor numbering corresponds to their
     /// tensor index (i.e., their position in the tensors vector). The edges are annotated with the bond dims,
