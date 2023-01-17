@@ -498,26 +498,13 @@ impl Default for TensorNetwork {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
-    // use rand::distributions::{Distribution, Uniform};
-    // TODO: Use random tensors
     use crate::tensornetwork::tensor::Tensor;
     use crate::tensornetwork::MaximumLeg;
     use crate::tensornetwork::TensorNetwork;
     use std::collections::HashMap;
-
-    // fn generate_random_tensor() -> (Tensor, u32) {
-    //     let tensor_size = Uniform::from(3..1000);
-    //     let rng = rand::thread_rng();
-    //     let mut tensor_legs = Vec::new();
-    //     for _i in 0i32..tensor_size.sample(&mut rng.clone()) {
-    //         tensor_legs.push(tensor_size.sample(&mut rng.clone()));
-    //     }
-    //     let new_tensor = Tensor::new(tensor_legs);
-    //     let size = new_tensor.get_legs().len();
-    //     (new_tensor, size as u32)
-    // }
 
     fn setup() -> TensorNetwork {
         TensorNetwork::from_vector(
