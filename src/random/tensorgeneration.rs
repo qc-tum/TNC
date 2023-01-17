@@ -39,3 +39,131 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<i32, u64>) {
     (Tensor::new((0i32..n as i32).collect()), bond_dims)
 }
 
+/// Generates random sparse _TacoTensor object with same dimenions as Tensor object `t`
+/// Fills in sparse tensor based on `sparsity` value.
+///
+/// # Arguments
+///
+/// * `t` - Tensor object, random _TacoTensor will have same dimensions
+/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output _TacoTensor.
+///                 used to fill in entries in _TacoTensor at random. If no value is provided, defaults to 0.50
+///
+/// # Examples
+/// ```
+/// # use tensorcontraction::tensornetwork::tensor::Tensor;
+/// # use tensorcontraction::random::tensorgeneration::{random_tensor, random_sparse_tensor};
+/// # use std::collections::HashMap;
+/// let legs = 4;
+/// let tensor = random_tensor(legs);
+/// let bond_dims = HashMap::from([
+/// (0, 17), (1, 19), (2, 12), (3, 12)
+/// ]);
+///
+/// let r_tensor = random_sparse_tensor(tensor.0, &bond_dims, None);
+///
+/// ```
+pub fn random_sparse_tensor(
+    t: Tensor,
+    bond_dims: &HashMap<i32, u64>,
+    mut sparsity: Option<f32>,
+) -> _TacoTensor {
+    if sparsity.is_none() {
+        sparsity = Some(0.5);
+    } else {
+        assert!(0.0 <= sparsity.unwrap() && sparsity.unwrap() <= 1.0);
+    }
+    let sparsity = sparsity.unwrap();
+    let dims: Vec<i32> = t
+        .get_legs()
+        .iter()
+        .map(|e| *(bond_dims.get(e).unwrap()) as i32)
+        .collect();
+    let mut ranges = Vec::new();
+    for i in dims.clone() {
+        ranges.push(0..i);
+    }
+    let size = dims.iter().product::<i32>();
+    let mut tacotensor = _TacoTensor::new(&dims);
+
+    let mut count = 0;
+    let mut loc = Vec::<i32>::new();
+    let mut rng = rand::thread_rng();
+    while (count as f32 / size as f32) < sparsity {
+        for r in ranges.clone() {
+            loc.push(rng.gen_range(r));
+        }
+        tacotensor.insert(&loc.clone(), rng.gen());
+        loc.clear();
+        count += 1;
+    }
+
+    tacotensor
+}
+
+/// Generates random [TensorNetwork] objects based on a quantum circuit with `n` qubits and `cycles` layers of
+/// randomly generated 1- or 2-qubit gates.
+///
+///
+/// # Arguments
+///
+/// * `n` - Number of qubits in quantum circuit
+/// * `cycles` - Number of layers of gates
+///
+/// # Examples
+/// ```
+/// # use tensorcontraction::tensornetwork::tensor::Tensor;
+/// # use tensorcontraction::random::tensorgeneration::{random_tensor_network};
+///
+/// let r_tn = random_tensor_network(4, 5);
+///
+/// ```
+pub fn random_tensor_network(n: usize, cycles: usize) -> TensorNetwork {
+    let mut tensors: Vec<Vec<i32>> = Vec::new();
+    // counter for indices in tensor network
+    let mut index = 3;
+    // keeps track of which edge is one a specific wire
+
+    let wires: Vec<i32> = (0..n as i32).collect();
+    let mut wire_indices = wires.clone();
+    let die = Uniform::from(0..n);
+    let mut rng = rand::thread_rng();
+    // Will generate gates for multiple cycles
+    for _i in 0..cycles {
+        let mut w = wires.clone();
+        while die.sample(&mut rng) != 0 {
+            if w.len() < 2 {
+                break;
+            }
+            if rand::random() {
+                w.shuffle(&mut rand::thread_rng());
+                let l1 = w.pop().unwrap();
+                let l2 = w.pop().unwrap();
+                tensors.push(vec![
+                    wire_indices[l1 as usize],
+                    wire_indices[l2 as usize],
+                    index + 1,
+                    index + 2,
+                ]);
+                wire_indices[l1 as usize] = index + 1;
+                wire_indices[l2 as usize] = index + 2;
+                index += 2;
+            } else {
+                w.shuffle(&mut rand::thread_rng());
+                let l1 = w.pop().unwrap();
+                tensors.push(vec![wire_indices[l1 as usize], index + 1]);
+                wire_indices[l1 as usize] = index + 1;
+                index += 1;
+            }
+        }
+    }
+    let bond_die = Uniform::from(2..4);
+    let mut bond_dims = HashMap::new();
+    for i in 0..index + 1 {
+        bond_dims.entry(i).or_insert(bond_die.sample(&mut rng));
+    }
+
+    TensorNetwork::new(
+        tensors.iter().map(|e| Tensor::new((*e).clone())).collect(),
+        bond_dims,
+    )
+}
