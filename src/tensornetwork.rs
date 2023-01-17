@@ -639,9 +639,10 @@ mod tests {
     #[test]
     fn test_tensor_contraction_good() {
         let mut t = setup();
-        let (time_complexity, space_complexity) = t.contraction(0, 1);
+        let (tensor_intersect, _tensor_difference) = t._contraction(&0, &1);
         // contraction should maintain leg order
-        let tensor_sol = Tensor::new(vec![4, 0, 1]);
+        let vec_sol = vec![0, 1, 4];
+        let tensor_sol = Tensor::new(vec_sol.clone());
         let mut edge_sol = HashMap::<i32, (Option<i32>, Option<i32>)>::new();
         edge_sol.entry(0).or_insert((Some(0), None));
         edge_sol.entry(1).or_insert((Some(0), None));
@@ -654,7 +655,7 @@ mod tests {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
 
-        assert_eq!(time_complexity, 1534896);
-        assert_eq!(space_complexity, 81516);
+        assert_eq!(tensor_intersect, vec![3, 2]);
+        assert_eq!(_tensor_difference, vec_sol);
     }
 }
