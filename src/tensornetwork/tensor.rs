@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
-#[derive(Eq, Ord, PartialEq, PartialOrd, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 /// Abstract representation of a tensor. Stores a Vector of edge ids, used to indicate
 /// contractions between Tensors. Edge dimensions are stored in a separate HashMap object. 
 /// See [TensorNetwork].
