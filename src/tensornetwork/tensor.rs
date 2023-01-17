@@ -4,7 +4,7 @@ use std::ops::{Index, IndexMut};
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 /// Abstract representation of a tensor. Stores a Vector of edge ids, used to indicate
-/// contractions between Tensors. Edge dimensions are stored in a separate HashMap object. 
+/// contractions between Tensors. Edge dimensions are stored in a separate HashMap object.
 /// See [TensorNetwork].
 pub struct Tensor {
     /// Stores edge ids in a Vector.
@@ -13,11 +13,11 @@ pub struct Tensor {
 
 impl Tensor {
     /// Constructs a Tensor object
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `legs` - A vector of i32 containing edge ids.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
@@ -28,7 +28,7 @@ impl Tensor {
         Self { legs }
     }
     /// Returns edge ids of Tensor object
-    /// 
+    ///
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
@@ -41,7 +41,7 @@ impl Tensor {
     }
 
     /// Returns Iter of Tensor object legs
-    /// 
+    ///
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
@@ -54,11 +54,11 @@ impl Tensor {
     }
 
     /// Returns product of leg sizes based on input Hashmap. Returns the number of elements in a tensor
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `bond_dim` - Reference to hashmap mapping edge ID to bond dimension size
-    /// 
+    ///
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
@@ -86,7 +86,7 @@ impl fmt::Display for Tensor {
 /// Implementation of indexing for Tensor.
 impl Index<usize> for Tensor {
     type Output = i32;
-    
+
     fn index(&self, index: usize) -> &Self::Output {
         &self.legs[index]
     }
