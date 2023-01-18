@@ -36,7 +36,7 @@ enum ReturnVal {
     ArgList(Vec<Argument>),
     IdentifierList(Vec<String>),
     Expression(Box<Expr>),
-    ExpressionList(Vec<Box<Expr>>),
+    ExpressionList(Vec<Expr>),
     GateCall(Box<GCall>),
     QuantumOperation(Box<QOperation>),
     Statement(Box<Statement>),
@@ -78,7 +78,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         while let Some(sctx) = ctx.statement(statements.len()) {
             let statement = self.visit(&*sctx);
             let statement = cast!(statement, ReturnVal::Statement);
-            statements.push(statement);
+            statements.push(*statement);
         }
         ReturnVal::Program(Box::new(Program { statements }))
     }
@@ -142,7 +142,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
             while let Some(bctx) = ctx.bodyStatement(out.len()) {
                 let statement = self.visit(&*bctx);
                 let statement = cast!(statement, ReturnVal::BodyStatement);
-                out.push(statement);
+                out.push(*statement);
             }
             Some(out)
         };
@@ -246,7 +246,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         while let Some(ectx) = ctx.exp(expressions.len()) {
             let expr = self.visit(&*ectx);
             let expr = cast!(expr, ReturnVal::Expression);
-            expressions.push(expr);
+            expressions.push(*expr);
         }
         ReturnVal::ExpressionList(expressions)
     }

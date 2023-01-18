@@ -37,7 +37,7 @@ pub struct Argument(pub String, pub Option<u32>);
 #[derive(Debug)]
 pub struct GCall {
     pub name: String,
-    pub args: Vec<Box<Expr>>,
+    pub args: Vec<Expr>,
     pub qargs: Vec<Argument>,
 }
 
@@ -66,7 +66,7 @@ pub enum Statement {
         name: String,
         params: Vec<String>,
         qubits: Vec<String>,
-        body: Option<Vec<Box<BodyStatement>>>,
+        body: Option<Vec<BodyStatement>>,
     },
     QuantumOperation(Box<QOperation>),
     IfStatement {
@@ -79,5 +79,5 @@ pub enum Statement {
 
 #[derive(Debug)]
 pub struct Program {
-    pub statements: Vec<Box<Statement>>,
+    pub statements: Vec<Statement>,
 }
