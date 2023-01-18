@@ -3,6 +3,7 @@ mod qasm2parser;
 mod qasm2parserlistener;
 mod qasm2parservisitor;
 mod include_resolver;
+mod expression_folder;
 mod ast;
 mod parser;
 pub mod tensornetwork_creator;
