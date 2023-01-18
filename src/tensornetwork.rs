@@ -6,8 +6,8 @@ use std::fmt::Write;
 use std::ops::{Index, IndexMut};
 
 pub mod contraction;
-pub mod tensor;
 pub mod tacotensor;
+pub mod tensor;
 
 use tensor::Tensor;
 
@@ -124,7 +124,7 @@ impl TensorNetwork {
     /// let tn = TensorNetwork::empty_tensor_network();
     /// assert_eq!(tn.is_empty(), true);
     /// ```
-    pub fn is_empty(&self) -> bool{
+    pub fn is_empty(&self) -> bool {
         self.tensors.is_empty()
     }
 
