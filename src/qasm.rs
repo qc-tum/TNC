@@ -6,4 +6,5 @@ mod include_resolver;
 mod expression_folder;
 mod ast;
 mod parser;
+mod utils;
 pub mod tensornetwork_creator;

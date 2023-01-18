@@ -11,22 +11,13 @@ use super::qasm2parser::{
     ArgumentContextAttrs, DeclarationContextAttrs, DesignatorContextAttrs, GateCallContextAttrs,
     MixedlistContextAttrs,
 };
+use super::utils::cast;
 use super::{
     include_resolver::expand_includes,
     qasm2lexer::Qasm2Lexer,
     qasm2parser::{Qasm2Parser, Qasm2ParserContextType},
     qasm2parservisitor::Qasm2ParserVisitorCompat,
 };
-
-macro_rules! cast {
-    ($target: expr, $pat: path) => {{
-        if let $pat(a) = $target {
-            a
-        } else {
-            panic!("Could not cast to {}", stringify!($pat));
-        }
-    }};
-}
 
 type EdgeId = i32;
 

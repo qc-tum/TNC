@@ -17,16 +17,7 @@ use super::qasm2parser::{
 };
 use super::qasm2parser::{LiteralExpressionContextAttrs, Qasm2ParserContextType};
 use super::qasm2parservisitor::Qasm2ParserVisitorCompat;
-
-macro_rules! cast {
-    ($target: expr, $pat: path) => {{
-        if let $pat(a) = $target {
-            a
-        } else {
-            panic!("Could not cast {:?} to {}", $target, stringify!($pat));
-        }
-    }};
-}
+use super::utils::cast;
 
 #[derive(Debug)]
 enum ReturnVal {
