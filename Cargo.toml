@@ -11,6 +11,7 @@ bindgen = "0.63.0"
 itertools = "0.10.5"
 linked_hash_set = "0.1.4"
 log = "0.4.17"
+num-complex = "0.4.2"
 rand = "0.8.5"
 random = "0.13.2"
 taco-sys = { git = "ssh://gitlab.lrz.de/quantum-research/taco-sys.git", tag = "v0.4.0", version = "0.4.0" }
