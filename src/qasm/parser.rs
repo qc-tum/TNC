@@ -347,18 +347,18 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         &mut self,
         ctx: &super::qasm2parser::LiteralExpressionContext,
     ) -> Self::Return {
-        let value = if let Some(val) = ctx.Float() {
-            val.get_text().parse::<f64>().unwrap()
+        let expr = if let Some(val) = ctx.Float() {
+            Expr::Float(val.get_text().parse::<f64>().unwrap())
         } else if let Some(val) = ctx.Integer() {
-            val.get_text().parse::<f64>().unwrap()
+            Expr::Int(val.get_text().parse::<i32>().unwrap())
         } else if ctx.PI().is_some() {
-            std::f64::consts::PI
+            Expr::Float(std::f64::consts::PI)
         } else if let Some(val) = ctx.Identifier() {
-            return ReturnVal::Expression(Box::new(Expr::Variable(val.get_text())));
+            Expr::Variable(val.get_text())
         } else {
             panic!("Unhandled literal");
         };
-        ReturnVal::Expression(Box::new(Expr::Literal(value)))
+        ReturnVal::Expression(Box::new(expr))
     }
 }
 

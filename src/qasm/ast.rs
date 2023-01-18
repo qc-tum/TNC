@@ -24,7 +24,8 @@ pub enum FuncType {
 
 #[derive(Debug)]
 pub enum Expr {
-    Literal(f64),
+    Int(i32),
+    Float(f64),
     Variable(String),
     Unary(UnOp, Box<Expr>),
     Binary(BinOp, Box<Expr>, Box<Expr>),
