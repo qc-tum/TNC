@@ -25,7 +25,7 @@ pub struct TensorNetwork {
     /// Returns bond dimension of edge based on edge id.
     bond_dims: HashMap<i32, u64>,
     /// Hashmap for easy lookup of edge connectivity based on edge id.
-    edges: HashMap<i32, (Option<i32>, Option<i32>)>,
+    edges: HashMap<i32, Vec<i32>>,
 }
 
 /// Helper function that returns the largest edge id of all Tensors in a TensorNetwork.
@@ -56,8 +56,6 @@ impl IndexMut<usize> for TensorNetwork {
     }
 }
 
-
-
 impl TensorNetwork {
     /// Creates an empty TensorNetwork
     ///
@@ -85,7 +83,7 @@ impl TensorNetwork {
     /// let edges = tn.get_edges();
     /// assert_eq!(edges.is_empty(), true);
     /// ```
-    pub fn get_edges(&self) -> &HashMap<i32, (Option<i32>, Option<i32>)> {
+    pub fn get_edges(&self) -> &HashMap<i32, Vec<i32>> {
         &self.edges
     }
 
@@ -161,13 +159,13 @@ impl TensorNetwork {
     /// ```
     pub fn from_vector(tensors: Vec<Tensor>, bond_dims: Vec<u64>) -> Self {
         assert!(tensors.max_leg() < bond_dims.len() as i32);
-        let mut edges: HashMap<i32, (Option<i32>, Option<i32>)> = HashMap::new();
+        let mut edges: HashMap<i32, Vec<i32>> = HashMap::new();
         for index in 0usize..tensors.len() {
             for leg in tensors[index].get_legs() {
                 edges
                     .entry(*leg)
-                    .and_modify(|edge| edge.1 = Some(index as i32))
-                    .or_insert((Some(index as i32), None));
+                    .and_modify(|edge| edge.push(index as i32))
+                    .or_insert(vec![index as i32]);
             }
         }
         Self {
@@ -217,7 +215,7 @@ impl TensorNetwork {
     /// let tn = TensorNetwork::new(vec![v1, v2], bond_dims);
     /// ```    
     pub fn new(tensors: Vec<Tensor>, bond_dims: HashMap<i32, u64>) -> Self {
-        let mut edges: HashMap<i32, (Option<i32>, Option<i32>)> = HashMap::new();
+        let mut edges: HashMap<i32, Vec<i32>> = HashMap::new();
         for index in 0usize..tensors.len() {
             for leg in tensors[index].get_legs() {
                 if !bond_dims.contains_key(&leg) {
@@ -225,8 +223,8 @@ impl TensorNetwork {
                 }
                 edges
                     .entry(*leg)
-                    .and_modify(|edge| edge.1 = Some(index as i32))
-                    .or_insert((Some(index as i32), None));
+                    .and_modify(|edge| edge.push(index as i32))
+                    .or_insert(vec![index as i32]);
             }
         }
         Self {
@@ -255,15 +253,8 @@ impl TensorNetwork {
             for leg in tensors[index].get_legs() {
                 self.edges
                     .entry(*leg)
-                    .and_modify(|edge|
-                        if edge.1.is_some(){
-                            panic!(
-                                "edge {leg} connects Tensor {t1} and {t2}. attempting to connect to third Tensor {t3}", 
-                                leg=leg, t1=edge.0.unwrap(), t2=edge.1.unwrap(), t3=index);
-                        } else{
-                        edge.1 = Some(index as i32);
-                    })
-                    .or_insert((Some(index as i32), None));
+                    .and_modify(|edge| edge.push(index as i32))
+                    .or_insert(vec![index as i32]);
             }
         }
     }
@@ -286,15 +277,8 @@ impl TensorNetwork {
         for leg in tensor.get_legs() {
             self.edges
                 .entry(*leg)
-                .and_modify(|edge|
-                    if edge.1.is_some(){
-                        panic!(
-                            "edge {leg} connects Tensor {t1} and {t2}. attempting to connect to third Tensor {t3}", 
-                            leg=leg, t1=edge.0.unwrap(), t2=edge.1.unwrap(), t3=index);
-                    } else{
-                    edge.1 = Some(index as i32);
-                })
-                .or_insert((Some(index as i32), None));
+                .and_modify(|edge| edge.push(index as i32))
+                .or_insert(vec![index as i32]);
         }
     }
 
@@ -413,70 +397,65 @@ impl TensorNetwork {
         }
 
         for leg in tensor_b_legs.iter() {
-            if self.edges[&leg].0.unwrap_or_default() == tensor_b_loc as i32 {
-                self.edges
-                    .entry(*leg)
-                    .and_modify(|e| e.0 = Some(tensor_a_loc as i32));
-            } else {
-                self.edges
-                    .entry(*leg)
-                    .and_modify(|e| e.1 = Some(tensor_a_loc as i32));
-            }
+            self.edges.entry(*leg).and_modify(|e| for i in 0..e.len(){
+                if e[i] as usize == tensor_b_loc{
+                    e[i] = tensor_a_loc as i32;
+                }
+            });
         }
         self.tensors[tensor_a_loc] = Tensor::new(tensor_difference.clone());
 
         (tensor_intersect, tensor_difference)
     }
 
+    // Constructs Graphviz code showing the tensor network as a graph. The tensor numbering corresponds to their
+    // tensor index (i.e., their position in the tensors vector). The edges are annotated with the bond dims,
+    // as well as the edge id in smaller font.
+    // pub fn to_graphviz(&self) -> String {
+    //     let mut out = String::new();
+    //     let mut invis_counter = 0u32;
+    //     out.push_str("graph tn {\n");
 
-    /// Constructs Graphviz code showing the tensor network as a graph. The tensor numbering corresponds to their
-    /// tensor index (i.e., their position in the tensors vector). The edges are annotated with the bond dims,
-    /// as well as the edge id in smaller font.
-    pub fn to_graphviz(&self) -> String {
-        let mut out = String::new();
-        let mut invis_counter = 0u32;
-        out.push_str("graph tn {\n");
+    //     for (i, tensor) in self.tensors.iter().enumerate() {
+    //         for leg in tensor.get_legs() {
+    //             let connection = self.edges[leg];
 
-        for (i, tensor) in self.tensors.iter().enumerate() {
-            for leg in tensor.get_legs() {
-                let connection = self.edges[leg];
+    //             if let (Some(idx1), Some(_)) = connection {
+    //                 if idx1 == i as i32 {
+    //                     // prevent each edge being added twice, by only considering
+    //                     // edges where this tensor is in the first place
+    //                     continue;
+    //                 }
+    //             }
 
-                if let (Some(idx1), Some(_)) = connection {
-                    if idx1 == i as i32 {
-                        // prevent each edge being added twice, by only considering
-                        // edges where this tensor is in the first place
-                        continue;
-                    }
-                }
+    //             // Get tensor1 name (or create an invisible node if None)
+    //             let t1 = if let Some(idx) = connection.0 {
+    //                 format!("t{}", idx)
+    //             } else {
+    //                 let name = format!("i{}", invis_counter);
+    //                 writeln!(out, "\t{} [style=\"invis\"];", name).unwrap();
+    //                 invis_counter += 1;
+    //                 name
+    //             };
 
-                // Get tensor1 name (or create an invisible node if None)
-                let t1 = if let Some(idx) = connection.0 {
-                    format!("t{}", idx)
-                } else {
-                    let name = format!("i{}", invis_counter);
-                    writeln!(out, "\t{} [style=\"invis\"];", name).unwrap();
-                    invis_counter += 1;
-                    name
-                };
+    //             // Get tensor2 name (or create an invisible node if None)
+    //             let t2 = if let Some(idx) = connection.1 {
+    //                 format!("t{}", idx)
+    //             } else {
+    //                 let name = format!("i{}", invis_counter);
+    //                 writeln!(out, "\t{} [style=\"invis\"];", name).unwrap();
+    //                 invis_counter += 1;
+    //                 name
+    //             };
 
-                // Get tensor2 name (or create an invisible node if None)
-                let t2 = if let Some(idx) = connection.1 {
-                    format!("t{}", idx)
-                } else {
-                    let name = format!("i{}", invis_counter);
-                    writeln!(out, "\t{} [style=\"invis\"];", name).unwrap();
-                    invis_counter += 1;
-                    name
-                };
+    //             // Write edge between tensors
+    //             writeln!(out, "\t{} -- {} [label=\"{}\", taillabel=\"{}\", headlabel=\"{}\", labelfontsize=\"8pt\"];", t1, t2, self.bond_dims[leg], leg, leg).unwrap();
+    //         }
+    //     }
 
-                // Write edge between tensors
-                writeln!(out, "\t{} -- {} [label=\"{}\", taillabel=\"{}\", headlabel=\"{}\", labelfontsize=\"8pt\"];", t1, t2, self.bond_dims[leg], leg, leg).unwrap();
-            }
-        }
-
-        out.push_str("}");
-        out
-    }
+    //     out.push_str("}");
+    //     out
+    // }
 }
 
 /// Implementation of printing for TensorNetwork. Simply prints the Tensor objects in TensorNetwork
@@ -498,7 +477,6 @@ impl Default for TensorNetwork {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -522,12 +500,12 @@ mod tests {
     #[test]
     fn test_new() {
         let tensors = vec![Tensor::new(vec![4, 3, 2]), Tensor::new(vec![0, 1, 3, 2])];
-        let mut edge_sol = HashMap::<i32, (Option<i32>, Option<i32>)>::new();
-        edge_sol.entry(0).or_insert((Some(1), None));
-        edge_sol.entry(1).or_insert((Some(1), None));
-        edge_sol.entry(2).or_insert((Some(0), Some(1)));
-        edge_sol.entry(3).or_insert((Some(0), Some(1)));
-        edge_sol.entry(4).or_insert((Some(0), None));
+        let mut edge_sol = HashMap::<i32, Vec<i32>>::new();
+        edge_sol.entry(0).or_insert(vec![1]);
+        edge_sol.entry(1).or_insert(vec![1]);
+        edge_sol.entry(2).or_insert(vec![0, 1]);
+        edge_sol.entry(3).or_insert(vec![0, 1]);
+        edge_sol.entry(4).or_insert(vec![0]);
         let bond_dims = vec![17, 18, 19, 12, 22];
         let t = TensorNetwork::from_vector(tensors, bond_dims.clone());
         for leg in 0..t.tensors.max_leg() as usize {
@@ -544,12 +522,12 @@ mod tests {
         let mut t = setup();
         let good_tensor = Tensor::new(vec![0, 1, 4]);
         t.push_tensor(good_tensor, None);
-        let mut edge_sol = HashMap::<i32, (Option<i32>, Option<i32>)>::new();
-        edge_sol.entry(0).or_insert((Some(1), Some(2)));
-        edge_sol.entry(1).or_insert((Some(1), Some(2)));
-        edge_sol.entry(2).or_insert((Some(0), Some(1)));
-        edge_sol.entry(3).or_insert((Some(0), Some(1)));
-        edge_sol.entry(4).or_insert((Some(0), Some(2)));
+        let mut edge_sol = HashMap::<i32, Vec<i32>>::new();
+        edge_sol.entry(0).or_insert(vec![1, 2]);
+        edge_sol.entry(1).or_insert(vec![1, 2]);
+        edge_sol.entry(2).or_insert(vec![0, 1]);
+        edge_sol.entry(3).or_insert(vec![0, 1]);
+        edge_sol.entry(4).or_insert(vec![0, 2]);
         let bond_dims = vec![17, 18, 19, 12, 22];
 
         for leg in 0..t.tensors.max_leg() as usize {
@@ -571,15 +549,15 @@ mod tests {
         for legs in good_tensor.get_legs() {
             assert_eq!(good_bond_dims[&legs], t.bond_dims[legs]);
         }
-        let mut edge_sol = HashMap::<i32, (Option<i32>, Option<i32>)>::new();
-        edge_sol.entry(0).or_insert((Some(1), None));
-        edge_sol.entry(1).or_insert((Some(1), None));
-        edge_sol.entry(2).or_insert((Some(0), Some(1)));
-        edge_sol.entry(3).or_insert((Some(0), Some(1)));
-        edge_sol.entry(4).or_insert((Some(0), None));
-        edge_sol.entry(7).or_insert((Some(2), None));
-        edge_sol.entry(9).or_insert((Some(3), None));
-        edge_sol.entry(12).or_insert((Some(4), None));
+        let mut edge_sol = HashMap::<i32, Vec<i32>>::new();
+        edge_sol.entry(0).or_insert(vec![1]);
+        edge_sol.entry(1).or_insert(vec![1]);
+        edge_sol.entry(2).or_insert(vec![0, 1]);
+        edge_sol.entry(3).or_insert(vec![0, 1]);
+        edge_sol.entry(4).or_insert(vec![0]);
+        edge_sol.entry(7).or_insert(vec![2]);
+        edge_sol.entry(9).or_insert(vec![3]);
+        edge_sol.entry(12).or_insert(vec![4]);
         let bond_dims = vec![55, 5, 6];
         let mut x = bond_dims.iter();
         for leg in good_tensor.get_legs() {
@@ -617,12 +595,12 @@ mod tests {
         // contraction should maintain leg order
         let vec_sol = vec![0, 1, 4];
         let tensor_sol = Tensor::new(vec_sol.clone());
-        let mut edge_sol = HashMap::<i32, (Option<i32>, Option<i32>)>::new();
-        edge_sol.entry(0).or_insert((Some(0), None));
-        edge_sol.entry(1).or_insert((Some(0), None));
-        edge_sol.entry(2).or_insert((Some(0), Some(0)));
-        edge_sol.entry(3).or_insert((Some(0), Some(0)));
-        edge_sol.entry(4).or_insert((Some(0), None));
+        let mut edge_sol = HashMap::<i32, Vec<i32>>::new();
+        edge_sol.entry(0).or_insert(vec![0]);
+        edge_sol.entry(1).or_insert(vec![0]);
+        edge_sol.entry(2).or_insert(vec![0, 0]);
+        edge_sol.entry(3).or_insert(vec![0, 0]);
+        edge_sol.entry(4).or_insert(vec![0]);
 
         assert_eq!(t.get_tensors()[0], tensor_sol);
         for edge_key in 0i32..4 {

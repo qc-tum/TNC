@@ -109,9 +109,9 @@ pub fn tn_multicontract(
         .collect_vec();
 
     let mut output_indices = Vec::new();
-    for (i, j) in tn.get_edges() {
-        if j.1.is_none() {
-            output_indices.push(*i);
+    for (k, v) in tn.get_edges() {
+        if v.len() == 1 {
+            output_indices.push(*k);
         }
     }
     let output_indices_size = output_indices
