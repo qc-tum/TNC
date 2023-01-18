@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fs;
+use std::ops::RangeInclusive;
 use std::path::PathBuf;
 
 use antlr_rust::common_token_stream::CommonTokenStream;
@@ -17,8 +18,7 @@ static QELIB: &'static str = include_str!("qelib1.inc");
 #[derive(Clone, Debug)]
 struct IncludeInstruction {
     path: String,
-    start: usize,
-    end: usize,
+    span: RangeInclusive<usize>,
 }
 
 /// Visitor collecting all include statements in a file.
@@ -58,8 +58,7 @@ impl Qasm2ParserVisitorCompat<'_> for IncludeVisitor {
         let include_path = &include_path[1..include_path.len() - 1];
         vec![IncludeInstruction {
             path: String::from(include_path),
-            start,
-            end,
+            span: start..=end,
         }]
     }
 }
@@ -115,7 +114,7 @@ pub fn expand_includes(code: &mut String) {
         };
 
         // Include code in the root code
-        code.replace_range(include.start..=include.end, included_text);
+        code.replace_range(include.span.clone(), included_text);
         already_included.insert(path);
     }
 }
