@@ -511,7 +511,6 @@ impl TensorNetwork {
             });
         }
         self.tensors[tensor_a_loc] = Tensor::new(tensor_difference.clone());
-
         (tensor_intersect, tensor_difference)
     }
 }
