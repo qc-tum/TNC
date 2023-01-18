@@ -7,6 +7,7 @@ use std::ops::{Index, IndexMut};
 
 pub mod contraction;
 pub mod tensor;
+pub mod tacotensor;
 
 use tensor::Tensor;
 
