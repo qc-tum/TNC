@@ -20,6 +20,7 @@ use taco_sys::{contract, multicontract, Tensor as _TacoTensor};
 ///     tensornetwork::{tensor::Tensor, TensorNetwork},
 ///     tensornetwork::contraction::tn_contract,
 /// };
+/// 
 /// let r_tn = random_tensor_network(2, 3);
 /// let mut d_tn = Vec::new();
 /// for r_t in r_tn.get_tensors() {
@@ -31,7 +32,7 @@ use taco_sys::{contract, multicontract, Tensor as _TacoTensor};
 /// }
 /// let mut opt = BranchBound::new(r_tn.clone(), None, 20, BranchBoundType::Flops);
 /// opt._optimize_path(None);
-/// let opt_path = opt.get_best_path();
+/// let opt_path = opt.get_best_replace_path();
 /// tn_contract(r_tn, d_tn, &opt_path);
 /// ```
 pub fn tn_contract(
