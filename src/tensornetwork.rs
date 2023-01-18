@@ -496,18 +496,9 @@ impl TensorNetwork {
 
         for leg in tensor_b_legs.iter() {
             self.edges.entry(*leg).and_modify(|e| {
-                e.drain_filter(|e| {
-                    if let Some(edge) = e {
-                        return *edge == tensor_a_loc as i32;
-                    } else {
-                        return false;
-                    }
-                });
                 for i in 0..e.len() {
-                    if let Some(tensor_loc) = e[i] {
-                        if tensor_loc as usize == tensor_b_loc {
-                            e[i] = Some(tensor_a_loc as i32);
-                        }
+                    if e[i] == Some(tensor_b_loc as i32) {
+                        e[i] = Some(tensor_a_loc as i32);
                     }
                 }
             });
