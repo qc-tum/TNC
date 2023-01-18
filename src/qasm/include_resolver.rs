@@ -22,14 +22,9 @@ struct IncludeInstruction {
 }
 
 /// Visitor collecting all include statements in a file.
+#[derive(Debug, Default)]
 struct IncludeVisitor {
     result: Vec<IncludeInstruction>,
-}
-
-impl Default for IncludeVisitor {
-    fn default() -> Self {
-        Self { result: Vec::new() }
-    }
 }
 
 impl ParseTreeVisitorCompat<'_> for IncludeVisitor {
@@ -40,10 +35,9 @@ impl ParseTreeVisitorCompat<'_> for IncludeVisitor {
         &mut self.result
     }
 
-    fn aggregate_results(&self, aggregate: Self::Return, next: Self::Return) -> Self::Return {
-        let mut res = aggregate.clone();
-        res.extend_from_slice(&next);
-        res
+    fn aggregate_results(&self, mut aggregate: Self::Return, next: Self::Return) -> Self::Return {
+        aggregate.extend_from_slice(&next);
+        aggregate
     }
 }
 
@@ -82,7 +76,7 @@ fn parse_includes(code: &str) -> Vec<IncludeInstruction> {
 /// resolve includes in the original file, not in the included files.
 pub fn expand_includes(code: &mut String) {
     let mut already_included = HashSet::new();
-    let includes = parse_includes(&code);
+    let includes = parse_includes(code);
 
     for include in includes.iter().rev() {
         let is_stdlib = include.path == "qelib1.inc";

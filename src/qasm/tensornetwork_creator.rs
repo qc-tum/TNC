@@ -48,11 +48,11 @@ enum ReturnVal {
 
 impl Default for ReturnVal {
     fn default() -> Self {
-        ReturnVal::Void
+        Self::Void
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct CreatorVisitor {
     tmp: ReturnVal,
     edge_counter: EdgeId,
@@ -60,17 +60,6 @@ struct CreatorVisitor {
 
     /// Maps qubits to the last open edge on the corresponding wire
     wires: HashMap<Qubit, EdgeId>,
-}
-
-impl Default for CreatorVisitor {
-    fn default() -> Self {
-        Self {
-            tmp: ReturnVal::default(),
-            edge_counter: 0,
-            tensors: Vec::new(),
-            wires: HashMap::new(),
-        }
-    }
 }
 
 impl CreatorVisitor {

@@ -50,17 +50,9 @@ impl Default for ReturnVal {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct MyVisitor {
     tmp: ReturnVal,
-}
-
-impl Default for MyVisitor {
-    fn default() -> Self {
-        Self {
-            tmp: ReturnVal::default(),
-        }
-    }
 }
 
 impl ParseTreeVisitorCompat<'_> for MyVisitor {
@@ -127,7 +119,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
 
         // Parse params. If not given, return empty vector
         let params = ctx.params.as_ref().map_or_else(
-            || Vec::new(),
+            Vec::new,
             |ctx| cast!(self.visit(&**ctx), ReturnVal::IdentifierList),
         );
 
@@ -195,12 +187,10 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         };
 
         // Parse parameters
-        let args = if let Some(ectx) = ctx.explist() {
-            let exprs = self.visit(&*ectx);
-            cast!(exprs, ReturnVal::ExpressionList)
-        } else {
-            Vec::new()
-        };
+        let args = ctx.explist().map_or_else(
+            Vec::new,
+            |ectx| cast!(self.visit(&*ectx), ReturnVal::ExpressionList),
+        );
 
         // Parse qubit params
         let qargs = self.visit(&*ctx.mixedlist().unwrap());
@@ -370,7 +360,7 @@ fn parse(code: &str) {
 
     let mut visitor = MyVisitor::default();
     parsed.accept(&mut visitor);
-    println!("{:#?}", visitor);
+    println!("{visitor:#?}");
 }
 
 #[cfg(test)]
