@@ -1,10 +1,10 @@
 #[derive(Debug)]
-pub enum UnOperator {
+pub enum UnOp {
     Neg,
 }
 
 #[derive(Debug)]
-pub enum BinOperator {
+pub enum BinOp {
     Add,
     Sub,
     Mul,
@@ -26,8 +26,8 @@ pub enum FuncType {
 pub enum Expr {
     Literal(f64),
     Variable(String),
-    UnaryExpr(UnOperator, Box<Expr>),
-    BinaryExpr(BinOperator, Box<Expr>, Box<Expr>),
+    Unary(UnOp, Box<Expr>),
+    Binary(BinOp, Box<Expr>, Box<Expr>),
     Function(FuncType, Box<Expr>),
 }
 

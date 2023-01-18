@@ -3,8 +3,8 @@ use antlr_rust::tree::{ParseTree, ParseTreeVisitorCompat, Visitable};
 use antlr_rust::InputStream;
 
 use super::ast::{
-    Argument, BinOperator, BodyStatement, Expr, FuncType, GCall, Program, QOperation, Statement,
-    UnOperator,
+    Argument, BinOp, BodyStatement, Expr, FuncType, GCall, Program, QOperation, Statement,
+    UnOp,
 };
 use super::qasm2lexer::Qasm2Lexer;
 use super::qasm2parser::{
@@ -267,13 +267,13 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         let rhs = self.visit(&**ctx.rhs.as_ref().unwrap());
         let rhs = cast!(rhs, ReturnVal::Expression);
         let op = if ctx.PLUS().is_some() {
-            BinOperator::Add
+            BinOp::Add
         } else if ctx.MINUS().is_some() {
-            BinOperator::Sub
+            BinOp::Sub
         } else {
             panic!("Unhandled operator");
         };
-        ReturnVal::Expression(Box::new(Expr::BinaryExpr(op, lhs, rhs)))
+        ReturnVal::Expression(Box::new(Expr::Binary(op, lhs, rhs)))
     }
 
     fn visit_multiplicativeExpression(
@@ -285,13 +285,13 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         let rhs = self.visit(&**ctx.rhs.as_ref().unwrap());
         let rhs = cast!(rhs, ReturnVal::Expression);
         let op = if ctx.ASTERISK().is_some() {
-            BinOperator::Mul
+            BinOp::Mul
         } else if ctx.SLASH().is_some() {
-            BinOperator::Div
+            BinOp::Div
         } else {
             panic!("Unhandled operator");
         };
-        ReturnVal::Expression(Box::new(Expr::BinaryExpr(op, lhs, rhs)))
+        ReturnVal::Expression(Box::new(Expr::Binary(op, lhs, rhs)))
     }
 
     fn visit_bitwiseXorExpression(
@@ -303,11 +303,11 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         let rhs = self.visit(&**ctx.rhs.as_ref().unwrap());
         let rhs = cast!(rhs, ReturnVal::Expression);
         let op = if ctx.CARET().is_some() {
-            BinOperator::BitXor
+            BinOp::BitXor
         } else {
             panic!("Unhandled operator");
         };
-        ReturnVal::Expression(Box::new(Expr::BinaryExpr(op, lhs, rhs)))
+        ReturnVal::Expression(Box::new(Expr::Binary(op, lhs, rhs)))
     }
 
     fn visit_unaryExpression(
@@ -316,7 +316,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
     ) -> Self::Return {
         let inner = self.visit(&*ctx.exp().unwrap());
         let inner = cast!(inner, ReturnVal::Expression);
-        ReturnVal::Expression(Box::new(Expr::UnaryExpr(UnOperator::Neg, inner)))
+        ReturnVal::Expression(Box::new(Expr::Unary(UnOp::Neg, inner)))
     }
 
     fn visit_functionExpression(
