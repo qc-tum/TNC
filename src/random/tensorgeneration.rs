@@ -6,6 +6,7 @@ use rand::prelude::SliceRandom;
 use rand::Rng;
 use std::collections::HashMap;
 use taco_sys::Tensor as _TacoTensor;
+use num_complex::Complex64;
 
 /// Generates random Tensor object with `n` dimensions and corresponding `bond_dims` HashMap,
 /// bond dimensions are uniformly distributed between 1 and 20.
@@ -92,7 +93,8 @@ pub fn random_sparse_tensor(
         for r in ranges.clone() {
             loc.push(rng.gen_range(r));
         }
-        tacotensor.insert(&loc.clone(), rng.gen());
+        let val = Complex64::new(rng.gen(), rng.gen());
+        tacotensor.insert(&loc.clone(), val);
         loc.clear();
         count += 1;
     }
