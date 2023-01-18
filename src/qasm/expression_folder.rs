@@ -1,59 +1,56 @@
-use std::{ops::DerefMut, mem::take};
+use std::mem::take;
+use std::ops::DerefMut;
 
-use super::ast::{BinOp, Expr, UnOp};
+use super::{
+    ast::{BinOp, Expr, UnOp},
+    utils::cast,
+};
 
-fn simplify_copy(expr: Box<Expr>) -> Box<Expr> {
-    match *expr {
-        Expr::Unary(UnOp::Neg, inner) => {
-            let inner = simplify_copy(inner);
-            if let Expr::Unary(UnOp::Neg, inner2) = *inner {
-                inner2
-            } else {
-                Box::new(Expr::Unary(UnOp::Neg, inner))
-            }
-        }
-        Expr::Binary(op, lhs, rhs) => {
-            let lhs = simplify_copy(lhs);
-            let rhs = simplify_copy(rhs);
-            match (&op, &*lhs, &*rhs) {
-                (op, Expr::Float(a), Expr::Float(b)) => {
-                    let res = match op {
-                        BinOp::Add => a + b,
-                        BinOp::Sub => a - b,
-                        BinOp::Mul => a * b,
-                        BinOp::Div => a / b,
-                        BinOp::BitXor => panic!("BitXor is not defined on floats"),
-                    };
-                    Box::new(Expr::Float(res))
-                }
-                (op, Expr::Int(a), Expr::Int(b)) => {
-                    let res = match op {
-                        BinOp::Add => a + b,
-                        BinOp::Sub => a - b,
-                        BinOp::Mul => a * b,
-                        BinOp::Div => a / b,
-                        BinOp::BitXor => a | b,
-                    };
-                    Box::new(Expr::Int(res))
-                }
-                _ => Box::new(Expr::Binary(op, lhs, rhs)),
-            }
-        }
-        _ => expr,
-    }
-}
-
-fn simplify_inplace(expr: &mut Box<Expr>) {
+fn simplify(expr: &mut Box<Expr>) {
     match expr.deref_mut() {
         Expr::Unary(UnOp::Neg, inner) => {
-            simplify_inplace(inner);
+            simplify(inner);
+
             match inner.deref_mut() {
+                // -(x) => (-x)
+                Expr::Int(x) => {
+                    *expr = Box::new(Expr::Int(-*x));
+                }
+                // -(x) => (-x)
+                Expr::Float(x) => {
+                    *expr = Box::new(Expr::Float(-*x));
+                },
+                // --x => x
                 Expr::Unary(UnOp::Neg, inner2) => {
                     *expr = take(inner2);
-                },
+                }
                 _ => (),
             }
-        },
+        }
+
+        Expr::Binary(op, lhs, rhs) => {
+            simplify(lhs);
+            simplify(rhs);
+
+            // Constant evaluation
+            if lhs.is_const() && rhs.is_const() {
+                if let BinOp::BitXor = op {
+                    // BitXor only works on two integers
+                    let lhs = cast!(**lhs, Expr::Int);
+                    let rhs = cast!(**rhs, Expr::Int);
+                    *expr = Box::new(Expr::Int(lhs ^ rhs));
+                } else {
+                    *expr = Box::new(match op {
+                        BinOp::Add => lhs.as_ref() + rhs.as_ref(),
+                        BinOp::Sub => lhs.as_ref() - rhs.as_ref(),
+                        BinOp::Mul => todo!(),
+                        BinOp::Div => todo!(),
+                        BinOp::BitXor => todo!(),
+                    });
+                }
+            }
+        }
+
         _ => (),
     }
 }
@@ -62,40 +59,127 @@ fn simplify_inplace(expr: &mut Box<Expr>) {
 mod tests {
     use crate::qasm::{
         ast::{BinOp, Expr, UnOp},
-        expression_folder::simplify_inplace,
+        expression_folder::simplify,
     };
 
-    use super::simplify_copy;
-
     #[test]
-    fn copy() {
-        let a = Expr::Unary(
+    fn neg_neg() {
+        let mut a = Box::new(Expr::Unary(
             UnOp::Neg,
-            Box::new(Expr::Unary(
-                UnOp::Neg,
-                Box::new(Expr::Unary(
-                    UnOp::Neg,
-                    Box::new(Expr::Binary(
-                        BinOp::Add,
-                        Box::new(Expr::Float(12.0)),
-                        Box::new(Expr::Int(2)),
-                    )),
-                )),
-            )),
-        );
-        println!("{a:?}");
-        let b = simplify_copy(Box::new(a));
-        println!("{b:?}");
+            Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(64)))),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Int(64));
     }
 
     #[test]
-    fn inplace() {
+    fn neg_neg_neg_int() {
         let mut a = Box::new(Expr::Unary(
             UnOp::Neg,
-            Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(2)))),
+            Box::new(Expr::Unary(
+                UnOp::Neg,
+                Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(2)))),
+            )),
         ));
-        println!("{a:?}");
-        simplify_inplace(&mut a);
-        println!("{a:?}");
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Int(-2));
+    }
+
+    #[test]
+    fn neg_neg_neg_float() {
+        let mut a = Box::new(Expr::Unary(
+            UnOp::Neg,
+            Box::new(Expr::Unary(
+                UnOp::Neg,
+                Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Float(3.14)))),
+            )),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Float(-3.14));
+    }
+
+    #[test]
+    #[should_panic]
+    fn xor_float_fail() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::BitXor,
+            Box::new(Expr::Float(1.0)),
+            Box::new(Expr::Int(2)),
+        ));
+        simplify(&mut a);
+    }
+
+    #[test]
+    fn add_int() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Add,
+            Box::new(Expr::Int(2)),
+            Box::new(Expr::Int(4)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Int(6));
+    }
+
+    #[test]
+    fn add_float() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Add,
+            Box::new(Expr::Binary(
+                BinOp::Add,
+                Box::new(Expr::Float(0.1)),
+                Box::new(Expr::Float(0.1)),
+            )),
+            Box::new(Expr::Float(0.1)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Float(0.1 + 0.1 + 0.1));
+    }
+
+    #[test]
+    fn add_mixed() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Add,
+            Box::new(Expr::Float(0.5)),
+            Box::new(Expr::Int(2)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Float(0.5 + 2.0));
+    }
+
+    #[test]
+    fn sub_int() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Sub,
+            Box::new(Expr::Int(2)),
+            Box::new(Expr::Int(4)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Int(-2));
+    }
+
+    #[test]
+    fn sub_float() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Sub,
+            Box::new(Expr::Binary(
+                BinOp::Sub,
+                Box::new(Expr::Float(0.1)),
+                Box::new(Expr::Float(0.1)),
+            )),
+            Box::new(Expr::Float(0.1)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Float(0.1 - 0.1 - 0.1));
+    }
+
+    #[test]
+    fn sub_mixed() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Sub,
+            Box::new(Expr::Float(0.5)),
+            Box::new(Expr::Int(2)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Float(0.5 - 2.0));
     }
 }
