@@ -164,8 +164,12 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> TensorNetwork {
         bond_dims.entry(i).or_insert(bond_die.sample(&mut rng));
     }
 
-    TensorNetwork::new(
+    let t = TensorNetwork::new(
         tensors.iter().map(|e| Tensor::new((*e).clone())).collect(),
         bond_dims,
-    )
+    );
+    if t.is_empty(){
+        return random_tensor_network(n, cycles);
+    }
+    t
 }
