@@ -1,10 +1,7 @@
 use std::mem::take;
 use std::ops::DerefMut;
 
-use super::{
-    ast::{BinOp, Expr, UnOp},
-    utils::cast,
-};
+use super::ast::{BinOp, Expr, UnOp};
 
 fn simplify(expr: &mut Box<Expr>) {
     match expr.deref_mut() {
@@ -19,7 +16,7 @@ fn simplify(expr: &mut Box<Expr>) {
                 // -(x) => (-x)
                 Expr::Float(x) => {
                     *expr = Box::new(Expr::Float(-*x));
-                },
+                }
                 // --x => x
                 Expr::Unary(UnOp::Neg, inner2) => {
                     *expr = take(inner2);
@@ -34,20 +31,13 @@ fn simplify(expr: &mut Box<Expr>) {
 
             // Constant evaluation
             if lhs.is_const() && rhs.is_const() {
-                if let BinOp::BitXor = op {
-                    // BitXor only works on two integers
-                    let lhs = cast!(**lhs, Expr::Int);
-                    let rhs = cast!(**rhs, Expr::Int);
-                    *expr = Box::new(Expr::Int(lhs ^ rhs));
-                } else {
-                    *expr = Box::new(match op {
-                        BinOp::Add => lhs.as_ref() + rhs.as_ref(),
-                        BinOp::Sub => lhs.as_ref() - rhs.as_ref(),
-                        BinOp::Mul => todo!(),
-                        BinOp::Div => todo!(),
-                        BinOp::BitXor => todo!(),
-                    });
-                }
+                *expr = Box::new(match op {
+                    BinOp::Add => lhs.as_ref() + rhs.as_ref(),
+                    BinOp::Sub => lhs.as_ref() - rhs.as_ref(),
+                    BinOp::Mul => todo!(),
+                    BinOp::Div => todo!(),
+                    BinOp::BitXor => lhs.as_ref() ^ rhs.as_ref(),
+                });
             }
         }
 
@@ -96,17 +86,6 @@ mod tests {
         ));
         simplify(&mut a);
         assert_eq!(*a, Expr::Float(-3.14));
-    }
-
-    #[test]
-    #[should_panic]
-    fn xor_float_fail() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::BitXor,
-            Box::new(Expr::Float(1.0)),
-            Box::new(Expr::Int(2)),
-        ));
-        simplify(&mut a);
     }
 
     #[test]
@@ -181,5 +160,27 @@ mod tests {
         ));
         simplify(&mut a);
         assert_eq!(*a, Expr::Float(0.5 - 2.0));
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot apply bitxor on non-int types")]
+    fn xor_float_fail() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::BitXor,
+            Box::new(Expr::Float(1.0)),
+            Box::new(Expr::Int(2)),
+        ));
+        simplify(&mut a);
+    }
+
+    #[test]
+    fn xor_int() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::BitXor,
+            Box::new(Expr::Int(5)),
+            Box::new(Expr::Int(2)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Int(7));
     }
 }

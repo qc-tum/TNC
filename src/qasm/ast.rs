@@ -101,6 +101,18 @@ impl ops::Sub<&Expr> for &Expr {
     }
 }
 
+impl ops::BitXor<&Expr> for &Expr {
+    type Output = Expr;
+
+    fn bitxor(self, rhs: &Expr) -> Self::Output {
+        if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
+            Expr::Int(a ^ b)
+        } else {
+            panic!("Cannot apply bitxor on non-int types");
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Argument(pub String, pub Option<u32>);
 
