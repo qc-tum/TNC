@@ -145,28 +145,7 @@ impl ops::BitXor<&Expr> for &Expr {
 pub struct Argument(pub String, pub Option<u32>);
 
 #[derive(Debug)]
-pub struct GCall {
-    pub name: String,
-    pub args: Vec<Expr>,
-    pub qargs: Vec<Argument>,
-}
-
-#[derive(Debug)]
-pub enum QOperation {
-    GateCall(Box<GCall>),
-    Measurement { src: Argument, dest: Argument },
-    Reset { dest: Argument },
-}
-
-#[derive(Debug)]
-pub enum BodyStatement {
-    GateCall(Box<GCall>),
-    Barrier(Vec<String>),
-}
-
-#[derive(Debug)]
 pub enum Statement {
-    Include(String),
     Declaration {
         is_quantum: bool,
         name: String,
@@ -176,13 +155,24 @@ pub enum Statement {
         name: String,
         params: Vec<String>,
         qubits: Vec<String>,
-        body: Option<Vec<BodyStatement>>,
+        body: Option<Vec<Statement>>,
     },
-    QuantumOperation(Box<QOperation>),
+    GateCall {
+        name: String,
+        args: Vec<Expr>,
+        qargs: Vec<Argument>,
+    },
+    Measurement {
+        src: Argument,
+        dest: Argument,
+    },
+    Reset {
+        dest: Argument,
+    },
     IfStatement {
         cond_name: String,
         condition: u32,
-        body: Box<QOperation>,
+        body: Box<Statement>,
     },
     Barrier(Vec<Argument>),
 }
@@ -195,6 +185,5 @@ pub struct Program {
 pub trait Visitor {
     fn visit_program(&mut self, program: &mut Program);
     fn visit_statement(&mut self, statement: &mut Statement);
-    fn visit_body_statement(&mut self, statement: &mut BodyStatement);
-    fn visit_qoperation(&mut self, qoperation: &mut QOperation);
+    fn visit_expression(&mut self, expression: &mut Expr);
 }

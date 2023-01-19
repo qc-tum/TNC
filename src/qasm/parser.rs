@@ -2,10 +2,7 @@ use antlr_rust::common_token_stream::CommonTokenStream;
 use antlr_rust::tree::{ParseTree, ParseTreeVisitorCompat, Visitable};
 use antlr_rust::InputStream;
 
-use super::ast::{
-    Argument, BinOp, BodyStatement, Expr, FuncType, GCall, Program, QOperation, Statement,
-    UnOp,
-};
+use super::ast::{Argument, BinOp, Expr, FuncType, Program, Statement, UnOp};
 use super::qasm2lexer::Qasm2Lexer;
 use super::qasm2parser::{
     AdditiveExpressionContextAttrs, ArgumentContextAttrs, BitwiseXorExpressionContextAttrs,
@@ -28,10 +25,7 @@ enum ReturnVal {
     IdentifierList(Vec<String>),
     Expression(Box<Expr>),
     ExpressionList(Vec<Expr>),
-    GateCall(Box<GCall>),
-    QuantumOperation(Box<QOperation>),
     Statement(Box<Statement>),
-    BodyStatement(Box<BodyStatement>),
     Program(Box<Program>),
 }
 
@@ -68,9 +62,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
 
     fn visit_statement(&mut self, ctx: &super::qasm2parser::StatementContext) -> Self::Return {
         if let Some(qctx) = ctx.quantumOperation() {
-            let qop = self.visit(&*qctx);
-            let qop = cast!(qop, ReturnVal::QuantumOperation);
-            ReturnVal::Statement(Box::new(Statement::QuantumOperation(qop)))
+            self.visit(&*qctx)
         } else if let Some(gctx) = ctx.declaration() {
             self.visit(&*gctx)
         } else if let Some(gctx) = ctx.gateDeclaration() {
@@ -108,11 +100,14 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         let is_opaque = ctx.OPAQUE().is_some();
         let name = ctx.Identifier().unwrap().get_text();
 
+        if is_opaque {
+            panic!("Opaque gates are not supported");
+        }
+
         // Parse params. If not given, return empty vector
-        let params = ctx.params.as_ref().map_or_else(
-            Vec::new,
-            |ctx| cast!(self.visit(&**ctx), ReturnVal::IdentifierList),
-        );
+        let params = ctx.params.as_ref().map_or_else(Vec::new, |ctx| {
+            cast!(self.visit(&**ctx), ReturnVal::IdentifierList)
+        });
 
         // Parse qubit params (must be given)
         let qubits = self.visit(&**ctx.qubits.as_ref().unwrap());
@@ -124,7 +119,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
             let mut out = Vec::new();
             while let Some(bctx) = ctx.bodyStatement(out.len()) {
                 let statement = self.visit(&*bctx);
-                let statement = cast!(statement, ReturnVal::BodyStatement);
+                let statement = cast!(statement, ReturnVal::Statement);
                 out.push(*statement);
             }
             Some(out)
@@ -143,9 +138,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         ctx: &super::qasm2parser::QuantumOperationContext,
     ) -> Self::Return {
         if let Some(gctx) = ctx.gateCall() {
-            let gcall = self.visit(&*gctx);
-            let gcall = cast!(gcall, ReturnVal::GateCall);
-            ReturnVal::QuantumOperation(Box::new(QOperation::GateCall(gcall)))
+            self.visit(&*gctx)
         } else if ctx.MEASURE().is_some() || ctx.RESET().is_some() {
             panic!("Measure and Reset are not supported");
         } else {
@@ -158,9 +151,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         ctx: &super::qasm2parser::BodyStatementContext,
     ) -> Self::Return {
         if let Some(gctx) = ctx.gateCall() {
-            let gcall = self.visit(&*gctx);
-            let gcall = cast!(gcall, ReturnVal::GateCall);
-            ReturnVal::BodyStatement(Box::new(BodyStatement::GateCall(gcall)))
+            self.visit(&*gctx)
         } else {
             panic!("Barrier is not supported")
         }
@@ -178,16 +169,15 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         };
 
         // Parse parameters
-        let args = ctx.explist().map_or_else(
-            Vec::new,
-            |ectx| cast!(self.visit(&*ectx), ReturnVal::ExpressionList),
-        );
+        let args = ctx.explist().map_or_else(Vec::new, |ectx| {
+            cast!(self.visit(&*ectx), ReturnVal::ExpressionList)
+        });
 
         // Parse qubit params
         let qargs = self.visit(&*ctx.mixedlist().unwrap());
         let qargs = cast!(qargs, ReturnVal::ArgList);
 
-        ReturnVal::GateCall(Box::new(GCall { name, args, qargs }))
+        ReturnVal::Statement(Box::new(Statement::GateCall { name, args, qargs }))
     }
 
     fn visit_idlist(&mut self, ctx: &super::qasm2parser::IdlistContext) -> Self::Return {
