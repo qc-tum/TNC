@@ -174,12 +174,14 @@ impl TensorNetwork {
                     .or_insert(vec![Some(index as i32)]);
             }
         }
-        let mut ext_edges = Vec::new();
-        if let Some(ext_edges) = ext {
+        let mut ext_edges: Vec<i32> = if let Some(ext_edges) = ext {
             for i in ext_edges {
                 edges.entry(*i).and_modify(|edge| edge.push(None));
             }
+            ext_edges.clone()
         } else {
+            Vec::new()
+        };
             for i in 0..edges.len() {
                 edges.entry(i as i32).and_modify(|edge| {
                     if edge.len() == 1 {
@@ -188,7 +190,7 @@ impl TensorNetwork {
                     }
                 });
             }
-        }
+
         Self {
             tensors,
             bond_dims: (0i32..).zip(bond_dims).collect(),
@@ -253,13 +255,14 @@ impl TensorNetwork {
                     .or_insert(vec![Some(index as i32)]);
             }
         }
-        let ext_edges: Vec<i32> = if let Some(ext_edges) = ext {
+        let mut ext_edges: Vec<i32> = if let Some(ext_edges) = ext {
             for i in ext_edges {
                 edges.entry(*i).and_modify(|edge| edge.push(None));
             }
             ext_edges.clone()
         } else {
-            let mut ext_edges = Vec::new();
+            Vec::new()
+        };
             for i in 0..edges.len() {
                 edges.entry(i as i32).and_modify(|edge| {
                     if edge.len() == 1 {
@@ -268,8 +271,7 @@ impl TensorNetwork {
                     }
                 });
             }
-            ext_edges
-        };
+
         Self {
             tensors,
             bond_dims,
