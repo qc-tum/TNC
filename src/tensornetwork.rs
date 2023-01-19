@@ -255,23 +255,23 @@ impl TensorNetwork {
                     .or_insert(vec![Some(index as i32)]);
             }
         }
-        let mut ext_edges: Vec<i32> = if let Some(ext_edges) = ext {
+        let ext_edges: Vec<i32> = if let Some(ext_edges) = ext {
             for i in ext_edges {
                 edges.entry(*i).and_modify(|edge| edge.push(None));
             }
             ext_edges.clone()
         } else {
-            Vec::new()
+            let mut ext_edges = Vec::new();
+            for i in 0..edges.len() {
+                edges.entry(i as i32).and_modify(|edge| {
+                    if edge.len() == 1 {
+                        edge.push(None);
+                        ext_edges.push(i as i32);
+                    }
+                });
+            }
+            ext_edges
         };
-        for i in 0..edges.len() {
-            edges.entry(i as i32).and_modify(|edge| {
-                if edge.len() == 1 {
-                    edge.push(None);
-                    ext_edges.push(i as i32);
-                }
-            });
-        }
-
         Self {
             tensors,
             bond_dims,
@@ -497,8 +497,10 @@ impl TensorNetwork {
         for leg in tensor_b_legs.iter() {
             self.edges.entry(*leg).and_modify(|e| {
                 for i in 0..e.len() {
-                    if e[i] == Some(tensor_b_loc as i32) {
-                        e[i] = Some(tensor_a_loc as i32);
+                    if let Some(tensor_loc) = e[i]{
+                        if tensor_loc as usize == tensor_b_loc{
+                            e[i] = Some(tensor_a_loc as i32);
+                        }
                     }
                 }
             });
