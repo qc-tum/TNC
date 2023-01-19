@@ -193,9 +193,8 @@ pub struct Program {
 }
 
 pub trait Visitor {
-    type Output;
-    fn visit_program(&mut self, program: &mut Program) -> Self::Output;
-    fn visit_statement(&mut self, statement: &mut Statement) -> Self::Output;
-    fn visit_body_statement(&mut self, statement: &mut BodyStatement) -> Self::Output;
-    fn visit_qoperation(&mut self, qoperation: &mut QOperation) -> Self::Output;
+    fn visit_program(&mut self, program: &mut Program);
+    fn visit_statement(&mut self, statement: &mut Statement);
+    fn visit_body_statement(&mut self, statement: &mut BodyStatement);
+    fn visit_qoperation(&mut self, qoperation: &mut QOperation);
 }

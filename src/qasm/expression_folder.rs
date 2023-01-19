@@ -15,15 +15,13 @@ impl ExpressionFolder {
 }
 
 impl Visitor for ExpressionFolder {
-    type Output = ();
-
-    fn visit_program(&mut self, program: &mut super::ast::Program) -> Self::Output {
+    fn visit_program(&mut self, program: &mut super::ast::Program){
         for statement in program.statements.iter_mut() {
             self.visit_statement(statement);
         }
     }
 
-    fn visit_statement(&mut self, statement: &mut super::ast::Statement) -> Self::Output {
+    fn visit_statement(&mut self, statement: &mut super::ast::Statement){
         match statement {
             Statement::GateDeclaration {
                 name: _,
@@ -42,14 +40,14 @@ impl Visitor for ExpressionFolder {
         }
     }
 
-    fn visit_body_statement(&mut self, statement: &mut super::ast::BodyStatement) -> Self::Output {
+    fn visit_body_statement(&mut self, statement: &mut super::ast::BodyStatement){
         match statement {
             BodyStatement::GateCall(gcall) => ExpressionFolder::simplify_gatecall(gcall),
             _ => (),
         }
     }
 
-    fn visit_qoperation(&mut self, qoperation: &mut super::ast::QOperation) -> Self::Output {
+    fn visit_qoperation(&mut self, qoperation: &mut super::ast::QOperation){
         match qoperation {
             QOperation::GateCall(gcall) => ExpressionFolder::simplify_gatecall(gcall),
             _ => (),
