@@ -509,6 +509,7 @@ impl TensorNetwork {
 
         (tensor_intersect, tensor_difference)
     }
+}
 
     // Constructs Graphviz code showing the tensor network as a graph. The tensor numbering corresponds to their
     // tensor index (i.e., their position in the tensors vector). The edges are annotated with the bond dims,
@@ -557,7 +558,7 @@ impl TensorNetwork {
 
     // Write edge between tensors
     // writeln!(out, "\t{} -- {} [label=\"{}\", taillabel=\"{}\", headlabel=\"{}\", labelfontsize=\"8pt\"];", t1, t2, self.bond_dims[leg], leg, leg).unwrap();
-}
+
 
 /// Implementation of printing for TensorNetwork. Simply prints the Tensor objects in TensorNetwork
 impl fmt::Display for TensorNetwork {
