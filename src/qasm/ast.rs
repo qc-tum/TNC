@@ -183,7 +183,43 @@ pub struct Program {
 }
 
 pub trait Visitor {
-    fn visit_program(&mut self, program: &mut Program);
-    fn visit_statement(&mut self, statement: &mut Statement);
-    fn visit_expression(&mut self, expression: &mut Expr);
+    fn visit_program(&mut self, program: &mut Program) {
+        for statement in program.statements.iter_mut() {
+            self.visit_statement(statement);
+        }
+    }
+
+    fn visit_statement(&mut self, statement: &mut Statement) {
+        match statement {
+            Statement::GateDeclaration {
+                name: _,
+                params: _,
+                qubits: _,
+                body,
+            } => {
+                if let Some(body) = body {
+                    for statement in body.iter_mut() {
+                        self.visit_statement(statement);
+                    }
+                }
+            }
+            Statement::GateCall {
+                name: _,
+                args,
+                qargs: _,
+            } => {
+                for expr in args.iter_mut() {
+                    self.visit_expression(expr);
+                }
+            }
+            Statement::IfStatement {
+                cond_name: _,
+                condition: _,
+                body,
+            } => self.visit_statement(body),
+            _ => (),
+        }
+    }
+
+    fn visit_expression(&mut self, _expression: &mut Expr) {}
 }

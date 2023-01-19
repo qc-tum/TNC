@@ -1,47 +1,11 @@
-use super::{
-    ast::{Statement, Visitor},
-    expression_simplification::simplify,
-};
+use super::{ast::Visitor, expression_simplification::simplify};
 
 #[derive(Debug, Default)]
 struct ExpressionFolder;
 
 impl Visitor for ExpressionFolder {
-    fn visit_program(&mut self, program: &mut super::ast::Program) {
-        for statement in program.statements.iter_mut() {
-            self.visit_statement(statement);
-        }
-    }
-
     fn visit_expression(&mut self, expression: &mut super::ast::Expr) {
         simplify(expression);
-    }
-
-    fn visit_statement(&mut self, statement: &mut super::ast::Statement) {
-        match statement {
-            Statement::GateDeclaration {
-                name: _,
-                params: _,
-                qubits: _,
-                body,
-            } => {
-                if let Some(body) = body {
-                    for statement in body.iter_mut() {
-                        self.visit_statement(statement);
-                    }
-                }
-            }
-            Statement::GateCall {
-                name: _,
-                args,
-                qargs: _,
-            } => {
-                for expr in args.iter_mut() {
-                    self.visit_expression(expr);
-                }
-            }
-            _ => (),
-        }
     }
 }
 
