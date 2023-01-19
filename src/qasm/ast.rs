@@ -101,6 +101,34 @@ impl ops::Sub<&Expr> for &Expr {
     }
 }
 
+impl ops::Mul<&Expr> for &Expr {
+    type Output = Expr;
+
+    fn mul(self, rhs: &Expr) -> Self::Output {
+        if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
+            Expr::Int(a * b)
+        } else {
+            let a: f64 = self.into();
+            let b: f64 = rhs.into();
+            Expr::Float(a * b)
+        }
+    }
+}
+
+impl ops::Div<&Expr> for &Expr {
+    type Output = Expr;
+
+    fn div(self, rhs: &Expr) -> Self::Output {
+        if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
+            Expr::Int(a / b)
+        } else {
+            let a: f64 = self.into();
+            let b: f64 = rhs.into();
+            Expr::Float(a / b)
+        }
+    }
+}
+
 impl ops::BitXor<&Expr> for &Expr {
     type Output = Expr;
 

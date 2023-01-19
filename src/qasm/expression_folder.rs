@@ -34,8 +34,8 @@ fn simplify(expr: &mut Box<Expr>) {
                 *expr = Box::new(match op {
                     BinOp::Add => lhs.as_ref() + rhs.as_ref(),
                     BinOp::Sub => lhs.as_ref() - rhs.as_ref(),
-                    BinOp::Mul => todo!(),
-                    BinOp::Div => todo!(),
+                    BinOp::Mul => lhs.as_ref() * rhs.as_ref(),
+                    BinOp::Div => lhs.as_ref() / rhs.as_ref(),
                     BinOp::BitXor => lhs.as_ref() ^ rhs.as_ref(),
                 });
             }
@@ -183,6 +183,72 @@ mod tests {
         ));
         simplify(&mut a);
         assert_eq!(*a, Expr::Float(0.5 - 2.0));
+    }
+
+    #[test]
+    fn multiply_ints() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Mul,
+            Box::new(Expr::Int(2)),
+            Box::new(Expr::Int(3)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Int(2 * 3));
+    }
+
+    #[test]
+    fn multiply_floats() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Mul,
+            Box::new(Expr::Float(3.6)),
+            Box::new(Expr::Float(-2.4)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Float(3.6 * -2.4));
+    }
+
+    #[test]
+    fn multiply_mixed() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Mul,
+            Box::new(Expr::Int(3)),
+            Box::new(Expr::Float(0.5)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Float(3f64 * 0.5));
+    }
+
+    #[test]
+    fn divide_ints() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Div,
+            Box::new(Expr::Int(30)),
+            Box::new(Expr::Int(4)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Int(30 / 4));
+    }
+
+    #[test]
+    fn divide_floats() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Div,
+            Box::new(Expr::Float(3.6)),
+            Box::new(Expr::Float(-2.4)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Float(3.6 / -2.4));
+    }
+
+    #[test]
+    fn divide_mixed() {
+        let mut a = Box::new(Expr::Binary(
+            BinOp::Div,
+            Box::new(Expr::Int(3)),
+            Box::new(Expr::Float(0.5)),
+        ));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Float(3f64 / 0.5));
     }
 
     #[test]
