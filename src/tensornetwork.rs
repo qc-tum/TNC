@@ -182,14 +182,14 @@ impl TensorNetwork {
         } else {
             Vec::new()
         };
-            for i in 0..edges.len() {
-                edges.entry(i as i32).and_modify(|edge| {
-                    if edge.len() == 1 {
-                        edge.push(None);
-                        ext_edges.push(i as i32);
-                    }
-                });
-            }
+        for i in 0..edges.len() {
+            edges.entry(i as i32).and_modify(|edge| {
+                if edge.len() == 1 {
+                    edge.push(None);
+                    ext_edges.push(i as i32);
+                }
+            });
+        }
 
         Self {
             tensors,
@@ -263,14 +263,14 @@ impl TensorNetwork {
         } else {
             Vec::new()
         };
-            for i in 0..edges.len() {
-                edges.entry(i as i32).and_modify(|edge| {
-                    if edge.len() == 1 {
-                        edge.push(None);
-                        ext_edges.push(i as i32);
-                    }
-                });
-            }
+        for i in 0..edges.len() {
+            edges.entry(i as i32).and_modify(|edge| {
+                if edge.len() == 1 {
+                    edge.push(None);
+                    ext_edges.push(i as i32);
+                }
+            });
+        }
 
         Self {
             tensors,
@@ -480,9 +480,17 @@ impl TensorNetwork {
         let tensor_intersect = tensor_b_legs.intersect(tensor_a_legs.to_vec());
 
         let mut tensor_difference: Vec<i32> = Vec::new();
+
         for leg in tensor_union.iter() {
+            // Check for legs that are not shared between the two contracted tensors
             if !tensor_intersect.iter().any(|&i| i == *leg) {
                 tensor_difference.push(*leg);
+            }
+            // Check if hyperedges are being contracted, if so, only append once to output tensor
+            if self.ext_edges.iter().any(|&i| i == *leg) {
+                if !tensor_difference.iter().any(|&i| i == *leg) {
+                    tensor_difference.push(*leg);
+                }
             }
         }
 
@@ -585,6 +593,14 @@ mod tests {
             vec![Tensor::new(vec![4, 3, 2]), Tensor::new(vec![0, 1, 3, 2])],
             vec![17, 18, 19, 12, 22],
             None,
+        )
+    }
+
+    fn setup_hyperedge() -> TensorNetwork {
+        TensorNetwork::from_vector(
+            vec![Tensor::new(vec![4, 3, 2]), Tensor::new(vec![0, 1, 3, 2])],
+            vec![17, 18, 19, 12, 22],
+            Some(&vec![2]),
         )
     }
     #[test]
@@ -705,5 +721,29 @@ mod tests {
 
         assert_eq!(tensor_intersect, vec![3, 2]);
         assert_eq!(_tensor_difference, vec_sol);
+    }
+
+    #[test]
+    fn test_tensor_hyperedge_contraction_good() {
+        let mut t = setup_hyperedge();
+        let (tensor_intersect, tensor_difference) = t._contraction(0, 1);
+        // contraction should maintain leg order
+        let tensor_intersect_sol = vec![3, 2];
+        let tensor_difference_sol = vec![0, 1, 2, 4];
+        let tensor_sol = Tensor::new(tensor_difference_sol.clone());
+        let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
+        edge_sol.entry(0).or_insert(vec![Some(0), None]);
+        edge_sol.entry(1).or_insert(vec![Some(0), None]);
+        edge_sol.entry(2).or_insert(vec![Some(0), Some(0), None]);
+        edge_sol.entry(3).or_insert(vec![Some(0), Some(0)]);
+        edge_sol.entry(4).or_insert(vec![Some(0), None]);
+
+        assert_eq!(t.get_tensors()[0], tensor_sol);
+        for edge_key in 0i32..4 {
+            assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
+        }
+
+        assert_eq!(tensor_intersect, tensor_intersect_sol);
+        assert_eq!(tensor_difference, tensor_difference_sol);
     }
 }
