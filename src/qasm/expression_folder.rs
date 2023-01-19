@@ -70,6 +70,8 @@ fn simplify(expr: &mut Box<Expr>) {
 
 #[cfg(test)]
 mod tests {
+    use tux::assert_panic;
+
     use crate::qasm::{
         ast::{BinOp, Expr, FuncType, UnOp},
         expression_folder::simplify,
@@ -252,14 +254,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Cannot apply bitxor on non-int types")]
     fn xor_float_fail() {
         let mut a = Box::new(Expr::Binary(
             BinOp::BitXor,
             Box::new(Expr::Float(1.0)),
             Box::new(Expr::Int(2)),
         ));
-        simplify(&mut a);
+        assert_panic!("Cannot apply bitxor on non-int types" in simplify(&mut a));
     }
 
     #[test]
