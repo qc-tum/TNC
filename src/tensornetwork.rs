@@ -496,6 +496,13 @@ impl TensorNetwork {
 
         for leg in tensor_b_legs.iter() {
             self.edges.entry(*leg).and_modify(|e| {
+                e.drain_filter(|e| {
+                    if let Some(edge) = e {
+                        *edge == tensor_a_loc as i32
+                    } else {
+                        false
+                    }
+                });
                 for i in 0..e.len() {
                     if let Some(tensor_loc) = e[i]{
                         if tensor_loc as usize == tensor_b_loc{
@@ -808,7 +815,6 @@ mod tests {
         let tensor_intersect_sol = vec![1, 2, 4];
         let tensor_difference_sol = vec![2, 3, 5, 0];
         let tensor_sol = Tensor::new(tensor_difference_sol.clone());
-
         assert_eq!(tensor_intersect, tensor_intersect_sol);
         assert_eq!(tensor_difference, tensor_difference_sol);
         assert_eq!(t.get_tensors()[0], tensor_sol);
@@ -831,7 +837,6 @@ mod tests {
         let tensor_intersect_sol = vec![5];
         let tensor_difference_sol = vec![6, 2, 3, 0];
         let tensor_sol = Tensor::new(tensor_difference_sol.clone());
-
         assert_eq!(tensor_intersect, tensor_intersect_sol);
         assert_eq!(tensor_difference, tensor_difference_sol);
         assert_eq!(t.get_tensors()[0], tensor_sol);
