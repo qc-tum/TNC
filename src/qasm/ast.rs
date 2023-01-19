@@ -147,7 +147,7 @@ pub struct Argument(pub String, pub Option<u32>);
 #[derive(Debug)]
 pub struct GCall {
     pub name: String,
-    pub args: Vec<Box<Expr>>,
+    pub args: Vec<Expr>,
     pub qargs: Vec<Argument>,
 }
 

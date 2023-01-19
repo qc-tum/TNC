@@ -15,13 +15,13 @@ impl ExpressionFolder {
 }
 
 impl Visitor for ExpressionFolder {
-    fn visit_program(&mut self, program: &mut super::ast::Program){
+    fn visit_program(&mut self, program: &mut super::ast::Program) {
         for statement in program.statements.iter_mut() {
             self.visit_statement(statement);
         }
     }
 
-    fn visit_statement(&mut self, statement: &mut super::ast::Statement){
+    fn visit_statement(&mut self, statement: &mut super::ast::Statement) {
         match statement {
             Statement::GateDeclaration {
                 name: _,
@@ -40,14 +40,14 @@ impl Visitor for ExpressionFolder {
         }
     }
 
-    fn visit_body_statement(&mut self, statement: &mut super::ast::BodyStatement){
+    fn visit_body_statement(&mut self, statement: &mut super::ast::BodyStatement) {
         match statement {
             BodyStatement::GateCall(gcall) => ExpressionFolder::simplify_gatecall(gcall),
             _ => (),
         }
     }
 
-    fn visit_qoperation(&mut self, qoperation: &mut super::ast::QOperation){
+    fn visit_qoperation(&mut self, qoperation: &mut super::ast::QOperation) {
         match qoperation {
             QOperation::GateCall(gcall) => ExpressionFolder::simplify_gatecall(gcall),
             _ => (),
@@ -67,7 +67,7 @@ mod tests {
     #[test]
     fn simplify_gatecall() {
         // Argument 1
-        let x = Box::new(Expr::Binary(
+        let x = Expr::Binary(
             BinOp::Mul,
             Box::new(Expr::Binary(
                 BinOp::Add,
@@ -75,14 +75,14 @@ mod tests {
                 Box::new(Expr::Int(3)),
             )),
             Box::new(Expr::Float(4.0)),
-        ));
+        );
 
         // Argument 2
-        let y = Box::new(Expr::Binary(
+        let y = Expr::Binary(
             BinOp::Add,
             Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(2)))),
             Box::new(Expr::Int(2)),
-        ));
+        );
 
         // Gate call with the two arguments
         let mut qop = QOperation::GateCall(Box::new(GCall {
@@ -97,7 +97,7 @@ mod tests {
         // Check modified AST
         let gcall = cast!(qop, QOperation::GateCall);
         assert_eq!(gcall.args.len(), 2);
-        assert_eq!(*gcall.args[0], Expr::Float((2 + 3) as f64 * 4.0));
-        assert_eq!(*gcall.args[1], Expr::Int(-2 + 2));
+        assert_eq!(gcall.args[0], Expr::Float((2 + 3) as f64 * 4.0));
+        assert_eq!(gcall.args[1], Expr::Int(-2 + 2));
     }
 }
