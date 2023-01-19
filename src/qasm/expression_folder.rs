@@ -1,7 +1,7 @@
 use std::mem::take;
 use std::ops::DerefMut;
 
-use super::ast::{BinOp, Expr, UnOp};
+use super::ast::{BinOp, Expr, FuncType, UnOp};
 
 fn simplify(expr: &mut Box<Expr>) {
     match expr.deref_mut() {
@@ -39,6 +39,29 @@ fn simplify(expr: &mut Box<Expr>) {
                     BinOp::BitXor => lhs.as_ref() ^ rhs.as_ref(),
                 });
             }
+            // TODO: Optimizations (like x + 0 = x)
+        }
+
+        Expr::Function(ftype, inner) => {
+            simplify(inner);
+
+            if inner.is_const() {
+                // Get value as float (there are not functions that require an int)
+                let val = match inner.deref_mut() {
+                    Expr::Int(x) => (*x).into(),
+                    Expr::Float(x) => *x,
+                    _ => panic!("Expression is const, but neither float nor int"),
+                };
+
+                *expr = Box::new(Expr::Float(match ftype {
+                    FuncType::Sin => val.sin(),
+                    FuncType::Cos => val.cos(),
+                    FuncType::Tan => val.tan(),
+                    FuncType::Exp => val.exp(),
+                    FuncType::Ln => val.ln(),
+                    FuncType::Sqrt => val.sqrt(),
+                }));
+            }
         }
 
         _ => (),
@@ -48,7 +71,7 @@ fn simplify(expr: &mut Box<Expr>) {
 #[cfg(test)]
 mod tests {
     use crate::qasm::{
-        ast::{BinOp, Expr, UnOp},
+        ast::{BinOp, Expr, FuncType, UnOp},
         expression_folder::simplify,
     };
 
@@ -182,5 +205,19 @@ mod tests {
         ));
         simplify(&mut a);
         assert_eq!(*a, Expr::Int(7));
+    }
+
+    #[test]
+    fn sqrt_int() {
+        let mut a = Box::new(Expr::Function(FuncType::Sqrt, Box::new(Expr::Int(4))));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Float(4f64.sqrt()));
+    }
+
+    #[test]
+    fn cos_float() {
+        let mut a = Box::new(Expr::Function(FuncType::Cos, Box::new(Expr::Float(2.3))));
+        simplify(&mut a);
+        assert_eq!(*a, Expr::Float(2.3f64.cos()));
     }
 }
