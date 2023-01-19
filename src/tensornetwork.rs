@@ -509,15 +509,6 @@ impl TensorNetwork {
                     }
                 }
             });
-            // if self.edges[&leg].0.unwrap_or_default() == *tensor_b_loc as i32 {
-            //     self.edges
-            //         .entry(*leg)
-            //         .and_modify(|e| e.0 = Some(*tensor_a_loc as i32));
-            // } else {
-            //     self.edges
-            //         .entry(*leg)
-            //         .and_modify(|e| e.1 = Some(*tensor_a_loc as i32));
-            // }
         }
         self.tensors[tensor_a_loc] = Tensor::new(tensor_difference.clone());
         (tensor_intersect, tensor_difference)
