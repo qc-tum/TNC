@@ -324,7 +324,7 @@ mod tests {
         let tc3 = from_array(&t3, &bond_dims, &d3);
         let tcout = from_array(&tout, &bond_dims, &dout);
 
-        let tn = TensorNetwork::new(vec![t1, t2, t3], bond_dims);
+        let tn = TensorNetwork::new(vec![t1, t2, t3], bond_dims, None);
         let contract_path = vec![(0, 1), (0, 2)];
 
         let (_tn, d_tn) = tn_contract(tn, vec![tc1, tc2, tc3], &contract_path);

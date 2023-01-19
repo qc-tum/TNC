@@ -161,6 +161,7 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> TensorNetwork {
     let t = TensorNetwork::new(
         tensors.into_iter().map(|e| Tensor::new(e)).collect(),
         bond_dims,
+        None
     );
     if t.is_empty(){
         return random_tensor_network(n, cycles);
