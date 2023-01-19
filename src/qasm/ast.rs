@@ -147,7 +147,7 @@ pub struct Argument(pub String, pub Option<u32>);
 #[derive(Debug)]
 pub struct GCall {
     pub name: String,
-    pub args: Vec<Expr>,
+    pub args: Vec<Box<Expr>>,
     pub qargs: Vec<Argument>,
 }
 
@@ -190,4 +190,12 @@ pub enum Statement {
 #[derive(Debug)]
 pub struct Program {
     pub statements: Vec<Statement>,
+}
+
+pub trait Visitor {
+    type Output;
+    fn visit_program(&mut self, program: &mut Program) -> Self::Output;
+    fn visit_statement(&mut self, statement: &mut Statement) -> Self::Output;
+    fn visit_body_statement(&mut self, statement: &mut BodyStatement) -> Self::Output;
+    fn visit_qoperation(&mut self, qoperation: &mut QOperation) -> Self::Output;
 }

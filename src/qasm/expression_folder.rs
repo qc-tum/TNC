@@ -1,290 +1,105 @@
-use std::mem::take;
-use std::ops::DerefMut;
+use super::{
+    ast::{BodyStatement, GCall, QOperation, Statement, Visitor},
+    expression_simplification::simplify,
+};
 
-use super::ast::{BinOp, Expr, FuncType, UnOp};
+struct ExpressionFolder;
 
-fn simplify(expr: &mut Box<Expr>) {
-    match expr.deref_mut() {
-        Expr::Unary(UnOp::Neg, inner) => {
-            simplify(inner);
-
-            match inner.deref_mut() {
-                // -(x) => (-x)
-                Expr::Int(x) => {
-                    *expr = Box::new(Expr::Int(-*x));
-                }
-                // -(x) => (-x)
-                Expr::Float(x) => {
-                    *expr = Box::new(Expr::Float(-*x));
-                }
-                // --x => x
-                Expr::Unary(UnOp::Neg, inner2) => {
-                    *expr = take(inner2);
-                }
-                _ => (),
-            }
+impl ExpressionFolder {
+    fn simplify_gatecall(gcall: &mut Box<GCall>) {
+        // GCall is the only place where expressions occur
+        for expr in gcall.args.iter_mut() {
+            simplify(expr);
         }
+    }
+}
 
-        Expr::Binary(op, lhs, rhs) => {
-            simplify(lhs);
-            simplify(rhs);
+impl Visitor for ExpressionFolder {
+    type Output = ();
 
-            // Constant evaluation
-            if lhs.is_const() && rhs.is_const() {
-                *expr = Box::new(match op {
-                    BinOp::Add => lhs.as_ref() + rhs.as_ref(),
-                    BinOp::Sub => lhs.as_ref() - rhs.as_ref(),
-                    BinOp::Mul => lhs.as_ref() * rhs.as_ref(),
-                    BinOp::Div => lhs.as_ref() / rhs.as_ref(),
-                    BinOp::BitXor => lhs.as_ref() ^ rhs.as_ref(),
-                });
-            }
-            // TODO: Optimizations (like x + 0 = x)
+    fn visit_program(&mut self, program: &mut super::ast::Program) -> Self::Output {
+        for statement in program.statements.iter_mut() {
+            self.visit_statement(statement);
         }
+    }
 
-        Expr::Function(ftype, inner) => {
-            simplify(inner);
-
-            if inner.is_const() {
-                // Get value as float (there are not functions that require an int)
-                let val = match inner.deref_mut() {
-                    Expr::Int(x) => (*x).into(),
-                    Expr::Float(x) => *x,
-                    _ => panic!("Expression is const, but neither float nor int"),
-                };
-
-                *expr = Box::new(Expr::Float(match ftype {
-                    FuncType::Sin => val.sin(),
-                    FuncType::Cos => val.cos(),
-                    FuncType::Tan => val.tan(),
-                    FuncType::Exp => val.exp(),
-                    FuncType::Ln => val.ln(),
-                    FuncType::Sqrt => val.sqrt(),
-                }));
+    fn visit_statement(&mut self, statement: &mut super::ast::Statement) -> Self::Output {
+        match statement {
+            Statement::GateDeclaration {
+                name: _,
+                params: _,
+                qubits: _,
+                body,
+            } => {
+                if let Some(body) = body {
+                    for bstatement in body.iter_mut() {
+                        self.visit_body_statement(bstatement);
+                    }
+                }
             }
+            Statement::QuantumOperation(qop) => self.visit_qoperation(qop),
+            _ => (),
         }
+    }
 
-        _ => (),
+    fn visit_body_statement(&mut self, statement: &mut super::ast::BodyStatement) -> Self::Output {
+        match statement {
+            BodyStatement::GateCall(gcall) => ExpressionFolder::simplify_gatecall(gcall),
+            _ => (),
+        }
+    }
+
+    fn visit_qoperation(&mut self, qoperation: &mut super::ast::QOperation) -> Self::Output {
+        match qoperation {
+            QOperation::GateCall(gcall) => ExpressionFolder::simplify_gatecall(gcall),
+            _ => (),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use tux::assert_panic;
-
     use crate::qasm::{
-        ast::{BinOp, Expr, FuncType, UnOp},
-        expression_folder::simplify,
+        ast::{BinOp, Expr, GCall, QOperation, UnOp, Visitor},
+        utils::cast,
     };
 
-    #[test]
-    fn neg_neg() {
-        let mut a = Box::new(Expr::Unary(
-            UnOp::Neg,
-            Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(64)))),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Int(64));
-    }
+    use super::ExpressionFolder;
 
     #[test]
-    fn neg_neg_neg_int() {
-        let mut a = Box::new(Expr::Unary(
-            UnOp::Neg,
-            Box::new(Expr::Unary(
-                UnOp::Neg,
-                Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(2)))),
-            )),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Int(-2));
-    }
-
-    #[test]
-    fn neg_neg_neg_float() {
-        let mut a = Box::new(Expr::Unary(
-            UnOp::Neg,
-            Box::new(Expr::Unary(
-                UnOp::Neg,
-                Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Float(3.14)))),
-            )),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Float(-3.14));
-    }
-
-    #[test]
-    fn add_int() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::Add,
-            Box::new(Expr::Int(2)),
-            Box::new(Expr::Int(4)),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Int(6));
-    }
-
-    #[test]
-    fn add_float() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::Add,
+    fn simplify_gatecall() {
+        // Argument 1
+        let x = Box::new(Expr::Binary(
+            BinOp::Mul,
             Box::new(Expr::Binary(
                 BinOp::Add,
-                Box::new(Expr::Float(0.1)),
-                Box::new(Expr::Float(0.1)),
+                Box::new(Expr::Int(2)),
+                Box::new(Expr::Int(3)),
             )),
-            Box::new(Expr::Float(0.1)),
+            Box::new(Expr::Float(4.0)),
         ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Float(0.1 + 0.1 + 0.1));
-    }
 
-    #[test]
-    fn add_mixed() {
-        let mut a = Box::new(Expr::Binary(
+        // Argument 2
+        let y = Box::new(Expr::Binary(
             BinOp::Add,
-            Box::new(Expr::Float(0.5)),
+            Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(2)))),
             Box::new(Expr::Int(2)),
         ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Float(0.5 + 2.0));
-    }
 
-    #[test]
-    fn sub_int() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::Sub,
-            Box::new(Expr::Int(2)),
-            Box::new(Expr::Int(4)),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Int(-2));
-    }
+        // Gate call with the two arguments
+        let mut qop = QOperation::GateCall(Box::new(GCall {
+            name: String::from("abc"),
+            args: vec![x, y],
+            qargs: Vec::new(),
+        }));
 
-    #[test]
-    fn sub_float() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::Sub,
-            Box::new(Expr::Binary(
-                BinOp::Sub,
-                Box::new(Expr::Float(0.1)),
-                Box::new(Expr::Float(0.1)),
-            )),
-            Box::new(Expr::Float(0.1)),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Float(0.1 - 0.1 - 0.1));
-    }
+        let mut visitor = ExpressionFolder {};
+        visitor.visit_qoperation(&mut qop);
 
-    #[test]
-    fn sub_mixed() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::Sub,
-            Box::new(Expr::Float(0.5)),
-            Box::new(Expr::Int(2)),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Float(0.5 - 2.0));
-    }
-
-    #[test]
-    fn multiply_ints() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::Mul,
-            Box::new(Expr::Int(2)),
-            Box::new(Expr::Int(3)),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Int(2 * 3));
-    }
-
-    #[test]
-    fn multiply_floats() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::Mul,
-            Box::new(Expr::Float(3.6)),
-            Box::new(Expr::Float(-2.4)),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Float(3.6 * -2.4));
-    }
-
-    #[test]
-    fn multiply_mixed() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::Mul,
-            Box::new(Expr::Int(3)),
-            Box::new(Expr::Float(0.5)),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Float(3f64 * 0.5));
-    }
-
-    #[test]
-    fn divide_ints() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::Div,
-            Box::new(Expr::Int(30)),
-            Box::new(Expr::Int(4)),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Int(30 / 4));
-    }
-
-    #[test]
-    fn divide_floats() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::Div,
-            Box::new(Expr::Float(3.6)),
-            Box::new(Expr::Float(-2.4)),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Float(3.6 / -2.4));
-    }
-
-    #[test]
-    fn divide_mixed() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::Div,
-            Box::new(Expr::Int(3)),
-            Box::new(Expr::Float(0.5)),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Float(3f64 / 0.5));
-    }
-
-    #[test]
-    fn xor_float_fail() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::BitXor,
-            Box::new(Expr::Float(1.0)),
-            Box::new(Expr::Int(2)),
-        ));
-        assert_panic!("Cannot apply bitxor on non-int types" in simplify(&mut a));
-    }
-
-    #[test]
-    fn xor_int() {
-        let mut a = Box::new(Expr::Binary(
-            BinOp::BitXor,
-            Box::new(Expr::Int(5)),
-            Box::new(Expr::Int(2)),
-        ));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Int(7));
-    }
-
-    #[test]
-    fn sqrt_int() {
-        let mut a = Box::new(Expr::Function(FuncType::Sqrt, Box::new(Expr::Int(4))));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Float(4f64.sqrt()));
-    }
-
-    #[test]
-    fn cos_float() {
-        let mut a = Box::new(Expr::Function(FuncType::Cos, Box::new(Expr::Float(2.3))));
-        simplify(&mut a);
-        assert_eq!(*a, Expr::Float(2.3f64.cos()));
+        // Check modified AST
+        let gcall = cast!(qop, QOperation::GateCall);
+        assert_eq!(gcall.args.len(), 2);
+        assert_eq!(*gcall.args[0], Expr::Float((2 + 3) as f64 * 4.0));
+        assert_eq!(*gcall.args[1], Expr::Int(-2 + 2));
     }
 }
