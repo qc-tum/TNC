@@ -487,7 +487,7 @@ impl TensorNetwork {
                 tensor_difference.push(*leg);
             }
             // Check if hyperedges are being contracted, if so, only append once to output tensor
-            if self.ext_edges.iter().any(|&i| i == *leg) {
+            if self.edges[leg].len() > 2 {
                 if !tensor_difference.iter().any(|&i| i == *leg) {
                     tensor_difference.push(*leg);
                 }
@@ -496,6 +496,13 @@ impl TensorNetwork {
 
         for leg in tensor_b_legs.iter() {
             self.edges.entry(*leg).and_modify(|e| {
+                e.drain_filter(|e| {
+                    if let Some(edge) = e {
+                        return *edge == tensor_a_loc as i32;
+                    } else {
+                        return false;
+                    }
+                });
                 for i in 0..e.len() {
                     if let Some(tensor_loc) = e[i]{
                         if tensor_loc as usize == tensor_b_loc{
@@ -603,6 +610,20 @@ mod tests {
             Some(&vec![2]),
         )
     }
+
+    fn setup_hyperedge_complex() -> TensorNetwork {
+        TensorNetwork::from_vector(
+            vec![
+                Tensor::new(vec![0, 1, 2]),
+                Tensor::new(vec![1, 4]),
+                Tensor::new(vec![1, 2, 3, 4, 5]),
+                Tensor::new(vec![5, 6]),
+            ],
+            vec![5, 2, 4, 6, 8, 3, 7],
+            Some(&vec![2]),
+        )
+    }
+
     #[test]
     fn test_empty_tensor_network() {
         let t = TensorNetwork::default();
@@ -745,5 +766,94 @@ mod tests {
 
         assert_eq!(tensor_intersect, tensor_intersect_sol);
         assert_eq!(tensor_difference, tensor_difference_sol);
+    }
+
+    #[test]
+    fn test_tensor_complex_hyperedge_contraction_good() {
+        let mut t = setup_hyperedge_complex();
+        let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
+        edge_sol.entry(0).or_insert(vec![Some(0), None]);
+        edge_sol.entry(1).or_insert(vec![Some(0), Some(1), Some(2)]);
+        edge_sol.entry(2).or_insert(vec![Some(0), Some(2), None]);
+        edge_sol.entry(3).or_insert(vec![Some(2), None]);
+        edge_sol.entry(4).or_insert(vec![Some(1), Some(2)]);
+        edge_sol.entry(5).or_insert(vec![Some(2), Some(3)]);
+        edge_sol.entry(6).or_insert(vec![Some(3), None]);
+
+        for edge_key in 0i32..7 {
+            assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
+        }
+        edge_sol.clear();
+
+        let ext_sol = vec![2, 0, 3, 6];
+        assert_eq!(ext_sol, t.ext_edges);
+
+        let (tensor_intersect, tensor_difference) = t._contraction(0, 1);
+        // contraction should maintain leg order
+        let tensor_intersect_sol = vec![1];
+        let tensor_difference_sol = vec![1, 4, 0, 2];
+        let tensor_sol = Tensor::new(tensor_difference_sol.clone());
+        assert_eq!(t.get_tensors()[0], tensor_sol);
+        assert_eq!(tensor_intersect, tensor_intersect_sol);
+        assert_eq!(tensor_difference, tensor_difference_sol);
+
+        edge_sol.entry(0).or_insert(vec![Some(0), None]);
+        edge_sol.entry(1).or_insert(vec![Some(0), Some(2)]);
+        edge_sol.entry(2).or_insert(vec![Some(0), Some(2), None]);
+        edge_sol.entry(3).or_insert(vec![Some(2), None]);
+        edge_sol.entry(4).or_insert(vec![Some(0), Some(2)]);
+        edge_sol.entry(5).or_insert(vec![Some(2), Some(3)]);
+        edge_sol.entry(6).or_insert(vec![Some(3), None]);
+
+        for edge_key in 0i32..7 {
+            assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
+        }
+        edge_sol.clear();
+
+        let (tensor_intersect, tensor_difference) = t._contraction(0, 2);
+        // contraction should maintain leg order
+        let tensor_intersect_sol = vec![1, 2, 4];
+        let tensor_difference_sol = vec![2, 3, 5, 0];
+        let tensor_sol = Tensor::new(tensor_difference_sol.clone());
+        
+        assert_eq!(tensor_intersect, tensor_intersect_sol);
+        assert_eq!(tensor_difference, tensor_difference_sol);
+        assert_eq!(t.get_tensors()[0], tensor_sol);
+
+        edge_sol.entry(0).or_insert(vec![Some(0), None]);
+        edge_sol.entry(1).or_insert(vec![Some(0)]);
+        edge_sol.entry(2).or_insert(vec![Some(0), None]);
+        edge_sol.entry(3).or_insert(vec![Some(0), None]);
+        edge_sol.entry(4).or_insert(vec![Some(0)]);
+        edge_sol.entry(5).or_insert(vec![Some(0), Some(3)]);
+        edge_sol.entry(6).or_insert(vec![Some(3), None]);
+
+        for edge_key in 0i32..7 {
+            assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
+        }
+        edge_sol.clear();
+
+        let (tensor_intersect, tensor_difference) = t._contraction(0, 3);
+        // contraction should maintain leg order
+        let tensor_intersect_sol = vec![5];
+        let tensor_difference_sol = vec![6, 2, 3, 0];
+        let tensor_sol = Tensor::new(tensor_difference_sol.clone());
+        
+        assert_eq!(tensor_intersect, tensor_intersect_sol);
+        assert_eq!(tensor_difference, tensor_difference_sol);
+        assert_eq!(t.get_tensors()[0], tensor_sol);
+
+        edge_sol.entry(0).or_insert(vec![Some(0), None]);
+        edge_sol.entry(1).or_insert(vec![Some(0)]);
+        edge_sol.entry(2).or_insert(vec![Some(0), None]);
+        edge_sol.entry(3).or_insert(vec![Some(0), None]);
+        edge_sol.entry(4).or_insert(vec![Some(0)]);
+        edge_sol.entry(5).or_insert(vec![Some(0)]);
+        edge_sol.entry(6).or_insert(vec![Some(0), None]);
+
+        for edge_key in 0i32..7 {
+            assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
+        }
+        edge_sol.clear();
     }
 }
