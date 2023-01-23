@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 array_tool = "1.0.3"
-bindgen = "0.63.0"
 itertools = "0.10.5"
 linked_hash_set = "0.1.4"
 log = "0.4.17"
