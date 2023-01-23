@@ -51,12 +51,12 @@ pub struct BranchBound {
 ///
 /// Identical path using ssa format
 fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<(usize, usize)> {
-    let mut ssa_path: Vec<(usize, usize)> = Vec::new();
-    let mut hs: HashMap<usize, usize> = HashMap::new();
+    let mut ssa_path = Vec::with_capacity(path.len());
+    let mut hs = HashMap::new();
     let path_len = n;
     for (u1, u2, u3) in path {
-        let t1: usize;
-        let t2: usize;
+        let t1;
+        let t2;
         if *u1 > path_len {
             t1 = hs[u1];
         } else {
@@ -84,10 +84,9 @@ fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<(usize, 
 ///
 /// Identical path that replaces the left input tensor upon contraction
 fn ssa_replace_ordering(path: &Vec<(usize, usize)>, mut n: usize) -> Vec<(usize, usize)> {
-    let mut ssa_path = Vec::new();
-    let mut hs: HashMap<usize, usize> = HashMap::new();
-    let path_length = path.len();
-    for i in 0..path_length {
+    let mut ssa_path = Vec::with_capacity(path.len());
+    let mut hs = HashMap::new();
+    for i in 0..path.len() {
         let mut tup = path[i];
         if hs.contains_key(&tup.0) {
             tup.0 = hs[&tup.0];
