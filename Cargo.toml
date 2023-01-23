@@ -14,5 +14,5 @@ log = "0.4.17"
 num-complex = "0.4.2"
 rand = "0.8.5"
 random = "0.13.2"
-taco-sys = { git = "ssh://gitlab.lrz.de/quantum-research/taco-sys.git", tag = "v0.4.0", version = "0.4.0" }
+taco-sys = { git = "ssh://gitlab.lrz.de/quantum-research/taco-sys.git", tag = "v0.5.0", version = "0.5.0" }
 
