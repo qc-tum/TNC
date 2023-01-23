@@ -62,37 +62,35 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<i32, u64>) {
 pub fn random_sparse_tensor(
     t: Tensor,
     bond_dims: &HashMap<i32, u64>,
-    mut sparsity: Option<f32>,
+    sparsity: Option<f32>,
 ) -> _TacoTensor {
-    if sparsity.is_none() {
-        sparsity = Some(0.5);
+    let sparsity = if let Some(sparsity) = sparsity {
+        assert!(0.0 <= sparsity && sparsity <= 1.0);
+        sparsity
     } else {
-        assert!(0.0 <= sparsity.unwrap() && sparsity.unwrap() <= 1.0);
-    }
-    let sparsity = sparsity.unwrap();
+        0.5
+    };
+
     let dims: Vec<i32> = t
         .get_legs()
         .iter()
         .map(|e| *(bond_dims.get(e).unwrap()) as i32)
         .collect();
-    let mut ranges = Vec::new();
-    for i in dims.clone() {
-        ranges.push(0..i);
-    }
+    let ranges: Vec<Uniform<i32>> = dims.iter().map(|i| Uniform::new(0, *i)).collect();
     let size = dims.iter().product::<i32>();
     let mut tacotensor = _TacoTensor::new(&dims);
 
-    let mut count = 0;
+    let mut nnz = 0;
     let mut loc = Vec::<i32>::new();
     let mut rng = rand::thread_rng();
-    while (count as f32 / size as f32) < sparsity {
-        for r in ranges.clone() {
-            loc.push(rng.gen_range(r));
+    while (nnz as f32 / size as f32) < sparsity {
+        for r in ranges.iter() {
+            loc.push(rng.sample(r));
         }
         let val = Complex64::new(rng.gen(), rng.gen());
-        tacotensor.insert(&loc.clone(), val);
+        tacotensor.insert(&loc, val);
         loc.clear();
-        count += 1;
+        nnz += 1;
     }
 
     tacotensor
