@@ -14,9 +14,9 @@ fn main() {
         ));
     }
     let mut opt = BranchBound::new(r_tn.clone(), None, 20, BranchBoundType::Flops);
-    opt._optimize_path(None);
+    opt.optimize_path(None);
     let opt_path = opt.get_best_replace_path();
-    println!("{:?}", opt_path);
+    println!("{opt_path:?}");
 
     tn_contract(r_tn.clone(), d_tn, &opt_path);
 }
