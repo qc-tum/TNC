@@ -25,17 +25,13 @@ use num_complex::Complex64;
 /// ```
 pub fn random_tensor(n: usize) -> (Tensor, HashMap<i32, u64>) {
     let mut rng = rand::thread_rng();
-    let mut tensor_size = Vec::with_capacity(n);
-    tensor_size.resize(n, 0);
-    let bond_dims = tensor_size
-        .iter()
-        .map(|_| rng.gen_range(1u64..20))
-        .collect::<Vec<u64>>();
-    let edges = (0i32..n as i32).collect::<Vec<i32>>();
-    let hs = edges.iter().zip(bond_dims.iter()).collect_vec();
+    let range = Uniform::new(1u64, 21);
+    let bond_dims = (0..n).map(|_| rng.sample(&range));
+    let edges = 0i32..n as i32;
+    let hs = edges.zip(bond_dims).collect_vec();
     let mut bond_dims = HashMap::new();
     for (i, j) in hs {
-        bond_dims.insert(*i, *j);
+        bond_dims.insert(i, j);
     }
     (Tensor::new((0i32..n as i32).collect()), bond_dims)
 }
