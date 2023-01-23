@@ -130,8 +130,8 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> TensorNetwork {
             if w.len() < 2 {
                 break;
             }
-            if rand::random() {
-                w.shuffle(&mut rand::thread_rng());
+            if rng.gen() {
+                w.shuffle(&mut rng);
                 let l1 = w.pop().unwrap();
                 let l2 = w.pop().unwrap();
                 tensors.push(vec![
@@ -144,7 +144,7 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> TensorNetwork {
                 wire_indices[l2 as usize] = index + 2;
                 index += 2;
             } else {
-                w.shuffle(&mut rand::thread_rng());
+                w.shuffle(&mut rng);
                 let l1 = w.pop().unwrap();
                 tensors.push(vec![wire_indices[l1 as usize], index + 1]);
                 wire_indices[l1 as usize] = index + 1;
