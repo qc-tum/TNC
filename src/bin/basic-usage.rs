@@ -9,7 +9,7 @@ fn main() {
     for r_t in r_tn.get_tensors() {
         d_tn.push(random_sparse_tensor(
             r_t.clone(),
-            &r_tn.get_bond_dims(),
+            r_tn.get_bond_dims(),
             None,
         ));
     }
@@ -18,5 +18,5 @@ fn main() {
     let opt_path = opt.get_best_replace_path();
     println!("{opt_path:?}");
 
-    tn_contract(r_tn.clone(), d_tn, &opt_path);
+    tn_contract(r_tn, d_tn, &opt_path);
 }
