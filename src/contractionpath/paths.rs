@@ -168,8 +168,8 @@ impl BranchBound {
                     // self.tn.push_tensor(k12_tensor.clone(), None);
                     self.tensor_cache.entry(k12).or_insert(k12_tensor.clone());
                 }
-                flops += flops_12 as u64;
-                size = max(size, size_12 as u64);
+                flops += flops_12;
+                size = max(size, size_12);
 
                 if flops > self.best_flops && size > self.best_size {
                     return None;
@@ -223,7 +223,7 @@ impl BranchBound {
 
 
 impl OptimizePath for BranchBound {
-    pub fn optimize_path(&mut self, _output: Option<Vec<u32>>) {
+    fn optimize_path(&mut self, _output: Option<Vec<u32>>) {
         let tensors = self.tn.get_tensors();
         if self.tn.is_empty() {
             return;
