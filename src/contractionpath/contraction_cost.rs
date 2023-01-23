@@ -4,7 +4,7 @@ use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 
-/// Returns Schroedinger contraction time complexity of contracting Tensor objects at indices `i` and `j`.
+/// Returns Schroedinger contraction time complexity of contracting [Tensor] objects at indices `i` and `j`.
 ///
 /// # Arguments
 ///
@@ -29,7 +29,7 @@ pub fn contract_cost(tn: &TensorNetwork, i: usize, j: usize) -> u64 {
     // shared_dims.into_iter().map(|e| tn.get_bond_dims()[e]).product()
 }
 
-/// Returns Schroedinger contraction time complexity of contracting two Tensor objects.
+/// Returns Schroedinger contraction time complexity of contracting two [Tensor] objects.
 ///
 /// # Arguments
 ///
@@ -59,12 +59,12 @@ pub fn _contract_cost(t_1: Tensor, t_2: Tensor, bond_dims: &HashMap<i32, u64>) -
     shared_dims.into_iter().map(|e| bond_dims[*e]).product()
 }
 
-/// Returns Schroedinger contraction space complexity of contracting Tensor objects at indices `i` and `j` and the output
-/// tensor as a Tensor object.
+/// Returns Schroedinger contraction space complexity of contracting [Tensor] objects at indices `i` and `j` and the output
+/// tensor as a [Tensor] object.
 ///
 /// # Arguments
 ///
-/// * `tn` - Reference to TensorNetwork object.
+/// * `tn` - Reference to [TensorNetwork] object.
 /// * `i`  - Index of first tensor to contract.
 /// * `j`  - Index of second tensor to contract.
 ///
@@ -83,7 +83,7 @@ pub fn contract_size(tn: &TensorNetwork, i: usize, j: usize) -> (Tensor, u64) {
     _contract_size(tn[i].clone(), tn[j].clone(), tn.get_bond_dims())
 }
 
-/// Returns Schroedinger contraction space complexity of contracting two Tensor objects
+/// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
 ///
 /// # Arguments
 ///
@@ -124,12 +124,12 @@ pub fn _contract_size(t_1: Tensor, t_2: Tensor, bond_dims: &HashMap<i32, u64>) -
     (Tensor::new(diff), cost)
 }
 
-/// Returns number of elements in a given Tensor.
+/// Returns number of elements in a given [Tensor].
 ///
 /// # Arguments
 ///
-/// * `tn` - Reference to TensorNetwork object.
-/// * `i`  - Index of Tensor
+/// * `tn` - Reference to [TensorNetwork] object.
+/// * `i`  - Index of [Tensor]
 ///
 ///
 /// # Examples

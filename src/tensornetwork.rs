@@ -5,10 +5,11 @@ use std::fmt;
 use std::fmt::Write;
 use std::ops::{Index, IndexMut};
 
+pub mod contraction;
 pub mod tensor;
+pub mod tacotensor;
 
 use tensor::Tensor;
-// use contractionpath::contract_cost;
 
 /// Helper function that returns the largest edge id.
 pub trait MaximumLeg {
@@ -54,6 +55,8 @@ impl IndexMut<usize> for TensorNetwork {
         &mut self.tensors[index]
     }
 }
+
+
 
 impl TensorNetwork {
     /// Creates an empty TensorNetwork
@@ -112,6 +115,19 @@ impl TensorNetwork {
     /// ```
     pub fn get_bond_dims(&self) -> &HashMap<i32, u64> {
         &self.bond_dims
+    }
+
+    /// Returns true if tensor network is empty
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tensorcontraction::tensornetwork::TensorNetwork;
+    /// let tn = TensorNetwork::empty_tensor_network();
+    /// assert_eq!(tn.is_empty(), true);
+    /// ```
+    pub fn is_empty(&self) -> bool{
+        self.tensors.is_empty()
     }
 
     /// Constructs a TensorNetwork object based on an input Vector of Tensors and a list of bond
@@ -375,32 +391,19 @@ impl TensorNetwork {
         self.tensors.push(tensor);
     }
 
-    /// Returns Schroedinger time and space contraction costs of contracting Tensor objects at index `i` and `j` in
-    /// TensorNetwork object as Tuple of unsigned integers
+    /// Updates TensorNetwork object by contracting two tensors, replacing the first contracted tensor with the
+    /// resulting tensor. `tn.edges` is then updated replacing all connections to the second tensor.
     ///
     /// # Arguments
     ///
     /// * `tensor_a_loc` - Index of first Tensor to be contracted
     /// * `tensor_b_loc` - Index of second Tensor to be contracted
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::TensorNetwork;
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use std::collections::HashMap;
-    /// let v1 = Tensor::new(vec![2,1,0]);
-    /// let v2 = Tensor::new(vec![2,3,4]);
-    /// let bond_dims = HashMap::from([(0, 17), (1, 19), (2, 8), (3, 12), (4, 12)]);
-    /// let mut tn = TensorNetwork::new(vec![v1,v2], bond_dims);
-    /// assert_eq!(tn.contraction(0,1), (372096, 50248));
-    /// ```
-    pub fn contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (u64, u64) {
+    fn _contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (Vec<i32>, Vec<i32>) {
         let tensor_a_legs = self.tensors[tensor_a_loc].get_legs();
         let tensor_b_legs = self.tensors[tensor_b_loc].get_legs();
 
-        let tensor_union = tensor_a_legs.union(tensor_b_legs.to_vec());
-        let tensor_intersect = tensor_a_legs.intersect(tensor_b_legs.to_vec());
+        let tensor_union = tensor_b_legs.union(tensor_a_legs.to_vec());
+        let tensor_intersect = tensor_b_legs.intersect(tensor_a_legs.to_vec());
 
         let mut tensor_difference: Vec<i32> = Vec::new();
         for leg in tensor_union.iter() {
@@ -408,23 +411,6 @@ impl TensorNetwork {
                 tensor_difference.push(*leg);
             }
         }
-
-        let time_complexity = tensor_union
-            .iter()
-            .map(|x| self.bond_dims.get(x).unwrap())
-            .product();
-        let space_complexity: u64 = tensor_a_legs
-            .iter()
-            .map(|x| self.bond_dims.get(x).unwrap())
-            .product::<u64>()
-            + tensor_b_legs
-                .iter()
-                .map(|x| self.bond_dims.get(x).unwrap())
-                .product::<u64>()
-            + tensor_difference
-                .iter()
-                .map(|x| self.bond_dims.get(x).unwrap())
-                .product::<u64>();
 
         for leg in tensor_b_legs.iter() {
             if self.edges[&leg].0.unwrap_or_default() == tensor_b_loc as i32 {
@@ -437,10 +423,11 @@ impl TensorNetwork {
                     .and_modify(|e| e.1 = Some(tensor_a_loc as i32));
             }
         }
-        self.tensors[tensor_a_loc] = Tensor::new(tensor_difference);
+        self.tensors[tensor_a_loc] = Tensor::new(tensor_difference.clone());
 
-        (time_complexity, space_complexity)
+        (tensor_intersect, tensor_difference)
     }
+
 
     /// Constructs Graphviz code showing the tensor network as a graph. The tensor numbering corresponds to their
     /// tensor index (i.e., their position in the tensors vector). The edges are annotated with the bond dims,
@@ -512,26 +499,13 @@ impl Default for TensorNetwork {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
-    // use rand::distributions::{Distribution, Uniform};
-    // TODO: Use random tensors
     use crate::tensornetwork::tensor::Tensor;
     use crate::tensornetwork::MaximumLeg;
     use crate::tensornetwork::TensorNetwork;
     use std::collections::HashMap;
-
-    // fn generate_random_tensor() -> (Tensor, u32) {
-    //     let tensor_size = Uniform::from(3..1000);
-    //     let rng = rand::thread_rng();
-    //     let mut tensor_legs = Vec::new();
-    //     for _i in 0i32..tensor_size.sample(&mut rng.clone()) {
-    //         tensor_legs.push(tensor_size.sample(&mut rng.clone()));
-    //     }
-    //     let new_tensor = Tensor::new(tensor_legs);
-    //     let size = new_tensor.get_legs().len();
-    //     (new_tensor, size as u32)
-    // }
 
     fn setup() -> TensorNetwork {
         TensorNetwork::from_vector(
@@ -639,9 +613,10 @@ mod tests {
     #[test]
     fn test_tensor_contraction_good() {
         let mut t = setup();
-        let (time_complexity, space_complexity) = t.contraction(0, 1);
+        let (tensor_intersect, _tensor_difference) = t._contraction(0, 1);
         // contraction should maintain leg order
-        let tensor_sol = Tensor::new(vec![4, 0, 1]);
+        let vec_sol = vec![0, 1, 4];
+        let tensor_sol = Tensor::new(vec_sol.clone());
         let mut edge_sol = HashMap::<i32, (Option<i32>, Option<i32>)>::new();
         edge_sol.entry(0).or_insert((Some(0), None));
         edge_sol.entry(1).or_insert((Some(0), None));
@@ -654,7 +629,7 @@ mod tests {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
 
-        assert_eq!(time_complexity, 1534896);
-        assert_eq!(space_complexity, 81516);
+        assert_eq!(tensor_intersect, vec![3, 2]);
+        assert_eq!(_tensor_difference, vec_sol);
     }
 }

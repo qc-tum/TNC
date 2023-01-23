@@ -1,14 +1,22 @@
-
 extern crate tensorcontraction;
-use tensorcontraction::tensornetwork::{TensorNetwork, tensor::Tensor};
-
+use tensorcontraction::contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath};
+use tensorcontraction::random::tensorgeneration::{random_sparse_tensor, random_tensor_network};
+use tensorcontraction::tensornetwork::contraction::tn_contract;
 
 fn main() {
-    let tn = TensorNetwork::from_vector(
-        vec![Tensor::new(vec![4, 3, 2]), Tensor::new(vec![0, 1, 3, 2])],
-        vec![17, 18, 19, 12, 22],
-    );
-    for edge in tn.get_edges(){
-        println!("{:}->({:}, {:})", edge.0, (*edge.1).0.unwrap_or_else(|| -1) , (*edge.1).1.unwrap_or_else(|| -1));
+    let r_tn = random_tensor_network(4, 3);
+    let mut d_tn = Vec::new();
+    for r_t in r_tn.get_tensors() {
+        d_tn.push(random_sparse_tensor(
+            r_t.clone(),
+            r_tn.get_bond_dims(),
+            None,
+        ));
     }
+    let mut opt = BranchBound::new(r_tn.clone(), None, 20, BranchBoundType::Flops);
+    opt.optimize_path(None);
+    let opt_path = opt.get_best_replace_path();
+    println!("{opt_path:?}");
+
+    tn_contract(r_tn, d_tn, &opt_path);
 }
