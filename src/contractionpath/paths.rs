@@ -8,7 +8,7 @@ use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::TensorNetwork;
 
 pub trait OptimizePath {
-    fn _optimize_path(&mut self, output: Option<Vec<u32>>);
+    fn optimize_path(&mut self, output: Option<Vec<u32>>);
 
     fn get_best_path(self) -> Vec<(usize, usize)>;
     fn get_best_replace_path(self) -> Vec<(usize, usize)>;
@@ -44,7 +44,7 @@ pub struct BranchBound {
 ///
 /// # Arguments
 ///
-/// * `path` - Output path as Vec<(usize, usize)> after an [_optimize_path] call.
+/// * `path` - Output path as Vec<(usize, usize)> after an [optimize_path] call.
 /// # Returns
 ///
 /// Identical path using ssa format
@@ -223,7 +223,7 @@ impl BranchBound {
 
 
 impl OptimizePath for BranchBound {
-    fn _optimize_path(&mut self, _output: Option<Vec<u32>>) {
+    pub fn optimize_path(&mut self, _output: Option<Vec<u32>>) {
         let tensors = self.tn.get_tensors();
         if self.tn.is_empty() {
             return;
@@ -333,7 +333,7 @@ mod tests {
     fn test_contract_order_simple() {
         let tn = setup_simple();
         let mut opt = BranchBound::new(tn, None, 20, BranchBoundType::Flops);
-        opt._optimize_path(None);
+        opt.optimize_path(None);
 
         assert_eq!(opt.best_flops, 568620);
         assert_eq!(opt.best_size, 90810);
@@ -345,7 +345,7 @@ mod tests {
     fn test_contract_order_complex() {
         let tn = setup_complex();
         let mut opt = BranchBound::new(tn, None, 20, BranchBoundType::Flops);
-        opt._optimize_path(None);
+        opt.optimize_path(None);
         
         assert_eq!(opt.best_flops, 5614200);
         assert_eq!(opt.best_size, 3963645);

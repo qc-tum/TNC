@@ -30,7 +30,7 @@ fn contract_tensor_(_b: &mut Bencher) {
     let cycles = 5;
     let tn = random_tensor_network(n, cycles);
     let mut bb = BranchBound::new(tn.clone(), None, 50, BranchBoundType::Flops);
-    bb._optimize_path(None);
+    bb.optimize_path(None);
     let mut d_tn = Vec::new();
     for r_t in tn.clone().get_tensors() {
         d_tn.push(random_sparse_tensor(
