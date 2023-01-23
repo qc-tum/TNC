@@ -21,8 +21,7 @@ pub enum BranchBoundType {
     Size = 1,
 }
 
-/// A struct that searches for an optimal contractionpath  given a [TensorNetwork] object and a list of
-/// TacoTensor objects containing tensor data.
+/// A struct with an OptimizePath implementation that explores possible pair contractions in a depth-first manner.
 pub struct BranchBound {
     tn: TensorNetwork,
     nbranch: Option<u32>,
@@ -124,7 +123,7 @@ impl BranchBound {
         }
     }
 
-    ///Explores possible pair contractions in a depth-first
+    /// Explores possible pair contractions in a depth-first
     /// recursive manner like the `optimal` approach, but with extra heuristic early pruning of branches
     /// as well sieving by `memory_limit` and the best path found so far. A rust implementation of
     /// the Python based `opt_einsum` implementation. Found at github.com/dgasmith/opt_einsum.
