@@ -45,14 +45,13 @@ pub fn tn_contract(
         let a_legs = tn[*i].get_legs().clone();
         let b_legs = tn[*j].get_legs().clone();
         let (_tensor_intersection, tensor_difference) = tn._contraction(i, j);
-        let bond_dims = tn.get_bond_dims().clone();
+        let bond_dims = tn.get_bond_dims();
         let out_dims = tensor_difference
-            .clone()
             .iter()
             .map(|e| bond_dims[e] as i32)
             .collect::<Vec<i32>>();
 
-        let mut new_tensor = _TacoTensor::new(&out_dims.clone());
+        let mut new_tensor = _TacoTensor::new(&out_dims);
 
         contract(
             &tensor_difference,
