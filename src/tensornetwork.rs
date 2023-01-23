@@ -399,8 +399,8 @@ impl TensorNetwork {
     /// * `tensor_a_loc` - Index of first Tensor to be contracted
     /// * `tensor_b_loc` - Index of second Tensor to be contracted
     fn _contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (Vec<i32>, Vec<i32>) {
-        let tensor_a_legs = self.tensors[*tensor_a_loc].get_legs();
-        let tensor_b_legs = self.tensors[*tensor_b_loc].get_legs();
+        let tensor_a_legs = self.tensors[tensor_a_loc].get_legs();
+        let tensor_b_legs = self.tensors[tensor_b_loc].get_legs();
 
         let tensor_union = tensor_b_legs.union(tensor_a_legs.to_vec());
         let tensor_intersect = tensor_b_legs.intersect(tensor_a_legs.to_vec());
@@ -413,17 +413,17 @@ impl TensorNetwork {
         }
 
         for leg in tensor_b_legs.iter() {
-            if self.edges[&leg].0.unwrap_or_default() == *tensor_b_loc as i32 {
+            if self.edges[&leg].0.unwrap_or_default() == tensor_b_loc as i32 {
                 self.edges
                     .entry(*leg)
-                    .and_modify(|e| e.0 = Some(*tensor_a_loc as i32));
+                    .and_modify(|e| e.0 = Some(tensor_a_loc as i32));
             } else {
                 self.edges
                     .entry(*leg)
-                    .and_modify(|e| e.1 = Some(*tensor_a_loc as i32));
+                    .and_modify(|e| e.1 = Some(tensor_a_loc as i32));
             }
         }
-        self.tensors[*tensor_a_loc] = Tensor::new(tensor_difference.clone());
+        self.tensors[tensor_a_loc] = Tensor::new(tensor_difference.clone());
 
         (tensor_intersect, tensor_difference)
     }
@@ -613,7 +613,7 @@ mod tests {
     #[test]
     fn test_tensor_contraction_good() {
         let mut t = setup();
-        let (tensor_intersect, _tensor_difference) = t._contraction(&0, &1);
+        let (tensor_intersect, _tensor_difference) = t._contraction(0, 1);
         // contraction should maintain leg order
         let vec_sol = vec![0, 1, 4];
         let tensor_sol = Tensor::new(vec_sol.clone());
