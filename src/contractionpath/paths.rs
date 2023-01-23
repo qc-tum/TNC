@@ -30,7 +30,6 @@ pub struct BranchBound {
     best_flops: u64,
     best_size: u64,
     best_path: Vec<(usize, usize)>,
-    // best_path: Vec<(usize, usize)>,
     best_progress: HashMap<usize, u64>,
     result_cache: HashMap<Vec<usize>, usize>,
     flop_cache: HashMap<usize, u64>,
