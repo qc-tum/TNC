@@ -487,8 +487,8 @@ impl TensorNetwork {
                 tensor_difference.push(*leg);
             }
             // Check if hyperedges are being contracted, if so, only append once to output tensor
-            if self.edges[leg].len() > 2 {
-                if !tensor_difference.iter().any(|&i| i == *leg) {
+            if self.edges[leg].len() > 2 && !tensor_difference.iter().any(|&i| i == *leg) {
+                {
                     tensor_difference.push(*leg);
                 }
             }
@@ -504,8 +504,8 @@ impl TensorNetwork {
                     }
                 });
                 for i in 0..e.len() {
-                    if let Some(tensor_loc) = e[i]{
-                        if tensor_loc as usize == tensor_b_loc{
+                    if let Some(tensor_loc) = e[i] {
+                        if tensor_loc as usize == tensor_b_loc {
                             e[i] = Some(tensor_a_loc as i32);
                         }
                     }
@@ -562,9 +562,8 @@ impl TensorNetwork {
     //         }
     //     }
 
-    //     out.push_str("}");
-    //     out
-    // }
+    // Write edge between tensors
+    // writeln!(out, "\t{} -- {} [label=\"{}\", taillabel=\"{}\", headlabel=\"{}\", labelfontsize=\"8pt\"];", t1, t2, self.bond_dims[leg], leg, leg).unwrap();
 }
 
 /// Implementation of printing for TensorNetwork. Simply prints the Tensor objects in TensorNetwork
@@ -756,7 +755,7 @@ mod tests {
         edge_sol.entry(0).or_insert(vec![Some(0), None]);
         edge_sol.entry(1).or_insert(vec![Some(0), None]);
         edge_sol.entry(2).or_insert(vec![Some(0), None]);
-        edge_sol.entry(3).or_insert(vec![Some(0), ]);
+        edge_sol.entry(3).or_insert(vec![Some(0)]);
         edge_sol.entry(4).or_insert(vec![Some(0), None]);
 
         assert_eq!(t.get_tensors()[0], tensor_sol);
@@ -815,7 +814,7 @@ mod tests {
         let tensor_intersect_sol = vec![1, 2, 4];
         let tensor_difference_sol = vec![2, 3, 5, 0];
         let tensor_sol = Tensor::new(tensor_difference_sol.clone());
-        
+
         assert_eq!(tensor_intersect, tensor_intersect_sol);
         assert_eq!(tensor_difference, tensor_difference_sol);
         assert_eq!(t.get_tensors()[0], tensor_sol);
@@ -838,7 +837,7 @@ mod tests {
         let tensor_intersect_sol = vec![5];
         let tensor_difference_sol = vec![6, 2, 3, 0];
         let tensor_sol = Tensor::new(tensor_difference_sol.clone());
-        
+
         assert_eq!(tensor_intersect, tensor_intersect_sol);
         assert_eq!(tensor_difference, tensor_difference_sol);
         assert_eq!(t.get_tensors()[0], tensor_sol);

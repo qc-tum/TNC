@@ -307,6 +307,7 @@ mod tests {
         (d1, d2, d3, dout)
     }
 
+    #[ignore]
     #[test]
     #[ignore]
     fn test_tn_contraction() {
