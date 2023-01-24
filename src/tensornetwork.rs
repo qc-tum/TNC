@@ -788,8 +788,8 @@ mod tests {
         }
         edge_sol.clear();
 
-        let ext_sol = vec![2, 0, 3, 6];
-        assert_eq!(ext_sol, t.ext_edges);
+        let ext_sol = vec![&0, &2, &3, &6];
+        assert_eq!(ext_sol, t.ext_edges.iter().sorted().collect::<Vec<&i32>>());
 
         let (tensor_intersect, tensor_difference) = t._contraction(0, 1);
         // contraction should maintain leg order
