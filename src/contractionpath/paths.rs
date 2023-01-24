@@ -53,18 +53,8 @@ fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<(usize, 
     let mut hs = HashMap::new();
     let path_len = n;
     for (u1, u2, u3) in path {
-        let t1;
-        let t2;
-        if *u1 > path_len {
-            t1 = hs[u1];
-        } else {
-            t1 = *u1;
-        }
-        if *u2 > path_len {
-            t2 = hs[u2];
-        } else {
-            t2 = *u2;
-        }
+        let t1 = if *u1 > path_len { hs[u1] } else { *u1 };
+        let t2 = if *u2 > path_len { hs[u2] } else { *u2 };
         hs.entry(*u3).or_insert(n);
         n += 1;
         ssa_path.push((t1, t2));
@@ -182,7 +172,7 @@ impl BranchBound {
                     self.best_progress.entry(remaining.len()).or_insert(flops);
                 }
 
-                if flops < best_flops as u64 {
+                if flops < best_flops {
                     self.best_progress
                         .entry(remaining.len())
                         .insert_entry(flops);
@@ -190,13 +180,13 @@ impl BranchBound {
                     return None;
                 }
 
-                return Some((flops, size, (i, j), k12, k12_tensor));
+                Some((flops, size, (i, j), k12, k12_tensor))
             };
 
         let mut candidates = Vec::new();
         for i in remaining.iter().combinations(2) {
             let candidate = assess_candidate(*i[0] as usize, *i[1] as usize);
-            if !candidate.is_none() {
+            if candidate.is_some() {
                 candidates.push(candidate);
             }
         }
@@ -221,7 +211,6 @@ impl BranchBound {
     }
 }
 
-
 impl OptimizePath for BranchBound {
     fn optimize_path(&mut self, _output: Option<Vec<u32>>) {
         let tensors = self.tn.get_tensors();
@@ -233,13 +222,13 @@ impl OptimizePath for BranchBound {
         self.size_cache.clear();
 
         // Get the initial space requirements for uncontracted tensors
-        for index in 0usize..tensors.len() {
+        for (index, tensor) in tensors.iter().enumerate() {
             self.size_cache
                 .entry(index)
                 .or_insert(size(&self.tn, index));
             self.tensor_cache
                 .entry(index)
-                .or_insert(tensors[index].clone());
+                .or_insert(tensor.clone());
         }
 
         let remaining: Vec<u32> = (0u32..self.tn.get_tensors().len() as u32).collect();
@@ -283,7 +272,7 @@ mod tests {
                 Tensor::new(vec![4, 5, 6]),
             ],
             vec![27, 18, 12, 15, 5, 3, 18],
-            None
+            None,
         )
     }
 
@@ -298,7 +287,7 @@ mod tests {
                 Tensor::new(vec![5, 1, 0]),
             ],
             vec![27, 18, 12, 15, 5, 3, 18, 22, 45, 65, 5, 17],
-            None
+            None,
         )
     }
 
@@ -348,10 +337,13 @@ mod tests {
         let tn = setup_complex();
         let mut opt = BranchBound::new(tn, None, 20, BranchBoundType::Flops);
         opt.optimize_path(None);
-        
+
         assert_eq!(opt.best_flops, 5614200);
         assert_eq!(opt.best_size, 3963645);
         assert_eq!(opt.best_path, vec![(0, 1), (2, 5), (3, 4), (6, 7), (8, 9)]);
-        assert_eq!(opt.get_best_replace_path(), vec![(0, 1), (2, 5), (3, 4), (0, 2), (3, 0)]);
+        assert_eq!(
+            opt.get_best_replace_path(),
+            vec![(0, 1), (2, 5), (3, 4), (0, 2), (3, 0)]
+        );
     }
 }
