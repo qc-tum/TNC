@@ -182,13 +182,11 @@ impl TensorNetwork {
         } else {
             Vec::new()
         };
-        for i in 0..edges.len() {
-            edges.entry(i as i32).and_modify(|edge| {
+        for (index, edge) in &mut edges{
                 if edge.len() == 1 {
                     edge.push(None);
-                    ext_edges.push(i as i32);
+                ext_edges.push(*index);
                 }
-            });
         }
 
         Self {
