@@ -286,7 +286,7 @@ impl TensorNetwork {
     /// # Arguments
     ///
     /// * `tensors` - A Vector of Tensor objects
-    /// * `ext` - An optional Vector of i32 edge IDs, indicates which edges are external edges after full contraction.
+    /// * `ext` - An optional Vector of i32 edge IDs, indicates which edges are external hyperedges.
     ///
     /// # Panics
     ///
@@ -374,7 +374,7 @@ impl TensorNetwork {
     ///
     /// * `tensor` - A Tensor object
     /// * `bond_dims` - A HashMap taking using edge ids as keys and returning the corresponding bond dimension.
-    /// * `ext` -
+    /// * `ext` - Vector of external hyperedges
     ///
     /// # Examples
     ///
