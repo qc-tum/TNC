@@ -183,10 +183,10 @@ impl TensorNetwork {
             Vec::new()
         };
         for (index, edge) in &mut edges {
-                if edge.len() == 1 {
-                    edge.push(None);
+            if edge.len() == 1 {
+                edge.push(None);
                 ext_edges.push(*index);
-                }
+            }
         }
 
         Self {
@@ -276,53 +276,6 @@ impl TensorNetwork {
             edges,
             ext_edges,
         }
-    }
-
-    /// Private function that updates `TensorNetwork::edges`. Used to modify edge
-    /// connections after contraction or when new Tensor objects are appended
-    /// Does not perform checks to ensure that each new edge id has a corresponding
-    /// bond_dim entry.
-    ///
-    /// # Arguments
-    ///
-    /// * `tensors` - A Vector of Tensor objects
-    /// * `ext` - An optional Vector of i32 edge IDs, indicates which edges are external hyperedges.
-    ///
-    /// # Panics
-    ///
-    /// Panics when an edge id appears in more than two Tensor objects.
-    fn update_edges(&mut self, tensors: &Vec<Tensor>, ext: Option<&Vec<i32>>) {
-        // Always push tensor after updating edges
-        let start = self.tensors.len();
-        // for (index, tensor) in start..(tensors.len() + start) {
-        for (index, tensor) in tensors.iter().enumerate().skip(start).take(tensors.len()) {
-            for leg in tensor.get_legs() {
-                self.edges
-                    .entry(*leg)
-                    .and_modify(|edge| {
-                        // New tensor contracts on a previous external leg
-                        if let Some(pos) = edge.iter().position(|e| e.is_none()) {
-                            edge[pos] = Some(index as i32);
-                            // Leg is no longer external as it contracts with new tensor
-                            if let Some(pos_ext) = self.ext_edges.iter().position(|e| e == leg) {
-                                self.ext_edges.remove(pos_ext);
-                            }
-                        } else {
-                            // New Tensor connects with existing leg
-                            edge.push(Some(index as i32));
-                        }
-                    })
-                    // Inserts new edge
-                    .or_insert(vec![Some(index as i32), None]);
-            }
-        }
-        // Add new external edges to TensorNetwork
-        if let Some(ext_edges) = ext {
-            for i in ext_edges {
-                self.edges.entry(*i).and_modify(|edge| edge.push(None));
-                self.ext_edges.push(*i);
-            }
-        };
     }
 
     /// Private function that updates `TensorNetwork::edges`. Used to modify edge
