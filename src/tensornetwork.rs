@@ -731,8 +731,8 @@ mod tests {
         let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
         edge_sol.entry(0).or_insert(vec![Some(0), None]);
         edge_sol.entry(1).or_insert(vec![Some(0), None]);
-        edge_sol.entry(2).or_insert(vec![Some(0), Some(0)]);
-        edge_sol.entry(3).or_insert(vec![Some(0), Some(0)]);
+        edge_sol.entry(2).or_insert(vec![Some(0)]);
+        edge_sol.entry(3).or_insert(vec![Some(0)]);
         edge_sol.entry(4).or_insert(vec![Some(0), None]);
 
         assert_eq!(t.get_tensors()[0], tensor_sol);
@@ -755,8 +755,8 @@ mod tests {
         let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
         edge_sol.entry(0).or_insert(vec![Some(0), None]);
         edge_sol.entry(1).or_insert(vec![Some(0), None]);
-        edge_sol.entry(2).or_insert(vec![Some(0), Some(0), None]);
-        edge_sol.entry(3).or_insert(vec![Some(0), Some(0)]);
+        edge_sol.entry(2).or_insert(vec![Some(0), None]);
+        edge_sol.entry(3).or_insert(vec![Some(0), ]);
         edge_sol.entry(4).or_insert(vec![Some(0), None]);
 
         assert_eq!(t.get_tensors()[0], tensor_sol);
