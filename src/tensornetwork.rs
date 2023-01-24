@@ -566,7 +566,7 @@ impl TensorNetwork {
 impl fmt::Display for TensorNetwork {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for (key, value) in &self.bond_dims {
-            println!("{key}: {value}");
+            writeln!(f, "{key}: {value}")?;
         }
         write!(f, "Tensor: {:?}", self.tensors)
     }
