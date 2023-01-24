@@ -1,9 +1,6 @@
 #![feature(test)]
-
-use tensorcontraction::tensornetwork::contraction::tn_contract;
 use tensorcontraction::{
-    contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath},
-    random::tensorgeneration::{random_sparse_tensor, random_tensor_network},
+    random::tensorgeneration::{random_tensor_network},
     tensornetwork::{tensor::Tensor, TensorNetwork},
 };
 

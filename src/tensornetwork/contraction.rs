@@ -136,7 +136,6 @@ pub fn tn_multicontract(
 #[cfg(test)]
 mod tests {
     use super::tn_contract;
-    use super::tn_multicontract;
     use crate::tensornetwork::tacotensor::from_array;
     use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
     use num_complex::Complex64;
