@@ -572,6 +572,8 @@ impl fmt::Display for TensorNetwork {
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
+
     use crate::tensornetwork::tensor::Tensor;
     use crate::tensornetwork::MaximumLeg;
     use crate::tensornetwork::TensorNetwork;
