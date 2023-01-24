@@ -182,7 +182,7 @@ impl TensorNetwork {
         } else {
             Vec::new()
         };
-        for (index, edge) in &mut edges{
+        for (index, edge) in &mut edges {
                 if edge.len() == 1 {
                     edge.push(None);
                 ext_edges.push(*index);
@@ -354,7 +354,10 @@ impl TensorNetwork {
                     }
                 })
                 // Inserts new edge
-                .or_insert(vec![Some(index as i32), None]);
+                .or_insert_with(|| {
+                    self.ext_edges.push(*leg);
+                    vec![Some(index as i32), None]
+                });
         }
 
         // Add new external edges to TensorNetwork
@@ -766,7 +769,7 @@ mod tests {
     #[test]
     fn test_update_edge() {
         let mut t = setup_hyperedge();
-        let tensor = Tensor::new(vec![4, 5, 6]);
+        let tensor = Tensor::new(vec![4, 5, 6, 6]);
         t.update_edge(&tensor, Some(&vec![4]));
 
         let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
@@ -776,7 +779,7 @@ mod tests {
         edge_sol.entry(3).or_insert(vec![Some(0), Some(1)]);
         edge_sol.entry(4).or_insert(vec![Some(0), Some(2), None]);
         edge_sol.entry(5).or_insert(vec![Some(2), None]);
-        edge_sol.entry(6).or_insert(vec![Some(2), None]);
+        edge_sol.entry(6).or_insert(vec![Some(2), Some(2)]);
 
         for edge_key in 0i32..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
