@@ -74,16 +74,17 @@ fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<(usize, 
 fn ssa_replace_ordering(path: &Vec<(usize, usize)>, mut n: usize) -> Vec<(usize, usize)> {
     let mut ssa_path = Vec::with_capacity(path.len());
     let mut hs = HashMap::new();
-    for i in 0..path.len() {
-        let mut tup = path[i];
+    for tup in path.iter() {
+        // let mut tup = path[i];
+        let mut new_tup = *tup;
         if hs.contains_key(&tup.0) {
-            tup.0 = hs[&tup.0];
+            new_tup.0 = hs[&tup.0];
         }
         if hs.contains_key(&tup.1) {
-            tup.1 = hs[&tup.1];
+            new_tup.1 = hs[&tup.1];
         }
-        hs.entry(n).or_insert(tup.0);
-        ssa_path.push(tup);
+        hs.entry(n).or_insert(new_tup.0);
+        ssa_path.push(new_tup);
         n += 1;
     }
     ssa_path

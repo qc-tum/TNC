@@ -39,7 +39,7 @@ impl MaximumLeg for Vec<Tensor> {
                 m = n;
             }
         }
-        *m.unwrap_or_else(|| &0)
+        *m.unwrap_or(&0)
     }
 }
 
@@ -166,8 +166,8 @@ impl TensorNetwork {
     pub fn from_vector(tensors: Vec<Tensor>, bond_dims: Vec<u64>, ext: Option<&Vec<i32>>) -> Self {
         assert!(tensors.max_leg() < bond_dims.len() as i32);
         let mut edges: HashMap<i32, Vec<Option<i32>>> = HashMap::new();
-        for index in 0usize..tensors.len() {
-            for leg in tensors[index].get_legs() {
+        for (index, tensor) in tensors.iter().enumerate() {
+            for leg in tensor.get_legs() {
                 edges
                     .entry(*leg)
                     .and_modify(|edge| edge.push(Some(index as i32)))
@@ -244,10 +244,10 @@ impl TensorNetwork {
     /// ```    
     pub fn new(tensors: Vec<Tensor>, bond_dims: HashMap<i32, u64>, ext: Option<&Vec<i32>>) -> Self {
         let mut edges: HashMap<i32, Vec<Option<i32>>> = HashMap::new();
-        for index in 0usize..tensors.len() {
-            for leg in tensors[index].get_legs() {
-                if !bond_dims.contains_key(&leg) {
-                    panic!("Leg {} bond dimension is not defined", leg);
+        for (index, tensor) in tensors.iter().enumerate() {
+            for leg in tensor.get_legs() {
+                if !bond_dims.contains_key(leg) {
+                    panic!("Leg {leg} bond dimension is not defined");
                 }
                 edges
                     .entry(*leg)
@@ -296,8 +296,9 @@ impl TensorNetwork {
     fn update_edges(&mut self, tensors: &Vec<Tensor>, ext: Option<&Vec<i32>>) {
         // Always push tensor after updating edges
         let start = self.tensors.len();
-        for index in start..(tensors.len() + start) {
-            for leg in tensors[index].get_legs() {
+        // for (index, tensor) in start..(tensors.len() + start) {
+        for (index, tensor) in tensors.iter().enumerate().skip(start).take(tensors.len()) {
+            for leg in tensor.get_legs() {
                 self.edges
                     .entry(*leg)
                     .and_modify(|edge| {
@@ -436,16 +437,16 @@ impl TensorNetwork {
             for leg in tensor.get_legs().iter() {
                 if !self.bond_dims.contains_key(leg) {
                     if !bond_dims.contains_key(leg) {
-                        panic!("Edge id {} bond dimension is not defined.", leg);
+                        panic!("Edge id {leg} bond dimension is not defined.");
                     }
-                    self.bond_dims.entry(*leg).or_insert(bond_dims[&leg]);
+                    self.bond_dims.entry(*leg).or_insert(bond_dims[leg]);
                 } else if bond_dims.contains_key(leg)
                     && *self.bond_dims.get(leg).unwrap() != bond_dims[leg]
                 {
                     panic!(
                         "Attempt to update bond {} with value: {}, previous value: {}",
                         leg,
-                        &bond_dims[&leg],
+                        &bond_dims[leg],
                         self.bond_dims.get(leg).unwrap()
                     )
                 }
@@ -453,10 +454,7 @@ impl TensorNetwork {
         } else {
             for leg in tensor.get_legs() {
                 if !self.bond_dims.contains_key(leg) {
-                    panic!(
-                        "Input {:?} contains leg {}, with unknown bond dimension.",
-                        tensor, leg
-                    );
+                    panic!("Input {tensor:?} contains leg {leg}, with unknown bond dimension.");
                 }
             }
         }
@@ -503,10 +501,10 @@ impl TensorNetwork {
                         false
                     }
                 });
-                for i in 0..e.len() {
-                    if let Some(tensor_loc) = e[i]{
-                        if tensor_loc as usize == tensor_b_loc{
-                            e[i] = Some(tensor_a_loc as i32);
+                for edge in &mut e.iter_mut() {
+                    if let Some(tensor_loc) = edge {
+                        if *tensor_loc as usize == tensor_b_loc {
+                            *edge = Some(tensor_a_loc as i32);
                         }
                     }
                 }
@@ -518,59 +516,59 @@ impl TensorNetwork {
     }
 }
 
-    // Constructs Graphviz code showing the tensor network as a graph. The tensor numbering corresponds to their
-    // tensor index (i.e., their position in the tensors vector). The edges are annotated with the bond dims,
-    // as well as the edge id in smaller font.
-    // pub fn to_graphviz(&self) -> String {
-    //     let mut out = String::new();
-    //     let mut invis_counter = 0u32;
-    //     out.push_str("graph tn {\n");
+// Constructs Graphviz code showing the tensor network as a graph. The tensor numbering corresponds to their
+// tensor index (i.e., their position in the tensors vector). The edges are annotated with the bond dims,
+// as well as the edge id in smaller font.
+// pub fn to_graphviz(&self) -> String {
+//     let mut out = String::new();
+//     let mut invis_counter = 0u32;
+//     out.push_str("graph tn {\n");
 
-    //     for (i, tensor) in self.tensors.iter().enumerate() {
-    //         for leg in tensor.get_legs() {
-    //             let connection = self.edges[leg];
+//     for (i, tensor) in self.tensors.iter().enumerate() {
+//         for leg in tensor.get_legs() {
+//             let connection = self.edges[leg];
 
-    //             if let (Some(idx1), Some(_)) = connection {
-    //                 if idx1 == i as i32 {
-    //                     // prevent each edge being added twice, by only considering
-    //                     // edges where this tensor is in the first place
-    //                     continue;
-    //                 }
-    //             }
+//             if let (Some(idx1), Some(_)) = connection {
+//                 if idx1 == i as i32 {
+//                     // prevent each edge being added twice, by only considering
+//                     // edges where this tensor is in the first place
+//                     continue;
+//                 }
+//             }
 
-    //             // Get tensor1 name (or create an invisible node if None)
-    //             let t1 = if let Some(idx) = connection.0 {
-    //                 format!("t{}", idx)
-    //             } else {
-    //                 let name = format!("i{}", invis_counter);
-    //                 writeln!(out, "\t{} [style=\"invis\"];", name).unwrap();
-    //                 invis_counter += 1;
-    //                 name
-    //             };
+//             // Get tensor1 name (or create an invisible node if None)
+//             let t1 = if let Some(idx) = connection.0 {
+//                 format!("t{}", idx)
+//             } else {
+//                 let name = format!("i{}", invis_counter);
+//                 writeln!(out, "\t{} [style=\"invis\"];", name).unwrap();
+//                 invis_counter += 1;
+//                 name
+//             };
 
-    //             // Get tensor2 name (or create an invisible node if None)
-    //             let t2 = if let Some(idx) = connection.1 {
-    //                 format!("t{}", idx)
-    //             } else {
-    //                 let name = format!("i{}", invis_counter);
-    //                 writeln!(out, "\t{} [style=\"invis\"];", name).unwrap();
-    //                 invis_counter += 1;
-    //                 name
-    //             };
+//             // Get tensor2 name (or create an invisible node if None)
+//             let t2 = if let Some(idx) = connection.1 {
+//                 format!("t{}", idx)
+//             } else {
+//                 let name = format!("i{}", invis_counter);
+//                 writeln!(out, "\t{} [style=\"invis\"];", name).unwrap();
+//                 invis_counter += 1;
+//                 name
+//             };
 
-    //             // Write edge between tensors
-    //             writeln!(out, "\t{} -- {} [label=\"{}\", taillabel=\"{}\", headlabel=\"{}\", labelfontsize=\"8pt\"];", t1, t2, self.bond_dims[leg], leg, leg).unwrap();
-    //         }
-    //     }
+//             // Write edge between tensors
+//             writeln!(out, "\t{} -- {} [label=\"{}\", taillabel=\"{}\", headlabel=\"{}\", labelfontsize=\"8pt\"];", t1, t2, self.bond_dims[leg], leg, leg).unwrap();
+//         }
+//     }
 
-    // Write edge between tensors
-    // writeln!(out, "\t{} -- {} [label=\"{}\", taillabel=\"{}\", headlabel=\"{}\", labelfontsize=\"8pt\"];", t1, t2, self.bond_dims[leg], leg, leg).unwrap();
+// Write edge between tensors
+// writeln!(out, "\t{} -- {} [label=\"{}\", taillabel=\"{}\", headlabel=\"{}\", labelfontsize=\"8pt\"];", t1, t2, self.bond_dims[leg], leg, leg).unwrap();
 
 /// Implementation of printing for TensorNetwork. Simply prints the Tensor objects in TensorNetwork
 impl fmt::Display for TensorNetwork {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for (key, value) in &self.bond_dims {
-            println!("{}: {}", key, value);
+            println!("{key}: {value}");
         }
         write!(f, "Tensor: {:?}", self.tensors)
     }
@@ -629,8 +627,8 @@ mod tests {
         edge_sol.entry(4).or_insert(vec![Some(0), None]);
         let bond_dims = vec![17, 18, 19, 12, 22];
         let t = TensorNetwork::from_vector(tensors, bond_dims.clone(), None);
-        for leg in 0..t.tensors.max_leg() as usize {
-            assert_eq!(t.bond_dims[&(leg as i32)], bond_dims[leg]);
+        for (index, leg) in t.bond_dims.iter().take(t.tensors.max_leg() as usize) {
+            assert_eq!(*leg, bond_dims[*index as usize]);
         }
         for edge_key in 0i32..4 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
@@ -651,8 +649,8 @@ mod tests {
         edge_sol.entry(4).or_insert(vec![Some(0), Some(2)]);
         let bond_dims = vec![17, 18, 19, 12, 22];
 
-        for leg in 0..t.tensors.max_leg() as usize {
-            assert_eq!(t.bond_dims[&(leg as i32)], bond_dims[leg]);
+        for (index, leg) in t.bond_dims.iter().take(t.tensors.max_leg() as usize) {
+            assert_eq!(*leg, bond_dims[*index as usize]);
         }
 
         for edge_key in 0i32..4 {
@@ -665,10 +663,9 @@ mod tests {
         let mut t = setup();
         let good_tensor = Tensor::new(vec![7, 9, 12]);
         let good_bond_dims = HashMap::from([(7, 55), (9, 5), (12, 6)]);
-        println!("{:?}", good_bond_dims);
         t.push_tensor(good_tensor.clone(), Some(&good_bond_dims), None);
         for legs in good_tensor.get_legs() {
-            assert_eq!(good_bond_dims[&legs], t.bond_dims[legs]);
+            assert_eq!(good_bond_dims[legs], t.bond_dims[legs]);
         }
         let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
         edge_sol.entry(0).or_insert(vec![Some(1), None]);
@@ -754,6 +751,28 @@ mod tests {
 
         assert_eq!(tensor_intersect, tensor_intersect_sol);
         assert_eq!(tensor_difference, tensor_difference_sol);
+    }
+
+    #[test]
+    fn test_update_edge() {
+        let mut t = setup_hyperedge();
+        let tensor = Tensor::new(vec![4, 5, 6]);
+        // let bond_dims = vec![22, 5, 3];
+        t.update_edge(&tensor, Some(&vec![5]));
+
+        let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
+        edge_sol.entry(0).or_insert(vec![Some(1), None]);
+        edge_sol.entry(1).or_insert(vec![Some(1), None]);
+        edge_sol.entry(2).or_insert(vec![Some(0), Some(1), None]);
+        edge_sol.entry(3).or_insert(vec![Some(0), Some(1)]);
+        edge_sol.entry(4).or_insert(vec![Some(0), Some(2)]);
+        edge_sol.entry(5).or_insert(vec![Some(2), None, None]);
+        edge_sol.entry(6).or_insert(vec![Some(2), None]);
+
+
+        for edge_key in 0i32..7 {
+            assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
+        }
     }
 
     #[test]
