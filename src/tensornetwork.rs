@@ -753,18 +753,16 @@ mod tests {
     fn test_update_edge() {
         let mut t = setup_hyperedge();
         let tensor = Tensor::new(vec![4, 5, 6]);
-        // let bond_dims = vec![22, 5, 3];
-        t.update_edge(&tensor, Some(&vec![5]));
+        t.update_edge(&tensor, Some(&vec![4]));
 
         let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
         edge_sol.entry(0).or_insert(vec![Some(1), None]);
         edge_sol.entry(1).or_insert(vec![Some(1), None]);
         edge_sol.entry(2).or_insert(vec![Some(0), Some(1), None]);
         edge_sol.entry(3).or_insert(vec![Some(0), Some(1)]);
-        edge_sol.entry(4).or_insert(vec![Some(0), Some(2)]);
-        edge_sol.entry(5).or_insert(vec![Some(2), None, None]);
+        edge_sol.entry(4).or_insert(vec![Some(0), Some(2), None]);
+        edge_sol.entry(5).or_insert(vec![Some(2), None]);
         edge_sol.entry(6).or_insert(vec![Some(2), None]);
-
 
         for edge_key in 0i32..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
@@ -812,6 +810,7 @@ mod tests {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
         edge_sol.clear();
+        assert_eq!(ext_sol, t.ext_edges.iter().sorted().collect::<Vec<&i32>>());
 
         let (tensor_intersect, tensor_difference) = t._contraction(0, 2);
         // contraction should maintain leg order
