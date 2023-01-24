@@ -308,7 +308,6 @@ mod tests {
 
     #[ignore]
     #[test]
-    #[ignore]
     fn test_tn_contraction() {
         let t1 = Tensor::new(vec![0, 1, 2]);
         let t2 = Tensor::new(vec![2, 3, 4]);
