@@ -15,7 +15,7 @@ pub trait MaximumLeg {
     fn max_leg(&self) -> i32;
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 /// Abstract representation of a tensor network. Stores a vector of [`Tensor`] objects connected
 /// by edges. The edges are stored in a HashMap and edge dimensions are stored in `bond_dim`.
 pub struct TensorNetwork {
@@ -566,7 +566,6 @@ impl TensorNetwork {
     // Write edge between tensors
     // writeln!(out, "\t{} -- {} [label=\"{}\", taillabel=\"{}\", headlabel=\"{}\", labelfontsize=\"8pt\"];", t1, t2, self.bond_dims[leg], leg, leg).unwrap();
 
-
 /// Implementation of printing for TensorNetwork. Simply prints the Tensor objects in TensorNetwork
 impl fmt::Display for TensorNetwork {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -574,17 +573,6 @@ impl fmt::Display for TensorNetwork {
             println!("{}: {}", key, value);
         }
         write!(f, "Tensor: {:?}", self.tensors)
-    }
-}
-
-impl Default for TensorNetwork {
-    fn default() -> Self {
-        Self {
-            tensors: Vec::<Tensor>::new(),
-            bond_dims: HashMap::new(),
-            edges: HashMap::new(),
-            ext_edges: Vec::new(),
-        }
     }
 }
 
