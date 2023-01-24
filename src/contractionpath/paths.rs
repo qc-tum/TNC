@@ -3,7 +3,10 @@ use std::cmp::max;
 use std::collections::HashMap;
 // use std::iter::zip;
 
-use crate::contractionpath::contraction_cost::{_contract_cost, _contract_size, size};
+use crate::contractionpath::{
+    contraction_cost::{_contract_cost, _contract_size, size},
+    Candidate,
+};
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::TensorNetwork;
 
@@ -131,7 +134,7 @@ impl BranchBound {
         }
 
         let mut assess_candidate =
-            |i: usize, j: usize| -> Option<(u64, u64, (usize, usize), usize, Tensor)> {
+            |i: usize, j: usize| -> Option<Candidate> {
                 let flops_12: u64;
                 let size_12: u64;
                 let k12: usize;
@@ -227,9 +230,7 @@ impl OptimizePath for BranchBound {
             self.size_cache
                 .entry(index)
                 .or_insert(size(&self.tn, index));
-            self.tensor_cache
-                .entry(index)
-                .or_insert(tensor.clone());
+            self.tensor_cache.entry(index).or_insert(tensor.clone());
         }
 
         let remaining: Vec<u32> = (0u32..self.tn.get_tensors().len() as u32).collect();
