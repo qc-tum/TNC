@@ -163,38 +163,9 @@ impl TensorNetwork {
     /// let bond_dims = vec![17, 19];
     /// let tn = TensorNetwork::from_vector(vec![v1], bond_dims, None);
     /// ```
-    pub fn from_vector(tensors: Vec<Tensor>, bond_dims: Vec<u64>, ext: Option<&Vec<i32>>) -> Self {
+    pub fn from_vector(tensors: Vec<Tensor>, bond_dims: Vec<u64>, ext: Option<&Vec<i32>>) -> TensorNetwork {
         assert!(tensors.max_leg() < bond_dims.len() as i32);
-        let mut edges: HashMap<i32, Vec<Option<i32>>> = HashMap::new();
-        for (index, tensor) in tensors.iter().enumerate() {
-            for leg in tensor.get_legs() {
-                edges
-                    .entry(*leg)
-                    .and_modify(|edge| edge.push(Some(index as i32)))
-                    .or_insert(vec![Some(index as i32)]);
-            }
-        }
-        let mut ext_edges: Vec<i32> = if let Some(ext_edges) = ext {
-            for i in ext_edges {
-                edges.entry(*i).and_modify(|edge| edge.push(None));
-            }
-            ext_edges.clone()
-        } else {
-            Vec::new()
-        };
-        for (index, edge) in &mut edges {
-            if edge.len() == 1 {
-                edge.push(None);
-                ext_edges.push(*index);
-            }
-        }
-
-        Self {
-            tensors,
-            bond_dims: (0i32..).zip(bond_dims).collect(),
-            edges,
-            ext_edges,
-        }
+        TensorNetwork::new(tensors, (0i32..).zip(bond_dims).collect(), ext)
     }
 
     // TODO: Add hyperedge example
@@ -253,23 +224,20 @@ impl TensorNetwork {
                     .or_insert(vec![Some(index as i32)]);
             }
         }
-        let ext_edges: Vec<i32> = if let Some(ext_edges) = ext {
+        let mut ext_edges: Vec<i32> = if let Some(ext_edges) = ext {
             for i in ext_edges {
                 edges.entry(*i).and_modify(|edge| edge.push(None));
             }
             ext_edges.clone()
         } else {
-            let mut ext_edges = Vec::new();
-            for i in 0..edges.len() {
-                edges.entry(i as i32).and_modify(|edge| {
-                    if edge.len() == 1 {
-                        edge.push(None);
-                        ext_edges.push(i as i32);
-                    }
-                });
-            }
-            ext_edges
+            Vec::new()
         };
+        for (index, edge) in &mut edges {
+            if edge.len() == 1 {
+                edge.push(None);
+                ext_edges.push(*index);
+            }
+        }
         Self {
             tensors,
             bond_dims,
