@@ -4,4 +4,10 @@ pub mod contraction_cost;
 pub mod paths;
 
 // type alias to store contraction candidate when searching for optimal contraction path.
-type Candidate = (u64, u64, (usize, usize), usize, Tensor);
+struct Candidate {
+    flop_cost: u64,
+    size_cost: u64,
+    parent_ids: (usize, usize),
+    child_id: usize,
+    child_tensor: Tensor,
+}

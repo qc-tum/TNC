@@ -133,59 +133,64 @@ impl BranchBound {
             self.best_path = ssa_ordering(&path, self.tn.get_tensors().len());
         }
 
-        let mut assess_candidate =
-            |i: usize, j: usize| -> Option<Candidate> {
-                let flops_12: u64;
-                let size_12: u64;
-                let k12: usize;
-                let k12_tensor: Tensor;
-                if self.result_cache.contains_key(&vec![i, j]) {
-                    k12 = self.result_cache[&vec![i, j]];
-                    flops_12 = self.flop_cache[&k12];
-                    size_12 = self.size_cache[&k12];
-                    k12_tensor = self.tensor_cache[&k12].clone();
-                } else {
-                    k12 = self.tensor_cache.len();
-                    flops_12 = _contract_cost(
-                        self.tensor_cache[&i].clone(),
-                        self.tensor_cache[&j].clone(),
-                        self.tn.get_bond_dims(),
-                    );
-                    (k12_tensor, size_12) = _contract_size(
-                        self.tensor_cache[&i].clone(),
-                        self.tensor_cache[&j].clone(),
-                        self.tn.get_bond_dims(),
-                    );
-                    self.result_cache.entry(vec![i, j]).or_insert(k12);
-                    self.flop_cache.entry(k12).or_insert(flops_12);
-                    self.size_cache.entry(k12).or_insert(size_12);
-                    // self.tn.push_tensor(k12_tensor.clone(), None);
-                    self.tensor_cache.entry(k12).or_insert(k12_tensor.clone());
-                }
-                flops += flops_12;
-                size = max(size, size_12);
+        let mut assess_candidate = |i: usize, j: usize| -> Option<Candidate> {
+            let flops_12: u64;
+            let size_12: u64;
+            let k12: usize;
+            let k12_tensor: Tensor;
+            if self.result_cache.contains_key(&vec![i, j]) {
+                k12 = self.result_cache[&vec![i, j]];
+                flops_12 = self.flop_cache[&k12];
+                size_12 = self.size_cache[&k12];
+                k12_tensor = self.tensor_cache[&k12].clone();
+            } else {
+                k12 = self.tensor_cache.len();
+                flops_12 = _contract_cost(
+                    self.tensor_cache[&i].clone(),
+                    self.tensor_cache[&j].clone(),
+                    self.tn.get_bond_dims(),
+                );
+                (k12_tensor, size_12) = _contract_size(
+                    self.tensor_cache[&i].clone(),
+                    self.tensor_cache[&j].clone(),
+                    self.tn.get_bond_dims(),
+                );
+                self.result_cache.entry(vec![i, j]).or_insert(k12);
+                self.flop_cache.entry(k12).or_insert(flops_12);
+                self.size_cache.entry(k12).or_insert(size_12);
+                // self.tn.push_tensor(k12_tensor.clone(), None);
+                self.tensor_cache.entry(k12).or_insert(k12_tensor.clone());
+            }
+            flops += flops_12;
+            size = max(size, size_12);
 
-                if flops > self.best_flops && size > self.best_size {
-                    return None;
-                }
-                let best_flops: u64;
-                if self.best_progress.contains_key(&remaining.len()) {
-                    best_flops = self.best_progress[&remaining.len()];
-                } else {
-                    best_flops = flops;
-                    self.best_progress.entry(remaining.len()).or_insert(flops);
-                }
+            if flops > self.best_flops && size > self.best_size {
+                return None;
+            }
+            let best_flops: u64;
+            if self.best_progress.contains_key(&remaining.len()) {
+                best_flops = self.best_progress[&remaining.len()];
+            } else {
+                best_flops = flops;
+                self.best_progress.entry(remaining.len()).or_insert(flops);
+            }
 
-                if flops < best_flops {
-                    self.best_progress
-                        .entry(remaining.len())
-                        .insert_entry(flops);
-                } else if flops > self.cutoff_flops_factor * self.best_progress[&remaining.len()] {
-                    return None;
-                }
+            if flops < best_flops {
+                self.best_progress
+                    .entry(remaining.len())
+                    .insert_entry(flops);
+            } else if flops > self.cutoff_flops_factor * self.best_progress[&remaining.len()] {
+                return None;
+            }
 
-                Some((flops, size, (i, j), k12, k12_tensor))
-            };
+            Some(Candidate {
+                flop_cost: flops,
+                size_cost: size,
+                parent_ids: (i, j),
+                child_id: k12,
+                child_tensor: k12_tensor,
+            })
+        };
 
         let mut candidates = Vec::new();
         for i in remaining.iter().combinations(2) {
@@ -202,15 +207,15 @@ impl BranchBound {
             if candidates.is_empty() {
                 break;
             }
-            let (new_flops, new_size, (i, j), k12, _k12_tensor) =
+            let Candidate{ flop_cost, size_cost, parent_ids, child_id, child_tensor: _child_tensor} =
                 candidates.pop().unwrap().unwrap();
             new_remaining = remaining.clone();
-            new_remaining.retain(|e| *e != i as u32);
-            new_remaining.retain(|e| *e != j as u32);
-            new_remaining.insert(new_remaining.len(), k12 as u32);
+            new_remaining.retain(|e| *e != parent_ids.0 as u32);
+            new_remaining.retain(|e| *e != parent_ids.1 as u32);
+            new_remaining.insert(new_remaining.len(), child_id as u32);
             new_path = path.clone();
-            new_path.push((i, j, k12));
-            BranchBound::_branch_iterate(self, new_path, new_remaining, new_flops, new_size);
+            new_path.push((parent_ids.0, parent_ids.1, child_id));
+            BranchBound::_branch_iterate(self, new_path, new_remaining, flop_cost, size_cost);
         }
     }
 }
