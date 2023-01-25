@@ -395,7 +395,7 @@ impl TensorNetwork {
     fn _contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (Vec<i32>, Vec<i32>) {
         let tensor_a_legs = self.tensors[tensor_a_loc].get_legs();
         let tensor_b_legs = self.tensors[tensor_b_loc].get_legs();
-        let tensor_union = tensor_b_legs.union(tensor_a_legs.to_vec());
+        let tensor_union = tensor_b_legs.union(tensor_a_legs.clone());
         let tensor_intersect = tensor_b_legs.intersect(tensor_a_legs.to_vec());
 
         let mut tensor_difference: Vec<i32> = Vec::new();
