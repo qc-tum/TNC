@@ -1,12 +1,13 @@
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::TensorNetwork;
 use itertools::Itertools;
+use num_complex::Complex64;
 use rand::distributions::{Distribution, Uniform};
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use std::collections::HashMap;
+use std::ops::RangeInclusive;
 use taco_sys::Tensor as _TacoTensor;
-use num_complex::Complex64;
 
 /// Generates random Tensor object with `n` dimensions and corresponding `bond_dims` HashMap,
 /// bond dimensions are uniformly distributed between 1 and 20.
@@ -26,7 +27,7 @@ use num_complex::Complex64;
 pub fn random_tensor(n: usize) -> (Tensor, HashMap<i32, u64>) {
     let mut rng = rand::thread_rng();
     let range = Uniform::new(1u64, 21);
-    let bond_dims = (0..n).map(|_| rng.sample(&range));
+    let bond_dims = (0..n).map(|_| rng.sample(range));
     let edges = 0i32..n as i32;
     let hs = edges.zip(bond_dims).collect_vec();
     let mut bond_dims = HashMap::new();
@@ -65,7 +66,7 @@ pub fn random_sparse_tensor(
     sparsity: Option<f32>,
 ) -> _TacoTensor {
     let sparsity = if let Some(sparsity) = sparsity {
-        assert!(0.0 <= sparsity && sparsity <= 1.0);
+        assert!(RangeInclusive::new(0.0, 1.0).contains(&sparsity));
         sparsity
     } else {
         0.5
@@ -159,10 +160,11 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> TensorNetwork {
     }
 
     let t = TensorNetwork::new(
-        tensors.into_iter().map(|e| Tensor::new(e)).collect(),
+        tensors.into_iter().map(Tensor::new).collect(),
         bond_dims,
+        None,
     );
-    if t.is_empty(){
+    if t.is_empty() {
         return random_tensor_network(n, cycles);
     }
     t

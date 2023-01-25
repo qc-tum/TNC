@@ -3,7 +3,10 @@ use std::cmp::max;
 use std::collections::HashMap;
 // use std::iter::zip;
 
-use crate::contractionpath::contraction_cost::{_contract_cost, _contract_size, size};
+use crate::contractionpath::{
+    contraction_cost::{_contract_cost, _contract_size, size},
+    Candidate,
+};
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::TensorNetwork;
 
@@ -53,18 +56,8 @@ fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<(usize, 
     let mut hs = HashMap::new();
     let path_len = n;
     for (u1, u2, u3) in path {
-        let t1;
-        let t2;
-        if *u1 > path_len {
-            t1 = hs[u1];
-        } else {
-            t1 = *u1;
-        }
-        if *u2 > path_len {
-            t2 = hs[u2];
-        } else {
-            t2 = *u2;
-        }
+        let t1 = if *u1 > path_len { hs[u1] } else { *u1 };
+        let t2 = if *u2 > path_len { hs[u2] } else { *u2 };
         hs.entry(*u3).or_insert(n);
         n += 1;
         ssa_path.push((t1, t2));
@@ -84,16 +77,17 @@ fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<(usize, 
 fn ssa_replace_ordering(path: &Vec<(usize, usize)>, mut n: usize) -> Vec<(usize, usize)> {
     let mut ssa_path = Vec::with_capacity(path.len());
     let mut hs = HashMap::new();
-    for i in 0..path.len() {
-        let mut tup = path[i];
+    for tup in path.iter() {
+        // let mut tup = path[i];
+        let mut new_tup = *tup;
         if hs.contains_key(&tup.0) {
-            tup.0 = hs[&tup.0];
+            new_tup.0 = hs[&tup.0];
         }
         if hs.contains_key(&tup.1) {
-            tup.1 = hs[&tup.1];
+            new_tup.1 = hs[&tup.1];
         }
-        hs.entry(n).or_insert(tup.0);
-        ssa_path.push(tup);
+        hs.entry(n).or_insert(new_tup.0);
+        ssa_path.push(new_tup);
         n += 1;
     }
     ssa_path
@@ -139,64 +133,69 @@ impl BranchBound {
             self.best_path = ssa_ordering(&path, self.tn.get_tensors().len());
         }
 
-        let mut assess_candidate =
-            |i: usize, j: usize| -> Option<(u64, u64, (usize, usize), usize, Tensor)> {
-                let flops_12: u64;
-                let size_12: u64;
-                let k12: usize;
-                let k12_tensor: Tensor;
-                if self.result_cache.contains_key(&vec![i, j]) {
-                    k12 = self.result_cache[&vec![i, j]];
-                    flops_12 = self.flop_cache[&k12];
-                    size_12 = self.size_cache[&k12];
-                    k12_tensor = self.tensor_cache[&k12].clone();
-                } else {
-                    k12 = self.tensor_cache.len();
-                    flops_12 = _contract_cost(
-                        self.tensor_cache[&i].clone(),
-                        self.tensor_cache[&j].clone(),
-                        self.tn.get_bond_dims(),
-                    );
-                    (k12_tensor, size_12) = _contract_size(
-                        self.tensor_cache[&i].clone(),
-                        self.tensor_cache[&j].clone(),
-                        self.tn.get_bond_dims(),
-                    );
-                    self.result_cache.entry(vec![i, j]).or_insert(k12);
-                    self.flop_cache.entry(k12).or_insert(flops_12);
-                    self.size_cache.entry(k12).or_insert(size_12);
-                    // self.tn.push_tensor(k12_tensor.clone(), None);
-                    self.tensor_cache.entry(k12).or_insert(k12_tensor.clone());
-                }
-                flops += flops_12;
-                size = max(size, size_12);
+        let mut assess_candidate = |i: usize, j: usize| -> Option<Candidate> {
+            let flops_12: u64;
+            let size_12: u64;
+            let k12: usize;
+            let k12_tensor: Tensor;
+            if self.result_cache.contains_key(&vec![i, j]) {
+                k12 = self.result_cache[&vec![i, j]];
+                flops_12 = self.flop_cache[&k12];
+                size_12 = self.size_cache[&k12];
+                k12_tensor = self.tensor_cache[&k12].clone();
+            } else {
+                k12 = self.tensor_cache.len();
+                flops_12 = _contract_cost(
+                    self.tensor_cache[&i].clone(),
+                    self.tensor_cache[&j].clone(),
+                    self.tn.get_bond_dims(),
+                );
+                (k12_tensor, size_12) = _contract_size(
+                    self.tensor_cache[&i].clone(),
+                    self.tensor_cache[&j].clone(),
+                    self.tn.get_bond_dims(),
+                );
+                self.result_cache.entry(vec![i, j]).or_insert(k12);
+                self.flop_cache.entry(k12).or_insert(flops_12);
+                self.size_cache.entry(k12).or_insert(size_12);
+                // self.tn.push_tensor(k12_tensor.clone(), None);
+                self.tensor_cache.entry(k12).or_insert(k12_tensor.clone());
+            }
+            flops += flops_12;
+            size = max(size, size_12);
 
-                if flops > self.best_flops && size > self.best_size {
-                    return None;
-                }
-                let best_flops: u64;
-                if self.best_progress.contains_key(&remaining.len()) {
-                    best_flops = self.best_progress[&remaining.len()];
-                } else {
-                    best_flops = flops;
-                    self.best_progress.entry(remaining.len()).or_insert(flops);
-                }
+            if flops > self.best_flops && size > self.best_size {
+                return None;
+            }
+            let best_flops: u64;
+            if self.best_progress.contains_key(&remaining.len()) {
+                best_flops = self.best_progress[&remaining.len()];
+            } else {
+                best_flops = flops;
+                self.best_progress.entry(remaining.len()).or_insert(flops);
+            }
 
-                if flops < best_flops as u64 {
-                    self.best_progress
-                        .entry(remaining.len())
-                        .insert_entry(flops);
-                } else if flops > self.cutoff_flops_factor * self.best_progress[&remaining.len()] {
-                    return None;
-                }
+            if flops < best_flops {
+                self.best_progress
+                    .entry(remaining.len())
+                    .insert_entry(flops);
+            } else if flops > self.cutoff_flops_factor * self.best_progress[&remaining.len()] {
+                return None;
+            }
 
-                return Some((flops, size, (i, j), k12, k12_tensor));
-            };
+            Some(Candidate {
+                flop_cost: flops,
+                size_cost: size,
+                parent_ids: (i, j),
+                child_id: k12,
+                child_tensor: k12_tensor,
+            })
+        };
 
         let mut candidates = Vec::new();
         for i in remaining.iter().combinations(2) {
             let candidate = assess_candidate(*i[0] as usize, *i[1] as usize);
-            if !candidate.is_none() {
+            if candidate.is_some() {
                 candidates.push(candidate);
             }
         }
@@ -208,19 +207,18 @@ impl BranchBound {
             if candidates.is_empty() {
                 break;
             }
-            let (new_flops, new_size, (i, j), k12, _k12_tensor) =
+            let Candidate{ flop_cost, size_cost, parent_ids, child_id, child_tensor: _child_tensor} =
                 candidates.pop().unwrap().unwrap();
             new_remaining = remaining.clone();
-            new_remaining.retain(|e| *e != i as u32);
-            new_remaining.retain(|e| *e != j as u32);
-            new_remaining.insert(new_remaining.len(), k12 as u32);
+            new_remaining.retain(|e| *e != parent_ids.0 as u32);
+            new_remaining.retain(|e| *e != parent_ids.1 as u32);
+            new_remaining.insert(new_remaining.len(), child_id as u32);
             new_path = path.clone();
-            new_path.push((i, j, k12));
-            BranchBound::_branch_iterate(self, new_path, new_remaining, new_flops, new_size);
+            new_path.push((parent_ids.0, parent_ids.1, child_id));
+            BranchBound::_branch_iterate(self, new_path, new_remaining, flop_cost, size_cost);
         }
     }
 }
-
 
 impl OptimizePath for BranchBound {
     fn optimize_path(&mut self, _output: Option<Vec<u32>>) {
@@ -233,13 +231,11 @@ impl OptimizePath for BranchBound {
         self.size_cache.clear();
 
         // Get the initial space requirements for uncontracted tensors
-        for index in 0usize..tensors.len() {
+        for (index, tensor) in tensors.iter().enumerate() {
             self.size_cache
                 .entry(index)
                 .or_insert(size(&self.tn, index));
-            self.tensor_cache
-                .entry(index)
-                .or_insert(tensors[index].clone());
+            self.tensor_cache.entry(index).or_insert(tensor.clone());
         }
 
         let remaining: Vec<u32> = (0u32..self.tn.get_tensors().len() as u32).collect();
@@ -283,6 +279,7 @@ mod tests {
                 Tensor::new(vec![4, 5, 6]),
             ],
             vec![27, 18, 12, 15, 5, 3, 18],
+            None,
         )
     }
 
@@ -297,6 +294,7 @@ mod tests {
                 Tensor::new(vec![5, 1, 0]),
             ],
             vec![27, 18, 12, 15, 5, 3, 18, 22, 45, 65, 5, 17],
+            None,
         )
     }
 
@@ -346,10 +344,13 @@ mod tests {
         let tn = setup_complex();
         let mut opt = BranchBound::new(tn, None, 20, BranchBoundType::Flops);
         opt.optimize_path(None);
-        
+
         assert_eq!(opt.best_flops, 5614200);
         assert_eq!(opt.best_size, 3963645);
         assert_eq!(opt.best_path, vec![(0, 1), (2, 5), (3, 4), (6, 7), (8, 9)]);
-        assert_eq!(opt.get_best_replace_path(), vec![(0, 1), (2, 5), (3, 4), (0, 2), (3, 0)]);
+        assert_eq!(
+            opt.get_best_replace_path(),
+            vec![(0, 1), (2, 5), (3, 4), (0, 2), (3, 0)]
+        );
     }
 }

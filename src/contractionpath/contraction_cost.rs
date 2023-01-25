@@ -20,7 +20,7 @@ use std::iter::FromIterator;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_cost;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13]);
+/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13], None);
 /// assert_eq!(contract_cost(&tn, 0, 1), 45045);
 /// ```
 pub fn contract_cost(tn: &TensorNetwork, i: usize, j: usize) -> u64 {
@@ -45,7 +45,7 @@ pub fn contract_cost(tn: &TensorNetwork, i: usize, j: usize) -> u64 {
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_cost;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13]);
+/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13], None);
 /// assert_eq!(contract_cost(&tn, 0, 1), 45045);
 /// ```
 pub fn _contract_cost(t_1: Tensor, t_2: Tensor, bond_dims: &HashMap<i32, u64>) -> u64 {
@@ -76,7 +76,7 @@ pub fn _contract_cost(t_1: Tensor, t_2: Tensor, bond_dims: &HashMap<i32, u64>) -
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13]);
+/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13], None);
 /// assert_eq!(contract_size(&tn, 0, 1), (Tensor::new(vec![0,1,3,4]), 6607));
 /// ```
 pub fn contract_size(tn: &TensorNetwork, i: usize, j: usize) -> (Tensor, u64) {
@@ -99,7 +99,7 @@ pub fn contract_size(tn: &TensorNetwork, i: usize, j: usize) -> (Tensor, u64) {
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13]);
+/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13], None);
 /// assert_eq!(contract_size(&tn, 0, 1), (Tensor::new(vec![0,1,3,4]), 6607));
 /// ```
 pub fn _contract_size(t_1: Tensor, t_2: Tensor, bond_dims: &HashMap<i32, u64>) -> (Tensor, u64) {
@@ -138,7 +138,7 @@ pub fn _contract_size(t_1: Tensor, t_2: Tensor, bond_dims: &HashMap<i32, u64>) -
 /// # use tensorcontraction::tensornetwork::TensorNetwork;
 /// # use tensorcontraction::contractionpath::contraction_cost::size;
 /// let vec1 = Vec::from([0,1,2]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1)], vec![5,7,9]);
+/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1)], vec![5,7,9], None);
 /// assert_eq!(size(&tn, 0), 315);
 /// ```
 pub fn size(tn: &TensorNetwork, i: usize) -> u64 {

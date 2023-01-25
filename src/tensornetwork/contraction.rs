@@ -109,9 +109,9 @@ pub fn tn_multicontract(
         .collect_vec();
 
     let mut output_indices = Vec::new();
-    for (i, j) in tn.get_edges() {
-        if j.1.is_none() {
-            output_indices.push(*i);
+    for (k, v) in tn.get_edges() {
+        if v.len() == 1 {
+            output_indices.push(*k);
         }
     }
     let output_indices_size = output_indices
@@ -136,7 +136,6 @@ pub fn tn_multicontract(
 #[cfg(test)]
 mod tests {
     use super::tn_contract;
-    use super::tn_multicontract;
     use crate::tensornetwork::tacotensor::from_array;
     use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
     use num_complex::Complex64;
@@ -307,8 +306,8 @@ mod tests {
         (d1, d2, d3, dout)
     }
 
-    #[test]
     #[ignore]
+    #[test]
     fn test_tn_contraction() {
         let t1 = Tensor::new(vec![0, 1, 2]);
         let t2 = Tensor::new(vec![2, 3, 4]);
@@ -324,7 +323,7 @@ mod tests {
         let tc3 = from_array(&t3, &bond_dims, &d3);
         let tcout = from_array(&tout, &bond_dims, &dout);
 
-        let tn = TensorNetwork::new(vec![t1, t2, t3], bond_dims);
+        let tn = TensorNetwork::new(vec![t1, t2, t3], bond_dims, None);
         let contract_path = vec![(0, 1), (0, 2)];
 
         let (_tn, d_tn) = tn_contract(tn, vec![tc1, tc2, tc3], &contract_path);
