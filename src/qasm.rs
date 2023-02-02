@@ -9,4 +9,4 @@ mod ast;
 mod parser;
 mod gate_inliner;
 mod utils;
-pub mod tensornetwork_creator;
+mod tn_creator;

@@ -239,7 +239,7 @@ impl ops::BitXor<&Expr> for &Expr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Argument(pub String, pub Option<u32>);
 
 impl Display for Argument {
@@ -413,6 +413,8 @@ impl Display for Program {
     }
 }
 
+// TODO: the visitor is not really useful at the moment.
+// If all enum values had structs inside, we could have visit methods for those.
 pub trait Visitor {
     fn visit_program(&mut self, program: &mut Program) {
         for statement in program.statements.iter_mut() {
