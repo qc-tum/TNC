@@ -1,11 +1,14 @@
-use std::ops;
+use std::{
+    fmt::{Debug, Display},
+    ops,
+};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnOp {
     Neg,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BinOp {
     Add,
     Sub,
@@ -14,7 +17,7 @@ pub enum BinOp {
     BitXor,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum FuncType {
     Sin,
     Cos,
@@ -24,7 +27,7 @@ pub enum FuncType {
     Sqrt,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Int(i32),
     Float(f64),
@@ -141,9 +144,24 @@ impl ops::BitXor<&Expr> for &Expr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Argument(pub String, pub Option<u32>);
 
+#[derive(Debug, Default)]
+pub struct GateDeclarationData {
+    pub name: String,
+    pub params: Vec<String>,
+    pub qubits: Vec<String>,
+    pub body: Option<Vec<Statement>>,
+}
+
+
+#[derive(Debug, Default)]
+pub struct GateCallData {
+    pub name: String,
+    pub args: Vec<Expr>,
+    pub qargs: Vec<Argument>,
+}
 #[derive(Debug)]
 pub enum Statement {
     Declaration {
@@ -151,17 +169,8 @@ pub enum Statement {
         name: String,
         count: u32,
     },
-    GateDeclaration {
-        name: String,
-        params: Vec<String>,
-        qubits: Vec<String>,
-        body: Option<Vec<Statement>>,
-    },
-    GateCall {
-        name: String,
-        args: Vec<Expr>,
-        qargs: Vec<Argument>,
-    },
+    GateDeclaration(GateDeclarationData),
+    GateCall(GateCallData),
     Measurement {
         src: Argument,
         dest: Argument,
@@ -175,6 +184,36 @@ pub enum Statement {
         body: Box<Statement>,
     },
     Barrier(Vec<Argument>),
+}
+
+impl Statement {
+    pub fn gate_declaration<S>(
+        name: S,
+        params: Vec<String>,
+        qubits: Vec<String>,
+        body: Option<Vec<Statement>>,
+    ) -> Self
+    where
+        S: Into<String>,
+    {
+        Self::GateDeclaration(GateDeclarationData {
+            name: name.into(),
+            params,
+            qubits,
+            body,
+        })
+    }
+
+    pub fn gate_call<S>(name: S, args: Vec<Expr>, qargs: Vec<Argument>) -> Self
+    where
+        S: Into<String>,
+    {
+        Self::GateCall(GateCallData {
+            name: name.into(),
+            args,
+            qargs,
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -191,24 +230,15 @@ pub trait Visitor {
 
     fn visit_statement(&mut self, statement: &mut Statement) {
         match statement {
-            Statement::GateDeclaration {
-                name: _,
-                params: _,
-                qubits: _,
-                body,
-            } => {
-                if let Some(body) = body {
+            Statement::GateDeclaration(data) => {
+                if let Some(body) = data.body.as_mut() {
                     for statement in body.iter_mut() {
                         self.visit_statement(statement);
                     }
                 }
             }
-            Statement::GateCall {
-                name: _,
-                args,
-                qargs: _,
-            } => {
-                for expr in args.iter_mut() {
+            Statement::GateCall(data) => {
+                for expr in data.args.iter_mut() {
                     self.visit_expression(expr);
                 }
             }

@@ -125,12 +125,12 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
             Some(out)
         };
 
-        ReturnVal::Statement(Box::new(Statement::GateDeclaration {
+        ReturnVal::Statement(Box::new(Statement::gate_declaration(
             name,
             params,
             qubits,
             body,
-        }))
+        )))
     }
 
     fn visit_quantumOperation(
@@ -177,7 +177,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         let qargs = self.visit(&*ctx.mixedlist().unwrap());
         let qargs = cast!(qargs, ReturnVal::ArgList);
 
-        ReturnVal::Statement(Box::new(Statement::GateCall { name, args, qargs }))
+        ReturnVal::Statement(Box::new(Statement::gate_call(name, args, qargs)))
     }
 
     fn visit_idlist(&mut self, ctx: &super::qasm2parser::IdlistContext) -> Self::Return {
