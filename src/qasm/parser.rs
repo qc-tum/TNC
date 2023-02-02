@@ -330,7 +330,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
     }
 }
 
-fn parse(code: &str) -> Program {
+pub fn parse(code: &str) -> Program {
     let lexer = Qasm2Lexer::new(InputStream::new(code));
     let token_source = CommonTokenStream::new(lexer);
     let mut parser = Qasm2Parser::new(token_source);

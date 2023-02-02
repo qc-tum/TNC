@@ -1,7 +1,7 @@
 use super::{ast::Visitor, expression_simplification::simplify};
 
 #[derive(Debug, Default)]
-struct ExpressionFolder;
+pub struct ExpressionFolder;
 
 impl Visitor for ExpressionFolder {
     fn visit_expression(&mut self, expression: &mut super::ast::Expr) {

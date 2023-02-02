@@ -10,3 +10,4 @@ mod parser;
 mod gate_inliner;
 mod utils;
 mod tn_creator;
+pub mod qasm_to_tensornetwork;

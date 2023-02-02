@@ -12,7 +12,7 @@ use super::qasm2parser::Qasm2ParserContextType;
 use super::qasm2parser::{IncludeStatementContextAttrs, Qasm2Parser};
 use super::qasm2parservisitor::Qasm2ParserVisitorCompat;
 
-static QELIB: &'static str = include_str!("qelib1.inc");
+static QELIB: &str = include_str!("qelib1.inc");
 
 /// Holds the position and content of an include statement in a string.
 #[derive(Clone, Debug)]
