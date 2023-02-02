@@ -26,7 +26,7 @@ enum ReturnVal {
     Expression(Box<Expr>),
     ExpressionList(Vec<Expr>),
     Statement(Box<Statement>),
-    Program(Box<Program>),
+    Program(Program),
 }
 
 impl Default for ReturnVal {
@@ -57,7 +57,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
             let statement = cast!(statement, ReturnVal::Statement);
             statements.push(*statement);
         }
-        ReturnVal::Program(Box::new(Program { statements }))
+        ReturnVal::Program(Program { statements })
     }
 
     fn visit_statement(&mut self, ctx: &super::qasm2parser::StatementContext) -> Self::Return {
@@ -126,10 +126,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         };
 
         ReturnVal::Statement(Box::new(Statement::gate_declaration(
-            name,
-            params,
-            qubits,
-            body,
+            name, params, qubits, body,
         )))
     }
 
@@ -333,7 +330,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
     }
 }
 
-fn parse(code: &str) {
+fn parse(code: &str) -> Program {
     let lexer = Qasm2Lexer::new(InputStream::new(code));
     let token_source = CommonTokenStream::new(lexer);
     let mut parser = Qasm2Parser::new(token_source);
@@ -341,21 +338,106 @@ fn parse(code: &str) {
 
     let mut visitor = MyVisitor::default();
     parsed.accept(&mut visitor);
-    println!("{visitor:#?}");
+
+    cast!(visitor.tmp, ReturnVal::Program)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-
-    use crate::qasm::include_resolver::expand_includes;
+    use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement};
 
     use super::parse;
 
     #[test]
-    fn it_works() {
-        let mut code = fs::read_to_string("test.qasm").unwrap();
-        expand_includes(&mut code);
-        parse(&code);
+    fn program() {
+        let code = "OPENQASM 2.0;
+qreg a[3];
+creg b[2];
+
+gate foo q1, q2 {
+    U(3.14, 0, 0) q2;
+    CX q2, q1;
+}
+
+gate bar(x, y) q {
+    U(0, x, y) q;
+}
+
+foo a[0], a[2];
+bar(sin(0), 1+2) a[1];
+";
+
+        let program = parse(code);
+        assert_eq!(
+            program,
+            Program {
+                statements: vec![
+                    Statement::Declaration {
+                        is_quantum: true,
+                        name: String::from("a"),
+                        count: 3
+                    },
+                    Statement::Declaration {
+                        is_quantum: false,
+                        name: String::from("b"),
+                        count: 2
+                    },
+                    Statement::gate_declaration(
+                        "foo",
+                        Vec::new(),
+                        vec![String::from("q1"), String::from("q2")],
+                        Some(vec![
+                            Statement::gate_call(
+                                "U",
+                                vec![Expr::Float(3.14), Expr::Int(0), Expr::Int(0)],
+                                vec![Argument(String::from("q2"), None)]
+                            ),
+                            Statement::gate_call(
+                                "CX",
+                                Vec::new(),
+                                vec![
+                                    Argument(String::from("q2"), None),
+                                    Argument(String::from("q1"), None)
+                                ]
+                            )
+                        ])
+                    ),
+                    Statement::gate_declaration(
+                        "bar",
+                        vec![String::from("x"), String::from("y")],
+                        vec![String::from("q")],
+                        Some(vec![Statement::gate_call(
+                            "U",
+                            vec![
+                                Expr::Int(0),
+                                Expr::Variable(String::from("x")),
+                                Expr::Variable(String::from("y"))
+                            ],
+                            vec![Argument(String::from("q"), None)]
+                        )])
+                    ),
+                    Statement::gate_call(
+                        "foo",
+                        Vec::new(),
+                        vec![
+                            Argument(String::from("a"), Some(0)),
+                            Argument(String::from("a"), Some(2))
+                        ]
+                    ),
+                    Statement::gate_call(
+                        "bar",
+                        vec![
+                            Expr::Function(FuncType::Sin, Box::new(Expr::Int(0))),
+                            Expr::Binary(
+                                BinOp::Add,
+                                Box::new(Expr::Int(1)),
+                                Box::new(Expr::Int(2))
+                            )
+                        ],
+                        vec![Argument(String::from("a"), Some(1))]
+                    ),
+                ]
+            }
+        );
     }
 }
