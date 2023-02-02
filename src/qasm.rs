@@ -7,5 +7,6 @@ mod expression_simplification;
 mod expression_folder;
 mod ast;
 mod parser;
+mod gate_inliner;
 mod utils;
 pub mod tensornetwork_creator;

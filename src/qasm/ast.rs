@@ -239,7 +239,7 @@ impl ops::BitXor<&Expr> for &Expr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Argument(pub String, pub Option<u32>);
 
 impl Display for Argument {
@@ -252,7 +252,7 @@ impl Display for Argument {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct GateDeclarationData {
     pub name: String,
     pub params: Vec<String>,
@@ -290,7 +290,7 @@ impl Display for GateDeclarationData {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct GateCallData {
     pub name: String,
     pub args: Vec<Expr>,
@@ -311,7 +311,13 @@ impl Display for GateCallData {
     }
 }
 
-#[derive(Debug)]
+impl GateCallData {
+    pub fn is_builtin(&self) -> bool {
+        self.name == "U" || self.name == "CX"
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Statement {
     Declaration {
         is_quantum: bool,
@@ -392,7 +398,7 @@ impl Statement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }
