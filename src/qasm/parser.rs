@@ -100,9 +100,7 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
         let is_opaque = ctx.OPAQUE().is_some();
         let name = ctx.Identifier().unwrap().get_text();
 
-        if is_opaque {
-            panic!("Opaque gates are not supported");
-        }
+        assert!(!is_opaque, "Opaque gates are not supported");
 
         // Parse params. If not given, return empty vector
         let params = ctx.params.as_ref().map_or_else(Vec::new, |ctx| {

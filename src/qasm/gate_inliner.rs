@@ -15,20 +15,19 @@ impl GateInliner {
     fn replace_vars(expr: &mut Expr, context: &HashMap<&String, &Expr>) {
         match expr {
             Expr::Variable(x) => {
-                *expr = (**context.get(x).expect("Unknown variable name in gate call")).clone()
+                *expr = (**context.get(x).expect("Unknown variable name in gate call")).clone();
             }
-            Expr::Unary(_, inner) => GateInliner::replace_vars(inner, context),
+            Expr::Unary(_, inner) | Expr::Function(_, inner) => Self::replace_vars(inner, context),
             Expr::Binary(_, lhs, rhs) => {
-                GateInliner::replace_vars(lhs, context);
-                GateInliner::replace_vars(rhs, context)
+                Self::replace_vars(lhs, context);
+                Self::replace_vars(rhs, context);
             }
-            Expr::Function(_, inner) => GateInliner::replace_vars(inner, context),
             _ => (),
         }
     }
 
     /// Returns a copy of the body of callee with the specific data filled in from the gate call.
-    fn get_body(&self, call: &GateCallData, callee: &GateDeclarationData) -> Vec<Statement> {
+    fn get_body(call: &GateCallData, callee: &GateDeclarationData) -> Vec<Statement> {
         if let Some(body) = &callee.body {
             // Map the names in the declaration to the actual values passed in the call
             let name_to_expr: HashMap<_, _> = zip(&callee.params, &call.args).collect();
@@ -43,15 +42,15 @@ impl GateInliner {
 
                 // Replace any used variables by their actual values given by the caller
                 let mut new_args = Vec::with_capacity(call.args.len());
-                for arg in call.args.iter() {
+                for arg in &call.args {
                     let mut arg = arg.clone();
-                    GateInliner::replace_vars(&mut arg, &name_to_expr);
+                    Self::replace_vars(&mut arg, &name_to_expr);
                     new_args.push(arg);
                 }
 
                 // Replace any used qubit by the actual qreg reference
                 let mut new_qargs = Vec::with_capacity(call.qargs.len());
-                for qarg in call.qargs.iter() {
+                for qarg in &call.qargs {
                     let global_name = *name_to_qreg
                         .get(&qarg.0)
                         .expect("Unknown variable name in gate call");
@@ -77,7 +76,7 @@ impl GateInliner {
     fn get_inlined_body(&self, call: &GateCallData) -> Vec<Statement> {
         let callee = self.definitions.get(&call.name);
         if let Some(callee) = callee {
-            self.get_body(call, callee)
+            Self::get_body(call, callee)
         } else {
             panic!("Call to gate {} which was not defined yet", call.name);
         }
@@ -127,7 +126,7 @@ impl GateInliner {
                     statements.remove(idx);
                 }
                 Change::Replace(idx, body) => {
-                    statements.splice(idx..idx + 1, body);
+                    statements.splice(idx..=idx, body);
                 }
             };
         }

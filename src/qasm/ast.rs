@@ -13,7 +13,7 @@ pub enum UnOp {
 impl Display for UnOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let symbol = match self {
-            UnOp::Neg => "-",
+            Self::Neg => "-",
         };
         write!(f, "{symbol}")
     }
@@ -31,24 +31,22 @@ pub enum BinOp {
 impl Display for BinOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let symbol = match self {
-            BinOp::Add => "+",
-            BinOp::Sub => "-",
-            BinOp::Mul => "*",
-            BinOp::Div => "/",
-            BinOp::BitXor => "^",
+            Self::Add => "+",
+            Self::Sub => "-",
+            Self::Mul => "*",
+            Self::Div => "/",
+            Self::BitXor => "^",
         };
         write!(f, "{symbol}")
     }
 }
 
 impl BinOp {
-    pub const fn get_precedence(&self) -> u32 {
+    pub const fn get_precedence(self) -> u32 {
         match self {
-            BinOp::Add => 2,
-            BinOp::Sub => 2,
-            BinOp::Mul => 1,
-            BinOp::Div => 1,
-            BinOp::BitXor => 3,
+            Self::Add | Self::Sub => 2,
+            Self::Mul | Self::Div => 1,
+            Self::BitXor => 3,
         }
     }
 }
@@ -66,12 +64,12 @@ pub enum FuncType {
 impl Display for FuncType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let symbol = match self {
-            FuncType::Sin => "sin",
-            FuncType::Cos => "cos",
-            FuncType::Tan => "tan",
-            FuncType::Exp => "exp",
-            FuncType::Ln => "ln",
-            FuncType::Sqrt => "sqrt",
+            Self::Sin => "sin",
+            Self::Cos => "cos",
+            Self::Tan => "tan",
+            Self::Exp => "exp",
+            Self::Ln => "ln",
+            Self::Sqrt => "sqrt",
         };
         write!(f, "{symbol}")
     }
@@ -90,25 +88,25 @@ pub enum Expr {
 impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expr::Int(x) => write!(f, "{x}"),
-            Expr::Float(x) => write!(f, "{x}"),
-            Expr::Variable(x) => write!(f, "{x}"),
-            Expr::Unary(op, inner) => {
-                let need_parens = matches!(**inner, Expr::Binary(_, _, _));
+            Self::Int(x) => write!(f, "{x}"),
+            Self::Float(x) => write!(f, "{x}"),
+            Self::Variable(x) => write!(f, "{x}"),
+            Self::Unary(op, inner) => {
+                let need_parens = matches!(**inner, Self::Binary(_, _, _));
                 if need_parens {
                     write!(f, "{op}({inner})")
                 } else {
                     write!(f, "{op}{inner}")
                 }
             }
-            Expr::Binary(op, lhs, rhs) => {
+            Self::Binary(op, lhs, rhs) => {
                 let pre = op.get_precedence();
-                let lhs_need_parens = if let Expr::Binary(opl, _, _) = **lhs {
+                let lhs_need_parens = if let Self::Binary(opl, _, _) = **lhs {
                     opl.get_precedence() > pre
                 } else {
                     false
                 };
-                let rhs_need_parens = if let Expr::Binary(opr, _, _) = **rhs {
+                let rhs_need_parens = if let Self::Binary(opr, _, _) = **rhs {
                     opr.get_precedence() > pre
                 } else {
                     false
@@ -127,7 +125,7 @@ impl Display for Expr {
                 }
                 Ok(())
             }
-            Expr::Function(kind, inner) => write!(f, "{kind}({inner})"),
+            Self::Function(kind, inner) => write!(f, "{kind}({inner})"),
         }
     }
 }
@@ -161,12 +159,14 @@ impl Expr {
     }
 }
 
-impl From<&Expr> for f64 {
-    fn from(value: &Expr) -> Self {
+impl TryFrom<&Expr> for f64 {
+    type Error = ();
+
+    fn try_from(value: &Expr) -> Result<Self, Self::Error> {
         match value {
-            Expr::Int(x) => (*x).into(),
-            Expr::Float(x) => *x,
-            _ => panic!("Cannot get value of non-literal expression"),
+            Expr::Int(x) => Ok((*x).into()),
+            Expr::Float(x) => Ok(*x),
+            _ => Err(()),
         }
     }
 }
@@ -178,8 +178,8 @@ impl ops::Add<&Expr> for &Expr {
         if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
             Expr::Int(a + b)
         } else {
-            let a: f64 = self.into();
-            let b: f64 = rhs.into();
+            let a: f64 = self.try_into().unwrap();
+            let b: f64 = rhs.try_into().unwrap();
             Expr::Float(a + b)
         }
     }
@@ -192,8 +192,8 @@ impl ops::Sub<&Expr> for &Expr {
         if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
             Expr::Int(a - b)
         } else {
-            let a: f64 = self.into();
-            let b: f64 = rhs.into();
+            let a: f64 = self.try_into().unwrap();
+            let b: f64 = rhs.try_into().unwrap();
             Expr::Float(a - b)
         }
     }
@@ -206,8 +206,8 @@ impl ops::Mul<&Expr> for &Expr {
         if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
             Expr::Int(a * b)
         } else {
-            let a: f64 = self.into();
-            let b: f64 = rhs.into();
+            let a: f64 = self.try_into().unwrap();
+            let b: f64 = rhs.try_into().unwrap();
             Expr::Float(a * b)
         }
     }
@@ -220,8 +220,8 @@ impl ops::Div<&Expr> for &Expr {
         if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
             Expr::Int(a / b)
         } else {
-            let a: f64 = self.into();
-            let b: f64 = rhs.into();
+            let a: f64 = self.try_into().unwrap();
+            let b: f64 = rhs.try_into().unwrap();
             Expr::Float(a / b)
         }
     }
@@ -344,7 +344,7 @@ pub enum Statement {
 impl Display for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Statement::Declaration {
+            Self::Declaration {
                 is_quantum,
                 name,
                 count,
@@ -352,16 +352,16 @@ impl Display for Statement {
                 let kind = if *is_quantum { "qreg" } else { "creg" };
                 write!(f, "{kind} {name}[{count}];")
             }
-            Statement::GateDeclaration(data) => write!(f, "{data}"),
-            Statement::GateCall(data) => write!(f, "{data}"),
-            Statement::Measurement { src, dest } => write!(f, "measure {src} -> {dest};"),
-            Statement::Reset { dest } => write!(f, "reset {dest};"),
-            Statement::IfStatement {
+            Self::GateDeclaration(data) => write!(f, "{data}"),
+            Self::GateCall(data) => write!(f, "{data}"),
+            Self::Measurement { src, dest } => write!(f, "measure {src} -> {dest};"),
+            Self::Reset { dest } => write!(f, "reset {dest};"),
+            Self::IfStatement {
                 cond_name,
                 condition,
                 body,
             } => write!(f, "if {cond_name} = {condition} {body}"),
-            Statement::Barrier(qargs) => {
+            Self::Barrier(qargs) => {
                 write!(f, "barrier {};", join(qargs, ", "))
             }
         }
@@ -373,7 +373,7 @@ impl Statement {
         name: S,
         params: Vec<String>,
         qubits: Vec<String>,
-        body: Option<Vec<Statement>>,
+        body: Option<Vec<Self>>,
     ) -> Self
     where
         S: Into<String>,
@@ -406,7 +406,7 @@ pub struct Program {
 impl Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "OPENQASM 2.0;")?;
-        for statement in self.statements.iter() {
+        for statement in &self.statements {
             writeln!(f, "{statement}")?;
         }
         Ok(())
@@ -417,7 +417,7 @@ impl Display for Program {
 // If all enum values had structs inside, we could have visit methods for those.
 pub trait Visitor {
     fn visit_program(&mut self, program: &mut Program) {
-        for statement in program.statements.iter_mut() {
+        for statement in &mut program.statements {
             self.visit_statement(statement);
         }
     }
@@ -432,7 +432,7 @@ pub trait Visitor {
                 }
             }
             Statement::GateCall(data) => {
-                for expr in data.args.iter_mut() {
+                for expr in &mut data.args {
                     self.visit_expression(expr);
                 }
             }

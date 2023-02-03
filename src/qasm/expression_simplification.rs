@@ -1,5 +1,4 @@
 use std::mem::take;
-use std::ops::DerefMut;
 
 use super::ast::{BinOp, Expr, FuncType, UnOp};
 
@@ -8,7 +7,7 @@ pub fn simplify(expr: &mut Expr) {
         Expr::Unary(UnOp::Neg, inner) => {
             simplify(inner);
 
-            match inner.deref_mut() {
+            match &mut **inner {
                 // -(x) => (-x)
                 Expr::Int(x) => {
                     *expr = Expr::Int(-*x);
@@ -47,7 +46,7 @@ pub fn simplify(expr: &mut Expr) {
 
             if inner.is_const() {
                 // Get value as float (there are not functions that require an int)
-                let val = match inner.deref_mut() {
+                let val = match &mut **inner {
                     Expr::Int(x) => (*x).into(),
                     Expr::Float(x) => *x,
                     _ => panic!("Expression is const, but neither float nor int"),

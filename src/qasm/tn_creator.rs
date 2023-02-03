@@ -25,7 +25,7 @@ impl TensorNetworkCreator {
         let mut wires = HashMap::new();
         let mut tensors = Vec::new();
 
-        for statement in program.statements.iter() {
+        for statement in &program.statements {
             match statement {
                 Statement::Declaration {
                     is_quantum,
@@ -44,6 +44,7 @@ impl TensorNetworkCreator {
                     }
                 }
                 Statement::GateCall(call) => {
+                    // TODO: broadcast calls, where e.g. a CX is applied to two registers
                     if call.name == "U" {
                         let open_edge = wires.get_mut(&call.qargs[0]).unwrap();
                         let out_edge = self.new_edge();
