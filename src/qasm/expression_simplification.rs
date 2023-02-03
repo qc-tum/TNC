@@ -2,10 +2,13 @@ use std::mem::take;
 
 use super::ast::{BinOp, Expr, FuncType, UnOp};
 
-pub fn simplify(expr: &mut Expr) {
+/// Folds (i.e. computes) constant subexpressions in the expression. For instance,
+/// `a * (5 + sin(0))` becomes `a * 5`.
+/// Does not perform optimizations (e.g. `a + 0` is left unchanged).
+pub fn fold_expr(expr: &mut Expr) {
     match expr {
         Expr::Unary(UnOp::Neg, inner) => {
-            simplify(inner);
+            fold_expr(inner);
 
             match &mut **inner {
                 // -(x) => (-x)
@@ -25,8 +28,8 @@ pub fn simplify(expr: &mut Expr) {
         }
 
         Expr::Binary(op, lhs, rhs) => {
-            simplify(lhs);
-            simplify(rhs);
+            fold_expr(lhs);
+            fold_expr(rhs);
 
             // Constant evaluation
             if lhs.is_const() && rhs.is_const() {
@@ -38,19 +41,14 @@ pub fn simplify(expr: &mut Expr) {
                     BinOp::BitXor => lhs.as_ref() ^ rhs.as_ref(),
                 };
             }
-            // TODO: Optimizations (like x + 0 = x)
         }
 
         Expr::Function(ftype, inner) => {
-            simplify(inner);
+            fold_expr(inner);
 
             if inner.is_const() {
-                // Get value as float (there are not functions that require an int)
-                let val = match &mut **inner {
-                    Expr::Int(x) => (*x).into(),
-                    Expr::Float(x) => *x,
-                    _ => panic!("Expression is const, but neither float nor int"),
-                };
+                // Get value as float (there are no functions that require an int)
+                let val: f64 = (&**inner).try_into().unwrap();
 
                 *expr = Expr::Float(match ftype {
                     FuncType::Sin => val.sin(),
@@ -73,7 +71,7 @@ mod tests {
 
     use crate::qasm::{
         ast::{BinOp, Expr, FuncType, UnOp},
-        expression_simplification::simplify,
+        expression_simplification::fold_expr,
     };
 
     #[test]
@@ -98,7 +96,7 @@ mod tests {
                 )),
             )),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(
             a,
             Expr::Float(-(-4.0 * 2f64.sin() / (2.0 - (-1.3f64).cos())))
@@ -111,7 +109,7 @@ mod tests {
             UnOp::Neg,
             Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(64)))),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Int(64));
     }
 
@@ -124,7 +122,7 @@ mod tests {
                 Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(2)))),
             )),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Int(-2));
     }
 
@@ -137,14 +135,14 @@ mod tests {
                 Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Float(3.14)))),
             )),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Float(-3.14));
     }
 
     #[test]
     fn add_int() {
         let mut a = Expr::Binary(BinOp::Add, Box::new(Expr::Int(2)), Box::new(Expr::Int(4)));
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Int(6));
     }
 
@@ -159,7 +157,7 @@ mod tests {
             )),
             Box::new(Expr::Float(0.1)),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Float(0.1 + 0.1 + 0.1));
     }
 
@@ -170,14 +168,14 @@ mod tests {
             Box::new(Expr::Float(0.5)),
             Box::new(Expr::Int(2)),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Float(0.5 + 2.0));
     }
 
     #[test]
     fn sub_int() {
         let mut a = Expr::Binary(BinOp::Sub, Box::new(Expr::Int(2)), Box::new(Expr::Int(4)));
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Int(-2));
     }
 
@@ -192,7 +190,7 @@ mod tests {
             )),
             Box::new(Expr::Float(0.1)),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Float(0.1 - 0.1 - 0.1));
     }
 
@@ -203,14 +201,14 @@ mod tests {
             Box::new(Expr::Float(0.5)),
             Box::new(Expr::Int(2)),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Float(0.5 - 2.0));
     }
 
     #[test]
     fn multiply_ints() {
         let mut a = Expr::Binary(BinOp::Mul, Box::new(Expr::Int(2)), Box::new(Expr::Int(3)));
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Int(2 * 3));
     }
 
@@ -221,7 +219,7 @@ mod tests {
             Box::new(Expr::Float(3.6)),
             Box::new(Expr::Float(-2.4)),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Float(3.6 * -2.4));
     }
 
@@ -232,14 +230,14 @@ mod tests {
             Box::new(Expr::Int(3)),
             Box::new(Expr::Float(0.5)),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Float(3f64 * 0.5));
     }
 
     #[test]
     fn divide_ints() {
         let mut a = Expr::Binary(BinOp::Div, Box::new(Expr::Int(30)), Box::new(Expr::Int(4)));
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Int(30 / 4));
     }
 
@@ -250,7 +248,7 @@ mod tests {
             Box::new(Expr::Float(3.6)),
             Box::new(Expr::Float(-2.4)),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Float(3.6 / -2.4));
     }
 
@@ -261,7 +259,7 @@ mod tests {
             Box::new(Expr::Int(3)),
             Box::new(Expr::Float(0.5)),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Float(3f64 / 0.5));
     }
 
@@ -272,7 +270,7 @@ mod tests {
             Box::new(Expr::Float(1.0)),
             Box::new(Expr::Int(2)),
         );
-        assert_panic!("Cannot apply bitxor on non-int types" in simplify(&mut a));
+        assert_panic!("Cannot apply bitxor on non-int types" in fold_expr(&mut a));
     }
 
     #[test]
@@ -282,21 +280,21 @@ mod tests {
             Box::new(Expr::Int(5)),
             Box::new(Expr::Int(2)),
         );
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Int(7));
     }
 
     #[test]
     fn sqrt_int() {
         let mut a = Expr::Function(FuncType::Sqrt, Box::new(Expr::Int(4)));
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Float(4f64.sqrt()));
     }
 
     #[test]
     fn cos_float() {
         let mut a = Expr::Function(FuncType::Cos, Box::new(Expr::Float(2.3)));
-        simplify(&mut a);
+        fold_expr(&mut a);
         assert_eq!(a, Expr::Float(2.3f64.cos()));
     }
 }

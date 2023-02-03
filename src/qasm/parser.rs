@@ -36,11 +36,12 @@ impl Default for ReturnVal {
 }
 
 #[derive(Debug, Default)]
-struct MyVisitor {
+/// A visitor to build an AST from QASM2 code.
+struct AstBuilderVisitor {
     tmp: ReturnVal,
 }
 
-impl ParseTreeVisitorCompat<'_> for MyVisitor {
+impl ParseTreeVisitorCompat<'_> for AstBuilderVisitor {
     type Node = Qasm2ParserContextType;
     type Return = ReturnVal;
 
@@ -49,7 +50,7 @@ impl ParseTreeVisitorCompat<'_> for MyVisitor {
     }
 }
 
-impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
+impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
     fn visit_program(&mut self, ctx: &super::qasm2parser::ProgramContext) -> Self::Return {
         let mut statements = Vec::new();
         while let Some(sctx) = ctx.statement(statements.len()) {
@@ -328,13 +329,14 @@ impl Qasm2ParserVisitorCompat<'_> for MyVisitor {
     }
 }
 
+/// Parses the QASM2 code and returns the corresponding AST.
 pub fn parse(code: &str) -> Program {
     let lexer = Qasm2Lexer::new(InputStream::new(code));
     let token_source = CommonTokenStream::new(lexer);
     let mut parser = Qasm2Parser::new(token_source);
     let parsed = parser.program().unwrap();
 
-    let mut visitor = MyVisitor::default();
+    let mut visitor = AstBuilderVisitor::default();
     parsed.accept(&mut visitor);
 
     cast!(visitor.tmp, ReturnVal::Program)

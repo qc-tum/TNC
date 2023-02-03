@@ -7,11 +7,13 @@ use super::ast::{Argument, Program, Statement};
 type EdgeId = i32;
 
 #[derive(Debug, Default)]
+/// Struct to create a tensor network from an QASM2 AST.
 pub struct TensorNetworkCreator {
     edge_counter: EdgeId,
 }
 
 impl TensorNetworkCreator {
+    /// Gets a new edge id.
     fn new_edge(&mut self) -> EdgeId {
         let res = self.edge_counter;
         self.edge_counter += 1;

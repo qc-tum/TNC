@@ -1,11 +1,12 @@
-use super::{ast::Visitor, expression_simplification::simplify};
+use super::{ast::Visitor, expression_simplification::fold_expr};
 
 #[derive(Debug, Default)]
+/// Struct to fold constant subexpressions in an expression.
 pub struct ExpressionFolder;
 
 impl Visitor for ExpressionFolder {
     fn visit_expression(&mut self, expression: &mut super::ast::Expr) {
-        simplify(expression);
+        fold_expr(expression);
     }
 }
 

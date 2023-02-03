@@ -6,6 +6,7 @@ use std::{
 use itertools::join;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+/// A unary operator type.
 pub enum UnOp {
     Neg,
 }
@@ -20,6 +21,7 @@ impl Display for UnOp {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+/// A binary operator type.
 pub enum BinOp {
     Add,
     Sub,
@@ -52,6 +54,7 @@ impl BinOp {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+/// A function type.
 pub enum FuncType {
     Sin,
     Cos,
@@ -76,6 +79,7 @@ impl Display for FuncType {
 }
 
 #[derive(Debug, Clone)]
+/// An mathematical expression.
 pub enum Expr {
     Int(i32),
     Float(f64),
@@ -148,12 +152,14 @@ impl PartialEq for Expr {
 }
 
 impl Default for Expr {
+    // Default needed for take()
     fn default() -> Self {
         Self::Int(-1)
     }
 }
 
 impl Expr {
+    /// Returns whether the expression is a literal.
     pub const fn is_const(&self) -> bool {
         matches!(self, Self::Int(_) | Self::Float(_))
     }
@@ -240,6 +246,7 @@ impl ops::BitXor<&Expr> for &Expr {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// A name with optionally a designator, e.g. `a` or `q[5]`.
 pub struct Argument(pub String, pub Option<u32>);
 
 impl Display for Argument {
@@ -253,6 +260,7 @@ impl Display for Argument {
 }
 
 #[derive(Debug, Default, PartialEq)]
+/// Declaration of a gate. The body can be None in case of opaque gates.
 pub struct GateDeclarationData {
     pub name: String,
     pub params: Vec<String>,
@@ -291,6 +299,7 @@ impl Display for GateDeclarationData {
 }
 
 #[derive(Debug, Default, PartialEq)]
+/// Call of a gate.
 pub struct GateCallData {
     pub name: String,
     pub args: Vec<Expr>,
@@ -312,12 +321,14 @@ impl Display for GateCallData {
 }
 
 impl GateCallData {
+    /// Returns whether the called gate is builtin, i.e. a `U` or `CX` gate.
     pub fn is_builtin(&self) -> bool {
         self.name == "U" || self.name == "CX"
     }
 }
 
 #[derive(Debug, PartialEq)]
+/// A QASM2 statement.
 pub enum Statement {
     Declaration {
         is_quantum: bool,
@@ -369,6 +380,7 @@ impl Display for Statement {
 }
 
 impl Statement {
+    /// Creates a new gate declaration statement.
     pub fn gate_declaration<S>(
         name: S,
         params: Vec<String>,
@@ -386,6 +398,7 @@ impl Statement {
         })
     }
 
+    /// Creates a new gate call statement.
     pub fn gate_call<S>(name: S, args: Vec<Expr>, qargs: Vec<Argument>) -> Self
     where
         S: Into<String>,
@@ -399,6 +412,7 @@ impl Statement {
 }
 
 #[derive(Debug, PartialEq)]
+/// A QASM2 program.
 pub struct Program {
     pub statements: Vec<Statement>,
 }

@@ -6,6 +6,7 @@ use super::{
 };
 
 #[derive(Debug, Default)]
+/// Struct to inline gate calls with previous gate declarations.
 pub struct GateInliner {
     definitions: HashMap<String, GateDeclarationData>,
 }
