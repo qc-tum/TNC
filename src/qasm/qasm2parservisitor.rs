@@ -1,4 +1,5 @@
 #![allow(nonstandard_style)]
+#![allow(clippy::all, clippy::restriction, clippy::pedantic, clippy::nursery)]
 // Generated from Qasm2Parser.g4 by ANTLR 4.8
 use antlr_rust::tree::{ParseTreeVisitor,ParseTreeVisitorCompat};
 use super::qasm2parser::*;

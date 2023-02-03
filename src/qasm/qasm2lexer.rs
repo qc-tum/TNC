@@ -3,6 +3,7 @@
 #![allow(nonstandard_style)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
+#![allow(clippy::all, clippy::restriction, clippy::pedantic, clippy::nursery)]
 use antlr_rust::atn::ATN;
 use antlr_rust::char_stream::CharStream;
 use antlr_rust::int_stream::IntStream;
