@@ -15,7 +15,7 @@ use taco_sys::Tensor as _TacoTensor;
 /// # Arguments
 ///
 /// * `n` - Sets number of dimensions in random tensor
-/// * `rng` - The random number generator to use. If None, uses the thread-local one.
+/// * `rng` - The random number generator to use.
 ///
 /// # Examples
 /// ```
@@ -67,7 +67,7 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<i32, u64>) {
 /// * `t` - Tensor object, random _TacoTensor will have same dimensions
 /// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output _TacoTensor.
 ///                 used to fill in entries in _TacoTensor at random. If no value is provided, defaults to 0.50
-/// * `rng` - The random number generator to use. If None, uses the thread-local one.
+/// * `rng` - The random number generator to use.
 ///
 /// # Examples
 /// ```
@@ -162,7 +162,7 @@ pub fn random_sparse_tensor(
 ///
 /// * `n` - Number of qubits in quantum circuit
 /// * `cycles` - Number of layers of gates
-/// * `rng` - The random number generator to use. If None, uses the thread-local one.
+/// * `rng` - The random number generator to use.
 ///
 /// # Examples
 /// ```
