@@ -1,6 +1,7 @@
 #![feature(test)]
+use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
-    random::tensorgeneration::{random_tensor_network},
+    random::tensorgeneration::{random_tensor_network_with_rng},
     tensornetwork::{tensor::Tensor, TensorNetwork},
 };
 
@@ -19,7 +20,8 @@ fn _setup() -> TensorNetwork {
 fn build_tensor(b: &mut Bencher) {
     let n = 5;
     let cycles = 5;
-    b.iter(|| random_tensor_network(n, cycles));
+    let mut rng: StdRng = SeedableRng::seed_from_u64(0);
+    b.iter(|| random_tensor_network_with_rng(n, cycles, &mut rng));
 }
 
 // TODO: Implement benchmarking for contraction.
