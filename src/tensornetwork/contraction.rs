@@ -1,6 +1,7 @@
 use crate::tensornetwork::TensorNetwork;
 use itertools::Itertools;
 use taco_sys::{contract, multicontract, Tensor as _TacoTensor};
+use tetra::{contract as tetra_contract, Tensor as _Tensor};
 
 /// Fully contracts a list of [_TacoTensor] objects based on a given contraction path using repeated SSA format.
 ///
@@ -63,6 +64,74 @@ pub fn tn_contract(
         );
         d_tn[*i] = new_tensor;
         d_tn[*j] = _TacoTensor::new(&[1]);
+        last_index = *i;
+    }
+    d_tn.swap(0, last_index);
+    d_tn.drain(1..d_tn.len());
+    (tn, d_tn)
+}
+
+
+/// Fully contracts a list of [_TacoTensor] objects based on a given contraction path using repeated SSA format.
+///
+/// # Arguments
+///
+/// * `tn` - [TensorNetwork] to be contracted
+/// * `d_tn` - [Vector] of [_TacoTensor] objects containing data of [TensorNetwork]
+/// * `contract_path` - [Vector] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
+///
+/// # Examples
+///
+/// ```
+/// # extern crate tensorcontraction;
+/// # use tensorcontraction::{
+///     contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath},
+///     random::tensorgeneration::{random_sparse_tensor, random_tensor_network},
+///     tensornetwork::{tensor::Tensor, TensorNetwork},
+///     tensornetwork::contraction::tn_contract,
+/// };
+///
+/// let r_tn = random_tensor_network(2, 3);
+/// let mut d_tn = Vec::new();
+/// for r_t in r_tn.get_tensors() {
+///     d_tn.push(random_sparse_tensor(
+///         r_t.clone(),
+///         &r_tn.get_bond_dims(),
+///         None,
+///    ));
+/// }
+/// let mut opt = BranchBound::new(r_tn.clone(), None, 20, BranchBoundType::Flops);
+/// opt.optimize_path(None);
+/// let opt_path = opt.get_best_replace_path();
+/// tn_contract(r_tn, d_tn, &opt_path);
+/// ```
+pub fn tn_tetra_contract(
+    mut tn: TensorNetwork,
+    mut d_tn: Vec<_Tensor>,
+    contract_path: &Vec<(usize, usize)>,
+) -> (TensorNetwork, Vec<_Tensor>) {
+    let mut last_index = 0;
+    for (i, j) in contract_path {
+        let a_legs = tn[*i].get_legs().clone();
+        let b_legs = tn[*j].get_legs().clone();
+        let (_tensor_intersection, tensor_difference) = tn._contraction(*i, *j);
+        // let bond_dims = tn.get_bond_dims();
+        // let out_dims = tensor_difference
+            // .iter()
+            // .map(|e| bond_dims[e] as i32)
+            // .collect::<Vec<i32>>();
+
+        // let mut new_tensor = _TacoTensor::new(&out_dims);
+
+        let new_tensor = tetra_contract(
+            &tensor_difference,
+            &a_legs,
+            &d_tn[*i],
+            &b_legs,
+            &d_tn[*j],
+        );
+        d_tn[*i] = new_tensor;
+        d_tn[*j] = _Tensor::new(&[1]);
         last_index = *i;
     }
     d_tn.swap(0, last_index);
