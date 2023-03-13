@@ -7,7 +7,7 @@ use rand::prelude::SliceRandom;
 use rand::Rng;
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
-use taco_sys::Tensor as _TacoTensor;
+use tetra::Tensor as _TetraTensor;
 
 /// Generates random Tensor object with `n` dimensions and corresponding `bond_dims` HashMap,
 /// bond dimensions are uniformly distributed between 1 and 20.
@@ -59,14 +59,14 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<i32, u64>) {
     random_tensor_with_rng(n, &mut rand::thread_rng())
 }
 
-/// Generates random sparse _TacoTensor object with same dimenions as Tensor object `t`
+/// Generates random sparse _TetraTensor object with same dimenions as Tensor object `t`
 /// Fills in sparse tensor based on `sparsity` value.
 ///
 /// # Arguments
 ///
-/// * `t` - Tensor object, random _TacoTensor will have same dimensions
-/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output _TacoTensor.
-///                 used to fill in entries in _TacoTensor at random. If no value is provided, defaults to 0.50
+/// * `t` - Tensor object, random _TetraTensor will have same dimensions
+/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output _TetraTensor.
+///                 used to fill in entries in _TetraTensor at random. If no value is provided, defaults to 0.50
 /// * `rng` - The random number generator to use.
 ///
 /// # Examples
@@ -88,7 +88,7 @@ pub fn random_sparse_tensor_with_rng<R>(
     bond_dims: &HashMap<i32, u64>,
     sparsity: Option<f32>,
     rng: &mut R,
-) -> _TacoTensor
+) -> _TetraTensor
 where
     R: Rng + ?Sized,
 {
@@ -106,7 +106,7 @@ where
         .collect();
     let ranges: Vec<Uniform<i32>> = dims.iter().map(|i| Uniform::new(0, *i)).collect();
     let size = dims.iter().product::<i32>();
-    let mut tacotensor = _TacoTensor::new(&dims);
+    let mut tacotensor = _TetraTensor::new(&dims);
 
     let mut nnz = 0;
     let mut loc = Vec::<i32>::new();
@@ -123,14 +123,14 @@ where
     tacotensor
 }
 
-/// Generates random sparse _TacoTensor object with same dimenions as Tensor object `t`
+/// Generates random sparse _TetraTensor object with same dimenions as Tensor object `t`
 /// Fills in sparse tensor based on `sparsity` value. Uses the thread-local random number generator.
 ///
 /// # Arguments
 ///
-/// * `t` - Tensor object, random _TacoTensor will have same dimensions
-/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output _TacoTensor.
-///                 used to fill in entries in _TacoTensor at random. If no value is provided, defaults to 0.50
+/// * `t` - Tensor object, random _TetraTensor will have same dimensions
+/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output _TetraTensor.
+///                 used to fill in entries in _TetraTensor at random. If no value is provided, defaults to 0.50
 ///
 /// # Examples
 /// ```
@@ -150,7 +150,7 @@ pub fn random_sparse_tensor(
     t: Tensor,
     bond_dims: &HashMap<i32, u64>,
     sparsity: Option<f32>,
-) -> _TacoTensor {
+) -> _TetraTensor {
     random_sparse_tensor_with_rng(t, bond_dims, sparsity, &mut rand::thread_rng())
 }
 
