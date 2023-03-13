@@ -72,7 +72,7 @@ pub fn tn_contract(
 #[cfg(test)]
 mod tests {
     use super::tn_contract;
-    use crate::tensornetwork::{tensor::Tensor, TensorNetwork, tensorio::from_array};
+    use crate::tensornetwork::{tensor::Tensor, tensorio::from_array, TensorNetwork};
     use num_complex::Complex64;
     use std::collections::HashMap;
 
