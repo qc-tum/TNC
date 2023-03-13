@@ -115,12 +115,12 @@ where
             loc.push(rng.sample(r));
         }
         let val = Complex64::new(rng.gen(), rng.gen());
-        tacotensor.insert(&loc, val);
+        tensor.insert(&loc, val);
         loc.clear();
         nnz += 1;
     }
 
-    tacotensor
+    tensor
 }
 
 /// Generates random sparse _TetraTensor object with same dimenions as Tensor object `t`
