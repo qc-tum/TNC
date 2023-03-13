@@ -106,7 +106,7 @@ where
         .collect::<Vec<u32>>();
     let ranges: Vec<Uniform<u32>> = dims.iter().map(|i| Uniform::new(0, *i)).collect();
     let size = dims.iter().product::<u32>();
-    let mut tacotensor = _TetraTensor::new(&dims);
+    let mut tensor = _TetraTensor::new(&dims);
 
     let mut nnz = 0;
     let mut loc = Vec::<u32>::new();
