@@ -6,19 +6,20 @@ use tensorcontraction::{
     tensornetwork::{contraction::tn_contract, tensor::Tensor, TensorNetwork},
 };
 
-// fn tetra_contraction<R>(r_tn: TensorNetwork, opt_path: &Vec<(usize, usize)>, rng: &mut R)
-// where
-//     R: Rng + ?Sized,
-// {
-//     let d_tn = r_tn
-//         .get_tensors()
-//         .iter()
-//         .map(|tensor| {
-//             random_sparse_tensor_with_rng(tensor.clone(), r_tn.get_bond_dims(), None, rng)
-//         })
-//         .collect();
-//     tn_contract(r_tn, d_tn, opt_path);
-// }
+#[allow(dead_code)]
+fn tetra_contraction<R>(r_tn: TensorNetwork, opt_path: &Vec<(usize, usize)>, rng: &mut R)
+where
+    R: Rng + ?Sized,
+{
+    let d_tn = r_tn
+        .get_tensors()
+        .iter()
+        .map(|tensor| {
+            random_sparse_tensor_with_rng(tensor.clone(), r_tn.get_bond_dims(), None, rng)
+        })
+        .collect();
+    tn_contract(r_tn, d_tn, opt_path);
+}
 
 fn sized_contraction(r_tn: TensorNetwork, d_tn: Vec<tetra::Tensor>) {
     tn_contract(r_tn, d_tn, &vec![(0, 1)]);
