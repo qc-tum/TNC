@@ -44,6 +44,7 @@ pub fn tn_contract(
         let a_legs = tn[*i]
             .get_legs()
             .iter()
+<<<<<<< HEAD
             .map(|e| *e as u32)
             .collect::<Vec<u32>>();
         let b_legs = tn[*j]
@@ -59,6 +60,21 @@ pub fn tn_contract(
             .collect::<Vec<u32>>();
         d_tn[*i] = contract(&out_legs, &a_legs, &d_tn[*i], &b_legs, &d_tn[*j]);
         d_tn[*j] = DataTensor::new(&[1]);
+=======
+            .map(|e| bond_dims[e] as i32)
+            .collect::<Vec<i32>>();
+
+        // let mut new_tensor = _TetraTensor::new(&out_dims);
+
+        d_tn[*i] = contract(
+            &tensor_difference,
+            &a_legs,
+            &d_tn[*i],
+            &b_legs,
+            &d_tn[*j],
+        );
+        d_tn[*j] = _TetraTensor::new(&[1]);
+>>>>>>> 12a0609 (Fix tn_contract to output new tensor)
         last_index = *i;
     }
     d_tn.swap(0, last_index);
