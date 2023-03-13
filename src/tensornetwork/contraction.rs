@@ -74,7 +74,7 @@ mod tests {
     use itertools::Itertools;
     use num_complex::Complex64;
     use std::collections::HashMap;
-    use tetra::Tensor as DataTensor;
+    use tetra::{Layout, Tensor as TetraTensor};
 
     fn setup() -> (
         Vec<Complex64>,
