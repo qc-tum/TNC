@@ -70,11 +70,20 @@ pub fn tn_contract(
 mod tests {
     use super::tn_contract;
     use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
+<<<<<<< HEAD
     use float_cmp::approx_eq;
     use itertools::Itertools;
     use num_complex::Complex64;
     use std::collections::HashMap;
     use tetra::Tensor as DataTensor;
+=======
+    use tetra::{Tensor as TetraTensor, Layout};
+    use itertools::Itertools;
+    use num_complex::Complex64;
+    use std::collections::HashMap;
+    use float_cmp::assert_approx_eq;
+
+>>>>>>> 7c46c97 (Update contraction test, specify RowMajor)
 
     fn setup() -> (
         Vec<Complex64>,
