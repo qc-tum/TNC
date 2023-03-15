@@ -16,7 +16,9 @@ pub fn open_hdf5(file: &str) -> Result<(TensorNetwork, Vec<TetraTensor>)> {
     let mut bond_dims = HashMap::<usize, u64>::new();
 
     let out_tensor = gr.dataset("-1")?;
-    let out_bond_ids = out_tensor.attr("bids").unwrap().read_1d::<usize>()?;
+    let out_tensor_bids = out_tensor.attr("bids")?;
+    let out_bond_ids = out_tensor_bids.read_1d::<usize>()?;
+
     for tensor_name in tensor_names {
         if tensor_name == "-1" {
             continue;
@@ -41,6 +43,25 @@ pub fn open_hdf5(file: &str) -> Result<(TensorNetwork, Vec<TetraTensor>)> {
 
     Ok((
         TensorNetwork::new(t_tensors, bond_dims, Some(&out_bond_ids.to_vec())),
-        d_tensors,
+        d_tensors
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath};
+    use crate::io::open_hdf5;
+    use crate::tensornetwork::contraction::tn_contract;
+
+    #[test]
+    fn test_open_hdf5() {
+        let (r_tn, d_tn) = open_hdf5("bell_circuit_tensornet.hdf5").unwrap();
+        let mut opt = BranchBound::new(r_tn.clone(), None, 20, BranchBoundType::Flops);
+        opt.optimize_path(None);
+        let contract_path = opt.get_best_replace_path();
+        let (r_tn, d_tn) = tn_contract(r_tn, d_tn, &contract_path);
+
+        println!("{:?}", r_tn);
+        println!("{:?}", d_tn);
+    }
 }
