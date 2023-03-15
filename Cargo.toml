@@ -8,10 +8,11 @@ edition = "2021"
 [dependencies]
 array_tool = "1.0.3"
 criterion = "0.4.0"
+hdf5 = { version = "0.8.1", features = ["complex"], git = "ssh://github.com/keefehuang/hdf5-rust.git", branch = "feature/complex" }
 itertools = "0.10.5"
 linked_hash_set = "0.1.4"
 log = "0.4.17"
-num-complex = "0.4.2"
+num-complex = { version = "0.4.2" }
 rand = "0.8.5"
 random = "0.13.2"
 antlr-rust = "0.3.0-beta"
