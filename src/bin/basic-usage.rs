@@ -2,14 +2,6 @@ extern crate tensorcontraction;
 use tensorcontraction::contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath};
 use tensorcontraction::random::tensorgeneration::{random_sparse_tensor, random_tensor_network};
 use tensorcontraction::tensornetwork::contraction::tn_contract;
-use hdf5::{File, H5Type, Result};
-use itertools::Itertools;
-use num_complex::{Complex, Complex64};
-use std::collections::HashMap;
-use std::iter::zip;
-use tetra::Tensor as TetraTensor;
-use tetra::Layout;
-
 
 fn main() {
     let r_tn = random_tensor_network(4, 3);
