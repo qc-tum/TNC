@@ -48,4 +48,3 @@ rust-nightly:
     - update-alternatives --set c++ "/usr/bin/g++-11"
     - cargo build --verbose
     - cargo test --verbose
-  allow_failure: true
