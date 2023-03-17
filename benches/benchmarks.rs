@@ -32,10 +32,6 @@ fn sized_contraction(r_tn: TensorNetwork, d_tn: Vec<tetra::Tensor>) {
     tn_contract(r_tn, d_tn, &vec![(0, 1)]);
 }
 
-fn sized_transpose(mut d_tn: tetra::Tensor) {
-    d_tn.transpose(&[1, 0, 3, 2]);
-    d_tn.materialize_transpose();
-}
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let mut rng = StdRng::seed_from_u64(52);
