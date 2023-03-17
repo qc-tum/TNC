@@ -3,7 +3,6 @@ use rand::Rng;
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Duration;
 use tensorcontraction::{
-    contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath},
     random::tensorgeneration::{
         random_sparse_tensor_with_rng,
     },
