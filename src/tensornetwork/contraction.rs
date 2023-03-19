@@ -70,11 +70,11 @@ pub fn tn_contract(
 mod tests {
     use super::tn_contract;
     use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
-    use float_cmp::approx_eq;
+    use float_cmp::{approx_eq, assert_approx_eq};
     use itertools::Itertools;
     use num_complex::Complex64;
     use std::collections::HashMap;
-    use tetra::{Layout, Tensor as TetraTensor};
+    use tetra::{Layout, Tensor as DataTensor};
 
     fn setup() -> (
         Vec<Complex64>,
