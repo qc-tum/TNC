@@ -52,16 +52,26 @@ mod tests {
     use crate::contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath};
     use crate::io::open_hdf5;
     use crate::tensornetwork::contraction::tn_contract;
+    use itertools::Itertools;
+    use tetra::{Layout, Tensor as TetraTensor};
+    use num_complex::Complex64;
 
     #[test]
     fn test_open_hdf5() {
         let (r_tn, d_tn) = open_hdf5("bell_circuit_tensornet.hdf5").unwrap();
+        
         let mut opt = BranchBound::new(r_tn.clone(), None, 20, BranchBoundType::Flops);
         opt.optimize_path(None);
         let contract_path = opt.get_best_replace_path();
         let (r_tn, d_tn) = tn_contract(r_tn, d_tn, &contract_path);
+        let mut tn_sol = TetraTensor::new_from_flat(&[2, 2, 2, 2],
+            [0.7071067811865475, 0.7071067811865475, 0.0, 0.0,
+            0.0, 0.0, 0.7071067811865475, 0.7071067811865475,
+            0.0, 0.0, 0.7071067811865475, -0.7071067811865475, 
+            0.7071067811865475, -0.7071067811865475, 0.0, 0.0,].iter().map(|&e| Complex64::new(e, 0.0)).collect_vec(),
+            Some(Layout::RowMajor),
+        );
 
-        println!("{:?}", r_tn);
-        println!("{:?}", d_tn);
+        assert_eq!(tn_sol, d_tn[0]);
     }
 }
