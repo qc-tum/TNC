@@ -5,8 +5,8 @@ use std::fmt::{self, Write};
 use std::ops::{Index, IndexMut};
 
 pub mod contraction;
-pub mod tacotensor;
 pub mod tensor;
+pub mod tensorio;
 
 use tensor::Tensor;
 
