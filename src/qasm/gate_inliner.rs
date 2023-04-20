@@ -268,6 +268,12 @@ mod tests {
 
     #[test]
     fn replacement_of_vars_in_expr() {
+        // INPUT:
+        // sin(a) + b, with a = 2, b = -4, c = 42
+        //
+        // RESULT:
+        // sin(2) + (-4)
+
         let mut expr = Expr::Binary(
             BinOp::Add,
             Box::new(Expr::Function(
@@ -290,10 +296,7 @@ mod tests {
 
         let replaced = Expr::Binary(
             BinOp::Add,
-            Box::new(Expr::Function(
-                FuncType::Sin,
-                Box::new(expr_a.clone()),
-            )),
+            Box::new(Expr::Function(FuncType::Sin, Box::new(expr_a.clone()))),
             Box::new(expr_b.clone()),
         );
 

@@ -18,6 +18,12 @@ mod tests {
 
     #[test]
     fn simplify_gatecall() {
+        // INPUT:
+        // abc((2 + 3) * 4.0, -2 + 2);
+        //
+        // RESULT:
+        // abc(25.0, 0)
+
         // Argument 1
         let x = Expr::Binary(
             BinOp::Mul,
@@ -54,6 +60,14 @@ mod tests {
 
     #[test]
     fn simplify_program() {
+        // INPUT:
+        // a(3 * 0.5, 3.6 / -2.4);
+        // b(sqrt(4));
+        //
+        // RESULT:
+        // a(1.5, -1.5);
+        // b(2);
+
         let mut program = Program {
             statements: vec![
                 Statement::gate_call(

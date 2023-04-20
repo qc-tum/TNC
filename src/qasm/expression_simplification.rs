@@ -105,6 +105,7 @@ mod tests {
 
     #[test]
     fn neg_neg() {
+        // -(-64) = 64
         let mut a = Expr::Unary(
             UnOp::Neg,
             Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(64)))),
@@ -115,6 +116,7 @@ mod tests {
 
     #[test]
     fn neg_neg_neg_int() {
+        // -(-(-2)) = -2
         let mut a = Expr::Unary(
             UnOp::Neg,
             Box::new(Expr::Unary(
@@ -128,6 +130,7 @@ mod tests {
 
     #[test]
     fn neg_neg_neg_float() {
+        // -(-(-0.1)) = -0.1
         let mut a = Expr::Unary(
             UnOp::Neg,
             Box::new(Expr::Unary(
@@ -141,6 +144,7 @@ mod tests {
 
     #[test]
     fn add_int() {
+        // 2 + 4
         let mut a = Expr::Binary(BinOp::Add, Box::new(Expr::Int(2)), Box::new(Expr::Int(4)));
         fold_expr(&mut a);
         assert_eq!(a, Expr::Int(6));
@@ -148,6 +152,7 @@ mod tests {
 
     #[test]
     fn add_float() {
+        // 0.1 + (0.1 + 0.1)
         let mut a = Expr::Binary(
             BinOp::Add,
             Box::new(Expr::Binary(
@@ -163,6 +168,7 @@ mod tests {
 
     #[test]
     fn add_mixed() {
+        // 0.5 + 2
         let mut a = Expr::Binary(
             BinOp::Add,
             Box::new(Expr::Float(0.5)),
@@ -174,6 +180,7 @@ mod tests {
 
     #[test]
     fn sub_int() {
+        // 2 - 4
         let mut a = Expr::Binary(BinOp::Sub, Box::new(Expr::Int(2)), Box::new(Expr::Int(4)));
         fold_expr(&mut a);
         assert_eq!(a, Expr::Int(-2));
@@ -181,6 +188,7 @@ mod tests {
 
     #[test]
     fn sub_float() {
+        // (0.1 - 0.1) - 0.1
         let mut a = Expr::Binary(
             BinOp::Sub,
             Box::new(Expr::Binary(
@@ -196,6 +204,7 @@ mod tests {
 
     #[test]
     fn sub_mixed() {
+        // 0.5 - 2
         let mut a = Expr::Binary(
             BinOp::Sub,
             Box::new(Expr::Float(0.5)),
@@ -207,6 +216,7 @@ mod tests {
 
     #[test]
     fn multiply_ints() {
+        // 2 * 3
         let mut a = Expr::Binary(BinOp::Mul, Box::new(Expr::Int(2)), Box::new(Expr::Int(3)));
         fold_expr(&mut a);
         assert_eq!(a, Expr::Int(2 * 3));
@@ -214,6 +224,7 @@ mod tests {
 
     #[test]
     fn multiply_floats() {
+        // 3.6 * -2.4
         let mut a = Expr::Binary(
             BinOp::Mul,
             Box::new(Expr::Float(3.6)),
@@ -225,6 +236,7 @@ mod tests {
 
     #[test]
     fn multiply_mixed() {
+        // 3 * 0.5
         let mut a = Expr::Binary(
             BinOp::Mul,
             Box::new(Expr::Int(3)),
@@ -236,6 +248,7 @@ mod tests {
 
     #[test]
     fn divide_ints() {
+        // 30 / 4
         let mut a = Expr::Binary(BinOp::Div, Box::new(Expr::Int(30)), Box::new(Expr::Int(4)));
         fold_expr(&mut a);
         assert_eq!(a, Expr::Int(30 / 4));
@@ -243,6 +256,7 @@ mod tests {
 
     #[test]
     fn divide_floats() {
+        // 3.6 / -2.4
         let mut a = Expr::Binary(
             BinOp::Div,
             Box::new(Expr::Float(3.6)),
@@ -254,6 +268,7 @@ mod tests {
 
     #[test]
     fn divide_mixed() {
+        // 3 / 0.5
         let mut a = Expr::Binary(
             BinOp::Div,
             Box::new(Expr::Int(3)),
@@ -265,6 +280,7 @@ mod tests {
 
     #[test]
     fn xor_float_fail() {
+        // 1.0 ^ 2 fails
         let mut a = Expr::Binary(
             BinOp::BitXor,
             Box::new(Expr::Float(1.0)),
@@ -275,6 +291,7 @@ mod tests {
 
     #[test]
     fn xor_int() {
+        // 5 ^ 2
         let mut a = Expr::Binary(
             BinOp::BitXor,
             Box::new(Expr::Int(5)),
@@ -286,6 +303,7 @@ mod tests {
 
     #[test]
     fn sqrt_int() {
+        // sqrt(4)
         let mut a = Expr::Function(FuncType::Sqrt, Box::new(Expr::Int(4)));
         fold_expr(&mut a);
         assert_eq!(a, Expr::Float(4f64.sqrt()));
@@ -293,6 +311,7 @@ mod tests {
 
     #[test]
     fn cos_float() {
+        // cos(2.3)
         let mut a = Expr::Function(FuncType::Cos, Box::new(Expr::Float(2.3)));
         fold_expr(&mut a);
         assert_eq!(a, Expr::Float(2.3f64.cos()));
