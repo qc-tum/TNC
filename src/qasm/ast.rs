@@ -3,6 +3,7 @@ use std::{
     ops,
 };
 
+use float_cmp::approx_eq;
 use itertools::join;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -136,10 +137,9 @@ impl Display for Expr {
 
 impl PartialEq for Expr {
     fn eq(&self, other: &Self) -> bool {
-        // Warning: Compares floats directly!
         match (self, other) {
             (Self::Int(l0), Self::Int(r0)) => l0 == r0,
-            (Self::Float(l0), Self::Float(r0)) => l0 == r0,
+            (Self::Float(l0), Self::Float(r0)) => approx_eq!(f64, *l0, *r0),
             (Self::Variable(l0), Self::Variable(r0)) => l0 == r0,
             (Self::Unary(l0, l1), Self::Unary(r0, r1)) => l0 == r0 && l1 == r1,
             (Self::Binary(l0, l1, l2), Self::Binary(r0, r1, r2)) => {
