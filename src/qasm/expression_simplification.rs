@@ -132,11 +132,11 @@ mod tests {
             UnOp::Neg,
             Box::new(Expr::Unary(
                 UnOp::Neg,
-                Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Float(3.14)))),
+                Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Float(0.1)))),
             )),
         );
         fold_expr(&mut a);
-        assert_eq!(a, Expr::Float(-3.14));
+        assert_eq!(a, Expr::Float(-0.1));
     }
 
     #[test]
