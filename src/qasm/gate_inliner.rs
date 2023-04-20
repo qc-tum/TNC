@@ -146,12 +146,14 @@ impl GateInliner {
 
 #[cfg(test)]
 mod tests {
-    use crate::qasm::ast::{Argument, BinOp, Expr, Program, Statement};
+    use std::collections::HashMap;
+
+    use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement, UnOp};
 
     use super::GateInliner;
 
     #[test]
-    fn inline() {
+    fn recursive_inline() {
         // INPUT:
         // gate x (a, b) q {
         //   U(a + b, 0, b) q;
@@ -262,5 +264,41 @@ mod tests {
                 ]
             }
         );
+    }
+
+    #[test]
+    fn replacement_of_vars_in_expr() {
+        let mut expr = Expr::Binary(
+            BinOp::Add,
+            Box::new(Expr::Function(
+                FuncType::Sin,
+                Box::new(Expr::Variable(String::from("a"))),
+            )),
+            Box::new(Expr::Variable(String::from("b"))),
+        );
+
+        let a = String::from("a");
+        let b = String::from("b");
+        let c = String::from("c");
+        let expr_a = Expr::Int(2);
+        let expr_b = Expr::Unary(UnOp::Neg, Box::new(Expr::Int(4)));
+        let expr_c = Expr::Int(42);
+        let mut context = HashMap::new();
+        context.insert(&a, &expr_a);
+        context.insert(&b, &expr_b);
+        context.insert(&c, &expr_c);
+
+        let replaced = Expr::Binary(
+            BinOp::Add,
+            Box::new(Expr::Function(
+                FuncType::Sin,
+                Box::new(expr_a.clone()),
+            )),
+            Box::new(expr_b.clone()),
+        );
+
+        GateInliner::replace_vars(&mut expr, &context);
+
+        assert_eq!(expr, replaced);
     }
 }
