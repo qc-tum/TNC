@@ -1,12 +1,12 @@
 use crate::tensornetwork::TensorNetwork;
-use tetra::{contract, Tensor as _TetraTensor};
+use tetra::{contract, Tensor as DataTensor};
 
-/// Fully contracts a list of [_TetraTensor] objects based on a given contraction path using repeated SSA format.
+/// Fully contracts a list of [DataTensor] objects based on a given contraction path using repeated SSA format.
 ///
 /// # Arguments
 ///
 /// * `tn` - [TensorNetwork] to be contracted
-/// * `d_tn` - [Vector] of [_TetraTensor] objects containing data of [TensorNetwork]
+/// * `d_tn` - [Vector] of [DataTensor] objects containing data of [TensorNetwork]
 /// * `contract_path` - [Vector] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
 ///
 /// # Examples
@@ -36,32 +36,28 @@ use tetra::{contract, Tensor as _TetraTensor};
 /// ```
 pub fn tn_contract(
     mut tn: TensorNetwork,
-    mut d_tn: Vec<_TetraTensor>,
+    mut d_tn: Vec<DataTensor>,
     contract_path: &Vec<(usize, usize)>,
-) -> (TensorNetwork, Vec<_TetraTensor>) {
+) -> (TensorNetwork, Vec<DataTensor>) {
     let mut last_index = 0;
     for (i, j) in contract_path {
-        let a_legs = tn[*i].get_legs().clone();
-        let b_legs = tn[*j].get_legs().clone();
+        let a_legs = tn[*i].get_legs().iter().map(|e| *e as u32).collect::<Vec<u32>>();
+        let b_legs = tn[*j].get_legs().iter().map(|e| *e as u32).collect::<Vec<u32>>();
         let (_tensor_intersection, tensor_difference) = tn._contraction(*i, *j);
         let bond_dims = tn.get_bond_dims();
         let out_dims = tensor_difference
             .iter()
-            .map(|e| bond_dims[e] as i32)
-            .collect::<Vec<i32>>();
+            .map(|e| bond_dims[e] as u32)
+            .collect::<Vec<u32>>();
 
-        let mut new_tensor = _TetraTensor::new(&out_dims);
-
-        contract(
-            &mut new_tensor,
-            &tensor_difference,
+        d_tn[*i] = contract(
+            &out_dims,
             &a_legs,
             &d_tn[*i],
             &b_legs,
             &d_tn[*j],
         );
-        d_tn[*i] = new_tensor;
-        d_tn[*j] = _TetraTensor::new(&[1]);
+        d_tn[*j] = DataTensor::new(&[1]);
         last_index = *i;
     }
     d_tn.swap(0, last_index);
