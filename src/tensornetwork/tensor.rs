@@ -8,7 +8,7 @@ use std::ops::{Index, IndexMut};
 /// See [TensorNetwork].
 pub struct Tensor {
     /// Stores edge ids in a Vector.
-    legs: Vec<i32>,
+    legs: Vec<usize>,
 }
 
 impl Tensor {
@@ -16,7 +16,7 @@ impl Tensor {
     ///
     /// # Arguments
     ///
-    /// * `legs` - A vector of i32 containing edge ids.
+    /// * `legs` - A vector of usize containing edge ids.
     ///
     /// # Examples
     /// ```
@@ -24,7 +24,7 @@ impl Tensor {
     /// let vec = Vec::from([1,2,3]);
     /// let tensor = Tensor::new(vec);
     /// ```
-    pub fn new(legs: Vec<i32>) -> Self {
+    pub fn new(legs: Vec<usize>) -> Self {
         Self { legs }
     }
     /// Returns edge ids of Tensor object
@@ -36,7 +36,7 @@ impl Tensor {
     /// let tensor = Tensor::new(vec.clone()) ;
     /// assert_eq!(*tensor.get_legs(), vec);
     /// ```
-    pub fn get_legs(&self) -> &Vec<i32> {
+    pub fn get_legs(&self) -> &Vec<usize> {
         &self.legs
     }
 
@@ -49,7 +49,7 @@ impl Tensor {
     /// let tensor = Tensor::new(vec.clone()) ;
     /// assert_eq!(tensor.iter().eq(vec.iter()), true);
     /// ```
-    pub fn iter(&self) -> std::slice::Iter<'_, i32> {
+    pub fn iter(&self) -> std::slice::Iter<'_, usize> {
         self.legs.iter()
     }
 
@@ -71,7 +71,7 @@ impl Tensor {
     /// hm.insert(3, 8);
     /// assert_eq!(tensor.size(&hm), 600);
     /// ```
-    pub fn size(&self, bond_dim: &HashMap<i32, u64>) -> u64 {
+    pub fn size(&self, bond_dim: &HashMap<usize, u64>) -> u64 {
         self.legs.iter().map(|e| bond_dim[e]).product()
     }
 }
@@ -85,7 +85,7 @@ impl fmt::Display for Tensor {
 
 /// Implementation of indexing for Tensor.
 impl Index<usize> for Tensor {
-    type Output = i32;
+    type Output = usize;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.legs[index]

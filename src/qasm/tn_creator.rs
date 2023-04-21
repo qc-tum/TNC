@@ -7,7 +7,7 @@ use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
 
 use super::ast::{Argument, Program, Statement};
 
-type EdgeId = i32;
+type EdgeId = usize;
 
 #[derive(Debug, Default)]
 /// Struct to create a tensor network from an QASM2 AST.
@@ -57,7 +57,7 @@ impl TensorNetworkCreator {
             for i in 0..max {
                 let actual_qargs: Vec<Argument> = qargs
                     .iter()
-                    .map(|arg| Argument(arg.0.clone(), arg.1.or_else(|| Some(i))))
+                    .map(|arg| Argument(arg.0.clone(), arg.1.or(Some(i))))
                     .collect();
                 out.push(actual_qargs);
             }

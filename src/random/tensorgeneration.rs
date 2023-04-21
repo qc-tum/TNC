@@ -25,19 +25,19 @@ use tetra::Tensor as _TetraTensor;
 /// let (tensor, hs) = random_tensor_with_rng(legs, &mut rand::thread_rng());
 /// assert_eq!(tensor.get_legs().len(), legs);
 /// ```
-pub fn random_tensor_with_rng<R>(n: usize, rng: &mut R) -> (Tensor, HashMap<i32, u64>)
+pub fn random_tensor_with_rng<R>(n: usize, rng: &mut R) -> (Tensor, HashMap<usize, u64>)
 where
     R: Rng + ?Sized,
 {
     let range = Uniform::new(1u64, 21);
     let bond_dims = (0..n).map(|_| rng.sample(range));
-    let edges = 0i32..n as i32;
+    let edges = 0..n;
     let hs = edges.zip(bond_dims).collect_vec();
     let mut bond_dims = HashMap::new();
     for (i, j) in hs {
         bond_dims.insert(i, j);
     }
-    (Tensor::new((0i32..n as i32).collect()), bond_dims)
+    (Tensor::new((0..n).collect()), bond_dims)
 }
 
 /// Generates random Tensor object with `n` dimensions and corresponding `bond_dims` HashMap,
@@ -55,7 +55,7 @@ where
 /// let (tensor, hs) = random_tensor(legs);
 /// assert_eq!(tensor.get_legs().len(), legs);
 /// ```
-pub fn random_tensor(n: usize) -> (Tensor, HashMap<i32, u64>) {
+pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
     random_tensor_with_rng(n, &mut rand::thread_rng())
 }
 
@@ -85,7 +85,7 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<i32, u64>) {
 /// ```
 pub fn random_sparse_tensor_with_rng<R>(
     t: Tensor,
-    bond_dims: &HashMap<i32, u64>,
+    bond_dims: &HashMap<usize, u64>,
     sparsity: Option<f32>,
     rng: &mut R,
 ) -> _TetraTensor
@@ -99,17 +99,17 @@ where
         0.5
     };
 
-    let dims: Vec<i32> = t
+    let dims = t
         .get_legs()
         .iter()
-        .map(|e| *(bond_dims.get(e).unwrap()) as i32)
-        .collect();
-    let ranges: Vec<Uniform<i32>> = dims.iter().map(|i| Uniform::new(0, *i)).collect();
-    let size = dims.iter().product::<i32>();
+        .map(|e| *(bond_dims.get(e).unwrap()) as u32)
+        .collect::<Vec<u32>>();
+    let ranges: Vec<Uniform<u32>> = dims.iter().map(|i| Uniform::new(0, *i)).collect();
+    let size = dims.iter().product::<u32>();
     let mut tacotensor = _TetraTensor::new(&dims);
 
     let mut nnz = 0;
-    let mut loc = Vec::<i32>::new();
+    let mut loc = Vec::<u32>::new();
     while (nnz as f32 / size as f32) < sparsity {
         for r in ranges.iter() {
             loc.push(rng.sample(r));
@@ -148,7 +148,7 @@ where
 /// ```
 pub fn random_sparse_tensor(
     t: Tensor,
-    bond_dims: &HashMap<i32, u64>,
+    bond_dims: &HashMap<usize, u64>,
     sparsity: Option<f32>,
 ) -> _TetraTensor {
     random_sparse_tensor_with_rng(t, bond_dims, sparsity, &mut rand::thread_rng())
@@ -181,7 +181,7 @@ where
     let mut index = 3;
     // keeps track of which edge is one a specific wire
 
-    let wires: Vec<i32> = (0..n as i32).collect();
+    let wires: Vec<usize> = (0..n).collect();
     let mut wire_indices = wires.clone();
     let die = Uniform::from(0..n);
 
@@ -197,19 +197,19 @@ where
                 let l1 = w.pop().unwrap();
                 let l2 = w.pop().unwrap();
                 tensors.push(vec![
-                    wire_indices[l1 as usize],
-                    wire_indices[l2 as usize],
+                    wire_indices[l1],
+                    wire_indices[l2],
                     index + 1,
                     index + 2,
                 ]);
-                wire_indices[l1 as usize] = index + 1;
-                wire_indices[l2 as usize] = index + 2;
+                wire_indices[l1] = index + 1;
+                wire_indices[l2] = index + 2;
                 index += 2;
             } else {
                 w.shuffle(rng);
                 let l1 = w.pop().unwrap();
-                tensors.push(vec![wire_indices[l1 as usize], index + 1]);
-                wire_indices[l1 as usize] = index + 1;
+                tensors.push(vec![wire_indices[l1], index + 1]);
+                wire_indices[l1] = index + 1;
                 index += 1;
             }
         }

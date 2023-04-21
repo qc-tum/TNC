@@ -12,7 +12,7 @@ use tensor::Tensor;
 
 /// Helper function that returns the largest edge id.
 pub trait MaximumLeg {
-    fn max_leg(&self) -> i32;
+    fn max_leg(&self) -> usize;
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -22,16 +22,16 @@ pub struct TensorNetwork {
     /// Vector of Tensor objects in tensor network
     tensors: Vec<Tensor>,
     /// Returns bond dimension of edge based on edge id.
-    bond_dims: HashMap<i32, u64>,
+    bond_dims: HashMap<usize, u64>,
     /// Hashmap for easy lookup of edge connectivity based on edge id.
-    edges: HashMap<i32, Vec<Option<i32>>>,
+    edges: HashMap<usize, Vec<Option<usize>>>,
     /// List of external dimensions that remain after contraction.
-    ext_edges: Vec<i32>,
+    ext_edges: Vec<usize>,
 }
 
 /// Helper function that returns the largest edge id of all Tensors in a TensorNetwork.
 impl MaximumLeg for Vec<Tensor> {
-    fn max_leg(&self) -> i32 {
+    fn max_leg(&self) -> usize {
         let mut m = self[0].iter().max();
         for tensor in self.iter() {
             let n = tensor.iter().max();
@@ -85,7 +85,7 @@ impl TensorNetwork {
     /// let edges = tn.get_edges();
     /// assert_eq!(edges.is_empty(), true);
     /// ```
-    pub fn get_edges(&self) -> &HashMap<i32, Vec<Option<i32>>> {
+    pub fn get_edges(&self) -> &HashMap<usize, Vec<Option<usize>>> {
         &self.edges
     }
 
@@ -113,7 +113,7 @@ impl TensorNetwork {
     /// let tensors = tn.get_tensors();
     /// assert_eq!(tensors.is_empty(), true);
     /// ```
-    pub fn get_bond_dims(&self) -> &HashMap<i32, u64> {
+    pub fn get_bond_dims(&self) -> &HashMap<usize, u64> {
         &self.bond_dims
     }
 
@@ -141,7 +141,7 @@ impl TensorNetwork {
     ///
     /// * `tensors` - A Vector of Tensor objects
     /// * `bond_dims` - A Vector of u32 bond dimensions corresponding to edge ids in `tensors`.
-    /// * `ext` - An optional Vector of i32 edge IDs, indicates which edges are external edges after full contraction.
+    /// * `ext` - An optional Vector of usize edge IDs, indicates which edges are external edges after full contraction.
     ///
     /// # Examples
     ///
@@ -163,9 +163,9 @@ impl TensorNetwork {
     /// let bond_dims = vec![17, 19];
     /// let tn = TensorNetwork::from_vector(vec![v1], bond_dims, None);
     /// ```
-    pub fn from_vector(tensors: Vec<Tensor>, bond_dims: Vec<u64>, ext: Option<&Vec<i32>>) -> TensorNetwork {
-        assert!(tensors.max_leg() < bond_dims.len() as i32);
-        TensorNetwork::new(tensors, (0i32..).zip(bond_dims).collect(), ext)
+    pub fn from_vector(tensors: Vec<Tensor>, bond_dims: Vec<u64>, ext: Option<&Vec<usize>>) -> TensorNetwork {
+        assert!(tensors.max_leg() < bond_dims.len());
+        TensorNetwork::new(tensors, (0usize..).zip(bond_dims).collect(), ext)
     }
 
     // TODO: Add hyperedge example
@@ -178,7 +178,7 @@ impl TensorNetwork {
     ///
     /// * `tensors` - A Vector of Tensor objects
     /// * `bond_dims` - A HashMap taking using edge ids as keys and returning the corresponding bond dimension.
-    /// * `ext` - An optional Vector of i32 edge IDs, indicates which edges are external edges after full contraction.
+    /// * `ext` - An optional Vector of usize edge IDs, indicates which edges are external edges after full contraction.
     ///
     /// # Examples
     ///
@@ -211,8 +211,8 @@ impl TensorNetwork {
     /// ]);
     /// let tn = TensorNetwork::new(vec![v1, v2], bond_dims, None);
     /// ```    
-    pub fn new(tensors: Vec<Tensor>, bond_dims: HashMap<i32, u64>, ext: Option<&Vec<i32>>) -> Self {
-        let mut edges: HashMap<i32, Vec<Option<i32>>> = HashMap::new();
+    pub fn new(tensors: Vec<Tensor>, bond_dims: HashMap<usize, u64>, ext: Option<&Vec<usize>>) -> Self {
+        let mut edges: HashMap<usize, Vec<Option<usize>>> = HashMap::new();
         for (index, tensor) in tensors.iter().enumerate() {
             for leg in tensor.get_legs() {
                 if !bond_dims.contains_key(leg) {
@@ -220,11 +220,11 @@ impl TensorNetwork {
                 }
                 edges
                     .entry(*leg)
-                    .and_modify(|edge| edge.push(Some(index as i32)))
-                    .or_insert(vec![Some(index as i32)]);
+                    .and_modify(|edge| edge.push(Some(index)))
+                    .or_insert(vec![Some(index)]);
             }
         }
-        let mut ext_edges: Vec<i32> = if let Some(ext_edges) = ext {
+        let mut ext_edges: Vec<usize> = if let Some(ext_edges) = ext {
             for i in ext_edges {
                 edges.entry(*i).and_modify(|edge| edge.push(None));
             }
@@ -254,9 +254,9 @@ impl TensorNetwork {
     /// # Arguments
     ///
     /// * `tensor` - A Tensor object
-    /// * `ext` - An optional Vector of i32 edge IDs, indicates which edges are external edges after full contraction.
+    /// * `ext` - An optional Vector of usize edge IDs, indicates which edges are external edges after full contraction.
     ///
-    fn update_edge(&mut self, tensor: &Tensor, ext: Option<&Vec<i32>>) {
+    fn update_edge(&mut self, tensor: &Tensor, ext: Option<&Vec<usize>>) {
         let index = self.tensors.len();
         for leg in tensor.get_legs() {
             self.edges
@@ -264,20 +264,20 @@ impl TensorNetwork {
                 .and_modify(|edge| {
                     // New tensor contracts on a previous external leg
                     if let Some(pos) = edge.iter().position(|e| e.is_none()) {
-                        edge[pos] = Some(index as i32);
+                        edge[pos] = Some(index);
                         // Leg is no longer external as it contracts with new tensor
                         if let Some(pos_ext) = self.ext_edges.iter().position(|e| e == leg) {
                             self.ext_edges.remove(pos_ext);
                         }
                     } else {
                         // New Tensor connects with existing leg
-                        edge.push(Some(index as i32));
+                        edge.push(Some(index));
                     }
                 })
                 // Inserts new edge
                 .or_insert_with(|| {
                     self.ext_edges.push(*leg);
-                    vec![Some(index as i32), None]
+                    vec![Some(index), None]
                 });
         }
 
@@ -352,8 +352,8 @@ impl TensorNetwork {
     pub fn push_tensor(
         &mut self,
         tensor: Tensor,
-        bond_dims: Option<&HashMap<i32, u64>>,
-        ext: Option<&Vec<i32>>,
+        bond_dims: Option<&HashMap<usize, u64>>,
+        ext: Option<&Vec<usize>>,
     ) {
         if let Some(bond_dims) = bond_dims {
             for leg in tensor.get_legs().iter() {
@@ -392,13 +392,13 @@ impl TensorNetwork {
     ///
     /// * `tensor_a_loc` - Index of first Tensor to be contracted
     /// * `tensor_b_loc` - Index of second Tensor to be contracted
-    fn _contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (Vec<i32>, Vec<i32>) {
+    fn _contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (Vec<usize>, Vec<usize>) {
         let tensor_a_legs = self.tensors[tensor_a_loc].get_legs();
         let tensor_b_legs = self.tensors[tensor_b_loc].get_legs();
         let tensor_union = tensor_b_legs.union(tensor_a_legs.clone());
         let tensor_intersect = tensor_b_legs.intersect(tensor_a_legs.to_vec());
 
-        let mut tensor_difference: Vec<i32> = Vec::new();
+        let mut tensor_difference: Vec<usize> = Vec::new();
 
         for leg in tensor_union.iter() {
             // Check for legs that are not shared between the two contracted tensors
@@ -417,15 +417,15 @@ impl TensorNetwork {
             self.edges.entry(*leg).and_modify(|e| {
                 e.drain_filter(|e| {
                     if let Some(edge) = e {
-                        *edge == tensor_a_loc as i32
+                        *edge == tensor_a_loc
                     } else {
                         false
                     }
                 });
                 for edge in &mut e.iter_mut() {
                     if let Some(tensor_loc) = edge {
-                        if *tensor_loc as usize == tensor_b_loc {
-                            *edge = Some(tensor_a_loc as i32);
+                        if *tensor_loc == tensor_b_loc {
+                            *edge = Some(tensor_a_loc);
                         }
                     }
                 }
@@ -453,7 +453,7 @@ impl TensorNetwork {
                 // Each edge is only defined once, by the tensor with the highest id
                 let max_tensor = connection.iter().max().unwrap();
                 if let Some(max_tensor) = max_tensor {
-                    if *max_tensor != i as i32 {
+                    if *max_tensor != i {
                         continue; // We don't have the highest id in this edge, skip
                     }
                 } else {
@@ -491,7 +491,7 @@ impl TensorNetwork {
                 }
             }
         }
-        out.push_str("}");
+        out.push('}');
         out
     }
 }
@@ -553,7 +553,7 @@ mod tests {
     #[test]
     fn test_new() {
         let tensors = vec![Tensor::new(vec![4, 3, 2]), Tensor::new(vec![0, 1, 3, 2])];
-        let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
+        let mut edge_sol = HashMap::<usize, Vec<Option<usize>>>::new();
         edge_sol.entry(0).or_insert(vec![Some(1), None]);
         edge_sol.entry(1).or_insert(vec![Some(1), None]);
         edge_sol.entry(2).or_insert(vec![Some(0), Some(1)]);
@@ -561,10 +561,10 @@ mod tests {
         edge_sol.entry(4).or_insert(vec![Some(0), None]);
         let bond_dims = vec![17, 18, 19, 12, 22];
         let t = TensorNetwork::from_vector(tensors, bond_dims.clone(), None);
-        for (index, leg) in t.bond_dims.iter().take(t.tensors.max_leg() as usize) {
-            assert_eq!(*leg, bond_dims[*index as usize]);
+        for (index, leg) in t.bond_dims.iter().take(t.tensors.max_leg()) {
+            assert_eq!(*leg, bond_dims[*index]);
         }
-        for edge_key in 0i32..4 {
+        for edge_key in 0usize..4 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
     }
@@ -575,7 +575,7 @@ mod tests {
         let mut t = setup();
         let good_tensor = Tensor::new(vec![0, 1, 4]);
         t.push_tensor(good_tensor, None, None);
-        let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
+        let mut edge_sol = HashMap::<usize, Vec<Option<usize>>>::new();
         edge_sol.entry(0).or_insert(vec![Some(1), Some(2)]);
         edge_sol.entry(1).or_insert(vec![Some(1), Some(2)]);
         edge_sol.entry(2).or_insert(vec![Some(0), Some(1)]);
@@ -583,11 +583,11 @@ mod tests {
         edge_sol.entry(4).or_insert(vec![Some(0), Some(2)]);
         let bond_dims = vec![17, 18, 19, 12, 22];
 
-        for (index, leg) in t.bond_dims.iter().take(t.tensors.max_leg() as usize) {
-            assert_eq!(*leg, bond_dims[*index as usize]);
+        for (index, leg) in t.bond_dims.iter().take(t.tensors.max_leg()) {
+            assert_eq!(*leg, bond_dims[*index]);
         }
 
-        for edge_key in 0i32..4 {
+        for edge_key in 0usize..4 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
     }
@@ -601,7 +601,7 @@ mod tests {
         for legs in good_tensor.get_legs() {
             assert_eq!(good_bond_dims[legs], t.bond_dims[legs]);
         }
-        let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
+        let mut edge_sol = HashMap::<usize, Vec<Option<usize>>>::new();
         edge_sol.entry(0).or_insert(vec![Some(1), None]);
         edge_sol.entry(1).or_insert(vec![Some(1), None]);
         edge_sol.entry(2).or_insert(vec![Some(0), Some(1)]);
@@ -616,7 +616,7 @@ mod tests {
             assert_eq!(t.bond_dims[leg], *x.next().unwrap());
         }
 
-        for edge_key in 0i32..4 {
+        for edge_key in 0usize..4 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
     }
@@ -647,7 +647,7 @@ mod tests {
         // contraction should maintain leg order
         let vec_sol = vec![0, 1, 4];
         let tensor_sol = Tensor::new(vec_sol.clone());
-        let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
+        let mut edge_sol = HashMap::<usize, Vec<Option<usize>>>::new();
         edge_sol.entry(0).or_insert(vec![Some(0), None]);
         edge_sol.entry(1).or_insert(vec![Some(0), None]);
         edge_sol.entry(2).or_insert(vec![Some(0)]);
@@ -655,7 +655,7 @@ mod tests {
         edge_sol.entry(4).or_insert(vec![Some(0), None]);
 
         assert_eq!(t.get_tensors()[0], tensor_sol);
-        for edge_key in 0i32..4 {
+        for edge_key in 0usize..4 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
 
@@ -671,7 +671,7 @@ mod tests {
         let tensor_intersect_sol = vec![3, 2];
         let tensor_difference_sol = vec![0, 1, 2, 4];
         let tensor_sol = Tensor::new(tensor_difference_sol.clone());
-        let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
+        let mut edge_sol = HashMap::<usize, Vec<Option<usize>>>::new();
         edge_sol.entry(0).or_insert(vec![Some(0), None]);
         edge_sol.entry(1).or_insert(vec![Some(0), None]);
         edge_sol.entry(2).or_insert(vec![Some(0), None]);
@@ -679,7 +679,7 @@ mod tests {
         edge_sol.entry(4).or_insert(vec![Some(0), None]);
 
         assert_eq!(t.get_tensors()[0], tensor_sol);
-        for edge_key in 0i32..4 {
+        for edge_key in 0usize..4 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
 
@@ -693,7 +693,7 @@ mod tests {
         let tensor = Tensor::new(vec![4, 5, 6, 6]);
         t.update_edge(&tensor, Some(&vec![4]));
 
-        let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
+        let mut edge_sol = HashMap::<usize, Vec<Option<usize>>>::new();
         edge_sol.entry(0).or_insert(vec![Some(1), None]);
         edge_sol.entry(1).or_insert(vec![Some(1), None]);
         edge_sol.entry(2).or_insert(vec![Some(0), Some(1), None]);
@@ -702,7 +702,7 @@ mod tests {
         edge_sol.entry(5).or_insert(vec![Some(2), None]);
         edge_sol.entry(6).or_insert(vec![Some(2), Some(2)]);
 
-        for edge_key in 0i32..7 {
+        for edge_key in 0usize..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
     }
@@ -710,7 +710,7 @@ mod tests {
     #[test]
     fn test_tensor_complex_hyperedge_contraction_good() {
         let mut t = setup_hyperedge_complex();
-        let mut edge_sol = HashMap::<i32, Vec<Option<i32>>>::new();
+        let mut edge_sol = HashMap::<usize, Vec<Option<usize>>>::new();
         edge_sol.entry(0).or_insert(vec![Some(0), None]);
         edge_sol.entry(1).or_insert(vec![Some(0), Some(1), Some(2)]);
         edge_sol.entry(2).or_insert(vec![Some(0), Some(2), None]);
@@ -719,13 +719,13 @@ mod tests {
         edge_sol.entry(5).or_insert(vec![Some(2), Some(3)]);
         edge_sol.entry(6).or_insert(vec![Some(3), None]);
 
-        for edge_key in 0i32..7 {
+        for edge_key in 0usize..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
         edge_sol.clear();
 
         let ext_sol = vec![&0, &2, &3, &6];
-        assert_eq!(ext_sol, t.ext_edges.iter().sorted().collect::<Vec<&i32>>());
+        assert_eq!(ext_sol, t.ext_edges.iter().sorted().collect::<Vec<&usize>>());
 
         let (tensor_intersect, tensor_difference) = t._contraction(0, 1);
         // contraction should maintain leg order
@@ -744,11 +744,11 @@ mod tests {
         edge_sol.entry(5).or_insert(vec![Some(2), Some(3)]);
         edge_sol.entry(6).or_insert(vec![Some(3), None]);
 
-        for edge_key in 0i32..7 {
+        for edge_key in 0usize..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
         edge_sol.clear();
-        assert_eq!(ext_sol, t.ext_edges.iter().sorted().collect::<Vec<&i32>>());
+        assert_eq!(ext_sol, t.ext_edges.iter().sorted().collect::<Vec<&usize>>());
 
         let (tensor_intersect, tensor_difference) = t._contraction(0, 2);
         // contraction should maintain leg order
@@ -767,7 +767,7 @@ mod tests {
         edge_sol.entry(5).or_insert(vec![Some(0), Some(3)]);
         edge_sol.entry(6).or_insert(vec![Some(3), None]);
 
-        for edge_key in 0i32..7 {
+        for edge_key in 0usize..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
         edge_sol.clear();
@@ -789,7 +789,7 @@ mod tests {
         edge_sol.entry(5).or_insert(vec![Some(0)]);
         edge_sol.entry(6).or_insert(vec![Some(0), None]);
 
-        for edge_key in 0i32..7 {
+        for edge_key in 0usize..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
         edge_sol.clear();
