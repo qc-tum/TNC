@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
+use num_complex::Complex64;
 
 use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
 
@@ -64,13 +65,52 @@ impl TensorNetworkCreator {
         }
     }
 
+    /// Creates the CX matrix.
+    fn cx_gate() -> tetra::Tensor {
+        let mut out = tetra::Tensor::new(&[2, 2, 2, 2]);
+        out.insert(&[0, 0, 0, 0], Complex64::new(1.0, 0.0));
+        out.insert(&[0, 1, 0, 1], Complex64::new(1.0, 0.0));
+        out.insert(&[1, 0, 1, 1], Complex64::new(1.0, 0.0));
+        out.insert(&[1, 1, 1, 0], Complex64::new(1.0, 0.0));
+        out
+    }
+
+    /// Creates the U matrix as defined in the QASM2 paper.
+    /// `U(theta, phi, lambda) = Rz(phi) Ry(theta) Rz(lambda)`.
+    fn u_gate(theta: f64, phi: f64, lambda: f64) -> tetra::Tensor {
+        let mut out = tetra::Tensor::new(&[2, 2]);
+        let (sin, cos) = (theta / 2.0).sin_cos();
+        out.insert(
+            &[0, 0],
+            (-Complex64::i() / 2.0 * (phi + lambda)).exp() * cos,
+        );
+        out.insert(
+            &[0, 1],
+            -(-Complex64::i() / 2.0 * (phi - lambda)).exp() * sin,
+        );
+        out.insert(&[1, 0], (Complex64::i() / 2.0 * (phi - lambda)).exp() * sin);
+        out.insert(&[1, 1], (Complex64::i() / 2.0 * (phi + lambda)).exp() * cos);
+        out
+    }
+
+    /// Creates a |0> state vector.
+    fn ket0() -> tetra::Tensor {
+        let mut out = tetra::Tensor::new(&[2]);
+        out.insert(&[0], Complex64::new(1.0, 0.0));
+        out
+    }
+
     /// Creates a tensor network from the AST. Assumes that all gate calls
     /// have been inlined and all expressions have been simplified to literals.
-    pub fn create_tensornetwork(&mut self, program: &Program) -> TensorNetwork {
+    pub fn create_tensornetwork(
+        &mut self,
+        program: &Program,
+    ) -> (TensorNetwork, Vec<tetra::Tensor>) {
         // Map qubits to the last open edge on the corresponding wire
         let mut wires = HashMap::new();
         let mut register_sizes = HashMap::new();
         let mut tensors = Vec::new();
+        let mut data_tensors = Vec::new();
 
         for statement in &program.statements {
             match statement {
@@ -83,23 +123,29 @@ impl TensorNetworkCreator {
                         // New wires are initialized with |0>
                         // Thus, create new tensors with a single edge for each qubit
                         tensors.reserve(*count as usize);
+                        data_tensors.reserve(*count as usize);
                         for i in 0..*count {
                             let edge = self.new_edge();
                             let tensor = Tensor::new(vec![edge]);
                             tensors.push(tensor);
+                            data_tensors.push(TensorNetworkCreator::ket0());
                             wires.insert(Argument(name.clone(), Some(i)), edge);
                         }
                         register_sizes.insert(name.clone(), *count);
                     }
                 }
                 Statement::GateCall(call) => {
-                    // TODO: broadcast calls, where e.g. a CX is applied to two registers
                     if call.name == "U" {
                         for single_call in Self::broadcast(&call.qargs, &register_sizes) {
                             let open_edge = wires.get_mut(&single_call[0]).unwrap();
                             let out_edge = self.new_edge();
                             let tensor = Tensor::new(vec![out_edge, *open_edge]);
+                            let [theta, phi, lambda] = &call.args[..] else {panic!("Expected 3 classical arguments for U gate")};
+                            let theta: f64 = theta.try_into().unwrap();
+                            let phi: f64 = phi.try_into().unwrap();
+                            let lambda: f64 = lambda.try_into().unwrap();
                             tensors.push(tensor);
+                            data_tensors.push(TensorNetworkCreator::u_gate(theta, phi, lambda));
                             *open_edge = out_edge;
                         }
                     } else if call.name == "CX" {
@@ -112,6 +158,7 @@ impl TensorNetworkCreator {
                             let tensor =
                                 Tensor::new(vec![out_edge1, out_edge2, *open_edge1, *open_edge2]);
                             tensors.push(tensor);
+                            data_tensors.push(TensorNetworkCreator::cx_gate());
                             *open_edge1 = out_edge1;
                             *open_edge2 = out_edge2;
                         }
@@ -124,13 +171,18 @@ impl TensorNetworkCreator {
         }
 
         let bond_dims = vec![2u64; self.edge_counter as usize];
-        TensorNetwork::from_vector(tensors, bond_dims, None)
+        (
+            TensorNetwork::from_vector(tensors, bond_dims, None),
+            data_tensors,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+
+    use float_cmp::assert_approx_eq;
 
     use crate::qasm::ast::Argument;
 
@@ -202,5 +254,18 @@ mod tests {
         assert_eq!(broadcast_calls.len(), 2);
         assert_eq!(broadcast_calls[0], vec![a0.clone()]);
         assert_eq!(broadcast_calls[1], vec![a1.clone()]);
+    }
+
+    #[test]
+    fn test_u_gate() {
+        let a = TensorNetworkCreator::u_gate(0.1, 0.2, 0.3);
+        assert_approx_eq!(f64, a.get(&[0, 0]).re, 0.9677015334834238);
+        assert_approx_eq!(f64, a.get(&[0, 0]).im, -0.2470947687282004);
+        assert_approx_eq!(f64, a.get(&[0, 1]).re, -0.04991670832341408);
+        assert_approx_eq!(f64, a.get(&[0, 1]).im, -0.0024979173609871166);
+        assert_approx_eq!(f64, a.get(&[1, 0]).re, 0.04991670832341408);
+        assert_approx_eq!(f64, a.get(&[1, 0]).im, -0.0024979173609871166);
+        assert_approx_eq!(f64, a.get(&[1, 1]).re, 0.9677015334834238);
+        assert_approx_eq!(f64, a.get(&[1, 1]).im, 0.2470947687282004);
     }
 }
