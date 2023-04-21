@@ -80,16 +80,10 @@ impl TensorNetworkCreator {
     fn u_gate(theta: f64, phi: f64, lambda: f64) -> tetra::Tensor {
         let mut out = tetra::Tensor::new(&[2, 2]);
         let (sin, cos) = (theta / 2.0).sin_cos();
-        out.insert(
-            &[0, 0],
-            (-Complex64::i() / 2.0 * (phi + lambda)).exp() * cos,
-        );
-        out.insert(
-            &[0, 1],
-            -(-Complex64::i() / 2.0 * (phi - lambda)).exp() * sin,
-        );
-        out.insert(&[1, 0], (Complex64::i() / 2.0 * (phi - lambda)).exp() * sin);
-        out.insert(&[1, 1], (Complex64::i() / 2.0 * (phi + lambda)).exp() * cos);
+        out.insert(&[0, 0], Complex64::new(cos, 0.0));
+        out.insert(&[0, 1], -(Complex64::i() * lambda).exp() * sin);
+        out.insert(&[1, 0], (Complex64::i() * phi).exp() * sin);
+        out.insert(&[1, 1], (Complex64::i() * (phi + lambda)).exp() * cos);
         out
     }
 
@@ -259,13 +253,13 @@ mod tests {
     #[test]
     fn test_u_gate() {
         let a = TensorNetworkCreator::u_gate(0.1, 0.2, 0.3);
-        assert_approx_eq!(f64, a.get(&[0, 0]).re, 0.9677015334834238);
-        assert_approx_eq!(f64, a.get(&[0, 0]).im, -0.2470947687282004);
-        assert_approx_eq!(f64, a.get(&[0, 1]).re, -0.04991670832341408);
-        assert_approx_eq!(f64, a.get(&[0, 1]).im, -0.0024979173609871166);
-        assert_approx_eq!(f64, a.get(&[1, 0]).re, 0.04991670832341408);
-        assert_approx_eq!(f64, a.get(&[1, 0]).im, -0.0024979173609871166);
-        assert_approx_eq!(f64, a.get(&[1, 1]).re, 0.9677015334834238);
-        assert_approx_eq!(f64, a.get(&[1, 1]).im, 0.2470947687282004);
+        assert_approx_eq!(f64, a.get(&[0, 0]).re, 0.9987502603949663);
+        assert_approx_eq!(f64, a.get(&[0, 0]).im, 0.0);
+        assert_approx_eq!(f64, a.get(&[0, 1]).re, -0.04774692410046421);
+        assert_approx_eq!(f64, a.get(&[0, 1]).im, -0.014769854431632931);
+        assert_approx_eq!(f64, a.get(&[1, 0]).re, 0.04898291339046185);
+        assert_approx_eq!(f64, a.get(&[1, 0]).im, 0.009929328112698753);
+        assert_approx_eq!(f64, a.get(&[1, 1]).re, 0.8764858122060915);
+        assert_approx_eq!(f64, a.get(&[1, 1]).im, 0.4788263815209447);
     }
 }

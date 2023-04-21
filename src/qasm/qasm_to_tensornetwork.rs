@@ -151,13 +151,13 @@ mod tests {
 
         let [resulting_state] = &tensors[..] else {panic!("Expected a single tensor after contraction")};
         assert_eq!(resulting_state.shape(), &[2, 2]);
-        assert_approx_eq!(f64, resulting_state.get(&[0, 0]).re, 0.0);
-        assert_approx_eq!(f64, resulting_state.get(&[0, 0]).im, -(1.0 / 2.0f64.sqrt()));
+        assert_approx_eq!(f64, resulting_state.get(&[0, 0]).re, 1.0 / 2.0f64.sqrt());
+        assert_approx_eq!(f64, resulting_state.get(&[0, 0]).im, 0.0);
         assert_approx_eq!(f64, resulting_state.get(&[0, 1]).re, 0.0);
         assert_approx_eq!(f64, resulting_state.get(&[0, 1]).im, 0.0);
         assert_approx_eq!(f64, resulting_state.get(&[1, 0]).re, 0.0);
         assert_approx_eq!(f64, resulting_state.get(&[1, 0]).im, 0.0);
-        assert_approx_eq!(f64, resulting_state.get(&[1, 1]).re, 0.0);
-        assert_approx_eq!(f64, resulting_state.get(&[1, 1]).im, -(1.0 / 2.0f64.sqrt()));
+        assert_approx_eq!(f64, resulting_state.get(&[1, 1]).re, 1.0 / 2.0f64.sqrt());
+        assert_approx_eq!(f64, resulting_state.get(&[1, 1]).im, 0.0);
     }
 }
