@@ -9,7 +9,7 @@ use super::{
 /// and CX gates remain. Since all qubits are initialized to zero, this method adds a
 /// tensor for all initial states. The tensor network is not closed, i.e. for each
 /// wire in the circuit there is an unbounded leg.
-pub fn create_tensornetwork<S>(code: S) -> TensorNetwork
+pub fn create_tensornetwork<S>(code: S) -> (TensorNetwork, Vec<tetra::Tensor>)
 where
     S: Into<String>,
 {
@@ -40,7 +40,10 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
+    use float_cmp::assert_approx_eq;
+    use itertools::Itertools;
+
+    use crate::tensornetwork::{contraction::tn_contract, tensor::Tensor, TensorNetwork};
 
     use super::create_tensornetwork;
 
@@ -87,14 +90,14 @@ mod tests {
     }
 
     #[test]
-    fn bell_example() {
+    fn bell_tensornetwork_construction() {
         let code = "OPENQASM 2.0;
         include \"qelib1.inc\";
         qreg q[2];
         h q[0];
         cx q[0], q[1];
         ";
-        let tn = create_tensornetwork(code);
+        let (tn, _tensors) = create_tensornetwork(code);
 
         let (kets, single_qubit_gates, two_qubit_gates) = get_quantum_tensors(&tn);
         let [k0, k1] = kets.as_slice() else {panic!()};
@@ -130,5 +133,31 @@ mod tests {
 
         let cx_t_to_open_id = cx.tensor.get_legs()[1];
         assert!(is_open_edge_of(cx_t_to_open_id, cx.id, &tn));
+    }
+
+    #[test]
+    fn bell_contract() {
+        let code = "OPENQASM 2.0;
+        include \"qelib1.inc\";
+        qreg q[2];
+        h q[0];
+        cx q[0], q[1];
+        ";
+        let (tn, tensors) = create_tensornetwork(code);
+        let opt_path = (1..tn.get_tensors().len())
+            .map(|tid| (0, tid))
+            .collect_vec();
+        let (_tn, tensors) = tn_contract(tn, tensors, &opt_path);
+
+        let [resulting_state] = &tensors[..] else {panic!("Expected a single tensor after contraction")};
+        assert_eq!(resulting_state.shape(), &[2, 2]);
+        assert_approx_eq!(f64, resulting_state.get(&[0, 0]).re, 1.0 / 2.0f64.sqrt());
+        assert_approx_eq!(f64, resulting_state.get(&[0, 0]).im, 0.0);
+        assert_approx_eq!(f64, resulting_state.get(&[0, 1]).re, 0.0);
+        assert_approx_eq!(f64, resulting_state.get(&[0, 1]).im, 0.0);
+        assert_approx_eq!(f64, resulting_state.get(&[1, 0]).re, 0.0);
+        assert_approx_eq!(f64, resulting_state.get(&[1, 0]).im, 0.0);
+        assert_approx_eq!(f64, resulting_state.get(&[1, 1]).re, 1.0 / 2.0f64.sqrt());
+        assert_approx_eq!(f64, resulting_state.get(&[1, 1]).im, 0.0);
     }
 }
