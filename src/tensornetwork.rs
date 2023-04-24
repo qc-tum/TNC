@@ -299,7 +299,7 @@ impl TensorNetwork {
 
     /// Appends a new Tensor object to TensorNetwork object. Optionally, accepts a HashMap of bond dimensions
     /// if edge ids in new Tensor are not defined in `TensorNetwork::bond_dims`. This updates edge ids in `TensorNetwork::edges`
-    /// if they are in the new Tensor object via a call to [update_edge].
+    /// if they are in the new Tensor object via a call to [`update_edge`].
     ///
     /// # Arguments
     ///

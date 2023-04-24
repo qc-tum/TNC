@@ -5,9 +5,9 @@ use tetra::{contract, Tensor as DataTensor};
 ///
 /// # Arguments
 ///
-/// * `tn` - [TensorNetwork] to be contracted
-/// * `d_tn` - [Vector] of [DataTensor] objects containing data of [TensorNetwork]
-/// * `contract_path` - [Vector] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
+/// * `tn` - [`TensorNetwork`] to be contracted
+/// * `d_tn` - [`Vector`] of [DataTensor] objects containing data of [TensorNetwork]
+/// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
 ///
 /// # Examples
 ///
