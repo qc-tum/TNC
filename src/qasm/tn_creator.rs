@@ -200,7 +200,7 @@ mod tests {
         let no_broadcast_args = &[a2.clone(), b0.clone()];
         let a_broadcast_args = &[a.clone(), b0.clone()];
         let b_broadcast_args = &[a1.clone(), b.clone()];
-        let both_broadcast_args = &[a.clone(), b.clone()];
+        let both_broadcast_args = &[a, b];
 
         let no_broadcast_calls =
             TensorNetworkCreator::broadcast(no_broadcast_args, &register_sizes);
@@ -222,9 +222,9 @@ mod tests {
         let both_broadcast_calls =
             TensorNetworkCreator::broadcast(both_broadcast_args, &register_sizes);
         assert_eq!(both_broadcast_calls.len(), 3);
-        assert_eq!(both_broadcast_calls[0], vec![a0.clone(), b0.clone()]);
-        assert_eq!(both_broadcast_calls[1], vec![a1.clone(), b1.clone()]);
-        assert_eq!(both_broadcast_calls[2], vec![a2.clone(), b2.clone()]);
+        assert_eq!(both_broadcast_calls[0], vec![a0, b0]);
+        assert_eq!(both_broadcast_calls[1], vec![a1, b1]);
+        assert_eq!(both_broadcast_calls[2], vec![a2, b2]);
     }
 
     #[test]
@@ -237,7 +237,7 @@ mod tests {
         let a1 = Argument(String::from("a"), Some(1));
 
         let no_broadcast_args = &[a1.clone()];
-        let broadcast_args = &[a.clone()];
+        let broadcast_args = &[a];
 
         let no_broadcast_calls =
             TensorNetworkCreator::broadcast(no_broadcast_args, &register_sizes);
@@ -246,8 +246,8 @@ mod tests {
 
         let broadcast_calls = TensorNetworkCreator::broadcast(broadcast_args, &register_sizes);
         assert_eq!(broadcast_calls.len(), 2);
-        assert_eq!(broadcast_calls[0], vec![a0.clone()]);
-        assert_eq!(broadcast_calls[1], vec![a1.clone()]);
+        assert_eq!(broadcast_calls[0], vec![a0]);
+        assert_eq!(broadcast_calls[1], vec![a1]);
     }
 
     #[test]
