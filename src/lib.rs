@@ -5,7 +5,7 @@
 #![feature(drain_filter)]
 #![feature(map_many_mut)]
 
-pub mod tensornetwork;
 pub mod contractionpath;
-pub mod random;
 pub mod qasm;
+pub mod random;
+pub mod tensornetwork;

@@ -1,12 +1,12 @@
 use crate::tensornetwork::TensorNetwork;
-use tetra::{contract, Tensor as _TetraTensor};
+use tetra::{contract, Tensor as DataTensor};
 
-/// Fully contracts a list of [_TetraTensor] objects based on a given contraction path using repeated SSA format.
+/// Fully contracts a list of [DataTensor] objects based on a given contraction path using repeated SSA format.
 ///
 /// # Arguments
 ///
 /// * `tn` - [TensorNetwork] to be contracted
-/// * `d_tn` - [Vector] of [_TetraTensor] objects containing data of [TensorNetwork]
+/// * `d_tn` - [Vector] of [DataTensor] objects containing data of [TensorNetwork]
 /// * `contract_path` - [Vector] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
 ///
 /// # Examples
@@ -36,32 +36,29 @@ use tetra::{contract, Tensor as _TetraTensor};
 /// ```
 pub fn tn_contract(
     mut tn: TensorNetwork,
-    mut d_tn: Vec<_TetraTensor>,
+    mut d_tn: Vec<DataTensor>,
     contract_path: &Vec<(usize, usize)>,
-) -> (TensorNetwork, Vec<_TetraTensor>) {
+) -> (TensorNetwork, Vec<DataTensor>) {
     let mut last_index = 0;
     for (i, j) in contract_path {
-        let a_legs = tn[*i].get_legs().clone();
-        let b_legs = tn[*j].get_legs().clone();
-        let (_tensor_intersection, tensor_difference) = tn._contraction(*i, *j);
-        let bond_dims = tn.get_bond_dims();
-        let out_dims = tensor_difference
+        let a_legs = tn[*i]
+            .get_legs()
             .iter()
-            .map(|e| bond_dims[e] as i32)
-            .collect::<Vec<i32>>();
-
-        let mut new_tensor = _TetraTensor::new(&out_dims);
-
-        contract(
-            &mut new_tensor,
-            &tensor_difference,
-            &a_legs,
-            &d_tn[*i],
-            &b_legs,
-            &d_tn[*j],
-        );
-        d_tn[*i] = new_tensor;
-        d_tn[*j] = _TetraTensor::new(&[1]);
+            .map(|e| *e as u32)
+            .collect::<Vec<u32>>();
+        let b_legs = tn[*j]
+            .get_legs()
+            .iter()
+            .map(|e| *e as u32)
+            .collect::<Vec<u32>>();
+        let (_tensor_intersection, tensor_difference) = tn._contraction(*i, *j);
+        // let bond_dims = tn.get_bond_dims();
+        let out_legs = tensor_difference
+            .iter()
+            .map(|e| *e as u32)
+            .collect::<Vec<u32>>();
+        d_tn[*i] = contract(&out_legs, &a_legs, &d_tn[*i], &b_legs, &d_tn[*j]);
+        d_tn[*j] = DataTensor::new(&[1]);
         last_index = *i;
     }
     d_tn.swap(0, last_index);
@@ -73,8 +70,11 @@ pub fn tn_contract(
 mod tests {
     use super::tn_contract;
     use crate::tensornetwork::{tensor::Tensor, tensorio::from_array, TensorNetwork};
+    use float_cmp::approx_eq;
+    use itertools::Itertools;
     use num_complex::Complex64;
     use std::collections::HashMap;
+    use tetra::Tensor as DataTensor;
 
     fn setup() -> (
         Vec<Complex64>,
@@ -173,66 +173,66 @@ mod tests {
         .collect();
 
         let dout = [
-            21.12662184,
-            22.54781684,
-            19.14112547,
-            21.5038364,
-            20.41325582,
-            21.21790451,
-            19.020183,
-            19.8061706,
-            18.14298457,
-            19.23444654,
-            22.09757366,
-            23.84187642,
-            20.99919344,
-            21.00826465,
-            17.48069431,
-            20.77190845,
-            18.61067058,
-            20.6490704,
-            17.89339834,
-            19.46748844,
-            18.55191734,
-            18.47989776,
-            21.51424253,
-            23.1527177,
-            21.58618593,
-            21.87267011,
-            19.59396099,
-            22.66100047,
-            19.69575674,
-            21.82218514,
-            19.89800679,
-            21.3143657,
-            19.46194773,
-            19.86700798,
-            22.58850996,
-            24.51772654,
-            22.31452843,
-            23.62575306,
-            20.01337023,
-            22.48410568,
-            21.13354031,
-            22.92646178,
-            20.28317165,
-            20.82815718,
-            19.1167972,
-            21.63729983,
-            23.8143833,
-            25.8951364,
-            25.95290248,
-            27.82050386,
-            23.5607429,
-            27.02466872,
-            24.12486374,
-            26.50415704,
-            24.02478858,
-            25.81369872,
-            22.49520341,
-            24.56743914,
-            26.90666307,
-            30.23243804,
+            20.83841541,
+            23.72804216,
+            25.26743991,
+            27.82550527,
+            29.13165375,
+            32.86794228,
+            21.67509737,
+            24.46700547,
+            23.50725329,
+            29.70428106,
+            29.31341134,
+            34.47054395,
+            16.83253046,
+            19.56396163,
+            20.30796603,
+            22.50697246,
+            22.82978725,
+            26.42030698,
+            18.03927544,
+            19.42111263,
+            18.79888947,
+            23.5835167,
+            23.09534565,
+            26.85038258,
+            16.53656635,
+            18.45972521,
+            18.64501464,
+            21.2050642,
+            22.09956708,
+            24.6502134,
+            16.87969734,
+            18.0955901,
+            17.31207889,
+            21.23039908,
+            21.51029931,
+            24.77432697,
+            14.78396272,
+            15.26712851,
+            17.18142351,
+            18.76845529,
+            20.10420535,
+            21.70370149,
+            14.73013953,
+            14.91246212,
+            16.52133026,
+            18.58125182,
+            19.98445285,
+            21.97007442,
+            19.4305609,
+            21.84304091,
+            23.72416128,
+            26.31780059,
+            27.12262366,
+            31.11139269,
+            18.80240465,
+            20.90453476,
+            21.07471217,
+            25.09240504,
+            25.76410278,
+            29.60487313,
         ]
         .iter()
         .map(|e| Complex64::new(*e, 0.0))
@@ -241,7 +241,6 @@ mod tests {
         (d1, d2, d3, dout)
     }
 
-    #[ignore]
     #[test]
     fn test_tn_contraction() {
         let t1 = Tensor::new(vec![0, 1, 2]);
@@ -253,15 +252,52 @@ mod tests {
 
         let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
 
-        let tc1 = from_array(&t1, &bond_dims, &d1);
-        let tc2 = from_array(&t2, &bond_dims, &d2);
-        let tc3 = from_array(&t3, &bond_dims, &d3);
-        let tcout = from_array(&tout, &bond_dims, &dout);
+        let tc1 = DataTensor::new_from_flat(
+            &(t1.iter().map(|e| bond_dims[e] as u32).collect::<Vec<u32>>()),
+            d1,
+            Some(tetra::Layout::RowMajor),
+        );
+        let tc2 = DataTensor::new_from_flat(
+            &(t2.iter().map(|e| bond_dims[e] as u32).collect::<Vec<u32>>()),
+            d2,
+            Some(tetra::Layout::RowMajor),
+        );
+        let tc3 = DataTensor::new_from_flat(
+            &(t3.iter().map(|e| bond_dims[e] as u32).collect::<Vec<u32>>()),
+            d3,
+            Some(tetra::Layout::RowMajor),
+        );
+        let tcout = DataTensor::new_from_flat(
+            &(tout
+                .iter()
+                .map(|e| bond_dims[e] as u32)
+                .collect::<Vec<u32>>()),
+            dout,
+            Some(tetra::Layout::RowMajor),
+        );
 
         let tn = TensorNetwork::new(vec![t1, t2, t3], bond_dims, None);
         let contract_path = vec![(0, 1), (0, 2)];
 
         let (_tn, d_tn) = tn_contract(tn, vec![tc1, tc2, tc3], &contract_path);
-        assert!(tcout == d_tn[0]);
+        let range = tcout
+            .shape()
+            .iter()
+            .map(|e| 0..*e)
+            .multi_cartesian_product();
+        for index in range {
+            assert!(approx_eq!(
+                f64,
+                tcout.get(&index).re,
+                d_tn[0].get(&index).re,
+                epsilon = 1e-8
+            ));
+            assert!(approx_eq!(
+                f64,
+                tcout.get(&index).im,
+                d_tn[0].get(&index).im,
+                epsilon = 1e-8
+            ));
+        }
     }
 }

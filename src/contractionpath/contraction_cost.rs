@@ -48,9 +48,9 @@ pub fn contract_cost(tn: &TensorNetwork, i: usize, j: usize) -> u64 {
 /// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13], None);
 /// assert_eq!(contract_cost(&tn, 0, 1), 45045);
 /// ```
-pub fn _contract_cost(t_1: Tensor, t_2: Tensor, bond_dims: &HashMap<i32, u64>) -> u64 {
-    let tensor_a: HashSet<&i32, RandomState> = HashSet::from_iter(t_1.iter());
-    let tensor_b: HashSet<&i32, RandomState> = HashSet::from_iter(t_2.iter());
+pub fn _contract_cost(t_1: Tensor, t_2: Tensor, bond_dims: &HashMap<usize, u64>) -> u64 {
+    let tensor_a: HashSet<&usize, RandomState> = HashSet::from_iter(t_1.iter());
+    let tensor_b: HashSet<&usize, RandomState> = HashSet::from_iter(t_2.iter());
 
     let shared_dims = tensor_a.union(&tensor_b);
 
@@ -102,7 +102,7 @@ pub fn contract_size(tn: &TensorNetwork, i: usize, j: usize) -> (Tensor, u64) {
 /// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13], None);
 /// assert_eq!(contract_size(&tn, 0, 1), (Tensor::new(vec![0,1,3,4]), 6607));
 /// ```
-pub fn _contract_size(t_1: Tensor, t_2: Tensor, bond_dims: &HashMap<i32, u64>) -> (Tensor, u64) {
+pub fn _contract_size(t_1: Tensor, t_2: Tensor, bond_dims: &HashMap<usize, u64>) -> (Tensor, u64) {
     let legs_i = t_1.get_legs();
     let legs_j = t_2.get_legs();
     let mut diff = Vec::new();

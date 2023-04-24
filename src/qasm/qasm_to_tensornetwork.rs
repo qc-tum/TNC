@@ -48,7 +48,7 @@ mod tests {
     use super::create_tensornetwork;
 
     /// Returns whether the edge connects the two tensors.
-    fn edge_connects(edge_id: i32, t1_id: i32, t2_id: i32, tn: &TensorNetwork) -> bool {
+    fn edge_connects(edge_id: usize, t1_id: usize, t2_id: usize, tn: &TensorNetwork) -> bool {
         let edge = tn.get_edges().get(&edge_id).unwrap();
         if let [Some(from), Some(to)] = edge[..] {
             t1_id == from && t2_id == to || t1_id == to && t2_id == from
@@ -58,7 +58,7 @@ mod tests {
     }
 
     /// Returns whether the edge is an open edge of the tensor.
-    fn is_open_edge_of(edge_id: i32, t1_id: i32, tn: &TensorNetwork) -> bool {
+    fn is_open_edge_of(edge_id: usize, t1_id: usize, tn: &TensorNetwork) -> bool {
         let edge = tn.get_edges().get(&edge_id).unwrap();
         if let [Some(from), None] = edge[..] {
             t1_id == from
@@ -68,7 +68,7 @@ mod tests {
     }
 
     struct IdTensor<'a> {
-        id: i32,
+        id: usize,
         tensor: &'a Tensor,
     }
 
@@ -77,7 +77,7 @@ mod tests {
         let mut single_qubit_gates = Vec::new();
         let mut two_qubit_gates = Vec::new();
         for (tid, tensor) in tn.get_tensors().iter().enumerate() {
-            let id: i32 = tid.try_into().unwrap();
+            let id: usize = tid;
             let legs = tensor.get_legs().len();
             match legs {
                 1 => kets.push(IdTensor { id, tensor }),
