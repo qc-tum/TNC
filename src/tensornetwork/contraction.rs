@@ -69,7 +69,7 @@ pub fn tn_contract(
 #[cfg(test)]
 mod tests {
     use super::tn_contract;
-    use crate::tensornetwork::{tensor::Tensor, tensorio::from_array, TensorNetwork};
+    use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
     use float_cmp::approx_eq;
     use itertools::Itertools;
     use num_complex::Complex64;

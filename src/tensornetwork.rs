@@ -6,7 +6,6 @@ use std::ops::{Index, IndexMut};
 
 pub mod contraction;
 pub mod tensor;
-pub mod tensorio;
 
 use tensor::Tensor;
 
@@ -163,7 +162,11 @@ impl TensorNetwork {
     /// let bond_dims = vec![17, 19];
     /// let tn = TensorNetwork::from_vector(vec![v1], bond_dims, None);
     /// ```
-    pub fn from_vector(tensors: Vec<Tensor>, bond_dims: Vec<u64>, ext: Option<&Vec<usize>>) -> TensorNetwork {
+    pub fn from_vector(
+        tensors: Vec<Tensor>,
+        bond_dims: Vec<u64>,
+        ext: Option<&Vec<usize>>,
+    ) -> TensorNetwork {
         assert!(tensors.max_leg() < bond_dims.len());
         TensorNetwork::new(tensors, (0usize..).zip(bond_dims).collect(), ext)
     }
@@ -211,7 +214,11 @@ impl TensorNetwork {
     /// ]);
     /// let tn = TensorNetwork::new(vec![v1, v2], bond_dims, None);
     /// ```    
-    pub fn new(tensors: Vec<Tensor>, bond_dims: HashMap<usize, u64>, ext: Option<&Vec<usize>>) -> Self {
+    pub fn new(
+        tensors: Vec<Tensor>,
+        bond_dims: HashMap<usize, u64>,
+        ext: Option<&Vec<usize>>,
+    ) -> Self {
         let mut edges: HashMap<usize, Vec<Option<usize>>> = HashMap::new();
         for (index, tensor) in tensors.iter().enumerate() {
             for leg in tensor.get_legs() {
@@ -392,7 +399,11 @@ impl TensorNetwork {
     ///
     /// * `tensor_a_loc` - Index of first Tensor to be contracted
     /// * `tensor_b_loc` - Index of second Tensor to be contracted
-    fn _contraction(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) -> (Vec<usize>, Vec<usize>) {
+    fn _contraction(
+        &mut self,
+        tensor_a_loc: usize,
+        tensor_b_loc: usize,
+    ) -> (Vec<usize>, Vec<usize>) {
         let tensor_a_legs = self.tensors[tensor_a_loc].get_legs();
         let tensor_b_legs = self.tensors[tensor_b_loc].get_legs();
         let tensor_union = tensor_b_legs.union(tensor_a_legs.clone());
@@ -473,7 +484,7 @@ impl TensorNetwork {
                         names.push(name);
                     }
                 }
-                
+
                 // Name of the point everything is connected to
                 let root = if names.len() == 2 {
                     names.pop().unwrap()
@@ -487,7 +498,12 @@ impl TensorNetwork {
                 };
 
                 for name in names {
-                    writeln!(out, "\t{} -- {} [label=\"{}\", headlabel=\"e{}\", labelfontsize=\"8pt\"];", root, name, self.bond_dims[leg], leg).unwrap();
+                    writeln!(
+                        out,
+                        "\t{} -- {} [label=\"{}\", headlabel=\"e{}\", labelfontsize=\"8pt\"];",
+                        root, name, self.bond_dims[leg], leg
+                    )
+                    .unwrap();
                 }
             }
         }
@@ -725,7 +741,10 @@ mod tests {
         edge_sol.clear();
 
         let ext_sol = vec![&0, &2, &3, &6];
-        assert_eq!(ext_sol, t.ext_edges.iter().sorted().collect::<Vec<&usize>>());
+        assert_eq!(
+            ext_sol,
+            t.ext_edges.iter().sorted().collect::<Vec<&usize>>()
+        );
 
         let (tensor_intersect, tensor_difference) = t._contraction(0, 1);
         // contraction should maintain leg order
@@ -748,7 +767,10 @@ mod tests {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
         edge_sol.clear();
-        assert_eq!(ext_sol, t.ext_edges.iter().sorted().collect::<Vec<&usize>>());
+        assert_eq!(
+            ext_sol,
+            t.ext_edges.iter().sorted().collect::<Vec<&usize>>()
+        );
 
         let (tensor_intersect, tensor_difference) = t._contraction(0, 2);
         // contraction should maintain leg order
