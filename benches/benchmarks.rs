@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
-use rand::{rngs::StdRng, SeedableRng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::time::Duration;
 use tensorcontraction::{
     random::tensorgeneration::random_sparse_tensor_with_rng,
