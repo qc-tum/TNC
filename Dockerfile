@@ -11,5 +11,5 @@ RUN apt-get update -qq && \
     ./rustup-init.sh -y --default-toolchain none  --no-modify-path && \
     rustup toolchain install stable --profile minimal && \
     rustup component add clippy rustfmt && \
-    apt-get install -qq build-essential clang cmake gfortran libopenblas-dev libssl-dev pkg-config
+    apt-get install -qq build-essential clang cmake gfortran libopenblas-dev libssl-dev pkg-config libhdf5-dev
 
