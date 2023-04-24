@@ -164,7 +164,7 @@ impl TensorNetworkCreator {
             }
         }
 
-        let bond_dims = vec![2u64; self.edge_counter as usize];
+        let bond_dims = vec![2u64; self.edge_counter];
         (
             TensorNetwork::from_vector(tensors, bond_dims, None),
             data_tensors,

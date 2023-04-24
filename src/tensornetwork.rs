@@ -168,7 +168,7 @@ impl TensorNetwork {
         ext: Option<&Vec<usize>>,
     ) -> TensorNetwork {
         assert!(tensors.max_leg() < bond_dims.len());
-        TensorNetwork::new(tensors, (0usize..).zip(bond_dims).collect(), ext)
+        TensorNetwork::new(tensors, (0..).zip(bond_dims).collect(), ext)
     }
 
     // TODO: Add hyperedge example
@@ -580,7 +580,7 @@ mod tests {
         for (index, leg) in t.bond_dims.iter().take(t.tensors.max_leg()) {
             assert_eq!(*leg, bond_dims[*index]);
         }
-        for edge_key in 0usize..4 {
+        for edge_key in 0..4 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
     }
@@ -603,7 +603,7 @@ mod tests {
             assert_eq!(*leg, bond_dims[*index]);
         }
 
-        for edge_key in 0usize..4 {
+        for edge_key in 0..4 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
     }
@@ -632,7 +632,7 @@ mod tests {
             assert_eq!(t.bond_dims[leg], *x.next().unwrap());
         }
 
-        for edge_key in 0usize..4 {
+        for edge_key in 0..4 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
     }
@@ -671,7 +671,7 @@ mod tests {
         edge_sol.entry(4).or_insert(vec![Some(0), None]);
 
         assert_eq!(t.get_tensors()[0], tensor_sol);
-        for edge_key in 0usize..4 {
+        for edge_key in 0..4 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
 
@@ -695,7 +695,7 @@ mod tests {
         edge_sol.entry(4).or_insert(vec![Some(0), None]);
 
         assert_eq!(t.get_tensors()[0], tensor_sol);
-        for edge_key in 0usize..4 {
+        for edge_key in 0..4 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
 
@@ -718,7 +718,7 @@ mod tests {
         edge_sol.entry(5).or_insert(vec![Some(2), None]);
         edge_sol.entry(6).or_insert(vec![Some(2), Some(2)]);
 
-        for edge_key in 0usize..7 {
+        for edge_key in 0..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
     }
@@ -735,7 +735,7 @@ mod tests {
         edge_sol.entry(5).or_insert(vec![Some(2), Some(3)]);
         edge_sol.entry(6).or_insert(vec![Some(3), None]);
 
-        for edge_key in 0usize..7 {
+        for edge_key in 0..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
         edge_sol.clear();
@@ -763,7 +763,7 @@ mod tests {
         edge_sol.entry(5).or_insert(vec![Some(2), Some(3)]);
         edge_sol.entry(6).or_insert(vec![Some(3), None]);
 
-        for edge_key in 0usize..7 {
+        for edge_key in 0..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
         edge_sol.clear();
@@ -789,7 +789,7 @@ mod tests {
         edge_sol.entry(5).or_insert(vec![Some(0), Some(3)]);
         edge_sol.entry(6).or_insert(vec![Some(3), None]);
 
-        for edge_key in 0usize..7 {
+        for edge_key in 0..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
         edge_sol.clear();
@@ -811,7 +811,7 @@ mod tests {
         edge_sol.entry(5).or_insert(vec![Some(0)]);
         edge_sol.entry(6).or_insert(vec![Some(0), None]);
 
-        for edge_key in 0usize..7 {
+        for edge_key in 0..7 {
             assert_eq!(edge_sol[&edge_key], t.get_edges()[&edge_key]);
         }
         edge_sol.clear();
