@@ -1,6 +1,5 @@
 use super::{contract, DataTensor};
 use crate::tensornetwork::TensorNetwork;
-use tetra::{contract, Tensor as DataTensor};
 
 /// Fully contracts a list of [DataTensor] objects based on a given contraction path using repeated SSA format.
 ///
