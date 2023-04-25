@@ -3,6 +3,7 @@ use array_tool::vec::{Intersect, Union};
 use std::collections::HashMap;
 use std::fmt::{self, Write};
 use std::ops::{Index, IndexMut};
+use tetra::{contract, Tensor as DataTensor};
 
 pub mod contraction;
 pub mod tensor;

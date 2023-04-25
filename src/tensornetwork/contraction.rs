@@ -1,3 +1,4 @@
+use super::{contract, DataTensor};
 use crate::tensornetwork::TensorNetwork;
 use tetra::{contract, Tensor as DataTensor};
 
