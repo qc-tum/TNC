@@ -88,7 +88,7 @@ pub fn random_sparse_tensor_with_rng<R>(
     bond_dims: &HashMap<usize, u64>,
     sparsity: Option<f32>,
     rng: &mut R,
-) -> _TetraTensor
+) -> DataTensor
 where
     R: Rng + ?Sized,
 {
