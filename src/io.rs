@@ -31,7 +31,7 @@ pub fn open_hdf5(file: &str) -> Result<(TensorNetwork, Vec<DataTensor>)> {
         let tensor_shape = tensor_dataset.shape().to_vec();
         t_tensors.push(Tensor::new(bond_ids.to_vec()));
         let d_tensor = DataTensor::new_from_flat(
-            &tensor_shape.iter().map(|&e| e as i32).collect::<Vec<i32>>(),
+            &tensor_shape.iter().map(|&e| e as u32).collect::<Vec<u32>>(),
             tensor_dataset.into_raw_vec(),
             Some(Layout::RowMajor),
         );
