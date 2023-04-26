@@ -49,8 +49,8 @@ pub fn open_hdf5(file: &str) -> Result<(TensorNetwork, Vec<DataTensor>)> {
 
 #[cfg(test)]
 mod tests {
+    use super::open_hdf5;
     use crate::contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath};
-    use crate::io::open_hdf5;
     use crate::tensornetwork::contraction::tn_contract;
     use itertools::Itertools;
     use num_complex::Complex64;
@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn test_open_hdf5() {
         let (r_tn, d_tn) = open_hdf5("bell_circuit_tensornet.hdf5").unwrap();
-        
+
         let mut opt = BranchBound::new(r_tn.clone(), None, 20, BranchBoundType::Flops);
         opt.optimize_path(None);
         let contract_path = opt.get_best_replace_path();
