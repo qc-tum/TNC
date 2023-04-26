@@ -237,9 +237,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
 
         // Get the initial space requirements for uncontracted tensors
         for (index, tensor) in tensors.iter().enumerate() {
-            self.size_cache
-                .entry(index)
-                .or_insert(size(&self.tn, index));
+            self.size_cache.entry(index).or_insert(size(self.tn, index));
             self.tensor_cache.entry(index).or_insert(tensor.clone());
         }
 
