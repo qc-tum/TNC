@@ -115,12 +115,11 @@ pub fn feynman_contraction(
 #[cfg(test)]
 mod tests {
     use super::{feynman_contraction, feynman_scatter};
-    use crate::tensornetwork::{contraction::tn_contract, tensor::Tensor, TensorNetwork};
+    use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
     use float_cmp::approx_eq;
     use itertools::Itertools;
     use num_complex::Complex64;
     use std::collections::HashMap;
-    use std::ops::Mul;
     use tetra::{permutation::Permutation, Tensor as DataTensor};
 
     fn setup() -> (
