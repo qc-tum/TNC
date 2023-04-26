@@ -25,8 +25,8 @@ pub enum BranchBoundType {
 }
 
 /// A struct with an OptimizePath implementation that explores possible pair contractions in a depth-first manner.
-pub struct BranchBound {
-    tn: TensorNetwork,
+pub struct BranchBound<'a> {
+    tn: &'a TensorNetwork,
     nbranch: Option<u32>,
     cutoff_flops_factor: u64,
     minimize: BranchBoundType,
@@ -93,9 +93,9 @@ fn ssa_replace_ordering(path: &Vec<(usize, usize)>, mut n: usize) -> Vec<(usize,
     ssa_path
 }
 
-impl BranchBound {
+impl<'a> BranchBound<'a> {
     pub fn new(
-        tn: TensorNetwork,
+        tn: &'a TensorNetwork,
         nbranch: Option<u32>,
         cutoff_flops_factor: u64,
         minimize: BranchBoundType,
@@ -225,7 +225,7 @@ impl BranchBound {
     }
 }
 
-impl OptimizePath for BranchBound {
+impl<'a> OptimizePath for BranchBound<'a> {
     fn optimize_path(&mut self, _output: Option<Vec<u32>>) {
         let tensors = self.tn.get_tensors();
         if self.tn.is_empty() {
@@ -335,7 +335,7 @@ mod tests {
     #[test]
     fn test_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = BranchBound::new(tn, None, 20, BranchBoundType::Flops);
+        let mut opt = BranchBound::new(&tn, None, 20, BranchBoundType::Flops);
         opt.optimize_path(None);
 
         assert_eq!(opt.best_flops, 568620);
@@ -347,7 +347,7 @@ mod tests {
     #[test]
     fn test_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = BranchBound::new(tn, None, 20, BranchBoundType::Flops);
+        let mut opt = BranchBound::new(&tn, None, 20, BranchBoundType::Flops);
         opt.optimize_path(None);
 
         assert_eq!(opt.best_flops, 5614200);
