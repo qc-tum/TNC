@@ -89,6 +89,20 @@ impl TensorNetwork {
         &self.edges
     }
 
+    /// Getter for edge HashMap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tensorcontraction::tensornetwork::TensorNetwork;
+    /// let tn = TensorNetwork::empty_tensor_network();
+    /// let edges = tn.get_ext_edges();
+    /// assert_eq!(edges.is_empty(), true);
+    /// ```
+    pub fn get_ext_edges(&self) -> &Vec<usize> {
+        &self.ext_edges
+    }
+
     /// Getter for list of Tensor objects.
     ///
     /// # Examples
