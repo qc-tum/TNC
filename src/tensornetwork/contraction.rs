@@ -289,6 +289,7 @@ mod tests {
             .iter()
             .map(|e| 0..*e)
             .multi_cartesian_product();
+
         for index in range {
             assert!(approx_eq!(
                 f64,
