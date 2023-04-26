@@ -346,6 +346,52 @@ mod tests {
         .to_vec();
         (d1, d2, d3, dout)
     }
+
+    #[test]
+    fn test_feynman_scatter() {
+        let t1 = Tensor::new(vec![0, 1, 2]);
+        // t2 is of shape [7, 8, 6]
+        let t2 = Tensor::new(vec![2, 3, 4]);
+        // t3 is of shape [3, 5, 8]
+        let t3 = Tensor::new(vec![0, 5, 3]);
+        // tout is of shape [5, 6, 2]
+        // let tout = Tensor::new(vec![3, 4, 0, 1]);
+
+        let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
+
+        let tn = TensorNetwork::new(vec![t1, t2, t3], bond_dims, None);
+
+        let feynman_indices = [4, 1, 5];
+
+        let (feynman_tn, perm_vector, feynman_tensor_indexes) =
+            feynman_scatter(&tn, &feynman_indices);
+
+        let feynman_tensor_ref = vec![
+            Tensor::new(vec![0, 2]),
+            Tensor::new(vec![2, 3]),
+            Tensor::new(vec![0, 3]),
+        ];
+
+        for (i, tensor) in feynman_tn.get_tensors().iter().enumerate() {
+            assert_eq!(feynman_tensor_ref[i].get_legs(), tensor.get_legs());
+        }
+        let perm_vector_ref = vec![
+            Permutation::new(vec![0, 2, 1]),
+            Permutation::new(vec![0, 1, 2]),
+            Permutation::new(vec![0, 2, 1]),
+        ];
+
+        for (i, perm) in perm_vector.iter().enumerate() {
+            assert_eq!(&perm_vector_ref[i], perm);
+        }
+
+        let feynman_index_ref = vec![[1], [0], [2]];
+
+        for (i, feynman_index) in feynman_tensor_indexes.iter().enumerate() {
+            assert_eq!(&feynman_index_ref[i].to_vec(), feynman_index);
+        }
+    }
+
     #[test]
     fn test_simple_feynman() {
         let solution_data = vec![
@@ -451,57 +497,18 @@ mod tests {
 
         let range = d_t.shape().iter().map(|e| 0..*e).multi_cartesian_product();
         for index in range {
-            println!(
-                "Index {:?} ,[{}] vs {}",
-                index,
+            assert!(approx_eq!(
+                f64,
                 dout.get(&index).re,
-                d_t.get(&index).re
-            );
-        }
-    }
-
-    #[test]
-    fn test_feynman_scatter() {
-        let t1 = Tensor::new(vec![0, 1, 2]);
-        // t2 is of shape [7, 8, 6]
-        let t2 = Tensor::new(vec![2, 3, 4]);
-        // t3 is of shape [3, 5, 8]
-        let t3 = Tensor::new(vec![0, 5, 3]);
-        // tout is of shape [5, 6, 2]
-        // let tout = Tensor::new(vec![3, 4, 0, 1]);
-
-        let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
-
-        let tn = TensorNetwork::new(vec![t1, t2, t3], bond_dims, None);
-
-        let feynman_indices = [4, 1, 5];
-
-        let (feynman_tn, perm_vector, feynman_tensor_indexes) =
-            feynman_scatter(&tn, &feynman_indices);
-
-        let feynman_tensor_ref = vec![
-            Tensor::new(vec![0, 2]),
-            Tensor::new(vec![2, 3]),
-            Tensor::new(vec![0, 3]),
-        ];
-
-        for (i, tensor) in feynman_tn.get_tensors().iter().enumerate() {
-            assert_eq!(feynman_tensor_ref[i].get_legs(), tensor.get_legs());
-        }
-        let perm_vector_ref = vec![
-            Permutation::new(vec![0, 2, 1]),
-            Permutation::new(vec![0, 1, 2]),
-            Permutation::new(vec![0, 2, 1]),
-        ];
-
-        for (i, perm) in perm_vector.iter().enumerate() {
-            assert_eq!(&perm_vector_ref[i], perm);
-        }
-
-        let feynman_index_ref = vec![[1], [0], [2]];
-
-        for (i, feynman_index) in feynman_tensor_indexes.iter().enumerate() {
-            assert_eq!(&feynman_index_ref[i].to_vec(), feynman_index);
+                d_t.get(&index).re,
+                epsilon = 1e-8
+            ));
+            assert!(approx_eq!(
+                f64,
+                dout.get(&index).im,
+                d_t.get(&index).im,
+                epsilon = 1e-8
+            ));
         }
     }
 
