@@ -6,6 +6,7 @@ use std::ops::{Index, IndexMut};
 use tetra::{contract, Tensor as DataTensor};
 
 pub mod contraction;
+pub mod feynman;
 pub mod tensor;
 
 use tensor::Tensor;
