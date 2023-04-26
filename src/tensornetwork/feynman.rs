@@ -122,7 +122,7 @@ mod tests {
     use std::collections::HashMap;
     use tetra::{permutation::Permutation, Tensor as DataTensor};
 
-    fn setup() -> (
+    fn row_major_setup() -> (
         Vec<Complex64>,
         Vec<Complex64>,
         Vec<Complex64>,
@@ -287,7 +287,7 @@ mod tests {
         (d1, d2, d3, dout)
     }
 
-    fn setup2() -> (
+    fn col_major_setup() -> (
         Vec<Complex64>,
         Vec<Complex64>,
         Vec<Complex64>,
@@ -416,14 +416,14 @@ mod tests {
     }
 
     #[test]
-    fn test_consecutive_feynman() {
+    fn test_col_major_feynman() {
         let t1 = Tensor::new(vec![0, 1, 2, 3]);
         let t2 = Tensor::new(vec![0, 1, 4]);
         let t3 = Tensor::new(vec![4, 2, 5]);
         // let tout = Tensor::new(vec![3, 5]);
         let bond_dims = HashMap::from([(0, 2), (1, 2), (2, 2), (3, 2), (4, 2), (5, 2)]);
 
-        let (d1, d2, d3, dout) = setup2();
+        let (d1, d2, d3, dout) = col_major_setup();
 
         let dt1 = DataTensor::new_from_flat(&[2, 2, 2, 2], d1, None);
         let dt2 = DataTensor::new_from_flat(&[2, 2, 2], d2, None);
@@ -506,7 +506,7 @@ mod tests {
     }
 
     #[test]
-    fn test_feynman_contraction() {
+    fn test_row_major_contraction() {
         // t1 is of shape [3, 2, 7]
         let t1 = Tensor::new(vec![0, 1, 2]);
         // t2 is of shape [7, 8, 6]
@@ -517,7 +517,7 @@ mod tests {
         let tout = Tensor::new(vec![5, 4, 1]);
         // let tout = Tensor::new(vec![3, 4, 0, 1]);
 
-        let (d1, d2, d3, dout) = setup();
+        let (d1, d2, d3, dout) = row_major_setup();
 
         let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
 
