@@ -12,7 +12,6 @@ fn main() {
     let mut opt = BranchBound::new(&r_tn, None, 20, BranchBoundType::Flops);
     opt.optimize_path(None);
     let opt_path = opt.get_best_replace_path();
-    println!("{opt_path:?}");
 
     tn_contract(r_tn, d_tn, &opt_path);
 }
