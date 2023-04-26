@@ -84,7 +84,7 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
 ///
 /// ```
 pub fn random_sparse_tensor_with_rng<R>(
-    t: Tensor,
+    t: &Tensor,
     bond_dims: &HashMap<usize, u64>,
     sparsity: Option<f32>,
     rng: &mut R,
@@ -147,7 +147,7 @@ where
 ///
 /// ```
 pub fn random_sparse_tensor(
-    t: Tensor,
+    t: &Tensor,
     bond_dims: &HashMap<usize, u64>,
     sparsity: Option<f32>,
 ) -> DataTensor {
