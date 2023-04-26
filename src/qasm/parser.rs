@@ -355,7 +355,7 @@ qreg a[3];
 creg b[2];
 
 gate foo q1, q2 {
-    U(3.14, 0, 0) q2;
+    U(3.10, 0, 0) q2;
     CX q2, q1;
 }
 
@@ -389,7 +389,7 @@ bar(sin(0), 1+2) a[1];
                         Some(vec![
                             Statement::gate_call(
                                 "U",
-                                vec![Expr::Float(3.14), Expr::Int(0), Expr::Int(0)],
+                                vec![Expr::Float(3.10), Expr::Int(0), Expr::Int(0)],
                                 vec![Argument(String::from("q2"), None)]
                             ),
                             Statement::gate_call(

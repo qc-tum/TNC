@@ -1,16 +1,9 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
-use rand::Rng;
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Duration;
 use tensorcontraction::{
-    random::tensorgeneration::{
-        random_sparse_tensor_with_rng,
-    },
-    tensornetwork::{
-        contraction::tn_contract,
-        tensor::Tensor,
-        TensorNetwork,
-    },
+    random::tensorgeneration::random_sparse_tensor_with_rng,
+    tensornetwork::{contraction::tn_contract, tensor::Tensor, TensorNetwork},
 };
 
 // fn tetra_contraction<R>(r_tn: TensorNetwork, opt_path: &Vec<(usize, usize)>, rng: &mut R)
@@ -31,7 +24,6 @@ fn sized_contraction(r_tn: TensorNetwork, d_tn: Vec<tetra::Tensor>) {
     tn_contract(r_tn, d_tn, &vec![(0, 1)]);
 }
 
-
 pub fn criterion_benchmark(c: &mut Criterion) {
     let mut rng = StdRng::seed_from_u64(52);
     let mut mul_group = c.benchmark_group("Multiplication");
@@ -48,12 +40,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             .get_tensors()
             .iter()
             .map(|tensor| {
-                random_sparse_tensor_with_rng(
-                    tensor.clone(),
-                    r_tn.get_bond_dims(),
-                    None,
-                    &mut rng,
-                )
+                random_sparse_tensor_with_rng(tensor.clone(), r_tn.get_bond_dims(), None, &mut rng)
             })
             .collect();
         mul_group.bench_function(BenchmarkId::from_parameter(k), |b| {

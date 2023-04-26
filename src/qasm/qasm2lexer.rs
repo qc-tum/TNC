@@ -5,150 +5,252 @@
 #![allow(unused_variables)]
 #![allow(clippy::all, clippy::restriction, clippy::pedantic, clippy::nursery)]
 use antlr_rust::atn::ATN;
+use antlr_rust::atn_deserializer::ATNDeserializer;
 use antlr_rust::char_stream::CharStream;
+use antlr_rust::dfa::DFA;
+use antlr_rust::error_listener::ErrorListener;
 use antlr_rust::int_stream::IntStream;
 use antlr_rust::lexer::{BaseLexer, Lexer, LexerRecog};
-use antlr_rust::atn_deserializer::ATNDeserializer;
-use antlr_rust::dfa::DFA;
-use antlr_rust::lexer_atn_simulator::{LexerATNSimulator, ILexerATNSimulator};
-use antlr_rust::PredictionContextCache;
-use antlr_rust::recognizer::{Recognizer,Actions};
-use antlr_rust::error_listener::ErrorListener;
-use antlr_rust::TokenSource;
-use antlr_rust::token_factory::{TokenFactory,CommonTokenFactory,TokenAware};
+use antlr_rust::lexer_atn_simulator::{ILexerATNSimulator, LexerATNSimulator};
+use antlr_rust::parser_rule_context::{cast, BaseParserRuleContext, ParserRuleContext};
+use antlr_rust::recognizer::{Actions, Recognizer};
+use antlr_rust::rule_context::{BaseRuleContext, EmptyContext, EmptyCustomRuleContext};
 use antlr_rust::token::*;
-use antlr_rust::rule_context::{BaseRuleContext,EmptyCustomRuleContext,EmptyContext};
-use antlr_rust::parser_rule_context::{ParserRuleContext,BaseParserRuleContext,cast};
-use antlr_rust::vocabulary::{Vocabulary,VocabularyImpl};
+use antlr_rust::token_factory::{CommonTokenFactory, TokenAware, TokenFactory};
+use antlr_rust::vocabulary::{Vocabulary, VocabularyImpl};
+use antlr_rust::PredictionContextCache;
+use antlr_rust::TokenSource;
 
-use antlr_rust::{lazy_static,Tid,TidAble,TidExt};
+use antlr_rust::{lazy_static, Tid, TidAble, TidExt};
 
-use std::sync::Arc;
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
+use std::sync::Arc;
 
+pub const OPENQASM: isize = 1;
+pub const INCLUDE: isize = 2;
+pub const QREG: isize = 3;
+pub const CREG: isize = 4;
+pub const GATE: isize = 5;
+pub const OPAQUE: isize = 6;
+pub const RESET: isize = 7;
+pub const MEASURE: isize = 8;
+pub const BARRIER: isize = 9;
+pub const IF: isize = 10;
+pub const PI: isize = 11;
+pub const U: isize = 12;
+pub const CX: isize = 13;
+pub const LBRACKET: isize = 14;
+pub const RBRACKET: isize = 15;
+pub const LBRACE: isize = 16;
+pub const RBRACE: isize = 17;
+pub const LPAREN: isize = 18;
+pub const RPAREN: isize = 19;
+pub const SEMICOLON: isize = 20;
+pub const COMMA: isize = 21;
+pub const DOT: isize = 22;
+pub const ARROW: isize = 23;
+pub const EQUALS: isize = 24;
+pub const PLUS: isize = 25;
+pub const MINUS: isize = 26;
+pub const ASTERISK: isize = 27;
+pub const SLASH: isize = 28;
+pub const CARET: isize = 29;
+pub const SIN: isize = 30;
+pub const COS: isize = 31;
+pub const TAN: isize = 32;
+pub const EXP: isize = 33;
+pub const LN: isize = 34;
+pub const SQRT: isize = 35;
+pub const Integer: isize = 36;
+pub const Float: isize = 37;
+pub const StringLiteral: isize = 38;
+pub const Whitespace: isize = 39;
+pub const Newline: isize = 40;
+pub const LineComment: isize = 41;
+pub const BlockComment: isize = 42;
+pub const Identifier: isize = 43;
+pub const VERSION_IDENTIFER_WHITESPACE: isize = 44;
+pub const VersionSpecifier: isize = 45;
+pub const VERSION_IDENTIFIER: usize = 1;
+pub const channelNames: [&'static str; 0 + 2] = ["DEFAULT_TOKEN_CHANNEL", "HIDDEN"];
 
-	pub const OPENQASM:isize=1; 
-	pub const INCLUDE:isize=2; 
-	pub const QREG:isize=3; 
-	pub const CREG:isize=4; 
-	pub const GATE:isize=5; 
-	pub const OPAQUE:isize=6; 
-	pub const RESET:isize=7; 
-	pub const MEASURE:isize=8; 
-	pub const BARRIER:isize=9; 
-	pub const IF:isize=10; 
-	pub const PI:isize=11; 
-	pub const U:isize=12; 
-	pub const CX:isize=13; 
-	pub const LBRACKET:isize=14; 
-	pub const RBRACKET:isize=15; 
-	pub const LBRACE:isize=16; 
-	pub const RBRACE:isize=17; 
-	pub const LPAREN:isize=18; 
-	pub const RPAREN:isize=19; 
-	pub const SEMICOLON:isize=20; 
-	pub const COMMA:isize=21; 
-	pub const DOT:isize=22; 
-	pub const ARROW:isize=23; 
-	pub const EQUALS:isize=24; 
-	pub const PLUS:isize=25; 
-	pub const MINUS:isize=26; 
-	pub const ASTERISK:isize=27; 
-	pub const SLASH:isize=28; 
-	pub const CARET:isize=29; 
-	pub const SIN:isize=30; 
-	pub const COS:isize=31; 
-	pub const TAN:isize=32; 
-	pub const EXP:isize=33; 
-	pub const LN:isize=34; 
-	pub const SQRT:isize=35; 
-	pub const Integer:isize=36; 
-	pub const Float:isize=37; 
-	pub const StringLiteral:isize=38; 
-	pub const Whitespace:isize=39; 
-	pub const Newline:isize=40; 
-	pub const LineComment:isize=41; 
-	pub const BlockComment:isize=42; 
-	pub const Identifier:isize=43; 
-	pub const VERSION_IDENTIFER_WHITESPACE:isize=44; 
-	pub const VersionSpecifier:isize=45;
-	pub const VERSION_IDENTIFIER: usize=1;
-	pub const channelNames: [&'static str;0+2] = [
-		"DEFAULT_TOKEN_CHANNEL", "HIDDEN"
-	];
+pub const modeNames: [&'static str; 2] = ["DEFAULT_MODE", "VERSION_IDENTIFIER"];
 
-	pub const modeNames: [&'static str;2] = [
-		"DEFAULT_MODE", "VERSION_IDENTIFIER"
-	];
+pub const ruleNames: [&'static str; 46] = [
+    "OPENQASM",
+    "INCLUDE",
+    "QREG",
+    "CREG",
+    "GATE",
+    "OPAQUE",
+    "RESET",
+    "MEASURE",
+    "BARRIER",
+    "IF",
+    "PI",
+    "U",
+    "CX",
+    "LBRACKET",
+    "RBRACKET",
+    "LBRACE",
+    "RBRACE",
+    "LPAREN",
+    "RPAREN",
+    "SEMICOLON",
+    "COMMA",
+    "DOT",
+    "ARROW",
+    "EQUALS",
+    "PLUS",
+    "MINUS",
+    "ASTERISK",
+    "SLASH",
+    "CARET",
+    "SIN",
+    "COS",
+    "TAN",
+    "EXP",
+    "LN",
+    "SQRT",
+    "Integer",
+    "FloatLiteralExponent",
+    "Float",
+    "StringLiteral",
+    "Whitespace",
+    "Newline",
+    "LineComment",
+    "BlockComment",
+    "Identifier",
+    "VERSION_IDENTIFER_WHITESPACE",
+    "VersionSpecifier",
+];
 
-	pub const ruleNames: [&'static str;46] = [
-		"OPENQASM", "INCLUDE", "QREG", "CREG", "GATE", "OPAQUE", "RESET", "MEASURE", 
-		"BARRIER", "IF", "PI", "U", "CX", "LBRACKET", "RBRACKET", "LBRACE", "RBRACE", 
-		"LPAREN", "RPAREN", "SEMICOLON", "COMMA", "DOT", "ARROW", "EQUALS", "PLUS", 
-		"MINUS", "ASTERISK", "SLASH", "CARET", "SIN", "COS", "TAN", "EXP", "LN", 
-		"SQRT", "Integer", "FloatLiteralExponent", "Float", "StringLiteral", "Whitespace", 
-		"Newline", "LineComment", "BlockComment", "Identifier", "VERSION_IDENTIFER_WHITESPACE", 
-		"VersionSpecifier"
-	];
+pub const _LITERAL_NAMES: [Option<&'static str>; 36] = [
+    None,
+    Some("'OPENQASM'"),
+    Some("'include'"),
+    Some("'qreg'"),
+    Some("'creg'"),
+    Some("'gate'"),
+    Some("'opaque'"),
+    Some("'reset'"),
+    Some("'measure'"),
+    Some("'barrier'"),
+    Some("'if'"),
+    Some("'pi'"),
+    Some("'U'"),
+    Some("'CX'"),
+    Some("'['"),
+    Some("']'"),
+    Some("'{'"),
+    Some("'}'"),
+    Some("'('"),
+    Some("')'"),
+    Some("';'"),
+    Some("','"),
+    Some("'.'"),
+    Some("'->'"),
+    Some("'=='"),
+    Some("'+'"),
+    Some("'-'"),
+    Some("'*'"),
+    Some("'/'"),
+    Some("'^'"),
+    Some("'sin'"),
+    Some("'cos'"),
+    Some("'tan'"),
+    Some("'exp'"),
+    Some("'ln'"),
+    Some("'sqrt'"),
+];
+pub const _SYMBOLIC_NAMES: [Option<&'static str>; 46] = [
+    None,
+    Some("OPENQASM"),
+    Some("INCLUDE"),
+    Some("QREG"),
+    Some("CREG"),
+    Some("GATE"),
+    Some("OPAQUE"),
+    Some("RESET"),
+    Some("MEASURE"),
+    Some("BARRIER"),
+    Some("IF"),
+    Some("PI"),
+    Some("U"),
+    Some("CX"),
+    Some("LBRACKET"),
+    Some("RBRACKET"),
+    Some("LBRACE"),
+    Some("RBRACE"),
+    Some("LPAREN"),
+    Some("RPAREN"),
+    Some("SEMICOLON"),
+    Some("COMMA"),
+    Some("DOT"),
+    Some("ARROW"),
+    Some("EQUALS"),
+    Some("PLUS"),
+    Some("MINUS"),
+    Some("ASTERISK"),
+    Some("SLASH"),
+    Some("CARET"),
+    Some("SIN"),
+    Some("COS"),
+    Some("TAN"),
+    Some("EXP"),
+    Some("LN"),
+    Some("SQRT"),
+    Some("Integer"),
+    Some("Float"),
+    Some("StringLiteral"),
+    Some("Whitespace"),
+    Some("Newline"),
+    Some("LineComment"),
+    Some("BlockComment"),
+    Some("Identifier"),
+    Some("VERSION_IDENTIFER_WHITESPACE"),
+    Some("VersionSpecifier"),
+];
+lazy_static! {
+    static ref _shared_context_cache: Arc<PredictionContextCache> =
+        Arc::new(PredictionContextCache::new());
+    static ref VOCABULARY: Box<dyn Vocabulary> = Box::new(VocabularyImpl::new(
+        _LITERAL_NAMES.iter(),
+        _SYMBOLIC_NAMES.iter(),
+        None
+    ));
+}
 
-
-	pub const _LITERAL_NAMES: [Option<&'static str>;36] = [
-		None, Some("'OPENQASM'"), Some("'include'"), Some("'qreg'"), Some("'creg'"), 
-		Some("'gate'"), Some("'opaque'"), Some("'reset'"), Some("'measure'"), 
-		Some("'barrier'"), Some("'if'"), Some("'pi'"), Some("'U'"), Some("'CX'"), 
-		Some("'['"), Some("']'"), Some("'{'"), Some("'}'"), Some("'('"), Some("')'"), 
-		Some("';'"), Some("','"), Some("'.'"), Some("'->'"), Some("'=='"), Some("'+'"), 
-		Some("'-'"), Some("'*'"), Some("'/'"), Some("'^'"), Some("'sin'"), Some("'cos'"), 
-		Some("'tan'"), Some("'exp'"), Some("'ln'"), Some("'sqrt'")
-	];
-	pub const _SYMBOLIC_NAMES: [Option<&'static str>;46]  = [
-		None, Some("OPENQASM"), Some("INCLUDE"), Some("QREG"), Some("CREG"), Some("GATE"), 
-		Some("OPAQUE"), Some("RESET"), Some("MEASURE"), Some("BARRIER"), Some("IF"), 
-		Some("PI"), Some("U"), Some("CX"), Some("LBRACKET"), Some("RBRACKET"), 
-		Some("LBRACE"), Some("RBRACE"), Some("LPAREN"), Some("RPAREN"), Some("SEMICOLON"), 
-		Some("COMMA"), Some("DOT"), Some("ARROW"), Some("EQUALS"), Some("PLUS"), 
-		Some("MINUS"), Some("ASTERISK"), Some("SLASH"), Some("CARET"), Some("SIN"), 
-		Some("COS"), Some("TAN"), Some("EXP"), Some("LN"), Some("SQRT"), Some("Integer"), 
-		Some("Float"), Some("StringLiteral"), Some("Whitespace"), Some("Newline"), 
-		Some("LineComment"), Some("BlockComment"), Some("Identifier"), Some("VERSION_IDENTIFER_WHITESPACE"), 
-		Some("VersionSpecifier")
-	];
-	lazy_static!{
-	    static ref _shared_context_cache: Arc<PredictionContextCache> = Arc::new(PredictionContextCache::new());
-		static ref VOCABULARY: Box<dyn Vocabulary> = Box::new(VocabularyImpl::new(_LITERAL_NAMES.iter(), _SYMBOLIC_NAMES.iter(), None));
-	}
-
-
-pub type LexerContext<'input> = BaseRuleContext<'input,EmptyCustomRuleContext<'input,LocalTokenFactory<'input> >>;
+pub type LexerContext<'input> =
+    BaseRuleContext<'input, EmptyCustomRuleContext<'input, LocalTokenFactory<'input>>>;
 pub type LocalTokenFactory<'input> = CommonTokenFactory;
 
-type From<'a> = <LocalTokenFactory<'a> as TokenFactory<'a> >::From;
+type From<'a> = <LocalTokenFactory<'a> as TokenFactory<'a>>::From;
 
-pub struct Qasm2Lexer<'input, Input:CharStream<From<'input> >> {
-	base: BaseLexer<'input,Qasm2LexerActions,Input,LocalTokenFactory<'input>>,
+pub struct Qasm2Lexer<'input, Input: CharStream<From<'input>>> {
+    base: BaseLexer<'input, Qasm2LexerActions, Input, LocalTokenFactory<'input>>,
 }
 
 antlr_rust::tid! { impl<'input,Input> TidAble<'input> for Qasm2Lexer<'input,Input> where Input:CharStream<From<'input> > }
 
-impl<'input, Input:CharStream<From<'input> >> Deref for Qasm2Lexer<'input,Input>{
-	type Target = BaseLexer<'input,Qasm2LexerActions,Input,LocalTokenFactory<'input>>;
+impl<'input, Input: CharStream<From<'input>>> Deref for Qasm2Lexer<'input, Input> {
+    type Target = BaseLexer<'input, Qasm2LexerActions, Input, LocalTokenFactory<'input>>;
 
-	fn deref(&self) -> &Self::Target {
-		&self.base
-	}
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
 }
 
-impl<'input, Input:CharStream<From<'input> >> DerefMut for Qasm2Lexer<'input,Input>{
-	fn deref_mut(&mut self) -> &mut Self::Target {
-		&mut self.base
-	}
+impl<'input, Input: CharStream<From<'input>>> DerefMut for Qasm2Lexer<'input, Input> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
 }
 
-
-impl<'input, Input:CharStream<From<'input> >> Qasm2Lexer<'input,Input>{
+impl<'input, Input: CharStream<From<'input>>> Qasm2Lexer<'input, Input> {
     fn get_rule_names(&self) -> &'static [&'static str] {
         &ruleNames
     }
@@ -164,50 +266,58 @@ impl<'input, Input:CharStream<From<'input> >> Qasm2Lexer<'input,Input>{
         "Qasm2Lexer.g4"
     }
 
-	pub fn new_with_token_factory(input: Input, tf: &'input LocalTokenFactory<'input>) -> Self {
-		antlr_rust::recognizer::check_version("0","3");
-    	Self {
-			base: BaseLexer::new_base_lexer(
-				input,
-				LexerATNSimulator::new_lexer_atnsimulator(
-					_ATN.clone(),
-					_decision_to_DFA.clone(),
-					_shared_context_cache.clone(),
-				),
-				Qasm2LexerActions{},
-				tf
-			)
-	    }
-	}
+    pub fn new_with_token_factory(input: Input, tf: &'input LocalTokenFactory<'input>) -> Self {
+        antlr_rust::recognizer::check_version("0", "3");
+        Self {
+            base: BaseLexer::new_base_lexer(
+                input,
+                LexerATNSimulator::new_lexer_atnsimulator(
+                    _ATN.clone(),
+                    _decision_to_DFA.clone(),
+                    _shared_context_cache.clone(),
+                ),
+                Qasm2LexerActions {},
+                tf,
+            ),
+        }
+    }
 }
 
-impl<'input, Input:CharStream<From<'input> >> Qasm2Lexer<'input,Input> where &'input LocalTokenFactory<'input>:Default{
-	pub fn new(input: Input) -> Self{
-		Qasm2Lexer::new_with_token_factory(input, <&LocalTokenFactory<'input> as Default>::default())
-	}
+impl<'input, Input: CharStream<From<'input>>> Qasm2Lexer<'input, Input>
+where
+    &'input LocalTokenFactory<'input>: Default,
+{
+    pub fn new(input: Input) -> Self {
+        Qasm2Lexer::new_with_token_factory(
+            input,
+            <&LocalTokenFactory<'input> as Default>::default(),
+        )
+    }
 }
 
-pub struct Qasm2LexerActions {
+pub struct Qasm2LexerActions {}
+
+impl Qasm2LexerActions {}
+
+impl<'input, Input: CharStream<From<'input>>>
+    Actions<'input, BaseLexer<'input, Qasm2LexerActions, Input, LocalTokenFactory<'input>>>
+    for Qasm2LexerActions
+{
 }
 
-impl Qasm2LexerActions{
+impl<'input, Input: CharStream<From<'input>>> Qasm2Lexer<'input, Input> {}
+
+impl<'input, Input: CharStream<From<'input>>>
+    LexerRecog<'input, BaseLexer<'input, Qasm2LexerActions, Input, LocalTokenFactory<'input>>>
+    for Qasm2LexerActions
+{
+}
+impl<'input> TokenAware<'input> for Qasm2LexerActions {
+    type TF = LocalTokenFactory<'input>;
 }
 
-impl<'input, Input:CharStream<From<'input> >> Actions<'input,BaseLexer<'input,Qasm2LexerActions,Input,LocalTokenFactory<'input>>> for Qasm2LexerActions{
-	}
-
-	impl<'input, Input:CharStream<From<'input> >> Qasm2Lexer<'input,Input>{
-
-}
-
-impl<'input, Input:CharStream<From<'input> >> LexerRecog<'input,BaseLexer<'input,Qasm2LexerActions,Input,LocalTokenFactory<'input>>> for Qasm2LexerActions{
-}
-impl<'input> TokenAware<'input> for Qasm2LexerActions{
-	type TF = LocalTokenFactory<'input>;
-}
-
-impl<'input, Input:CharStream<From<'input> >> TokenSource<'input> for Qasm2Lexer<'input,Input>{
-	type TF = LocalTokenFactory<'input>;
+impl<'input, Input: CharStream<From<'input>>> TokenSource<'input> for Qasm2Lexer<'input, Input> {
+    type TF = LocalTokenFactory<'input>;
 
     fn next_token(&mut self) -> <Self::TF as TokenFactory<'input>>::Tok {
         self.base.next_token()
@@ -225,38 +335,30 @@ impl<'input, Input:CharStream<From<'input> >> TokenSource<'input> for Qasm2Lexer
         self.base.get_input_stream()
     }
 
-	fn get_source_name(&self) -> String {
-		self.base.get_source_name()
-	}
+    fn get_source_name(&self) -> String {
+        self.base.get_source_name()
+    }
 
     fn get_token_factory(&self) -> &'input Self::TF {
         self.base.get_token_factory()
     }
 }
 
+lazy_static! {
+    static ref _ATN: Arc<ATN> =
+        Arc::new(ATNDeserializer::new(None).deserialize(_serializedATN.chars()));
+    static ref _decision_to_DFA: Arc<Vec<antlr_rust::RwLock<DFA>>> = {
+        let mut dfa = Vec::new();
+        let size = _ATN.decision_to_state.len();
+        for i in 0..size {
+            dfa.push(DFA::new(_ATN.clone(), _ATN.get_decision_state(i), i as isize).into())
+        }
+        Arc::new(dfa)
+    };
+}
 
-
-	lazy_static! {
-	    static ref _ATN: Arc<ATN> =
-	        Arc::new(ATNDeserializer::new(None).deserialize(_serializedATN.chars()));
-	    static ref _decision_to_DFA: Arc<Vec<antlr_rust::RwLock<DFA>>> = {
-	        let mut dfa = Vec::new();
-	        let size = _ATN.decision_to_state.len();
-	        for i in 0..size {
-	            dfa.push(DFA::new(
-	                _ATN.clone(),
-	                _ATN.get_decision_state(i),
-	                i as isize,
-	            ).into())
-	        }
-	        Arc::new(dfa)
-	    };
-	}
-
-
-
-	const _serializedATN:&'static str =
-		"\x03\u{608b}\u{a72a}\u{8133}\u{b9ed}\u{417c}\u{3be7}\u{7786}\u{5964}\x02\
+const _serializedATN: &'static str =
+    "\x03\u{608b}\u{a72a}\u{8133}\u{b9ed}\u{417c}\u{3be7}\u{7786}\u{5964}\x02\
 		\x2f\u{153}\x08\x01\x08\x01\x04\x02\x09\x02\x04\x03\x09\x03\x04\x04\x09\
 		\x04\x04\x05\x09\x05\x04\x06\x09\x06\x04\x07\x09\x07\x04\x08\x09\x08\x04\
 		\x09\x09\x09\x04\x0a\x09\x0a\x04\x0b\x09\x0b\x04\x0c\x09\x0c\x04\x0d\x09\

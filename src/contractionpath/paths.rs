@@ -207,8 +207,13 @@ impl BranchBound {
             if candidates.is_empty() {
                 break;
             }
-            let Candidate{ flop_cost, size_cost, parent_ids, child_id, child_tensor: _child_tensor} =
-                candidates.pop().unwrap().unwrap();
+            let Candidate {
+                flop_cost,
+                size_cost,
+                parent_ids,
+                child_id,
+                child_tensor: _child_tensor,
+            } = candidates.pop().unwrap().unwrap();
             new_remaining = remaining.clone();
             new_remaining.retain(|e| *e != parent_ids.0 as u32);
             new_remaining.retain(|e| *e != parent_ids.1 as u32);
