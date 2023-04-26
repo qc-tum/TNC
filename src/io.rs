@@ -15,6 +15,7 @@ pub fn open_hdf5(file: &str) -> Result<(TensorNetwork, Vec<DataTensor>)> {
     let mut d_tensors = Vec::new();
     let mut bond_dims = HashMap::<usize, u64>::new();
 
+    // Outuput tensor is always labelled as -1
     let out_tensor = gr.dataset("-1")?;
     let out_tensor_bids = out_tensor.attr("bids")?;
     let out_bond_ids = out_tensor_bids.read_1d::<usize>()?;
