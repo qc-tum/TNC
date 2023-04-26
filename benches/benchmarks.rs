@@ -14,9 +14,7 @@ where
     let d_tn = r_tn
         .get_tensors()
         .iter()
-        .map(|tensor| {
-            random_sparse_tensor_with_rng(tensor.clone(), r_tn.get_bond_dims(), None, rng)
-        })
+        .map(|tensor| random_sparse_tensor_with_rng(tensor, r_tn.get_bond_dims(), None, rng))
         .collect();
     tn_contract(r_tn, d_tn, opt_path);
 }
@@ -41,7 +39,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             .get_tensors()
             .iter()
             .map(|tensor| {
-                random_sparse_tensor_with_rng(tensor.clone(), r_tn.get_bond_dims(), None, &mut rng)
+                random_sparse_tensor_with_rng(tensor, r_tn.get_bond_dims(), None, &mut rng)
             })
             .collect();
         mul_group.bench_function(BenchmarkId::from_parameter(k), |b| {

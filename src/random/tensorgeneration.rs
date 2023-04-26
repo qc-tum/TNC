@@ -80,7 +80,7 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
 /// (0, 17), (1, 19), (2, 12), (3, 12)
 /// ]);
 ///
-/// let r_tensor = random_sparse_tensor_with_rng(tensor.0, &bond_dims, None, &mut rand::thread_rng());
+/// let r_tensor = random_sparse_tensor_with_rng(&tensor.0, &bond_dims, None, &mut rand::thread_rng());
 ///
 /// ```
 pub fn random_sparse_tensor_with_rng<R>(
@@ -143,7 +143,7 @@ where
 /// (0, 17), (1, 19), (2, 12), (3, 12)
 /// ]);
 ///
-/// let r_tensor = random_sparse_tensor(tensor.0, &bond_dims, None);
+/// let r_tensor = random_sparse_tensor(&tensor.0, &bond_dims, None);
 ///
 /// ```
 pub fn random_sparse_tensor(
