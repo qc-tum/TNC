@@ -290,7 +290,6 @@ mod tests {
             .map(|e| 0..*e)
             .multi_cartesian_product();
         for index in range {
-            println!("{} vs {} ", tcout.get(&index).re, d_tn[0].get(&index).re);
             assert!(approx_eq!(
                 f64,
                 tcout.get(&index).re,
