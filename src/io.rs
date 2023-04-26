@@ -51,46 +51,47 @@ pub fn open_hdf5(file: &str) -> Result<(TensorNetwork, Vec<DataTensor>)> {
 #[cfg(test)]
 mod tests {
     use super::open_hdf5;
-    use crate::contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath};
-    use crate::tensornetwork::contraction::tn_contract;
-    use itertools::Itertools;
     use num_complex::Complex64;
-    use tetra::{Layout, Tensor as DataTensor};
+    use std::collections::HashMap;
 
     #[test]
     fn test_open_hdf5() {
         let (r_tn, d_tn) = open_hdf5("bell_circuit_tensornet.hdf5").unwrap();
 
-        let mut opt = BranchBound::new(r_tn.clone(), None, 20, BranchBoundType::Flops);
-        opt.optimize_path(None);
-        let contract_path = opt.get_best_replace_path();
-        let (r_tn, d_tn) = tn_contract(r_tn, d_tn, &contract_path);
-        let mut tn_sol = DataTensor::new_from_flat(
-            &[2, 2, 2, 2],
-            [
-                0.7071067811865475,
-                0.7071067811865475,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.7071067811865475,
-                0.7071067811865475,
-                0.0,
-                0.0,
-                0.7071067811865475,
-                -0.7071067811865475,
-                0.7071067811865475,
-                -0.7071067811865475,
-                0.0,
-                0.0,
-            ]
-            .iter()
-            .map(|&e| Complex64::new(e, 0.0))
-            .collect_vec(),
-            Some(Layout::RowMajor),
-        );
+        let ref_hadamard = vec![
+            Complex64::new(0.7071067811865475, 0.0),
+            Complex64::new(0.7071067811865475, 0.0),
+            Complex64::new(0.7071067811865475, 0.0),
+            Complex64::new(-0.7071067811865475, 0.0),
+        ];
 
-        assert_eq!(tn_sol, d_tn[0]);
+        let ref_cnot = vec![
+            Complex64::new(1.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(1.0, 0.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(1.0, 0.0),
+            Complex64::new(1.0, 0.0),
+            Complex64::new(0.0, 0.0),
+        ];
+        assert_eq!(d_tn[0].get_raw_data().to_vec(), ref_hadamard);
+        assert_eq!(d_tn[1].get_raw_data().to_vec(), ref_cnot);
+
+        let tensors = r_tn.get_tensors();
+
+        assert_eq!(tensors[0].get_legs(), &vec![2, 0]);
+        assert_eq!(tensors[1].get_legs(), &vec![2, 3, 1]);
+
+        let bond_dims = HashMap::from([(0, 2), (1, 2), (2, 2), (3, 2)]);
+        assert_eq!(r_tn.get_bond_dims(), &bond_dims);
+
+        let edges = HashMap::from([
+            (2, vec![Some(0), Some(1), None]),
+            (0, vec![Some(0), None]),
+            (1, vec![Some(1), None]),
+            (3, vec![Some(1), None]),
+        ]);
+        assert_eq!(r_tn.get_edges(), &edges);
     }
 }
