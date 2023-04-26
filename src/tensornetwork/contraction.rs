@@ -66,6 +66,20 @@ pub fn tn_contract(
     (tn, d_tn)
 }
 
+/// Determine the output tensor shape a given contraction path using repeated SSA format.
+///
+/// # Arguments
+///
+/// * `tn` - [`TensorNetwork`] to be contracted
+/// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
+///
+pub fn _tn_output_tensor(mut tn: TensorNetwork, contract_path: &Vec<(usize, usize)>) -> Vec<usize> {
+    for (i, j) in contract_path {
+        tn._contraction(*i, *j);
+    }
+    tn[contract_path.last().unwrap().0].get_legs().clone()
+}
+
 #[cfg(test)]
 mod tests {
     use super::tn_contract;
