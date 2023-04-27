@@ -113,9 +113,6 @@ pages:
   needs:
   - test
   - build:docs
-  dependencies:
-  - test
-  - build:docs
   script:
   - mv target/doc public/
   - echo '<meta http-equiv="refresh" content="0; url=tetra">' > public/index.html
