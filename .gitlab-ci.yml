@@ -110,6 +110,8 @@ test:
 pages:
   stage: deploy
   image: alpine:latest
+  variables:
+    GIT_STRATEGY: none
   needs:
   - test
   - build:docs
