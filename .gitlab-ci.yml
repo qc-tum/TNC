@@ -113,7 +113,9 @@ pages:
   variables:
     GIT_STRATEGY: none
   needs:
-  - test
+  # We only want to deploy the docs if test succeeds
+  - job: test
+    artifacts: false
   - build:docs
   script:
   - mv target/doc public/
