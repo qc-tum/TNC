@@ -3,7 +3,7 @@ stages:
 - main
 
 .rust-default:
-  image: $CI_REGISTRY_IMAGE:latest
+  image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   variables:
     CARGO_HOME: $CI_PROJECT_DIR/cargo
   cache:
@@ -50,8 +50,8 @@ docker:build:
   before_script:
   - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
   script:
-  - docker build -t $CI_REGISTRY_IMAGE:latest .
-  - docker push $CI_REGISTRY_IMAGE:latest
+  - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG .
+  - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   rules:
   - if: $CI_COMMIT_BRANCH
     changes:
