@@ -50,7 +50,18 @@ docker:build:
   before_script:
   - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
   script:
-  - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG .
+  - if docker pull $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG ; then
+      echo -e "\033[1;37mUsing previous '$CI_COMMIT_REF_SLUG' image as cache\033[0m";
+      docker build --cache-from $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG . ;
+    elif docker pull $CI_REGISTRY_IMAGE:$CI_DEFAULT_BRANCH ; then
+      echo -e "\033[1;37mUsing default '$CI_COMMIT_REF_SLUG' image as cache\033[0m";
+      docker build --cache-from $CI_REGISTRY_IMAGE:$CI_DEFAULT_BRANCH --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG . ;
+    else
+      echo -e "\033[1;37mNo image to use as cache for building available\033[0m";
+      CACHE_IMAGE="";
+      docker build --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG . ;
+    fi;
+  after_script:
   - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   rules:
   - if: $CI_COMMIT_BRANCH
