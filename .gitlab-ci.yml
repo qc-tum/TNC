@@ -113,7 +113,7 @@ test:
   needs:
   - build
   script:
-  - cargo test --color always --workspace --no-fail-fast
+  - RUST_BACKTRACE=1 cargo test --color always --workspace --no-fail-fast
 
 pages:
   stage: main
