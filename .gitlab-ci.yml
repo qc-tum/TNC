@@ -1,9 +1,6 @@
 stages:
 - docker
-- check
-- build
-- test
-- deploy
+- main
 
 .rust-default:
   image: $CI_REGISTRY_IMAGE:latest
@@ -61,21 +58,21 @@ docker:build:
     - Dockerfile
 
 check:clippy:
-  stage: check
+  stage: main
   extends: .rust-default
   script:
   - cargo clippy --color always --workspace --all-features --all-targets --no-deps -- -Dwarnings
   allow_failure: true
 
 check:fmt:
-  stage: check
+  stage: main
   extends: .rust-default
   script:
   - cargo fmt -- --check --color always
   allow_failure: true
 
 build:
-  stage: build
+  stage: main
   extends: .rust-default
   script:
   # Report on the used Rust version
@@ -90,7 +87,7 @@ build:
     expire_in: 1 hour
 
 build:docs:
-  stage: build
+  stage: main
   extends: .rust-default
   script:
   - cargo doc --color always --no-deps
@@ -100,7 +97,7 @@ build:docs:
     expire_in: 1 day
 
 test:
-  stage: test
+  stage: main
   extends: .rust-default
   needs:
   - build
@@ -108,7 +105,7 @@ test:
   - cargo test --color always --workspace --no-fail-fast
 
 pages:
-  stage: deploy
+  stage: main
   image: alpine:latest
   variables:
     GIT_STRATEGY: none
