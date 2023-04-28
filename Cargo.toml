@@ -19,7 +19,7 @@ rand = "0.8.5"
 random = "0.13.2"
 antlr-rust = "0.3.0-beta"
 float-cmp = "0.9.0"
-tetra = { git = "ssh://gitlab.lrz.de/quantum-research/tetra", version = "0.1.0", branch = "feynman_support" }
+tetra = { git = "ssh://gitlab.lrz.de/quantum-research/tetra", version = "0.1.0" }
 
 [dev-dependencies]
 tux = "0.2.2"
