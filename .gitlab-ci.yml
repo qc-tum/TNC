@@ -47,22 +47,23 @@ docker:build:
     DOCKER_HOST: tcp://docker:2375/
     DOCKER_DRIVER: overlay2
     DOCKER_TLS_CERTDIR: ""
-  before_script:
-  - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
   script:
-  - if docker pull $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG ; then
-      echo -e "\033[1;37mUsing previous '$CI_COMMIT_REF_SLUG' image as cache\033[0m";
-      docker build --cache-from $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG . ;
-    elif docker pull $CI_REGISTRY_IMAGE:$CI_DEFAULT_BRANCH ; then
-      echo -e "\033[1;37mUsing default '$CI_COMMIT_REF_SLUG' image as cache\033[0m";
-      docker build --cache-from $CI_REGISTRY_IMAGE:$CI_DEFAULT_BRANCH --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG . ;
+  - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
+  - IMG=$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  - IMG_DEF=$CI_REGISTRY_IMAGE:$CI_DEFAULT_BRANCH
+  - BOLD='\033[1;37m'
+  - RESET='\033[0m'
+  - if docker pull $IMG ; then
+      echo -e "${BOLD}Using previous '${IMG}' image as cache${RESET}";
+      docker build --cache-from $IMG --tag $IMG . ;
+    elif docker pull $IMG_DEF ; then
+      echo -e "${BOLD}Using default '${IMG_DEF}' image as cache${RESET}";
+      docker build --cache-from $IMG_DEF --tag $IMG . ;
     else
-      echo -e "\033[1;37mNo image to use as cache for building available\033[0m";
-      CACHE_IMAGE="";
-      docker build --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG . ;
+      echo -e "${BOLD}No image to use as cache for building available${RESET}";
+      docker build --tag $IMG . ;
     fi;
-  after_script:
-  - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  - docker push $IMG
   rules:
   - if: $CI_COMMIT_BRANCH
     changes:
