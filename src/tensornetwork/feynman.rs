@@ -36,8 +36,8 @@ pub fn feynman_scatter(
     feynman_indices: &[usize],
 ) -> (TensorNetwork, Vec<Permutation>, Vec<Vec<usize>>) {
     let mut feynman_tensors = Vec::with_capacity(tn.get_tensors().len());
-    let mut vector_perm = Vec::new();
-    let mut feynman_tensor_indexes = Vec::new();
+    let mut vector_perm = Vec::with_capacity(tn.get_tensors().len());
+    let mut feynman_tensor_indexes = Vec::with_capacity(tn.get_tensors().len());
     for tensor in tn.get_tensors() {
         let (sliced_tensor, perm, feynman_index) = scatter_tensor(tensor, feynman_indices);
         feynman_tensor_indexes.push(feynman_index);
