@@ -243,9 +243,13 @@ mod tests {
 
     #[test]
     fn test_tn_contraction() {
+        // t1 is of shape [3, 2, 7]
         let t1 = Tensor::new(vec![0, 1, 2]);
+        // t2 is of shape [7, 8, 6]
         let t2 = Tensor::new(vec![2, 3, 4]);
+        // t3 is of shape [3, 5, 8]
         let t3 = Tensor::new(vec![0, 5, 3]);
+        // tout is of shape [5, 6, 2]
         let tout = Tensor::new(vec![5, 4, 1]);
 
         let (d1, d2, d3, dout) = setup();

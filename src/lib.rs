@@ -6,6 +6,7 @@
 #![feature(map_many_mut)]
 
 pub mod contractionpath;
+pub mod io;
 pub mod qasm;
 pub mod random;
 pub mod tensornetwork;
