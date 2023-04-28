@@ -6,6 +6,13 @@ use super::DataTensor;
 use super::{contraction::tn_contract, tensor::Tensor, TensorNetwork};
 use tetra::permutation::Permutation;
 
+pub struct FeynmanOptions {
+    /// Stores feynman contraction data specific to a given feynman scattering.
+    pub feynman_indices: Vec<usize>,
+    pub permutation_vector: Vec<Permutation>,
+    pub feynman_tensor_indexes: Vec<Vec<usize>>,
+}
+
 /// Slices a [`Tensor`] along given `feynman_indices`.
 ///
 /// # Arguments
@@ -58,7 +65,7 @@ fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation
 ///     tensornetwork::{tensor::Tensor,
 ///     TensorNetwork,
 ///     contraction::tn_contract,
-///     feynman::feynman_scatter}
+///     feynman::{feynman_scatter, FeynmanOptions}}
 /// };
 /// use std::collections::HashMap;
 /// use tetra::permutation::Permutation;
@@ -67,24 +74,29 @@ fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation
 /// let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6)]);
 /// let tn = TensorNetwork::new(vec![t1, t2], bond_dims.clone(), None);
 /// let feynman_indices = &[0, 3];
-/// let (feyn_tn, perm_vec, feyn_index_vec) = feynman_scatter(&tn, feynman_indices);
-/// assert_eq!(perm_vec, vec![Permutation::new(vec![1, 2, 0]), Permutation::new(vec![0, 2, 1])]);
-/// assert_eq!(feyn_index_vec, vec![[0], [1]]);
+/// let (feyn_tn, feynman_options) = feynman_scatter(&tn, feynman_indices);
+/// let FeynmanOptions{    
+/// feynman_indices,
+/// permutation_vector,
+/// feynman_tensor_indexes,
+/// } = feynman_options;
+/// assert_eq!(permutation_vector, vec![Permutation::new(vec![1, 2, 0]), Permutation::new(vec![0, 2, 1])]);
+/// assert_eq!(feynman_tensor_indexes, vec![[0], [1]]);
 /// assert_eq!(*feyn_tn.get_tensors(), vec![Tensor::new(vec![1, 2]), Tensor::new(vec![2, 4])]);
 /// assert_eq!(*feyn_tn.get_bond_dims(), bond_dims);
 /// ```
 pub fn feynman_scatter(
     tn: &TensorNetwork,
     feynman_indices: &[usize],
-) -> (TensorNetwork, Vec<Permutation>, Vec<Vec<usize>>) {
+) -> (TensorNetwork, FeynmanOptions) {
     let mut feynman_tensors = Vec::with_capacity(tn.get_tensors().len());
-    let mut vector_perm = Vec::with_capacity(tn.get_tensors().len());
+    let mut permutation_vector = Vec::with_capacity(tn.get_tensors().len());
     let mut feynman_tensor_indexes = Vec::with_capacity(tn.get_tensors().len());
     for tensor in tn.get_tensors() {
         let (sliced_tensor, perm, feynman_index) = scatter_tensor(tensor, feynman_indices);
         feynman_tensor_indexes.push(feynman_index);
         feynman_tensors.push(sliced_tensor);
-        vector_perm.push(perm);
+        permutation_vector.push(perm);
     }
 
     (
@@ -94,8 +106,11 @@ pub fn feynman_scatter(
             edges: tn.get_edges().clone(),
             ext_edges: tn.get_ext_edges().clone(),
         },
-        vector_perm,
-        feynman_tensor_indexes,
+        FeynmanOptions {
+            feynman_indices: feynman_indices.to_vec(),
+            permutation_vector,
+            feynman_tensor_indexes,
+        },
     )
 }
 
@@ -182,12 +197,16 @@ fn feynman_insert_data_tensor(
 pub fn feynman_contraction(
     feynman_tn: TensorNetwork,
     mut d_tn: Vec<DataTensor>,
-    feynman_indices: &[usize],
-    perm_vector: Vec<Permutation>,
-    feynman_tensor_indexes: &Vec<Vec<usize>>,
     contract_path: &Vec<(usize, usize)>,
     out_indices: &[usize],
+    feynman_options: FeynmanOptions,
 ) -> DataTensor {
+    let FeynmanOptions {
+        feynman_indices,
+        permutation_vector,
+        feynman_tensor_indexes,
+    } = feynman_options;
+
     let bond_dims = feynman_tn.get_bond_dims().clone();
 
     let feynman_index_sizes = feynman_indices
@@ -195,7 +214,7 @@ pub fn feynman_contraction(
         .map(|e| *bond_dims.get(e).unwrap())
         .collect::<Vec<u64>>();
 
-    for (d_t, perm) in d_tn.iter_mut().zip(perm_vector) {
+    for (d_t, perm) in d_tn.iter_mut().zip(permutation_vector) {
         d_t.transpose(&perm);
     }
 
@@ -217,9 +236,9 @@ pub fn feynman_contraction(
 
     for index in feynman_range {
         let mut d_tn_sliced = Vec::new();
-        for (d_t, sliced_index) in izip!(&d_tn, feynman_tensor_indexes) {
+        for (d_t, sliced_index) in izip!(&d_tn, &feynman_tensor_indexes) {
             let sliced_values = sliced_index.iter().map(|&e| index[e]).collect_vec();
-            let sliced_tensor = feynman_slice_data_tensor(&d_t, &sliced_values);
+            let sliced_tensor = feynman_slice_data_tensor(d_t, &sliced_values);
             d_tn_sliced.push(sliced_tensor);
         }
         let (_, d_out) = tn_contract(feynman_tn.clone(), d_tn_sliced, contract_path);
@@ -233,7 +252,7 @@ pub fn feynman_contraction(
 
 #[cfg(test)]
 mod tests {
-    use super::{feynman_contraction, feynman_scatter};
+    use super::{feynman_contraction, feynman_scatter, FeynmanOptions};
     use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
     use float_cmp::approx_eq;
     use itertools::Itertools;
@@ -482,14 +501,18 @@ mod tests {
 
         let feynman_indices = [4, 1, 5];
 
-        let (feynman_tn, perm_vector, feynman_tensor_indexes) =
-            feynman_scatter(&tn, &feynman_indices);
+        let (feynman_tn, feynman_options) = feynman_scatter(&tn, &feynman_indices);
 
         let feynman_tensor_ref = vec![
             Tensor::new(vec![0, 2]),
             Tensor::new(vec![2, 3]),
             Tensor::new(vec![0, 3]),
         ];
+        let FeynmanOptions {
+            feynman_indices: _,
+            permutation_vector,
+            feynman_tensor_indexes,
+        } = feynman_options;
 
         for (i, tensor) in feynman_tn.get_tensors().iter().enumerate() {
             assert_eq!(feynman_tensor_ref[i].get_legs(), tensor.get_legs());
@@ -500,7 +523,7 @@ mod tests {
             Permutation::new(vec![0, 2, 1]),
         ];
 
-        for (i, perm) in perm_vector.iter().enumerate() {
+        for (i, perm) in permutation_vector.iter().enumerate() {
             assert_eq!(&perm_vector_ref[i], perm);
         }
 
@@ -548,19 +571,16 @@ mod tests {
 
         let tn = TensorNetwork::new(vec![t1, t2], bond_dims, None);
 
-        let (feynman_tn, perm_vector, feynman_tensor_indexes) =
-            feynman_scatter(&tn, &feynman_indices);
+        let (feynman_tn, feynman_options) = feynman_scatter(&tn, &feynman_indices);
 
         let contract_path = vec![(0, 1)];
 
         let d_t = feynman_contraction(
             feynman_tn,
             vec![tc1, tc2],
-            &feynman_indices,
-            perm_vector,
-            &feynman_tensor_indexes,
             &contract_path,
             &[2, 3],
+            feynman_options,
         );
 
         let range = d_t.shape().iter().map(|e| 0..*e).multi_cartesian_product();
@@ -601,17 +621,14 @@ mod tests {
 
         let feynman_indices = [5];
 
-        let (feynman_tn, perm_vector, feynman_tensor_indexes) =
-            feynman_scatter(&tn, &feynman_indices);
+        let (feynman_tn, feynman_options) = feynman_scatter(&tn, &feynman_indices);
 
         let d_t = feynman_contraction(
             feynman_tn,
             vec![dt1, dt2, dt3],
-            &feynman_indices,
-            perm_vector,
-            &feynman_tensor_indexes,
             &opt_path,
             &[5, 3],
+            feynman_options,
         );
 
         let range = d_t.shape().iter().map(|e| 0..*e).multi_cartesian_product();
@@ -676,17 +693,14 @@ mod tests {
 
         let feynman_indices = [1];
 
-        let (feynman_tn, perm_vector, feynman_tensor_indexes) =
-            feynman_scatter(&tn, &feynman_indices);
+        let (feynman_tn, feynman_options) = feynman_scatter(&tn, &feynman_indices);
 
         let d_t = feynman_contraction(
             feynman_tn,
             vec![tc1, tc2, tc3],
-            &feynman_indices,
-            perm_vector,
-            &feynman_tensor_indexes,
             &contract_path,
             &[5, 4, 1],
+            feynman_options,
         );
 
         let range = d_t.shape().iter().map(|e| 0..*e).multi_cartesian_product();
