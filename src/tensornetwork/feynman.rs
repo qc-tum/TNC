@@ -546,7 +546,7 @@ mod tests {
 
         let feynman_indices = vec![2];
 
-        let tn: TensorNetwork = TensorNetwork::new(vec![t1, t2], bond_dims, None);
+        let tn = TensorNetwork::new(vec![t1, t2], bond_dims, None);
 
         let (feynman_tn, perm_vector, feynman_tensor_indexes) =
             feynman_scatter(&tn, &feynman_indices);
