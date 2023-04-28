@@ -118,7 +118,7 @@ test:
 
 pages:
   stage: main
-  image: alpine:latest
+  image: alpine:3.17
   variables:
     GIT_STRATEGY: none
   needs:
