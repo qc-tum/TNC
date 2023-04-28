@@ -6,8 +6,14 @@ use super::DataTensor;
 use super::{contraction::tn_contract, tensor::Tensor, TensorNetwork};
 use tetra::permutation::Permutation;
 
-// Assumption that rank 0 holds all data
-pub fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation, Vec<usize>) {
+/// Slices a [`Tensor`] along given `feynman_indices`.
+///
+/// # Arguments
+///
+/// * `t` - [`&Tensor`] to be sliced
+/// * `feynman_indices` - &[usize] containing feynman indices in tensor network
+///
+fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation, Vec<usize>) {
     let mut new_legs = Vec::new();
     let mut perm = Vec::new();
     let mut feynman_perm = Vec::new();
@@ -30,7 +36,43 @@ pub fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permuta
     )
 }
 
-// Assumption that rank 0 holds all data
+/// Slices all [`Tensor`] objects in a [`TensorNetwork`] along given `feynman_indices`.
+/// Returns a new ['TensorNetwork'] without any `feynman_indices` but retains sliced edge information
+/// in `ext_edges`, `edges` and `bond_dims`; a `Vector<tetra::Permutation>` that indicates the required permutation
+/// to set feynman indices as the slowest running index; and a `Vec<Vec<usize>>` indicating the corresponding
+/// feynman index (if one exists) for each ['Tensor'] in the output [`TensorNetwork`].
+///
+/// # Arguments
+///
+/// * `tn` - [`&TensorNetwork`] to be sliced
+/// * `feynman_indices` - &[usize] containing feynman indices in tensor network
+///
+///
+/// # Examples
+///
+/// ```
+/// # extern crate tensorcontraction;
+/// # use tensorcontraction::{
+///     contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath},
+///     random::tensorgeneration::{random_sparse_tensor, random_tensor_network},
+///     tensornetwork::{tensor::Tensor,
+///     TensorNetwork,
+///     contraction::tn_contract,
+///     feynman::feynman_scatter}
+/// };
+/// use std::collections::HashMap;
+/// use tetra::permutation::Permutation;
+/// let t1 = Tensor::new(vec![0, 1, 2]);
+/// let t2 = Tensor::new(vec![2, 3, 4]);
+/// let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6)]);
+/// let tn = TensorNetwork::new(vec![t1, t2], bond_dims.clone(), None);
+/// let feynman_indices = &[0, 3];
+/// let (feyn_tn, perm_vec, feyn_index_vec) = feynman_scatter(&tn, feynman_indices);
+/// assert_eq!(perm_vec, vec![Permutation::new(vec![1, 2, 0]), Permutation::new(vec![0, 2, 1])]);
+/// assert_eq!(feyn_index_vec, vec![[0], [1]]);
+/// assert_eq!(*feyn_tn.get_tensors(), vec![Tensor::new(vec![1, 2]), Tensor::new(vec![2, 4])]);
+/// assert_eq!(*feyn_tn.get_bond_dims(), bond_dims);
+/// ```
 pub fn feynman_scatter(
     tn: &TensorNetwork,
     feynman_indices: &[usize],
