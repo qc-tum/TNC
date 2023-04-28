@@ -57,12 +57,92 @@ pub fn feynman_scatter(
     )
 }
 
+/// Slices a [`DataTensor`] along given `feynman_indices`. Assumes that passed `DataTensor` is already permuted such
+/// that the sliced indices are now the slowest running index.
+///
+/// # Arguments
+///
+/// * `dt` - [`&DataTensor`] to be sliced
+/// * `feynman_indices` - &[usize] containing feynman indices in tensor network
+///
+fn feynman_slice_data_tensor(dt: &DataTensor, feynman_index: &Vec<u32>) -> DataTensor {
+    assert!(feynman_index.len() < dt.shape().len());
+    let tensor_len: usize = dt.shape().len() - feynman_index.len();
+    let c_chunk_size = dt.shape().iter().copied().take(tensor_len).product::<u32>() as usize;
+    let index_value: usize = dt
+        .shape()
+        .iter()
+        .rev()
+        .take(feynman_index.len())
+        .zip(feynman_index.iter())
+        .rev()
+        .fold(0, |current_index, (dim, index)| {
+            current_index * (*dim as usize) + (*index as usize)
+        });
+    DataTensor::new_from_flat(
+        &dt.shape()[0..tensor_len],
+        dt.get_raw_data()[index_value * c_chunk_size..(index_value + 1) * c_chunk_size].to_vec(),
+        None,
+    )
+}
+
+/// Inserts data from a [`DataTensor`] to another using assuming that all feynman indices are fixed to a given
+/// `feynman_index`. Assumes that passed `DataTensor` is already permuted such
+/// that the feynman indices are the slowest running indexes.
+///
+/// # Arguments
+///
+/// * `dt_dest` - destination `&mut DataTensor`
+/// * `feynman_indices` - &[usize] containing feynman indices in tensor network
+/// * `dt_src` - source &DataTensor
+///
+fn feynman_insert_data_tensor(
+    dt_dest: &mut DataTensor,
+    feynman_index: &Vec<u32>,
+    dt_src: &DataTensor,
+) {
+    assert!(feynman_index.len() < dt_dest.shape().len());
+    let tensor_len: usize = dt_dest.shape().len() - feynman_index.len();
+    let c_chunk_size = dt_dest
+        .shape()
+        .iter()
+        .copied()
+        .take(tensor_len)
+        .product::<u32>() as usize;
+    let index_value: usize = dt_dest
+        .shape()
+        .iter()
+        .rev()
+        .take(feynman_index.len())
+        .zip(feynman_index.iter())
+        .rev()
+        .fold(0, |current_index, (dim, index)| {
+            current_index * (*dim as usize) + (*index as usize)
+        });
+    dt_dest.get_raw_data_mut().splice(
+        index_value * c_chunk_size..(index_value + 1) * c_chunk_size,
+        dt_src.get_raw_data().iter().copied(),
+    );
+}
+
+/// Performs a feynamn contraction on given a scattered `TensorNetwork`
+///
+/// # Arguments
+///
+/// * `feynman_tn` - [`TensorNetwork`] that has been scattered via `feynman_scatter`
+/// * `d_tn` - mut `Vec<DatTensor> containing raw tensor data
+/// * `feynman_indices` - &[usize] containing feynman indices in tensor network
+/// * `perm_vector` - Vec<Permutation> output of `feynman_scatter`
+/// * `feynman_tensor_index` - &Vec<Vec<usize>> that contains index of feynman indices in `Tenso` of input `TensorNetwork`
+/// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
+/// * `out_indices` - `&[usize]` specifying output shape of contracted `TensorNetwork`
+///
 pub fn feynman_contraction(
     feynman_tn: TensorNetwork,
     mut d_tn: Vec<DataTensor>,
     feynman_indices: &[usize],
     perm_vector: Vec<Permutation>,
-    feynman_tensor_index: &Vec<Vec<usize>>,
+    feynman_tensor_indexes: &Vec<Vec<usize>>,
     contract_path: &Vec<(usize, usize)>,
     out_indices: &[usize],
 ) -> DataTensor {
@@ -75,7 +155,6 @@ pub fn feynman_contraction(
 
     for (d_t, perm) in d_tn.iter_mut().zip(perm_vector) {
         d_t.transpose(&perm);
-        d_t.materialize_transpose();
     }
 
     let mut feynman_output = _tn_output_tensor(feynman_tn.clone(), contract_path);
@@ -96,19 +175,17 @@ pub fn feynman_contraction(
 
     for index in feynman_range {
         let mut d_tn_sliced = Vec::new();
-        for (d_t, sliced_index) in izip!(&d_tn, feynman_tensor_index) {
+        for (d_t, sliced_index) in izip!(&d_tn, feynman_tensor_indexes) {
             let sliced_values = sliced_index.iter().map(|&e| index[e]).collect_vec();
-            let sliced_tensor = d_t.slice(&sliced_values);
+            let sliced_tensor = feynman_slice_data_tensor(&d_t, &sliced_values);
             d_tn_sliced.push(sliced_tensor);
         }
-        let (_, mut d_out) = tn_contract(feynman_tn.clone(), d_tn_sliced, contract_path);
-        d_out[0].materialize_transpose();
-        out_tensor.insert_slice(index, &d_out[0]);
+        let (_, d_out) = tn_contract(feynman_tn.clone(), d_tn_sliced, contract_path);
+        feynman_insert_data_tensor(&mut out_tensor, &index, &d_out[0]);
     }
 
     let out_perm = Permutation::between(&feynman_output, out_indices);
     out_tensor.transpose(&out_perm);
-    out_tensor.materialize_transpose();
     out_tensor
 }
 
