@@ -117,6 +117,40 @@ pub fn feynman_scatter(
     )
 }
 
+/// Calculates the size of contiguous memory of a given ['DataTensor']
+///
+/// # Arguments
+///
+/// * `dt` - [`&DataTensor`] to be sliced
+/// * `tensor_len` - number of legs in [`&DataTensor`]
+///
+
+fn calculate_chunk_size(dt: &DataTensor, tensor_len: usize) -> usize {
+    let c_chunk_size = dt.shape().iter().copied().take(tensor_len).product::<u32>() as usize;
+    c_chunk_size
+}
+
+/// Calculates the feynman index for a given ['DataTensor']
+///
+/// # Arguments
+///
+/// * `dt` - [`&DataTensor`] to be sliced
+/// * `feynman_index` - &[usize] containing feynman indices in tensor network
+///
+fn calculate_feynman_index(dt: &DataTensor, feynman_index: &Vec<u32>) -> usize {
+    let index_value = dt
+        .shape()
+        .iter()
+        .rev()
+        .take(feynman_index.len())
+        .zip(feynman_index.iter())
+        .rev()
+        .fold(0, |current_index, (dim, index)| {
+            current_index * (*dim as usize) + (*index as usize)
+        });
+    index_value
+}
+
 /// Slices a [`DataTensor`] along given `feynman_indices`. Assumes that passed `DataTensor` is already permuted such
 /// that the sliced indices are now the slowest running index.
 ///
@@ -128,17 +162,8 @@ pub fn feynman_scatter(
 fn feynman_slice_data_tensor(dt: &DataTensor, feynman_index: &Vec<u32>) -> DataTensor {
     assert!(feynman_index.len() < dt.ndim());
     let tensor_len = dt.ndim() - feynman_index.len();
-    let c_chunk_size = dt.shape().iter().copied().take(tensor_len).product::<u32>() as usize;
-    let index_value = dt
-        .shape()
-        .iter()
-        .rev()
-        .take(feynman_index.len())
-        .zip(feynman_index.iter())
-        .rev()
-        .fold(0, |current_index, (dim, index)| {
-            current_index * (*dim as usize) + (*index as usize)
-        });
+    let c_chunk_size = calculate_chunk_size(dt, tensor_len);
+    let index_value = calculate_feynman_index(dt, feynman_index);
     DataTensor::new_from_flat(
         &dt.shape()[0..tensor_len],
         dt.get_raw_data()[index_value * c_chunk_size..(index_value + 1) * c_chunk_size].to_vec(),
@@ -163,22 +188,8 @@ fn feynman_insert_data_tensor(
 ) {
     assert!(feynman_index.len() < dt_dest.ndim());
     let tensor_len: usize = dt_dest.ndim() - feynman_index.len();
-    let c_chunk_size = dt_dest
-        .shape()
-        .iter()
-        .copied()
-        .take(tensor_len)
-        .product::<u32>() as usize;
-    let index_value: usize = dt_dest
-        .shape()
-        .iter()
-        .rev()
-        .take(feynman_index.len())
-        .zip(feynman_index.iter())
-        .rev()
-        .fold(0, |current_index, (dim, index)| {
-            current_index * (*dim as usize) + (*index as usize)
-        });
+    let c_chunk_size = calculate_chunk_size(dt_dest, tensor_len);
+    let index_value = calculate_feynman_index(dt_dest, feynman_index);
     dt_dest.get_raw_data_mut().splice(
         index_value * c_chunk_size..(index_value + 1) * c_chunk_size,
         dt_src.get_raw_data().iter().copied(),
