@@ -208,7 +208,7 @@ pub fn feynman_contraction(
         feynman_tensor_indexes,
     } = feynman_options;
 
-    let bond_dims = feynman_tn.get_bond_dims().clone();
+    let bond_dims = feynman_tn.get_bond_dims();
 
     let feynman_index_sizes = feynman_indices
         .iter()
@@ -219,7 +219,7 @@ pub fn feynman_contraction(
         d_t.transpose(&perm);
     }
 
-    let mut feynman_output = _tn_output_tensor(feynman_tn.clone(), contract_path);
+    let mut feynman_output = tn_output_tensor(feynman_tn.clone(), contract_path);
 
     feynman_output.append(&mut feynman_indices.to_vec());
 
