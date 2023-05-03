@@ -516,7 +516,7 @@ mod tests {
         } = feynman_options;
 
         for (i, tensor) in feynman_tn.get_tensors().iter().enumerate() {
-            assert_eq!(feynman_tensor_ref[i].get_legs(), tensor.get_legs());
+            assert_eq!(tensor.get_legs(), feynman_tensor_ref[i].get_legs());
         }
         let perm_vector_ref = vec![
             Permutation::new(vec![0, 2, 1]),
