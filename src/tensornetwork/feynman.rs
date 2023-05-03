@@ -162,7 +162,7 @@ fn feynman_insert_data_tensor(
     dt_src: &DataTensor,
 ) {
     assert!(feynman_index.len() < dt_dest.ndim());
-    let tensor_len: usize = dt_dest.shape().len() - feynman_index.len();
+    let tensor_len: usize = dt_dest.ndim() - feynman_index.len();
     let c_chunk_size = dt_dest
         .shape()
         .iter()
