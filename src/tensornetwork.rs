@@ -82,23 +82,35 @@ impl TensorNetwork {
     ///
     /// ```
     /// # use tensorcontraction::tensornetwork::TensorNetwork;
-    /// let tn = TensorNetwork::empty_tensor_network();
-    /// let edges = tn.get_edges();
-    /// assert_eq!(edges.is_empty(), true);
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use std::collections::HashMap;
+    /// let v1 = Tensor::new(vec![0,1]);
+    /// let v2 = Tensor::new(vec![1,2]);
+    /// let bond_dims = HashMap::from([
+    /// (0, 17), (1, 19), (2, 8)
+    /// ]);
+    /// let tn = TensorNetwork::new(vec![v1,v2], bond_dims, None);
+    /// assert_eq!(*tn.get_edges(), HashMap::from([(0, vec![Some(0), None]), (1, vec![Some(0), Some(1)]), (2, vec![Some(1), None])]));
     /// ```
     pub fn get_edges(&self) -> &HashMap<usize, Vec<Option<usize>>> {
         &self.edges
     }
 
-    /// Getter for edge HashMap.
+    /// Getter for list of external edges.
     ///
     /// # Examples
     ///
     /// ```
     /// # use tensorcontraction::tensornetwork::TensorNetwork;
-    /// let tn = TensorNetwork::empty_tensor_network();
-    /// let edges = tn.get_ext_edges();
-    /// assert_eq!(edges.is_empty(), true);
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use std::collections::HashMap;
+    /// let v1 = Tensor::new(vec![0,1]);
+    /// let v2 = Tensor::new(vec![1,2]);
+    /// let bond_dims = HashMap::from([
+    /// (0, 17), (1, 19), (2, 8)
+    /// ]);
+    /// let tn = TensorNetwork::new(vec![v1,v2], bond_dims, None);
+    /// assert_eq!(*tn.get_ext_edges(), vec![0, 2]);
     /// ```
     pub fn get_ext_edges(&self) -> &Vec<usize> {
         &self.ext_edges
@@ -110,9 +122,15 @@ impl TensorNetwork {
     ///
     /// ```
     /// # use tensorcontraction::tensornetwork::TensorNetwork;
-    /// let tn = TensorNetwork::empty_tensor_network();
-    /// let tensors = tn.get_tensors();
-    /// assert_eq!(tensors.is_empty(), true);
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use std::collections::HashMap;
+    /// let v1 = Tensor::new(vec![0,1]);
+    /// let v2 = Tensor::new(vec![1,2]);
+    /// let bond_dims = HashMap::from([
+    /// (0, 17), (1, 19), (2, 8)
+    /// ]);
+    /// let tn = TensorNetwork::new(vec![v1.clone(),v2.clone()], bond_dims, None);
+    /// assert_eq!(*tn.get_tensors(), vec![v1, v2]);
     /// ```
     pub fn get_tensors(&self) -> &Vec<Tensor> {
         &self.tensors
@@ -124,9 +142,15 @@ impl TensorNetwork {
     ///
     /// ```
     /// # use tensorcontraction::tensornetwork::TensorNetwork;
-    /// let tn = TensorNetwork::empty_tensor_network();
-    /// let tensors = tn.get_tensors();
-    /// assert_eq!(tensors.is_empty(), true);
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use std::collections::HashMap;
+    /// let v1 = Tensor::new(vec![0,1]);
+    /// let v2 = Tensor::new(vec![1,2]);
+    /// let bond_dims = HashMap::from([
+    /// (0, 17), (1, 19), (2, 8)
+    /// ]);
+    /// let tn = TensorNetwork::new(vec![v1,v2], bond_dims.clone(), None);
+    /// assert_eq!(*tn.get_bond_dims(), bond_dims);
     /// ```
     pub fn get_bond_dims(&self) -> &HashMap<usize, u64> {
         &self.bond_dims
