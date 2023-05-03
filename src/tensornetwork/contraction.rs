@@ -66,7 +66,7 @@ pub fn tn_contract(
     (tn, d_tn)
 }
 
-/// Determine the output tensor shape a given contraction path using repeated SSA format.
+/// Fully contracts an input TensorNetwork and determines the output tensor shape a given contraction path using repeated SSA format.
 ///
 /// # Arguments
 ///
