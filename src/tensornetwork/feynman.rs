@@ -560,7 +560,6 @@ mod tests {
             Complex64::new(-0.8540957393017248, -0.7421650204064419),
         ];
 
-        // let mut solution = DataTensor::new_from_flat(&[2], solution_data, None);
         let tc1 = DataTensor::new_from_flat(&[2, 2, 2], b_data, None);
         let tc2 = DataTensor::new_from_flat(&[2, 2, 1], c_data, None);
         let tcout = DataTensor::new_from_flat(&[2, 1], solution_data, None);
