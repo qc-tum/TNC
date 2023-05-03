@@ -126,10 +126,10 @@ pub fn feynman_scatter(
 /// * `feynman_indices` - &[usize] containing feynman indices in tensor network
 ///
 fn feynman_slice_data_tensor(dt: &DataTensor, feynman_index: &Vec<u32>) -> DataTensor {
-    assert!(feynman_index.len() < dt.shape().len());
-    let tensor_len: usize = dt.shape().len() - feynman_index.len();
+    assert!(feynman_index.len() < dt.ndim());
+    let tensor_len = dt.ndim() - feynman_index.len();
     let c_chunk_size = dt.shape().iter().copied().take(tensor_len).product::<u32>() as usize;
-    let index_value: usize = dt
+    let index_value = dt
         .shape()
         .iter()
         .rev()
@@ -161,7 +161,7 @@ fn feynman_insert_data_tensor(
     feynman_index: &Vec<u32>,
     dt_src: &DataTensor,
 ) {
-    assert!(feynman_index.len() < dt_dest.shape().len());
+    assert!(feynman_index.len() < dt_dest.ndim());
     let tensor_len: usize = dt_dest.shape().len() - feynman_index.len();
     let c_chunk_size = dt_dest
         .shape()
