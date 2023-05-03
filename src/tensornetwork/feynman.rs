@@ -185,17 +185,15 @@ fn feynman_insert_data_tensor(
     );
 }
 
-/// Performs a feynamn contraction on given a scattered `TensorNetwork`
+/// Performs a feynamn contraction on a given scattered `TensorNetwork`
 ///
 /// # Arguments
 ///
 /// * `feynman_tn` - [`TensorNetwork`] that has been scattered via `feynman_scatter`
-/// * `d_tn` - mut `Vec<DatTensor> containing raw tensor data
-/// * `feynman_indices` - &[usize] containing feynman indices in tensor network
-/// * `perm_vector` - Vec<Permutation> output of `feynman_scatter`
-/// * `feynman_tensor_index` - &Vec<Vec<usize>> that contains index of feynman indices in `Tenso` of input `TensorNetwork`
-/// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
+/// * `d_tn` - mut `Vec<DataTensor>` containing raw tensor data
+/// * `contract_path` - `Vector` of `(usize, usize)`, indicating contraction path. See [`BranchBound`] for details on `contract_path` format.
 /// * `out_indices` - `&[usize]` specifying output shape of contracted `TensorNetwork`
+/// * `feynman_options` - [`FeynmanContractionData`] object, output of `feynman_scatter` function
 ///
 pub fn feynman_contraction(
     feynman_tn: TensorNetwork,
