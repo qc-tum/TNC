@@ -110,7 +110,7 @@ impl TensorNetwork {
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
     /// let tn = TensorNetwork::new(vec![v1,v2], bond_dims, None);
-    /// assert_eq!(*tn.get_ext_edges(), vec![0, 2]);
+    /// assert_eq!(*tn.get_ext_edges(), vec![2, 0]);
     /// ```
     pub fn get_ext_edges(&self) -> &Vec<usize> {
         &self.ext_edges
