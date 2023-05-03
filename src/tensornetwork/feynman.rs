@@ -255,7 +255,7 @@ pub fn feynman_contraction(
 mod tests {
     use super::{feynman_contraction, feynman_scatter, FeynmanContractionData};
     use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
-    use float_cmp::approx_eq;
+    use float_cmp::{approx_eq, assert_approx_eq};
     use itertools::Itertools;
     use num_complex::Complex64;
     use std::collections::HashMap;
@@ -706,18 +706,18 @@ mod tests {
         let range = d_t.shape().iter().map(|e| 0..*e).multi_cartesian_product();
 
         for index in range {
-            assert!(approx_eq!(
+            assert_approx_eq!(
                 f64,
                 tcout.get(&index).re,
                 d_t.get(&index).re,
                 epsilon = 1e-8
-            ));
-            assert!(approx_eq!(
+            );
+            assert_approx_eq!(
                 f64,
                 tcout.get(&index).im,
                 d_t.get(&index).im,
                 epsilon = 1e-8
-            ));
+            );
         }
     }
 }
