@@ -236,7 +236,7 @@ pub fn feynman_contraction(
         .multi_cartesian_product();
 
     for index in feynman_range {
-        let mut d_tn_sliced = Vec::new();
+        let mut d_tn_sliced = Vec::with_capacity(d_tn.len());
         for (d_t, sliced_index) in izip!(&d_tn, &feynman_tensor_indexes) {
             let sliced_values = sliced_index.iter().map(|&e| index[e]).collect_vec();
             let sliced_tensor = feynman_slice_data_tensor(d_t, &sliced_values);
