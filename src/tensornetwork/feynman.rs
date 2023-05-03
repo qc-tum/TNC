@@ -1,7 +1,7 @@
 use itertools::izip;
 use itertools::Itertools;
 
-use super::contraction::_tn_output_tensor;
+use super::contraction::tn_output_tensor;
 use super::DataTensor;
 use super::{contraction::tn_contract, tensor::Tensor, TensorNetwork};
 use tetra::permutation::Permutation;
