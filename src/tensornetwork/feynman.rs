@@ -6,10 +6,13 @@ use super::DataTensor;
 use super::{contraction::tn_contract, tensor::Tensor, TensorNetwork};
 use tetra::permutation::Permutation;
 
-pub struct FeynmanOptions {
-    /// Stores feynman contraction data specific to a given feynman scattering.
+/// Stores feynman contraction data specific to a given feynman scattering.
+pub struct FeynmanContractionData {
+    /// Vector of usize indicating the edge ids of feynman indices
     pub feynman_indices: Vec<usize>,
+    /// Stores the permutation required to ensure each Tensor has feynman indices as slowest running index
     pub permutation_vector: Vec<Permutation>,
+    /// Stores the index identifying which feynman index is iterated over for each Tensor object
     pub feynman_tensor_indexes: Vec<Vec<usize>>,
 }
 
@@ -65,7 +68,7 @@ fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation
 ///     tensornetwork::{tensor::Tensor,
 ///     TensorNetwork,
 ///     contraction::tn_contract,
-///     feynman::{feynman_scatter, FeynmanOptions}}
+///     feynman::{feynman_scatter, FeynmanContractionData}}
 /// };
 /// use std::collections::HashMap;
 /// use tetra::permutation::Permutation;
@@ -75,7 +78,7 @@ fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation
 /// let tn = TensorNetwork::new(vec![t1, t2], bond_dims.clone(), None);
 /// let feynman_indices = &[0, 3];
 /// let (feyn_tn, feynman_options) = feynman_scatter(&tn, feynman_indices);
-/// let FeynmanOptions{    
+/// let FeynmanContractionData{    
 /// feynman_indices,
 /// permutation_vector,
 /// feynman_tensor_indexes,
@@ -88,7 +91,7 @@ fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation
 pub fn feynman_scatter(
     tn: &TensorNetwork,
     feynman_indices: &[usize],
-) -> (TensorNetwork, FeynmanOptions) {
+) -> (TensorNetwork, FeynmanContractionData) {
     let mut feynman_tensors = Vec::with_capacity(tn.get_tensors().len());
     let mut permutation_vector = Vec::with_capacity(tn.get_tensors().len());
     let mut feynman_tensor_indexes = Vec::with_capacity(tn.get_tensors().len());
@@ -106,7 +109,7 @@ pub fn feynman_scatter(
             edges: tn.get_edges().clone(),
             ext_edges: tn.get_ext_edges().clone(),
         },
-        FeynmanOptions {
+        FeynmanContractionData {
             feynman_indices: feynman_indices.to_vec(),
             permutation_vector,
             feynman_tensor_indexes,
@@ -199,9 +202,9 @@ pub fn feynman_contraction(
     mut d_tn: Vec<DataTensor>,
     contract_path: &Vec<(usize, usize)>,
     out_indices: &[usize],
-    feynman_options: FeynmanOptions,
+    feynman_options: FeynmanContractionData,
 ) -> DataTensor {
-    let FeynmanOptions {
+    let FeynmanContractionData {
         feynman_indices,
         permutation_vector,
         feynman_tensor_indexes,
@@ -252,7 +255,7 @@ pub fn feynman_contraction(
 
 #[cfg(test)]
 mod tests {
-    use super::{feynman_contraction, feynman_scatter, FeynmanOptions};
+    use super::{feynman_contraction, feynman_scatter, FeynmanContractionData};
     use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
     use float_cmp::approx_eq;
     use itertools::Itertools;
@@ -508,7 +511,7 @@ mod tests {
             Tensor::new(vec![2, 3]),
             Tensor::new(vec![0, 3]),
         ];
-        let FeynmanOptions {
+        let FeynmanContractionData {
             feynman_indices: _,
             permutation_vector,
             feynman_tensor_indexes,
