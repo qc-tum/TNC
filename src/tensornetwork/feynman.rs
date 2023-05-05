@@ -191,7 +191,7 @@ fn feynman_insert_data_tensor(
     let tensor_len: usize = dt_dest.ndim() - feynman_index.len();
     let c_chunk_size = calculate_chunk_size(dt_dest, tensor_len);
     let index_value = calculate_feynman_index(dt_dest, feynman_index);
-    assert_eq!(c_chunk_size as u32, dt_src.shape().into_iter().product());
+    assert_eq!(c_chunk_size as u32, dt_src.size(None));
     dt_dest.get_raw_data_mut().splice(
         index_value * c_chunk_size..(index_value + 1) * c_chunk_size,
         dt_src.get_raw_data().iter().copied(),
