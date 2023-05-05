@@ -171,7 +171,7 @@ fn feynman_slice_data_tensor(dt: &DataTensor, feynman_index: &Vec<u32>) -> DataT
     )
 }
 
-/// Inserts data from a [`DataTensor`] to another using assuming that all feynman indices are fixed to a given
+/// Inserts data from a [`DataTensor`] via `Vec::splice` assuming that all feynman indices are fixed to a given
 /// `feynman_index`. Assumes that passed `DataTensor` is already permuted such
 /// that the feynman indices are the slowest running indexes.
 ///
@@ -190,6 +190,7 @@ fn feynman_insert_data_tensor(
     let tensor_len: usize = dt_dest.ndim() - feynman_index.len();
     let c_chunk_size = calculate_chunk_size(dt_dest, tensor_len);
     let index_value = calculate_feynman_index(dt_dest, feynman_index);
+    assert_eq!(c_chunk_size as u32, dt_src.shape().into_iter().product());
     dt_dest.get_raw_data_mut().splice(
         index_value * c_chunk_size..(index_value + 1) * c_chunk_size,
         dt_src.get_raw_data().iter().copied(),
