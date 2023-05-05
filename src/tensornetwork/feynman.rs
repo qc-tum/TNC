@@ -151,8 +151,8 @@ fn calculate_feynman_index(dt: &DataTensor, feynman_index: &Vec<u32>) -> usize {
     index_value
 }
 
-/// Slices a [`DataTensor`] along given `feynman_indices`. Assumes that passed `DataTensor` is already permuted such
-/// that the sliced indices are now the slowest running index.
+/// Slices a [`DataTensor`] along given `feynman_indices`, returning values associated with the provided feynmna index.
+/// Assumes that passed `DataTensor` is already permuted such that the sliced indices are now the slowest running index.
 ///
 /// # Arguments
 ///
@@ -171,9 +171,10 @@ fn feynman_slice_data_tensor(dt: &DataTensor, feynman_index: &Vec<u32>) -> DataT
     )
 }
 
-/// Inserts data from a [`DataTensor`] via `Vec::splice` assuming that all feynman indices are fixed to a given
-/// `feynman_index`. Assumes that passed `DataTensor` is already permuted such
-/// that the feynman indices are the slowest running indexes.
+/// Inserts values of `dt_src` into a slice of `dt_dest` where the feynman indices are fixed to the given
+/// `feynman_index` values. Assumes that `dt_src` is the exact size of the sliced `dt_dest`
+/// Also assumes that passed `DataTensor` is already permuted such that the feynman indices are
+/// the slowest running, which means the replaced data is contiguous.
 ///
 /// # Arguments
 ///
