@@ -1,6 +1,6 @@
 use super::{ast::Visitor, expression_simplification::fold_expr};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 /// Struct to fold constant subexpressions in an expression.
 pub struct ExpressionFolder;
 
@@ -45,7 +45,7 @@ mod tests {
         // Gate call with the two arguments
         let mut gc = Statement::gate_call(String::from("abc"), vec![x, y], Vec::new());
 
-        let mut visitor = ExpressionFolder::default();
+        let mut visitor = ExpressionFolder;
         visitor.visit_statement(&mut gc);
 
         // Check modified AST
@@ -94,7 +94,7 @@ mod tests {
             ],
         };
 
-        let mut visitor = ExpressionFolder::default();
+        let mut visitor = ExpressionFolder;
         visitor.visit_program(&mut program);
 
         assert_eq!(program.statements.len(), 2);

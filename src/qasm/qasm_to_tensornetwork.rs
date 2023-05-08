@@ -21,7 +21,7 @@ where
     let mut program = parse(&full_code);
 
     // Simplify expressions (not strictly needed)
-    let mut expression_folder = ExpressionFolder::default();
+    let mut expression_folder = ExpressionFolder;
     expression_folder.visit_program(&mut program);
 
     // Inline gate calls
@@ -29,7 +29,7 @@ where
     inliner.inline_program(&mut program);
 
     // Simplify expressions after inline (needed)
-    let mut expression_folder = ExpressionFolder::default();
+    let mut expression_folder = ExpressionFolder;
     expression_folder.visit_program(&mut program);
 
     // Create the tensornetwork
