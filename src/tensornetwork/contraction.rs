@@ -1,5 +1,5 @@
+use super::{contract, DataTensor};
 use crate::tensornetwork::TensorNetwork;
-use tetra::{contract, Tensor as DataTensor};
 
 /// Fully contracts a list of [DataTensor] objects based on a given contraction path using repeated SSA format.
 ///
@@ -24,12 +24,12 @@ use tetra::{contract, Tensor as DataTensor};
 /// let mut d_tn = Vec::new();
 /// for r_t in r_tn.get_tensors() {
 ///     d_tn.push(random_sparse_tensor(
-///         r_t.clone(),
+///         r_t,
 ///         &r_tn.get_bond_dims(),
 ///         None,
 ///    ));
 /// }
-/// let mut opt = BranchBound::new(r_tn.clone(), None, 20, BranchBoundType::Flops);
+/// let mut opt = BranchBound::new(&r_tn, None, 20, BranchBoundType::Flops);
 /// opt.optimize_path(None);
 /// let opt_path = opt.get_best_replace_path();
 /// tn_contract(r_tn, d_tn, &opt_path);
@@ -64,6 +64,23 @@ pub fn tn_contract(
     d_tn.swap(0, last_index);
     d_tn.drain(1..d_tn.len());
     (tn, d_tn)
+}
+
+/// Fully contracts an input TensorNetwork and determines the output tensor shape a given contraction path using repeated SSA format.
+///
+/// # Arguments
+///
+/// * `tn` - [`TensorNetwork`] to be contracted
+/// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
+///
+pub(crate) fn tn_output_tensor(
+    mut tn: TensorNetwork,
+    contract_path: &Vec<(usize, usize)>,
+) -> Vec<usize> {
+    for (i, j) in contract_path {
+        tn._contraction(*i, *j);
+    }
+    tn[contract_path.last().unwrap().0].get_legs().clone()
 }
 
 #[cfg(test)]
@@ -289,6 +306,7 @@ mod tests {
             .iter()
             .map(|e| 0..*e)
             .multi_cartesian_product();
+
         for index in range {
             assert!(approx_eq!(
                 f64,

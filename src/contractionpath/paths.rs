@@ -25,8 +25,8 @@ pub enum BranchBoundType {
 }
 
 /// A struct with an OptimizePath implementation that explores possible pair contractions in a depth-first manner.
-pub struct BranchBound {
-    tn: TensorNetwork,
+pub struct BranchBound<'a> {
+    tn: &'a TensorNetwork,
     nbranch: Option<u32>,
     cutoff_flops_factor: u64,
     minimize: BranchBoundType,
@@ -93,9 +93,9 @@ fn ssa_replace_ordering(path: &Vec<(usize, usize)>, mut n: usize) -> Vec<(usize,
     ssa_path
 }
 
-impl BranchBound {
+impl<'a> BranchBound<'a> {
     pub fn new(
-        tn: TensorNetwork,
+        tn: &'a TensorNetwork,
         nbranch: Option<u32>,
         cutoff_flops_factor: u64,
         minimize: BranchBoundType,
@@ -225,7 +225,7 @@ impl BranchBound {
     }
 }
 
-impl OptimizePath for BranchBound {
+impl<'a> OptimizePath for BranchBound<'a> {
     fn optimize_path(&mut self, _output: Option<Vec<u32>>) {
         let tensors = self.tn.get_tensors();
         if self.tn.is_empty() {
@@ -237,9 +237,7 @@ impl OptimizePath for BranchBound {
 
         // Get the initial space requirements for uncontracted tensors
         for (index, tensor) in tensors.iter().enumerate() {
-            self.size_cache
-                .entry(index)
-                .or_insert(size(&self.tn, index));
+            self.size_cache.entry(index).or_insert(size(self.tn, index));
             self.tensor_cache.entry(index).or_insert(tensor.clone());
         }
 
@@ -335,7 +333,7 @@ mod tests {
     #[test]
     fn test_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = BranchBound::new(tn, None, 20, BranchBoundType::Flops);
+        let mut opt = BranchBound::new(&tn, None, 20, BranchBoundType::Flops);
         opt.optimize_path(None);
 
         assert_eq!(opt.best_flops, 568620);
@@ -347,7 +345,7 @@ mod tests {
     #[test]
     fn test_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = BranchBound::new(tn, None, 20, BranchBoundType::Flops);
+        let mut opt = BranchBound::new(&tn, None, 20, BranchBoundType::Flops);
         opt.optimize_path(None);
 
         assert_eq!(opt.best_flops, 5614200);

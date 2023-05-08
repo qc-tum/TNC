@@ -7,7 +7,7 @@ use rand::prelude::SliceRandom;
 use rand::Rng;
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
-use tetra::Tensor as _TetraTensor;
+use tetra::Tensor as DataTensor;
 
 /// Generates random Tensor object with `n` dimensions and corresponding `bond_dims` HashMap,
 /// bond dimensions are uniformly distributed between 1 and 20.
@@ -59,14 +59,14 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
     random_tensor_with_rng(n, &mut rand::thread_rng())
 }
 
-/// Generates random sparse _TetraTensor object with same dimenions as Tensor object `t`
+/// Generates random sparse DataTensor object with same dimenions as Tensor object `t`
 /// Fills in sparse tensor based on `sparsity` value.
 ///
 /// # Arguments
 ///
-/// * `t` - Tensor object, random _TetraTensor will have same dimensions
-/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output _TetraTensor.
-///                 used to fill in entries in _TetraTensor at random. If no value is provided, defaults to 0.50
+/// * `t` - Tensor object, random DataTensor will have same dimensions
+/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output DataTensor.
+///                 used to fill in entries in DataTensor at random. If no value is provided, defaults to 0.50
 /// * `rng` - The random number generator to use.
 ///
 /// # Examples
@@ -80,15 +80,15 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
 /// (0, 17), (1, 19), (2, 12), (3, 12)
 /// ]);
 ///
-/// let r_tensor = random_sparse_tensor_with_rng(tensor.0, &bond_dims, None, &mut rand::thread_rng());
+/// let r_tensor = random_sparse_tensor_with_rng(&tensor.0, &bond_dims, None, &mut rand::thread_rng());
 ///
 /// ```
 pub fn random_sparse_tensor_with_rng<R>(
-    t: Tensor,
+    t: &Tensor,
     bond_dims: &HashMap<usize, u64>,
     sparsity: Option<f32>,
     rng: &mut R,
-) -> _TetraTensor
+) -> DataTensor
 where
     R: Rng + ?Sized,
 {
@@ -106,7 +106,7 @@ where
         .collect::<Vec<u32>>();
     let ranges: Vec<Uniform<u32>> = dims.iter().map(|i| Uniform::new(0, *i)).collect();
     let size = dims.iter().product::<u32>();
-    let mut tensor = _TetraTensor::new(&dims);
+    let mut tensor = DataTensor::new(&dims);
 
     let mut nnz = 0;
     let mut loc = Vec::<u32>::new();
@@ -123,14 +123,14 @@ where
     tensor
 }
 
-/// Generates random sparse _TetraTensor object with same dimenions as Tensor object `t`
+/// Generates random sparse DataTensor object with same dimenions as Tensor object `t`
 /// Fills in sparse tensor based on `sparsity` value. Uses the thread-local random number generator.
 ///
 /// # Arguments
 ///
-/// * `t` - Tensor object, random _TetraTensor will have same dimensions
-/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output _TetraTensor.
-///                 used to fill in entries in _TetraTensor at random. If no value is provided, defaults to 0.50
+/// * `t` - Tensor object, random DataTensor will have same dimensions
+/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output DataTensor.
+///                 used to fill in entries in DataTensor at random. If no value is provided, defaults to 0.50
 ///
 /// # Examples
 /// ```
@@ -143,14 +143,14 @@ where
 /// (0, 17), (1, 19), (2, 12), (3, 12)
 /// ]);
 ///
-/// let r_tensor = random_sparse_tensor(tensor.0, &bond_dims, None);
+/// let r_tensor = random_sparse_tensor(&tensor.0, &bond_dims, None);
 ///
 /// ```
 pub fn random_sparse_tensor(
-    t: Tensor,
+    t: &Tensor,
     bond_dims: &HashMap<usize, u64>,
     sparsity: Option<f32>,
-) -> _TetraTensor {
+) -> DataTensor {
     random_sparse_tensor_with_rng(t, bond_dims, sparsity, &mut rand::thread_rng())
 }
 
