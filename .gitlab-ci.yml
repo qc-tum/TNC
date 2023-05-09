@@ -1,12 +1,9 @@
 stages:
 - docker
-- check
-- build
-- test
-- deploy
+- main
 
 .rust-default:
-  image: $CI_REGISTRY_IMAGE:latest
+  image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   variables:
     CARGO_HOME: $CI_PROJECT_DIR/cargo
   cache:
@@ -50,32 +47,44 @@ docker:build:
     DOCKER_HOST: tcp://docker:2375/
     DOCKER_DRIVER: overlay2
     DOCKER_TLS_CERTDIR: ""
-  before_script:
-  - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
   script:
-  - docker build -t $CI_REGISTRY_IMAGE:latest .
-  - docker push $CI_REGISTRY_IMAGE:latest
+  - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
+  - IMG=$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  - IMG_DEF=$CI_REGISTRY_IMAGE:$CI_DEFAULT_BRANCH
+  - BOLD='\033[1;37m'
+  - RESET='\033[0m'
+  - if docker pull $IMG ; then
+      echo -e "${BOLD}Using previous '${IMG}' image as cache${RESET}";
+      docker build --cache-from $IMG --tag $IMG . ;
+    elif docker pull $IMG_DEF ; then
+      echo -e "${BOLD}Using default '${IMG_DEF}' image as cache${RESET}";
+      docker build --cache-from $IMG_DEF --tag $IMG . ;
+    else
+      echo -e "${BOLD}No image to use as cache for building available${RESET}";
+      docker build --tag $IMG . ;
+    fi;
+  - docker push $IMG
   rules:
   - if: $CI_COMMIT_BRANCH
     changes:
     - Dockerfile
 
 check:clippy:
-  stage: check
+  stage: main
   extends: .rust-default
   script:
   - cargo clippy --color always --workspace --all-features --all-targets --no-deps -- -Dwarnings
   allow_failure: true
 
 check:fmt:
-  stage: check
+  stage: main
   extends: .rust-default
   script:
   - cargo fmt -- --check --color always
   allow_failure: true
 
 build:
-  stage: build
+  stage: main
   extends: .rust-default
   script:
   # Report on the used Rust version
@@ -90,7 +99,7 @@ build:
     expire_in: 1 hour
 
 build:docs:
-  stage: build
+  stage: main
   extends: .rust-default
   script:
   - cargo doc --color always --no-deps
@@ -100,21 +109,22 @@ build:docs:
     expire_in: 1 day
 
 test:
-  stage: test
+  stage: main
   extends: .rust-default
   needs:
   - build
   script:
-  - cargo test --color always --workspace --no-fail-fast
+  - RUST_BACKTRACE=1 cargo test --color always --workspace --no-fail-fast
 
 pages:
-  stage: deploy
-  image: alpine:latest
+  stage: main
+  image: alpine:3.17
+  variables:
+    GIT_STRATEGY: none
   needs:
-  - test
-  - build:docs
-  dependencies:
-  - test
+  # We only want to deploy the docs if test succeeds
+  - job: test
+    artifacts: false
   - build:docs
   script:
   - mv target/doc public/
