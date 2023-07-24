@@ -45,8 +45,8 @@ Integer: '0' | [1-9] [0-9]*;
 fragment FloatLiteralExponent: [eE] (PLUS | MINUS)? Integer;
 Float:
     Integer FloatLiteralExponent
-    | DOT Integer FloatLiteralExponent?
-    | Integer DOT Integer? FloatLiteralExponent?;
+    | DOT [0-9]+ FloatLiteralExponent?
+    | Integer DOT [0-9]* FloatLiteralExponent?;
 
 StringLiteral: '"' ~["\r\t\n]+? '"';
 
