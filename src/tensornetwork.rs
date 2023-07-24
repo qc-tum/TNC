@@ -469,11 +469,11 @@ impl TensorNetwork {
 
         for leg in tensor_b_legs.iter() {
             self.edges.entry(*leg).and_modify(|e| {
-                e.drain_filter(|e| {
+                e.retain(|e| {
                     if let Some(edge) = e {
-                        *edge == tensor_a_loc
+                        *edge != tensor_a_loc
                     } else {
-                        false
+                        true
                     }
                 });
                 for edge in &mut e.iter_mut() {
