@@ -1,4 +1,128 @@
-include:
-- project: 'quantum-research/rust-ci'
-  ref: 334cc1cb7d28f4b0811a0a5fae4f3104959b24cc
-  file: 'template.yml'
+stages:
+- docker
+- main
+
+.rust-default:
+  image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  variables:
+    CARGO_HOME: $CI_PROJECT_DIR/cargo
+  cache:
+  - key: cargo
+    paths: [cargo/]
+  before_script:
+  ##
+  ## Run ssh-agent (inside the build environment)
+  ##
+  - eval $(ssh-agent -s)
+  ##
+  ## Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+  ## We're using tr to fix line endings which makes ed25519 keys work
+  ## without extra base64 encoding.
+  ## https://gitlab.com/gitlab-examples/ssh-private-key/issues/1#note_48526556
+  ##
+  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+  ##
+  ## Create the SSH directory and give it the right permissions
+  ##
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - touch ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+
+  ## Collect SSH RSA public key from gitlab and add them to the known_hosts file
+  ## 
+  - ssh-keyscan -H gitlab.lrz.de >> ~/.ssh/known_hosts
+
+default:
+  tags:
+  - kubernetes
+
+docker:build:
+  stage: docker
+  image: docker:20-dind
+  services:
+  - name: docker:20-dind
+    command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+  script:
+  - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
+  - IMG=$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  - IMG_DEF=$CI_REGISTRY_IMAGE:$CI_DEFAULT_BRANCH
+  - BOLD='\033[1;37m'
+  - RESET='\033[0m'
+  - if docker pull $IMG ; then echo -e "${BOLD}Using previous '${IMG}' image as cache${RESET}"; docker build --cache-from $IMG --tag $IMG . ; elif docker pull $IMG_DEF ; then echo -e "${BOLD}Using default '${IMG_DEF}' image as cache${RESET}"; docker build --cache-from $IMG_DEF --tag $IMG . ; else echo -e "${BOLD}No image to use as cache for building available${RESET}"; docker build --tag $IMG . ; fi;
+  - docker push $IMG
+  rules:
+  - if: $CI_COMMIT_BRANCH
+    changes:
+    - Dockerfile
+    - rust-toolchain.toml
+
+check:clippy:
+  stage: main
+  extends: .rust-default
+  script:
+  - cargo clippy --color always --workspace --all-features --all-targets --no-deps -- -Dwarnings
+  allow_failure: true
+
+check:fmt:
+  stage: main
+  extends: .rust-default
+  script:
+  - cargo fmt -- --check --color always
+  allow_failure: true
+
+build:
+  stage: main
+  extends: .rust-default
+  script:
+  # Report on the used Rust version
+  - rustc --version
+
+  # Build the project
+  - cargo build -vv --color always
+
+  artifacts:
+    paths:
+    - target/debug
+    expire_in: 1 hour
+
+build:docs:
+  stage: main
+  extends: .rust-default
+  script:
+  - cargo doc --color always --no-deps
+  artifacts:
+    paths:
+    - target/doc
+    expire_in: 1 day
+
+test:
+  stage: main
+  extends: .rust-default
+  needs:
+  - build
+  script:
+  - RUST_BACKTRACE=1 cargo test --color always --workspace --no-fail-fast
+
+pages:
+  stage: main
+  image: alpine:3.17
+  variables:
+    GIT_STRATEGY: none
+  needs:
+  # We only want to deploy the docs if test succeeds
+  - job: test
+    artifacts: false
+  - build:docs
+  script:
+  - mv target/doc public/
+  - echo '<meta http-equiv="refresh" content="0; url=tetra">' > public/index.html
+  artifacts:
+    paths:
+    - public
+  only:
+  - main
