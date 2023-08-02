@@ -640,7 +640,7 @@ mod tests {
         edge_sol.entry(2).or_insert(vec![Some(0), Some(1)]);
         edge_sol.entry(3).or_insert(vec![Some(0), Some(1)]);
         edge_sol.entry(4).or_insert(vec![Some(0), Some(2)]);
-        let bond_dims = vec![17, 18, 19, 12, 22];
+        let bond_dims = [17, 18, 19, 12, 22];
 
         for (index, leg) in t.bond_dims.iter().take(t.tensors.max_leg()) {
             assert_eq!(*leg, bond_dims[*index]);
@@ -669,7 +669,7 @@ mod tests {
         edge_sol.entry(7).or_insert(vec![Some(2), None]);
         edge_sol.entry(9).or_insert(vec![Some(3), None]);
         edge_sol.entry(12).or_insert(vec![Some(4), None]);
-        let bond_dims = vec![55, 5, 6];
+        let bond_dims = [55, 5, 6];
         let mut x = bond_dims.iter();
         for leg in good_tensor.get_legs() {
             assert_eq!(t.bond_dims[leg], *x.next().unwrap());

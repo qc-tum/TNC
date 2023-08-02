@@ -464,7 +464,7 @@ mod tests {
             Complex64::new(0.0, 0.0),
         ];
 
-        let d2 = vec![
+        let d2 = [
             Complex64::new(0.0, 0.0),
             Complex64::new(0.9359910317970342, 0.34974572309035323),
             Complex64::new(0.42711288030965144, 0.7816795439302059),
@@ -476,7 +476,7 @@ mod tests {
         ]
         .to_vec();
 
-        let d3 = vec![
+        let d3 = [
             Complex64::new(0.06341055580697552, 0.2589720976240343),
             Complex64::new(0.7782666939493721, 0.7092562072042309),
             Complex64::new(0.0, 0.0),
@@ -488,7 +488,7 @@ mod tests {
         ]
         .to_vec();
 
-        let dout = vec![
+        let dout = [
             Complex64::new(-3.2324764062282636, 1.5205693623709797),
             Complex64::new(-1.5575397714234704, 1.210391237786501),
             Complex64::new(-0.6515228792056469, 1.3312524247584296),
@@ -540,7 +540,7 @@ mod tests {
             assert_eq!(&perm_vector_ref[i], perm);
         }
 
-        let feynman_index_ref = vec![[1], [0], [2]];
+        let feynman_index_ref = [[1], [0], [2]];
 
         for (i, feynman_index) in feynman_tensor_indexes.iter().enumerate() {
             assert_eq!(&feynman_index_ref[i].to_vec(), feynman_index);
