@@ -100,9 +100,13 @@ mod tests {
         let (tn, _tensors) = create_tensornetwork(code);
 
         let (kets, single_qubit_gates, two_qubit_gates) = get_quantum_tensors(&tn);
-        let [k0, k1] = kets.as_slice() else {panic!()};
-        let [h] = single_qubit_gates.as_slice() else {panic!()};
-        let [cx] = two_qubit_gates.as_slice() else {panic!()};
+        let [k0, k1] = kets.as_slice() else { panic!() };
+        let [h] = single_qubit_gates.as_slice() else {
+            panic!()
+        };
+        let [cx] = two_qubit_gates.as_slice() else {
+            panic!()
+        };
 
         // Find out which tensor is the first/top qubit (the one connected to the H gate tensor)
         // and which is the second/bottom qubit
@@ -149,7 +153,9 @@ mod tests {
             .collect_vec();
         let (_tn, tensors) = tn_contract(tn, tensors, &opt_path);
 
-        let [resulting_state] = &tensors[..] else {panic!("Expected a single tensor after contraction")};
+        let [resulting_state] = &tensors[..] else {
+            panic!("Expected a single tensor after contraction")
+        };
         assert_eq!(resulting_state.shape(), &[2, 2]);
         assert_approx_eq!(f64, resulting_state.get(&[0, 0]).re, 1.0 / 2.0f64.sqrt());
         assert_approx_eq!(f64, resulting_state.get(&[0, 0]).im, 0.0);

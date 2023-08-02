@@ -134,7 +134,9 @@ impl TensorNetworkCreator {
                             let open_edge = wires.get_mut(&single_call[0]).unwrap();
                             let out_edge = self.new_edge();
                             let tensor = Tensor::new(vec![out_edge, *open_edge]);
-                            let [theta, phi, lambda] = &call.args[..] else {panic!("Expected 3 classical arguments for U gate")};
+                            let [theta, phi, lambda] = &call.args[..] else {
+                                panic!("Expected 3 classical arguments for U gate")
+                            };
                             let theta: f64 = theta.try_into().unwrap();
                             let phi: f64 = phi.try_into().unwrap();
                             let lambda: f64 = lambda.try_into().unwrap();
