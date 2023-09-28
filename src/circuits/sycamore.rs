@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
 
-pub fn sycamore<R>(
+pub fn sycamore_circuit<R>(
     size: usize,
     round: usize,
     single_qubit: Option<f64>,
