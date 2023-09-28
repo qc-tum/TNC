@@ -435,6 +435,33 @@ impl TensorNetwork {
         self.tensors.push(tensor);
     }
 
+    /// Appends a vector of new Tensor objects to TensorNetwork object. Optionally, accepts a HashMap of bond dimensions
+    /// if edge ids in new Tensor are not defined in `TensorNetwork::bond_dims`. Iteratively calls ['push_tensor']
+    ///
+    /// # Arguments
+    ///
+    /// * `tensor` - A Vector of Tensor objects
+    /// * `bond_dims` - A HashMap taking using edge ids as keys and returning the corresponding bond dimension.
+    /// * `ext` - Vector of Vector of external hyperedges
+    ///
+
+    pub fn push_tensors(
+        &mut self,
+        tensors: Vec<Tensor>,
+        bond_dims: Option<&HashMap<usize, u64>>,
+        ext: Option<&Vec<Vec<usize>>>,
+    ) {
+        if let Some(ext_edges) = ext {
+            for (ext_edge, tensor) in zip(ext_edges, tensors) {
+                self.push_tensor(tensor, bond_dims, Some(ext_edge))
+            }
+        } else {
+            for tensor in tensors {
+                self.push_tensor(tensor, bond_dims, None)
+            }
+        };
+    }
+
     /// Updates TensorNetwork object by contracting two tensors, replacing the first contracted tensor with the
     /// resulting tensor. `tn.edges` is then updated replacing all connections to the second tensor.
     ///
