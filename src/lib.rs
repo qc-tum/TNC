@@ -4,6 +4,7 @@
 #![feature(slice_pattern)]
 #![feature(map_many_mut)]
 
+pub mod circuits;
 pub mod contractionpath;
 pub mod io;
 pub mod qasm;
