@@ -1,7 +1,11 @@
 use rand::distributions::{Distribution, Uniform};
-use rand::Rng;
+use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 
+use crate::contractionpath::paths::{CostType, Greedy, OptimizePath};
+use crate::contractionpath::random_paths::RandomOptimizePath;
+use crate::random::tensorgeneration::random_sparse_tensor;
+use crate::tensornetwork::contraction::tn_contract;
 use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
 
 pub fn sycamore_circuit<R>(
@@ -14,7 +18,7 @@ pub fn sycamore_circuit<R>(
 where
     R: Rng + ?Sized,
 {
-    let sycamore_connect: HashMap<usize, usize> = HashMap::<usize, usize>::from([
+    let sycamore_connect: Vec<(usize, usize)> = vec![
         (0, 1),
         (0, 3),
         (1, 4),
@@ -101,7 +105,7 @@ where
         (49, 50),
         (50, 51),
         (50, 52),
-    ]);
+    ];
 
     let mut open_edges = HashMap::<usize, usize>::new();
 
@@ -109,7 +113,7 @@ where
     let mut sycamore_tn = TensorNetwork::empty_tensor_network();
     let mut sycamore_bonddims = HashMap::<usize, u64>::new();
     let mut tensors = Vec::<Tensor>::new();
-    for i in 0..(size - 1) {
+    for i in 0..size {
         tensors.push(Tensor::new(vec![i]));
         sycamore_bonddims.insert(i, 2);
         open_edges.insert(i, i);
@@ -118,8 +122,8 @@ where
     // Filter connectivity map
     let filtered_connectivity = sycamore_connect
         .iter()
-        .filter(|(&u, &v)| v < size)
-        .collect::<Vec<(&usize, &usize)>>();
+        .filter(|(u, v)| u < &size && v < &size)
+        .collect::<Vec<&(usize, usize)>>();
 
     let sqp = if let Some(mut sqp) = single_qubit {
         if sqp > 1.0 {
@@ -137,12 +141,11 @@ where
     } else {
         0.4
     };
-
     let mut next_edge = size;
     let uniform_prob = Uniform::new(0.0, 1.0);
     sycamore_tn.push_tensors(tensors, Some(&sycamore_bonddims), None);
     for _ in 1..round {
-        for i in 0..(size - 1) {
+        for i in 0..size {
             if rng.sample(uniform_prob) < sqp {
                 sycamore_bonddims.insert(next_edge, 2);
                 sycamore_tn.push_tensor(
@@ -154,7 +157,7 @@ where
                 next_edge += 1;
             }
         }
-        for (&i, &j) in filtered_connectivity.iter() {
+        for (i, j) in filtered_connectivity.iter() {
             if rng.sample(uniform_prob) < tqp {
                 sycamore_bonddims.insert(next_edge, 2);
                 sycamore_bonddims.insert(next_edge + 1, 2);
@@ -168,8 +171,8 @@ where
                     Some(&sycamore_bonddims),
                     None,
                 );
-                open_edges.entry(i).insert_entry(next_edge);
-                open_edges.entry(j).insert_entry(next_edge + 1);
+                open_edges.entry(*i).insert_entry(next_edge);
+                open_edges.entry(*j).insert_entry(next_edge + 1);
                 next_edge += 2;
             }
         }
@@ -177,4 +180,13 @@ where
     sycamore_tn
 }
 
-pub fn sycamore_contract(tn: TensorNetwork) {}
+pub fn sycamore_contract(tn: TensorNetwork) {
+    let mut opt = Greedy::new(&tn, CostType::Flops);
+    opt.random_optimize_path(32, &mut thread_rng());
+    let contract_path = opt.get_best_replace_path();
+    let mut d_tn = Vec::new();
+    for t in tn.get_tensors() {
+        d_tn.push(random_sparse_tensor(t, tn.get_bond_dims(), None));
+    }
+    let _d_tn = tn_contract(tn, d_tn, &contract_path);
+}
