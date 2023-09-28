@@ -2,6 +2,7 @@
 use array_tool::vec::{Intersect, Union};
 use std::collections::HashMap;
 use std::fmt::{self, Write};
+use std::iter::zip;
 use std::ops::{Index, IndexMut};
 use tetra::{contract, Tensor as DataTensor};
 
