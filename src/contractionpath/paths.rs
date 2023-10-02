@@ -186,7 +186,8 @@ impl<'a> BranchBound<'a> {
                 parent_tensors: _parent_tensor,
                 child_id,
                 child_tensor: _child_tensor,
-            }) = candidates.pop() else{
+            }) = candidates.pop()
+            else {
                 break;
             };
             new_remaining = remaining.clone();
@@ -366,19 +367,20 @@ impl<'a> Greedy<'a> {
         let either = k1 | k2;
         let two = k1 & k2;
         let one = &either - &two;
-        let out = &either & output;
 
-        let ref2 = if let Some(ref_count_3) = dim_tensor_counts.get(&3) {
-            &out | &(&two & &Tensor::new(ref_count_3.iter().cloned().collect_vec()))
+        let ref3 = if let Some(ref_count_3) = dim_tensor_counts.get(&3) {
+            Tensor::new(ref_count_3.iter().cloned().collect_vec())
         } else {
-            out
+            Tensor::new(vec![])
         };
 
-        let k12 = if let Some(ref_count_2) = dim_tensor_counts.get(&2) {
-            &ref2 | &(&one & &Tensor::new(ref_count_2.iter().cloned().collect_vec()))
+        let ref2 = if let Some(ref_count_2) = dim_tensor_counts.get(&2) {
+            Tensor::new(ref_count_2.iter().cloned().collect_vec())
         } else {
-            ref2
+            Tensor::new(vec![])
         };
+
+        let k12 = &(&(&either & output) | &(&two & &ref3)) | &(&one & &ref2);
 
         let size_k12 = _tensor_size(&k12, bond_dims);
 
@@ -450,9 +452,11 @@ impl<'a> Greedy<'a> {
         cost_fn: Box<CostFnType>,
     ) -> Vec<(usize, usize)> {
         let mut ssa_path = Vec::new();
+
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
         let mut remaining_tensors = HashMap::<Tensor, usize>::new();
         let mut next_ssa_id: usize = inputs.len();
+
         for (ssa_id, v) in inputs.iter().enumerate() {
             if remaining_tensors.contains_key(v) {
                 // greedily compute inner products
@@ -468,14 +472,12 @@ impl<'a> Greedy<'a> {
         let mut dim_to_tensors = HashMap::<usize, Vec<Tensor>>::new();
         for key in remaining_tensors.keys() {
             for dim in (key - output_dims).iter() {
-                // for dim in key.iter().filter(|e| !output.contains(e)) {
                 dim_to_tensors
                     .entry(*dim)
                     .and_modify(|entry| entry.push(key.clone()))
                     .or_insert(vec![key.clone()]);
             }
         }
-
         // Get dims that are contracted
         let mut dim_tensor_counts = HashMap::<usize, HashSet<usize>>::new();
         for i in 2..=3 {
@@ -486,7 +488,7 @@ impl<'a> Greedy<'a> {
                         .and_modify(|entry| {
                             entry.insert(*dim);
                         })
-                        .or_insert(HashSet::new());
+                        .or_default();
                 }
             }
         }
@@ -501,7 +503,7 @@ impl<'a> Greedy<'a> {
         for (_dim, key) in dim_to_tensors.iter() {
             let mut new_keys = key.clone();
             new_keys.sort_by_key(|a| a.get_legs().len());
-            for (i, k1) in new_keys[0..new_keys.len() - 1].iter().enumerate() {
+            for (i, k1) in new_keys[0..new_keys.len()].iter().enumerate() {
                 let k2s = new_keys[(i + 1)..new_keys.len()].iter().collect_vec();
                 Greedy::_push_candidate(
                     output_dims,
@@ -527,21 +529,22 @@ impl<'a> Greedy<'a> {
                 &mut thread_rng(),
             );
             let Some(Candidate {
-                    flop_cost: 0,
-                    size_cost: _cost,
-                    parent_ids: (_id1, _id2),
-                    parent_tensors: Some((k1, k2)),
-                    child_id: 0,
-                    child_tensor: Some(k12)
-                }) = candidate else{
-                    continue;
-                };
+                flop_cost: 0,
+                size_cost: _cost,
+                parent_ids: (_id1, _id2),
+                parent_tensors: Some((k1, k2)),
+                child_id: 0,
+                child_tensor: Some(k12),
+            }) = candidate
+            else {
+                continue;
+            };
 
-            let Some(ssa_id1) = remaining_tensors.get(&k1) else{
+            let Some(ssa_id1) = remaining_tensors.get(&k1) else {
                 panic!("SSA ID '{:?}' missing", k1)
             };
 
-            let Some(ssa_id2) = remaining_tensors.get(&k2) else{
+            let Some(ssa_id2) = remaining_tensors.get(&k2) else {
                 panic!("SSA ID '{:?}' missing", k2)
             };
 
@@ -618,7 +621,6 @@ impl<'a> Greedy<'a> {
             }
         }
 
-        let mut heap = BinaryHeap::new();
         for (key, ssa_id) in remaining_tensors {
             let candidate = Candidate {
                 flop_cost: 0,
@@ -628,7 +630,7 @@ impl<'a> Greedy<'a> {
                 child_id: 0,
                 child_tensor: None,
             };
-            heap.push(candidate);
+            queue.push(candidate);
         }
 
         let Some(Candidate {
@@ -638,7 +640,8 @@ impl<'a> Greedy<'a> {
             parent_tensors: Some((k1, _k2)),
             child_id: 0,
             child_tensor: None,
-        }) = queue.pop() else{
+        }) = queue.pop()
+        else {
             return ssa_path;
         };
 
@@ -650,12 +653,13 @@ impl<'a> Greedy<'a> {
                 parent_tensors: Some((k2, _k2)),
                 child_id: _child_id,
                 child_tensor: _child_tensor,
-            }) = queue.pop() else{
+            }) = queue.pop()
+            else {
                 continue;
             };
-
             ssa_path.push((min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2)));
             let k12 = &(&k1 | &k2) & output_dims;
+
             let cost = _tensor_size(&k12, bond_dims) as i64;
             queue.push(Candidate {
                 flop_cost: 0,
@@ -668,12 +672,13 @@ impl<'a> Greedy<'a> {
             let Some(Candidate {
                 flop_cost: _flop_cost,
                 size_cost: _cost,
-                parent_ids: (ssa_id1, _id2),
-                parent_tensors: Some((k1, _k2)),
+                parent_ids: (_ssa_id1, _id2),
+                parent_tensors: Some((_k1, _k2)),
                 child_id: _child_id,
                 child_tensor: _child_tensor,
-            }) = queue.pop() else{
-                continue
+            }) = queue.pop()
+            else {
+                continue;
             };
         }
         ssa_path
