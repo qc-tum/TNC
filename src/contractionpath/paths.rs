@@ -367,19 +367,20 @@ impl<'a> Greedy<'a> {
         let either = k1 | k2;
         let two = k1 & k2;
         let one = &either - &two;
-        let out = &either & output;
 
-        let ref2 = if let Some(ref_count_3) = dim_tensor_counts.get(&3) {
-            &out | &(&two & &Tensor::new(ref_count_3.iter().cloned().collect_vec()))
+        let ref3 = if let Some(ref_count_3) = dim_tensor_counts.get(&3) {
+            Tensor::new(ref_count_3.iter().cloned().collect_vec())
         } else {
-            out
+            Tensor::new(vec![])
         };
 
-        let k12 = if let Some(ref_count_2) = dim_tensor_counts.get(&2) {
-            &ref2 | &(&one & &Tensor::new(ref_count_2.iter().cloned().collect_vec()))
+        let ref2 = if let Some(ref_count_2) = dim_tensor_counts.get(&2) {
+            Tensor::new(ref_count_2.iter().cloned().collect_vec())
         } else {
-            ref2
+            Tensor::new(vec![])
         };
+
+        let k12 = &(&(&either & output) | &(&two & &ref3)) | &(&one & &ref2);
 
         let size_k12 = _tensor_size(&k12, bond_dims);
 
@@ -620,6 +621,7 @@ impl<'a> Greedy<'a> {
             }
         }
 
+        let mut heap = BinaryHeap::new();
         for (key, ssa_id) in remaining_tensors {
             let candidate = Candidate {
                 flop_cost: 0,
