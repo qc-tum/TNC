@@ -503,7 +503,7 @@ impl<'a> Greedy<'a> {
         for (_dim, key) in dim_to_tensors.iter() {
             let mut new_keys = key.clone();
             new_keys.sort_by_key(|a| a.get_legs().len());
-            for (i, k1) in new_keys[0..new_keys.len() - 1].iter().enumerate() {
+            for (i, k1) in new_keys[0..new_keys.len()].iter().enumerate() {
                 let k2s = new_keys[(i + 1)..new_keys.len()].iter().collect_vec();
                 Greedy::_push_candidate(
                     output_dims,
