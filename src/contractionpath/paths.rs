@@ -618,7 +618,6 @@ impl<'a> Greedy<'a> {
             }
         }
 
-        let mut heap = BinaryHeap::new();
         for (key, ssa_id) in remaining_tensors {
             let candidate = Candidate {
                 flop_cost: 0,
@@ -628,7 +627,7 @@ impl<'a> Greedy<'a> {
                 child_id: 0,
                 child_tensor: None,
             };
-            heap.push(candidate);
+            queue.push(candidate);
         }
 
         let Some(Candidate {
