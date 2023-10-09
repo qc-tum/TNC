@@ -8,6 +8,7 @@ use tetra::{contract, Tensor as DataTensor};
 
 pub mod contraction;
 pub mod feynman;
+pub mod partitioning;
 pub mod tensor;
 
 use tensor::Tensor;
@@ -29,6 +30,8 @@ pub struct TensorNetwork {
     edges: HashMap<usize, Vec<Option<usize>>>,
     /// List of external dimensions that remain after contraction.
     ext_edges: Vec<usize>,
+    /// Partitioning for contraction
+    partitioning: Vec<i32>,
 }
 
 /// Helper function that returns the largest edge id of all Tensors in a TensorNetwork.
@@ -74,6 +77,7 @@ impl TensorNetwork {
             bond_dims: HashMap::new(),
             edges: HashMap::new(),
             ext_edges: Vec::new(),
+            partitioning: Vec::new(),
         }
     }
 
@@ -336,6 +340,7 @@ impl TensorNetwork {
             bond_dims,
             edges,
             ext_edges,
+            partitioning: Vec::new(),
         }
     }
 
