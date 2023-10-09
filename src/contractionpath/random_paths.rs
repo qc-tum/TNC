@@ -128,7 +128,9 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
 
 #[cfg(test)]
 mod tests {
+    use rand::rngs::StdRng;
     use rand::thread_rng;
+    use rand::SeedableRng;
 
     use crate::contractionpath::paths::CostType;
     // use rand::distributions::{Distribution, Uniform};
@@ -178,9 +180,10 @@ mod tests {
     }
     #[test]
     fn test_contract_order_greedy_complex() {
+        let mut r = StdRng::seed_from_u64(42);
         let tn = setup_complex();
         let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.random_optimize_path(32, &mut thread_rng());
+        opt.random_optimize_path(32, &mut r);
 
         assert_eq!(opt.best_flops, 528750);
         assert_eq!(opt.best_size, 89478);
