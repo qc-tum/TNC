@@ -26,9 +26,6 @@ kahypar-sys = { git = "ssh://gitlab.lrz.de/quantum-research/kahypar-sys", versio
 [dev-dependencies]
 tux = "0.2.2"
 
-[net]
-CARGO_NET_GIT_FETCH_WITH_CLI = true
-
 [[bench]]
 name = "benchmarks"
 harness = false
