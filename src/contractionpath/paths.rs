@@ -321,6 +321,7 @@ impl<'a> Greedy<'a> {
         size12 - size1 - size2
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn _push_candidate(
         output: &Tensor,
         bond_dims: &HashMap<usize, u64>,
@@ -354,6 +355,7 @@ impl<'a> Greedy<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn _get_candidate<'b>(
         output: &Tensor,
         bond_dims: &HashMap<usize, u64>,
