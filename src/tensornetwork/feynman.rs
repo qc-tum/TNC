@@ -124,6 +124,7 @@ pub fn feynman_scatter(
             bond_dims: tn.get_bond_dims().clone(),
             edges: tn.get_edges().clone(),
             ext_edges: tn.get_ext_edges().clone(),
+            partitioning: Vec::new(),
         },
         FeynmanContractionData {
             feynman_indices: feynman_indices.to_vec(),
