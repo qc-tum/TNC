@@ -18,6 +18,8 @@ random = "0.14.0"
 antlr-rust = "0.3.0-beta"
 float-cmp = "0.9.0"
 tetra = { git = "ssh://gitlab.lrz.de/quantum-research/tetra", branch = "main" }
+kahypar-sys = { git = "ssh://gitlab.lrz.de/quantum-research/kahypar-sys", version = "0.1.0" }
+
 
 [dev-dependencies]
 tux = "0.2.2"
