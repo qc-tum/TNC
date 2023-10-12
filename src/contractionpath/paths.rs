@@ -771,21 +771,20 @@ impl<'a> OptimizePath for Greedy<'a> {
         }
 
         let partition = self.tn.get_partitioning();
-        assert!(partition.iter().max().unwrap() == &(k - 1));
+        assert!(partition.iter().max().unwrap() >= &k);
         let inputs: Vec<Tensor> = self
             .tn
             .get_tensors()
             .iter()
             .enumerate()
             .filter_map(|(i, e)| {
-                if partition[i] == k - 1 {
+                if partition[i] == k {
                     Some(e.clone())
                 } else {
                     None
                 }
             })
             .collect();
-
         // Vector of output leg ids
         let output_dims = Tensor::new(self.tn.get_ext_edges().clone());
         // Dictionary that maps leg id to bond dimension
@@ -804,7 +803,7 @@ impl<'a> OptimizePath for Greedy<'a> {
             .iter()
             .enumerate()
             .filter_map(|(i, e)| {
-                if partition[i] == k - 1 {
+                if partition[i] == k {
                     Some(e.clone())
                 } else {
                     None
@@ -843,7 +842,7 @@ impl<'a> OptimizePath for Greedy<'a> {
             self.tn
                 .get_partitioning()
                 .iter()
-                .filter(|e| **e == (k - 1) as i32)
+                .filter(|e| **e == k as i32)
                 .count(),
         )
     }
@@ -992,7 +991,7 @@ mod tests {
         let mut tn = setup_complex_simple();
         tn.set_partitioning(vec![1, 1, 1, 0, 0, 0]);
         let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.optimize_partitioned_path(2);
+        opt.optimize_partitioned_path(1);
         assert_eq!(opt.best_flops, 600);
         assert_eq!(opt.best_size, 538);
         assert_eq!(opt.get_best_partition_replace_path(2), vec![(0, 1), (2, 0)]);
