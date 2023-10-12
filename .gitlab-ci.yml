@@ -95,7 +95,7 @@ build:
   # Report on the used Rust version
   - rustc --version
   # Build the project
-  - cargo build -vv --color always
+  - RUST_BACKTRACE=1 cargo build -vv --color always
 
   artifacts:
     paths:
