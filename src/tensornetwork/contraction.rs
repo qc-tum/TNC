@@ -102,38 +102,38 @@ pub fn tn_contract(
 /// tn_contract(r_tn, d_tn, &opt_path);
 /// ```
 pub fn tn_contract_partition(
-    mut tn: TensorNetwork,
-    mut d_tn: Vec<DataTensor>,
+    tn: &mut TensorNetwork,
+    d_tn: &mut [DataTensor],
     partition: i32,
     contract_path: &Vec<(usize, usize)>,
-) -> (TensorNetwork, Vec<DataTensor>) {
-    let mut partition_mask = tn.get_partitioning().iter().map(|&e| e == partition - 1);
+) -> usize {
+    let mut partition_mask = tn.get_partitioning().iter().map(|&e| e == partition);
     let mut partition_indices: Vec<i32> = (0..tn.get_tensors().len() as i32).collect::<Vec<i32>>();
     partition_indices.retain(|&_| partition_mask.next().unwrap());
     let mut partition_map = HashMap::new();
     for (i, &j) in partition_indices.iter().enumerate() {
-        partition_map.entry(j as usize).or_insert(i);
+        partition_map.entry(i).or_insert(j as usize);
     }
     let mut last_index = 0;
     for (i, j) in contract_path {
-        let a_legs = tn[*i]
+        let partition_i = partition_map[i];
+        let partition_j = partition_map[j];
+        let a_legs = tn[partition_i]
             .get_legs()
             .iter()
             .map(|e| *e as u32)
             .collect::<Vec<u32>>();
-        let b_legs = tn[*j]
+        let b_legs = tn[partition_j]
             .get_legs()
             .iter()
             .map(|e| *e as u32)
             .collect::<Vec<u32>>();
-        let (_tensor_intersection, tensor_difference) = tn._contraction(*i, *j);
+        let (_tensor_intersection, tensor_difference) = tn._contraction(partition_i, partition_j);
         let out_legs = tensor_difference
             .iter()
             .map(|e| *e as u32)
             .collect::<Vec<u32>>();
-        let partition_i = partition_map[i];
-        let partition_j = partition_map[j];
-        d_tn[*i] = contract(
+        d_tn[partition_i] = contract(
             &out_legs,
             &a_legs,
             &d_tn[partition_i],
@@ -143,9 +143,9 @@ pub fn tn_contract_partition(
         d_tn[partition_j] = DataTensor::new(&[1]);
         last_index = partition_i;
     }
-    d_tn.swap(0, last_index);
-    d_tn.drain(1..d_tn.len());
-    (tn, d_tn)
+    last_index
+    // d_tn.swap(0, last_index);
+    // d_tn.drain(1..d_tn.len());
 }
 
 /// Fully contracts an input TensorNetwork and determines the output tensor shape a given contraction path using repeated SSA format.
