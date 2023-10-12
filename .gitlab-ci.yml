@@ -32,6 +32,7 @@ stages:
   ## Collect SSH RSA public key from gitlab and add them to the known_hosts file
   ## 
   - ssh-keyscan -H gitlab.lrz.de >> ~/.ssh/known_hosts
+  - cd /usr/lib/x86_64-linux-gnu/ && ls -al
 
 default:
   tags:
@@ -92,7 +93,6 @@ build:
   script:
   # Report on the used Rust version
   - rustc --version
-  - '[ -d "/usr/lib/x86_64-linux-gnu/" ] && echo "Directory /path/dir/ exists."'
   # Build the project
   - cargo build -vv --color always
 
