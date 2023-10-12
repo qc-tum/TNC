@@ -465,8 +465,8 @@ mod tests {
         tn.set_partitioning(vec![1, 0, 1, 0, 1]);
 
         let contract_path = vec![(0, 2), (0, 4)];
-
-        let (_tn, d_tn) = tn_contract_partition(tn, vec![tc1, tc3, tc5], 2, &contract_path);
+        let mut d_tn = vec![tc1, tc3, tc5];
+        tn_contract_partition(&mut tn, &mut d_tn, 2, &contract_path);
         let range = tcout
             .shape()
             .iter()
