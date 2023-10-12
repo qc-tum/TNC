@@ -92,6 +92,7 @@ build:
   script:
   # Report on the used Rust version
   - rustc --version
+  - ll /usr/lib/x86_64-linux-gnu/ | grep "libboost*"
 
   # Build the project
   - cargo build -vv --color always
