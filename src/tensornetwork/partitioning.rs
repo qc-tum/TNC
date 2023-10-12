@@ -85,7 +85,7 @@ mod tests {
             &mut partitioning,
             &mut tn,
             2,
-            std::string::String::from("tests/km1_rKaHyPar_sea20.ini"),
+            std::string::String::from("test/km1_rKaHyPar_sea20.ini"),
         );
         assert_eq!(tn.partitioning, [1, 1, 0, 0, 0, 1]);
     }

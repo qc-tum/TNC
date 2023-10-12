@@ -56,7 +56,7 @@ mod tests {
 
     #[test]
     fn test_open_hdf5() {
-        let (r_tn, d_tn) = open_hdf5("tests/bell_circuit_tensornet.hdf5").unwrap();
+        let (r_tn, d_tn) = open_hdf5("test/bell_circuit_tensornet.hdf5").unwrap();
 
         let ref_hadamard = vec![
             Complex64::new(0.7071067811865475, 0.0),
