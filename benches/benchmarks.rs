@@ -99,5 +99,5 @@ pub fn partition_benchmark(c: &mut Criterion) {
     mul_group.finish();
 }
 
-criterion_group!(benches, sycamore_benchmark);
+criterion_group!(benches, partition_benchmark, criterion_benchmark);
 criterion_main!(benches);
