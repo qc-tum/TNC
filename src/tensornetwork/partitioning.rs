@@ -20,8 +20,9 @@ pub fn partition_tn(
     let mut hyperedge_weights = vec![];
     let mut hyperedge_indices = vec![0];
     let mut hyperedges = vec![];
-    for (edge_weight, tensor_ids) in tn.get_edges().clone() {
-        hyperedge_weights.push(edge_weight as i32);
+    let bond_dims = tn.get_bond_dims();
+    for (edges, tensor_ids) in tn.get_edges().clone() {
+        hyperedge_weights.push(bond_dims[&edges] as i32);
         let mut length = 0;
         for id in tensor_ids {
             if id.is_some() {
