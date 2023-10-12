@@ -89,8 +89,6 @@ check:fmt:
 build:
   stage: main
   extends: .rust-default
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
   script:
   # Report on the used Rust version
   - rustc --version
