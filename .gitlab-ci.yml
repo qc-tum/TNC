@@ -41,9 +41,9 @@ default:
 
 docker:build:
   stage: docker
-  image: docker:20-dind
+  image: docker:24-dind
   services:
-  - name: docker:20-dind
+  - name: docker:24-dind
     command: ["--tls=false"]
   variables:
     DOCKER_HOST: tcp://docker:2375/
