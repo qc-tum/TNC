@@ -32,7 +32,8 @@ stages:
   ## Collect SSH RSA public key from gitlab and add them to the known_hosts file
   ## 
   - ssh-keyscan -H gitlab.lrz.de >> ~/.ssh/known_hosts
-  - cd /usr/lib/x86_64-linux-gnu/ && ls -al
+  - apt-get update
+  - apt-get install -y libboost-all-dev
 
 default:
   tags:
