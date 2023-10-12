@@ -83,8 +83,7 @@ build:
   script:
   # Report on the used Rust version
   - rustc --version
-  - ls -al /usr/lib/x86_64-linux-gnu/ | grep "libboost*"
-
+  - '[ -d "/usr/lib/x86_64-linux-gnu/" ] && echo "Directory /path/dir/ exists."'
   # Build the project
   - cargo build -vv --color always
 
