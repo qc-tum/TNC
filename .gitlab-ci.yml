@@ -54,10 +54,19 @@ docker:build:
   script:
   - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER $CI_REGISTRY --password-stdin
   - IMG=$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
-  - IMG_DEF=$CI_REGISTRY_IMAGE:$CI_DEFAULT_BRANCH
-  - BOLD='\033[1;37m'
-  - RESET='\033[0m'
-  - if docker pull $IMG ; then echo -e "${BOLD}Using previous '${IMG}' image as cache${RESET}"; docker build --cache-from $IMG --tag $IMG . ; elif docker pull $IMG_DEF ; then echo -e "${BOLD}Using default '${IMG_DEF}' image as cache${RESET}"; docker build --cache-from $IMG_DEF --tag $IMG . ; else echo -e "${BOLD}No image to use as cache for building available${RESET}"; docker build --tag $IMG . ; fi;
+  # - IMG_DEF=$CI_REGISTRY_IMAGE:$CI_DEFAULT_BRANCH
+  # - BOLD='\033[1;37m'
+  # - RESET='\033[0m'
+  # - if docker pull $IMG ; then
+  #     echo -e "${BOLD}Using previous '${IMG}' image as cache${RESET}";
+  #     docker build --cache-from $IMG --tag $IMG . ;
+  #   elif docker pull $IMG_DEF ; then
+  #     echo -e "${BOLD}Using default '${IMG_DEF}' image as cache${RESET}";
+  #     docker build --cache-from $IMG_DEF --tag $IMG . ;
+  #   else
+  # echo -e "${BOLD}No image to use as cache for building available${RESET}";
+  - docker build --tag $IMG . ;
+  # fi;
   - docker push $IMG
   rules:
   - if: $CI_COMMIT_BRANCH
