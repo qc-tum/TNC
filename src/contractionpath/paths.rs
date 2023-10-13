@@ -993,6 +993,6 @@ mod tests {
         opt.optimize_partitioned_path(1);
         assert_eq!(opt.best_flops, 600);
         assert_eq!(opt.best_size, 538);
-        assert_eq!(opt.get_best_partition_replace_path(2), vec![(0, 1), (2, 0)]);
+        assert_eq!(opt.get_best_partition_replace_path(1), vec![(0, 1), (2, 0)]);
     }
 }
