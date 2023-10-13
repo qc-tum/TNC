@@ -34,6 +34,8 @@ stages:
   - ssh-keyscan -H gitlab.lrz.de >> ~/.ssh/known_hosts
   - apt-get update
   - apt-get install -y libboost-all-dev
+  - apt-get install -qq build-essential clang cmake gfortran libopenblas-dev libssl-dev libhdf5-dev pkg-config
+
 
 default:
   tags:
