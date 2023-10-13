@@ -92,7 +92,7 @@ build:
   - rustc --version
 
   # Build the project
-  - cargo build -vv --color always
+  - cargo build -vv --color always --all-features
 
   artifacts:
     paths:
@@ -103,7 +103,7 @@ build:docs:
   stage: main
   extends: .rust-default
   script:
-  - cargo doc --color always --no-deps
+  - cargo doc --color always --no-deps --all-features
   artifacts:
     paths:
     - target/doc
@@ -115,7 +115,7 @@ test:
   needs:
   - build
   script:
-  - RUST_BACKTRACE=1 cargo test --color always --workspace --no-fail-fast
+  - RUST_BACKTRACE=1 cargo test --color always --workspace --all-features --no-fail-fast
 
 pages:
   stage: main

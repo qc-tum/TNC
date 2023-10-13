@@ -10,7 +10,7 @@ array_tool = "1.0.3"
 criterion = "0.4.0"
 hdf5 = { version = "0.8.1", features = [
     "complex",
-], git = "https://github.com/keefehuang/hdf5-rust.git", branch = "feature/complex" }
+], git = "https://github.com/keefehuang/hdf5-rust.git", branch = "feature/complex", optional = true }
 itertools = "0.10.5"
 linked_hash_set = "0.1.4"
 log = "0.4.17"
