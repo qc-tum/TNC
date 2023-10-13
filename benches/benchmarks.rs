@@ -3,8 +3,14 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::time::Duration;
 use tensorcontraction::{
     circuits::sycamore::{sycamore_circuit, sycamore_contract},
+    contractionpath::paths::{CostType, Greedy, OptimizePath},
     random::tensorgeneration::random_sparse_tensor_with_rng,
-    tensornetwork::{contraction::tn_contract, tensor::Tensor, TensorNetwork},
+    tensornetwork::{
+        contraction::{tn_contract, tn_contract_partition},
+        partitioning::partition_tn,
+        tensor::Tensor,
+        TensorNetwork,
+    },
 };
 
 #[allow(dead_code)]
