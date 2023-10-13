@@ -452,6 +452,9 @@ mod tests {
             d3,
             Some(tetra::Layout::RowMajor),
         );
+
+        let tc2 = DataTensor::new(&[0]);
+        let tc4 = DataTensor::new(&[0]);
         let tcout = DataTensor::new_from_flat(
             &(tout
                 .iter()
@@ -464,9 +467,9 @@ mod tests {
         let mut tn = TensorNetwork::new(vec![t1, t2, t3, t4, t5], bond_dims, None);
         tn.set_partitioning(vec![1, 0, 1, 0, 1]);
 
-        let contract_path = vec![(0, 2), (0, 4)];
-        let mut d_tn = vec![tc1, tc3, tc5];
-        tn_contract_partition(&mut tn, &mut d_tn, 2, &contract_path);
+        let contract_path = vec![(0, 1), (0, 2)];
+        let mut d_tn = vec![tc1, tc2, tc3, tc4, tc5];
+        tn_contract_partition(&mut tn, &mut d_tn, 1, &contract_path);
         let range = tcout
             .shape()
             .iter()
