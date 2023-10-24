@@ -15,7 +15,6 @@ use crate::contractionpath::{
     ssa_ordering, ssa_replace_ordering,
 };
 use crate::tensornetwork::tensor::Tensor;
-use crate::tensornetwork::TensorNetwork;
 
 pub trait OptimizePath {
     fn optimize_path(&mut self);
@@ -33,7 +32,7 @@ pub enum CostType {
 
 /// A struct with an OptimizePath implementation that explores possible pair contractions in a depth-first manner.
 pub struct BranchBound<'a> {
-    tn: &'a TensorNetwork,
+    tn: &'a Tensor,
     nbranch: Option<u32>,
     cutoff_flops_factor: u64,
     minimize: CostType,
@@ -49,7 +48,7 @@ pub struct BranchBound<'a> {
 
 impl<'a> BranchBound<'a> {
     pub fn new(
-        tn: &'a TensorNetwork,
+        tn: &'a Tensor,
         nbranch: Option<u32>,
         cutoff_flops_factor: u64,
         minimize: CostType,
@@ -118,12 +117,12 @@ impl<'a> BranchBound<'a> {
                 flops_12 = _contract_cost(
                     &self.tensor_cache[&i],
                     &self.tensor_cache[&j],
-                    self.tn.get_bond_dims(),
+                    &self.tn.get_bond_dims(),
                 );
                 (k12_tensor, size_12) = _contract_size(
                     &self.tensor_cache[&i],
                     &self.tensor_cache[&j],
-                    self.tn.get_bond_dims(),
+                    &self.tn.get_bond_dims(),
                 );
                 self.result_cache.entry(vec![i, j]).or_insert(k12);
                 self.flop_cache.entry(k12).or_insert(flops_12);
@@ -255,7 +254,7 @@ type ChoiceFnType = dyn for<'b, 'c> Fn(
 ) -> Option<Candidate>;
 
 pub struct Greedy<'a> {
-    pub(crate) tn: &'a TensorNetwork,
+    pub(crate) tn: &'a Tensor,
     minimize: CostType,
     pub(crate) best_flops: u64,
     pub(crate) best_size: u64,
@@ -264,7 +263,7 @@ pub struct Greedy<'a> {
 }
 
 impl<'a> Greedy<'a> {
-    pub fn new(tn: &'a TensorNetwork, minimize: CostType) -> Self {
+    pub fn new(tn: &'a Tensor, minimize: CostType) -> Self {
         Self {
             tn,
             minimize,
@@ -416,7 +415,7 @@ impl<'a> Greedy<'a> {
         dim_tensor_counts: &mut HashMap<usize, HashSet<usize>>,
         dims: &Tensor,
     ) {
-        for dim in dims.iter().cloned() {
+        for dim in dims.get_legs().iter().cloned() {
             let count = dim_to_tensors[&dim].len();
             if count <= 1 {
                 dim_tensor_counts.entry(2).and_modify(|e| {
@@ -471,7 +470,7 @@ impl<'a> Greedy<'a> {
         // Dictionary that maps leg id to tensor
         let mut dim_to_tensors = HashMap::<usize, Vec<Tensor>>::new();
         for key in remaining_tensors.keys() {
-            for dim in (key - output_dims).iter() {
+            for dim in (key - output_dims).get_legs().iter() {
                 dim_to_tensors
                     .entry(*dim)
                     .and_modify(|entry| entry.push(key.clone()))
@@ -548,7 +547,7 @@ impl<'a> Greedy<'a> {
                 panic!("SSA ID '{:?}' missing", k2)
             };
 
-            for dim in (&k1 - output_dims).iter().cloned() {
+            for dim in (&k1 - output_dims).get_legs().iter().cloned() {
                 dim_to_tensors.entry(dim).and_modify(|e| {
                     let index = e.iter().position(|x| *x == k1);
                     if let Some(index) = index {
@@ -557,7 +556,7 @@ impl<'a> Greedy<'a> {
                 });
             }
 
-            for dim in (&k2 - output_dims).iter().cloned() {
+            for dim in (&k2 - output_dims).get_legs().iter().cloned() {
                 dim_to_tensors.entry(dim).and_modify(|e| {
                     let index = e.iter().position(|x| *x == k2);
                     if let Some(index) = index {
@@ -578,7 +577,7 @@ impl<'a> Greedy<'a> {
                 ssa_path.push((remaining_tensors[&k12], next_ssa_id));
                 next_ssa_id += 1;
             } else {
-                for dim in (&k12 - output_dims).iter().cloned() {
+                for dim in (&k12 - output_dims).get_legs().iter().cloned() {
                     dim_to_tensors
                         .entry(dim)
                         .and_modify(|e| e.push(k12.clone()));
@@ -599,7 +598,7 @@ impl<'a> Greedy<'a> {
             let k1 = k12;
 
             let mut k2s = Vec::new();
-            for dim in (&k1 - output_dims).iter() {
+            for dim in (&k1 - output_dims).get_legs().iter() {
                 for k2 in dim_to_tensors[dim].iter() {
                     if k2 != &k1 {
                         k2s.push(k2);
@@ -697,20 +696,20 @@ impl<'a> OptimizePath for Greedy<'a> {
         let inputs: Vec<Tensor> = self.tn.get_tensors().clone();
 
         // Vector of output leg ids
-        let output_dims = Tensor::new(self.tn.get_ext_edges().clone());
+        let output_dims = Tensor::new(self.tn.get_external_edges().clone());
         // Dictionary that maps leg id to bond dimension
         let bond_dims = self.tn.get_bond_dims();
         self.best_path = self._ssa_greedy_optimize(
             &inputs,
             &output_dims,
-            bond_dims,
+            &bond_dims,
             Box::new(&Greedy::_simple_chooser),
             Box::new(&Greedy::_cost_memory_removed),
         );
         let (op_cost, mem_cost) = _contract_path_cost(
             self.tn.get_tensors(),
             &self.get_best_replace_path(),
-            self.tn.get_bond_dims(),
+            &self.tn.get_bond_dims(),
         );
         self.best_size = mem_cost;
         self.best_flops = op_cost;
@@ -743,23 +742,23 @@ mod tests {
     use crate::contractionpath::paths::CostType;
     use crate::contractionpath::paths::Greedy;
     use crate::contractionpath::paths::OptimizePath;
+    use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
-    use crate::tensornetwork::TensorNetwork;
 
-    fn setup_simple() -> TensorNetwork {
-        TensorNetwork::from_vector(
+    fn setup_simple() -> Tensor {
+        create_tensor_network(
             vec![
                 Tensor::new(vec![4, 3, 2]),
                 Tensor::new(vec![0, 1, 3, 2]),
                 Tensor::new(vec![4, 5, 6]),
             ],
-            vec![5, 2, 6, 8, 1, 3, 4],
+            &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
             None,
         )
     }
 
-    fn setup_complex() -> TensorNetwork {
-        TensorNetwork::from_vector(
+    fn setup_complex() -> Tensor {
+        create_tensor_network(
             vec![
                 Tensor::new(vec![4, 3, 2]),
                 Tensor::new(vec![0, 1, 3, 2]),
@@ -768,7 +767,21 @@ mod tests {
                 Tensor::new(vec![10, 8, 9]),
                 Tensor::new(vec![5, 1, 0]),
             ],
-            vec![27, 18, 12, 15, 5, 3, 18, 22, 45, 65, 5, 17],
+            &[
+                (0, 27),
+                (1, 18),
+                (2, 12),
+                (3, 15),
+                (4, 5),
+                (5, 3),
+                (6, 18),
+                (7, 22),
+                (8, 45),
+                (9, 65),
+                (10, 5),
+                (11, 17),
+            ]
+            .into(),
             None,
         )
     }

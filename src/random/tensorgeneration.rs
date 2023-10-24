@@ -1,5 +1,6 @@
+use crate::tensornetwork::create_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
-use crate::tensornetwork::TensorNetwork;
+use crate::tensornetwork::tensordata::TensorData;
 use itertools::Itertools;
 use num_complex::Complex64;
 use rand::distributions::{Distribution, Uniform};
@@ -75,21 +76,17 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
 /// # use tensorcontraction::random::tensorgeneration::{random_tensor, random_sparse_tensor_with_rng};
 /// # use std::collections::HashMap;
 /// let legs = 4;
-/// let tensor = random_tensor(legs);
-/// let bond_dims = HashMap::from([
-/// (0, 17), (1, 19), (2, 12), (3, 12)
-/// ]);
+/// let (mut tensor, bond_dims) = random_tensor(legs);
 ///
-/// let r_tensor = random_sparse_tensor_with_rng(&tensor.0, &bond_dims, None, &mut rand::thread_rng());
+/// random_sparse_tensor_with_rng(&mut tensor, &bond_dims, None, &mut rand::thread_rng());
 ///
 /// ```
 pub fn random_sparse_tensor_with_rng<R>(
-    t: &Tensor,
+    t: &mut Tensor,
     bond_dims: &HashMap<usize, u64>,
     sparsity: Option<f32>,
     rng: &mut R,
-) -> DataTensor
-where
+) where
     R: Rng + ?Sized,
 {
     let sparsity = if let Some(sparsity) = sparsity {
@@ -120,7 +117,7 @@ where
         nnz += 1;
     }
 
-    tensor
+    t.set_tensor_data(TensorData::Matrix(tensor));
 }
 
 /// Generates random sparse DataTensor object with same dimenions as Tensor object `t`
@@ -138,23 +135,20 @@ where
 /// # use tensorcontraction::random::tensorgeneration::{random_tensor, random_sparse_tensor};
 /// # use std::collections::HashMap;
 /// let legs = 4;
-/// let tensor = random_tensor(legs);
-/// let bond_dims = HashMap::from([
-/// (0, 17), (1, 19), (2, 12), (3, 12)
-/// ]);
+/// let (mut tensor, bond_dims) = random_tensor(legs);
 ///
-/// let r_tensor = random_sparse_tensor(&tensor.0, &bond_dims, None);
+/// let r_tensor = random_sparse_tensor(&mut tensor, &bond_dims, None);
 ///
 /// ```
 pub fn random_sparse_tensor(
-    t: &Tensor,
+    t: &mut Tensor,
     bond_dims: &HashMap<usize, u64>,
     sparsity: Option<f32>,
-) -> DataTensor {
+) {
     random_sparse_tensor_with_rng(t, bond_dims, sparsity, &mut rand::thread_rng())
 }
 
-/// Generates random [TensorNetwork] objects based on a quantum circuit with `n` qubits and `cycles` layers of
+/// Generates random [Tensor] objects based on a quantum circuit with `n` qubits and `cycles` layers of
 /// randomly generated 1- or 2-qubit gates.
 ///
 ///
@@ -172,7 +166,7 @@ pub fn random_sparse_tensor(
 /// let r_tn = random_tensor_network_with_rng(4, 5, &mut rand::thread_rng());
 ///
 /// ```
-pub fn random_tensor_network_with_rng<R>(n: usize, cycles: usize, rng: &mut R) -> TensorNetwork
+pub fn random_tensor_network_with_rng<R>(n: usize, cycles: usize, rng: &mut R) -> Tensor
 where
     R: Rng + ?Sized,
 {
@@ -220,9 +214,9 @@ where
         bond_dims.entry(i).or_insert(bond_die.sample(rng));
     }
 
-    let t = TensorNetwork::new(
+    let t = create_tensor_network(
         tensors.into_iter().map(Tensor::new).collect(),
-        bond_dims,
+        &bond_dims,
         None,
     );
     if t.is_empty() {
@@ -231,7 +225,7 @@ where
     t
 }
 
-/// Generates random [TensorNetwork] objects based on a quantum circuit with `n` qubits and `cycles` layers of
+/// Generates random [Tensor] objects based on a quantum circuit with `n` qubits and `cycles` layers of
 /// randomly generated 1- or 2-qubit gates. Uses the thread-local random number generator.
 ///
 ///
@@ -248,6 +242,6 @@ where
 /// let r_tn = random_tensor_network(4, 5);
 ///
 /// ```
-pub fn random_tensor_network(n: usize, cycles: usize) -> TensorNetwork {
+pub fn random_tensor_network(n: usize, cycles: usize) -> Tensor {
     random_tensor_network_with_rng(n, cycles, &mut rand::thread_rng())
 }

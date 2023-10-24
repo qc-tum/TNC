@@ -99,7 +99,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
     {
         let inputs: Vec<Tensor> = self.tn.get_tensors().clone();
 
-        let output_dims = Tensor::new(self.tn.get_ext_edges().clone());
+        let output_dims = Tensor::new(self.tn.get_external_edges().clone());
 
         // Dictionary that maps leg id to bond dimension
         let bond_dims = self.tn.get_bond_dims();
@@ -107,14 +107,14 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
             let ssa_path = self._ssa_greedy_optimize(
                 &inputs,
                 &output_dims,
-                bond_dims,
+                &bond_dims,
                 Box::new(&Greedy::_thermal_chooser),
                 Box::new(&Greedy::_cost_memory_removed),
             );
             let (cost, size) = _contract_path_cost(
                 &inputs,
                 &ssa_replace_ordering(&ssa_path, inputs.len()),
-                bond_dims,
+                &bond_dims,
             );
 
             if cost < self.best_flops {
@@ -128,7 +128,9 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
 
 #[cfg(test)]
 mod tests {
+    use rand::rngs::StdRng;
     use rand::thread_rng;
+    use rand::SeedableRng;
 
     use crate::contractionpath::paths::CostType;
     // use rand::distributions::{Distribution, Uniform};
@@ -136,23 +138,23 @@ mod tests {
     use crate::contractionpath::paths::Greedy;
     use crate::contractionpath::paths::OptimizePath;
     use crate::contractionpath::random_paths::RandomOptimizePath;
+    use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
-    use crate::tensornetwork::TensorNetwork;
 
-    fn setup_simple() -> TensorNetwork {
-        TensorNetwork::from_vector(
+    fn setup_simple() -> Tensor {
+        create_tensor_network(
             vec![
                 Tensor::new(vec![4, 3, 2]),
                 Tensor::new(vec![0, 1, 3, 2]),
                 Tensor::new(vec![4, 5, 6]),
             ],
-            vec![5, 2, 6, 8, 1, 3, 4],
+            &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
             None,
         )
     }
 
-    fn setup_complex() -> TensorNetwork {
-        TensorNetwork::from_vector(
+    fn setup_complex() -> Tensor {
+        create_tensor_network(
             vec![
                 Tensor::new(vec![4, 3, 2]),
                 Tensor::new(vec![0, 1, 3, 2]),
@@ -161,7 +163,21 @@ mod tests {
                 Tensor::new(vec![10, 8, 9]),
                 Tensor::new(vec![5, 1, 0]),
             ],
-            vec![27, 18, 12, 15, 5, 3, 18, 22, 45, 65, 5, 17],
+            &[
+                (0, 27),
+                (1, 18),
+                (2, 12),
+                (3, 15),
+                (4, 5),
+                (5, 3),
+                (6, 18),
+                (7, 22),
+                (8, 45),
+                (9, 65),
+                (10, 5),
+                (11, 17),
+            ]
+            .into(),
             None,
         )
     }
@@ -170,7 +186,7 @@ mod tests {
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
         let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.random_optimize_path(32, &mut thread_rng());
+        opt.random_optimize_path(32, &mut StdRng::seed_from_u64(42));
         assert_eq!(opt.best_flops, 600);
         assert_eq!(opt.best_size, 538);
         assert_eq!(opt.best_path, vec![(0, 1), (2, 3)]);
@@ -180,7 +196,7 @@ mod tests {
     fn test_contract_order_greedy_complex() {
         let tn = setup_complex();
         let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.random_optimize_path(32, &mut thread_rng());
+        opt.random_optimize_path(32, &mut StdRng::seed_from_u64(42));
 
         assert_eq!(opt.best_flops, 528750);
         assert_eq!(opt.best_size, 89478);

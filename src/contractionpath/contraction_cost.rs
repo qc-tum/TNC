@@ -1,7 +1,6 @@
 use itertools::Itertools;
 
 use crate::tensornetwork::tensor::Tensor;
-use crate::tensornetwork::TensorNetwork;
 use std::cmp::max;
 use std::collections::HashMap;
 
@@ -9,7 +8,7 @@ use std::collections::HashMap;
 ///
 /// # Arguments
 ///
-/// * `tn` - Reference to TensorNetwork object.
+/// * `tn` - Reference to Tensor object.
 /// * `i`  - Index of first tensor to contract.
 /// * `j`  - Index of second tensor to contract.
 ///
@@ -17,16 +16,18 @@ use std::collections::HashMap;
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::TensorNetwork;
+/// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_cost;
+/// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13], None);
+/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_cost(&tn, 0, 1), 45045);
 /// ```
-pub fn contract_cost(tn: &TensorNetwork, i: usize, j: usize) -> u64 {
+pub fn contract_cost(tn: &Tensor, i: usize, j: usize) -> u64 {
     // let kept_dims = tensor_a.symmetric_difference(&tensor_b);
-    _contract_cost(&tn[i], &tn[j], tn.get_bond_dims())
+    _contract_cost(tn.get_tensor(i), tn.get_tensor(j), &tn.get_bond_dims())
 }
 
 /// Returns Schroedinger contraction time complexity of contracting two [Tensor] objects.
@@ -41,13 +42,14 @@ pub fn contract_cost(tn: &TensorNetwork, i: usize, j: usize) -> u64 {
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::TensorNetwork;
+/// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::_contract_cost;
+/// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13], None);
-///
-/// assert_eq!(_contract_cost(&tn[0], &tn[1], tn.get_bond_dims()), 45045);
+/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
+/// assert_eq!(_contract_cost(&tn.get_tensor(0), &tn.get_tensor(1), &tn.get_bond_dims()), 45045);
 /// ```
 pub fn _contract_cost(t_1: &Tensor, t_2: &Tensor, bond_dims: &HashMap<usize, u64>) -> u64 {
     let shared_dims = t_1 | t_2;
@@ -63,7 +65,7 @@ pub fn _contract_cost(t_1: &Tensor, t_2: &Tensor, bond_dims: &HashMap<usize, u64
 ///
 /// # Arguments
 ///
-/// * `tn` - Reference to [TensorNetwork] object.
+/// * `tn` - Reference to [Tensor] object.
 /// * `i`  - Index of first tensor to contract.
 /// * `j`  - Index of second tensor to contract.
 ///
@@ -71,15 +73,18 @@ pub fn _contract_cost(t_1: &Tensor, t_2: &Tensor, bond_dims: &HashMap<usize, u64
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::TensorNetwork;
+/// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size;
+/// # use std::collections::HashMap;
+
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13], None);
+/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_size(&tn, 0, 1), (Tensor::new(vec![0,1,3,4]), 6607));
 /// ```
-pub fn contract_size(tn: &TensorNetwork, i: usize, j: usize) -> (Tensor, u64) {
-    _contract_size(&tn[i], &tn[j], tn.get_bond_dims())
+pub fn contract_size(tn: &Tensor, i: usize, j: usize) -> (Tensor, u64) {
+    _contract_size(tn.get_tensor(i), tn.get_tensor(j), &tn.get_bond_dims())
 }
 
 /// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
@@ -94,12 +99,14 @@ pub fn contract_size(tn: &TensorNetwork, i: usize, j: usize) -> (Tensor, u64) {
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::TensorNetwork;
+/// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::_contract_size;
+/// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13], None);
-/// assert_eq!(_contract_size(&tn[0], &tn[1], tn.get_bond_dims()), (Tensor::new(vec![0,1,3,4]), 6607));
+/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
+/// assert_eq!(_contract_size(tn.get_tensor(0), tn.get_tensor(1), &tn.get_bond_dims()), (Tensor::new(vec![0,1,3,4]), 6607));
 /// ```
 pub fn _contract_size(
     t_1: &Tensor,
@@ -108,11 +115,18 @@ pub fn _contract_size(
 ) -> (Tensor, u64) {
     let diff = t_1 ^ t_2;
 
-    let cost = diff.iter().map(|e| bond_dims[e]).product::<u64>()
-        + t_1.iter().map(|e| bond_dims[e]).product::<u64>()
-        + t_2.iter().map(|e| bond_dims[e]).product::<u64>();
+    let cost = diff
+        .get_legs()
+        .iter()
+        .map(|e| bond_dims[e])
+        .product::<u64>()
+        + t_1.get_legs().iter().map(|e| bond_dims[e]).product::<u64>()
+        + t_2.get_legs().iter().map(|e| bond_dims[e]).product::<u64>();
 
-    (Tensor::new(diff.iter().cloned().collect_vec()), cost)
+    (
+        Tensor::new(diff.get_legs().iter().cloned().collect_vec()),
+        cost,
+    )
 }
 
 /// Returns number of elements in a given [Tensor].
@@ -125,11 +139,13 @@ pub fn _contract_size(
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::TensorNetwork;
 /// # use tensorcontraction::contractionpath::contraction_cost::_tensor_size;
+/// # use tensorcontraction::tensornetwork::create_tensor_network;
+/// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1)], vec![5,7,9], None);
-/// assert_eq!(_tensor_size(&tn[0], tn.get_bond_dims()), 315);
+/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1)], &bond_dims, None);
+/// assert_eq!(_tensor_size(&tn.get_tensor(0), &tn.get_bond_dims()), 315);
 /// ```
 pub fn _tensor_size(tensor: &Tensor, bond_dims: &HashMap<usize, u64>) -> u64 {
     tensor
@@ -143,46 +159,36 @@ pub fn _tensor_size(tensor: &Tensor, bond_dims: &HashMap<usize, u64>) -> u64 {
 ///
 /// # Arguments
 ///
-/// * `tn` - Reference to [TensorNetwork] object.
+/// * `tn` - Reference to [Tensor] object.
 /// * `i`  - Index of [Tensor]
 ///
 ///
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::TensorNetwork;
 /// # use tensorcontraction::contractionpath::contraction_cost::size;
-/// let vec1 = Vec::from([0,1,2]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1)], vec![5,7,9], None);
+/// # use tensorcontraction::tensornetwork::create_tensor_network;
+/// # use std::collections::HashMap;
+/// let vec1 = Vec::from([0, 1, 2]);
+/// let bond_dims = HashMap::<usize, u64>::from([(0, 5), (1, 7), (2, 9)]);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1)], &bond_dims, None);
 /// assert_eq!(size(&tn, 0), 315);
 /// ```
-pub fn size(tn: &TensorNetwork, i: usize) -> u64 {
-    tn[i]
+pub fn size(tn: &Tensor, i: usize) -> u64 {
+    tn.get_tensor(i)
         .get_legs()
         .iter()
         .map(|e| tn.get_bond_dims()[e])
         .product::<u64>()
 }
 
-/// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
+/// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object
 ///
 /// # Arguments
 ///
-/// * `t_1` - First tensor to determine contraction cost.
-/// * `t_2`  - First tensor to determine contraction cost.
+/// * `inputs` - First tensor to determine contraction cost.
+/// * `ssa_path`  - Contraction order as SSA path
 /// * `bond_dims`- Dict of bond dimensions.
-///
-///
-/// # Examples
-/// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::TensorNetwork;
-/// # use tensorcontraction::contractionpath::contraction_cost::contract_size;
-/// let vec1 = Vec::from([0,1,2]);
-/// let vec2 = Vec::from([2,3,4]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1), Tensor::new(vec2)], vec![5,7,9,11,13], None);
-/// assert_eq!(contract_size(&tn, 0, 1), (Tensor::new(vec![0,1,3,4]), 6607));
-/// ```
 pub fn _contract_path_cost(
     inputs: &[Tensor],
     ssa_path: &[(usize, usize)],

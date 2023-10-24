@@ -1,12 +1,12 @@
-use super::{contract, DataTensor};
-use crate::tensornetwork::TensorNetwork;
+// use super::{contract, DataTensor};
+use crate::tensornetwork::Tensor;
 
 /// Fully contracts a list of [DataTensor] objects based on a given contraction path using repeated SSA format.
 ///
 /// # Arguments
 ///
-/// * `tn` - [`TensorNetwork`] to be contracted
-/// * `d_tn` - [`Vector`] of [DataTensor] objects containing data of [TensorNetwork]
+/// * `tn` - [`Tensor`] to be contracted
+/// * `d_tn` - [`Vector`] of [DataTensor] objects containing data of [Tensor]
 /// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
 ///
 /// # Examples
@@ -16,82 +16,51 @@ use crate::tensornetwork::TensorNetwork;
 /// # use tensorcontraction::{
 ///     contractionpath::paths::{BranchBound, CostType, OptimizePath},
 ///     random::tensorgeneration::{random_sparse_tensor, random_tensor_network},
-///     tensornetwork::{tensor::Tensor, TensorNetwork},
-///     tensornetwork::contraction::tn_contract,
+///     tensornetwork::tensor::Tensor,
+///     tensornetwork::contraction::contract_tensor_network,
 /// };
 ///
-/// let r_tn = random_tensor_network(2, 3);
-/// let mut d_tn = Vec::new();
-/// for r_t in r_tn.get_tensors() {
-///     d_tn.push(random_sparse_tensor(
-///         r_t,
-///         &r_tn.get_bond_dims(),
-///         None,
-///    ));
-/// }
+/// let mut r_tn = random_tensor_network(2, 3);
 /// let mut opt = BranchBound::new(&r_tn, None, 20, CostType::Flops);
 /// opt.optimize_path();
 /// let opt_path = opt.get_best_replace_path();
-/// tn_contract(r_tn, d_tn, &opt_path);
+/// contract_tensor_network(&mut r_tn, &opt_path);
 /// ```
-pub fn tn_contract(
-    mut tn: TensorNetwork,
-    mut d_tn: Vec<DataTensor>,
-    contract_path: &Vec<(usize, usize)>,
-) -> (TensorNetwork, Vec<DataTensor>) {
+pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &Vec<(usize, usize)>) {
     let mut last_index = 0;
     for (i, j) in contract_path {
-        let a_legs = tn[*i]
-            .get_legs()
-            .iter()
-            .map(|e| *e as u32)
-            .collect::<Vec<u32>>();
-        let b_legs = tn[*j]
-            .get_legs()
-            .iter()
-            .map(|e| *e as u32)
-            .collect::<Vec<u32>>();
-        let (_tensor_intersection, tensor_difference) = tn._contraction(*i, *j);
-        // let bond_dims = tn.get_bond_dims();
-        let out_legs = tensor_difference
-            .iter()
-            .map(|e| *e as u32)
-            .collect::<Vec<u32>>();
-        d_tn[*i] = contract(&out_legs, &a_legs, &d_tn[*i], &b_legs, &d_tn[*j]);
-        d_tn[*j] = DataTensor::new(&[1]);
+        tn.contract_tensors(*i, *j);
         last_index = *i;
     }
-    d_tn.swap(0, last_index);
-    d_tn.drain(1..d_tn.len());
-    (tn, d_tn)
+    tn.swap_tensor(0, last_index);
+    tn.drain(1..);
 }
 
-/// Fully contracts an input TensorNetwork and determines the output tensor shape a given contraction path using repeated SSA format.
-///
-/// # Arguments
-///
-/// * `tn` - [`TensorNetwork`] to be contracted
-/// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
-///
-pub(crate) fn tn_output_tensor(
-    mut tn: TensorNetwork,
-    contract_path: &Vec<(usize, usize)>,
-) -> Vec<usize> {
-    for (i, j) in contract_path {
-        tn._contraction(*i, *j);
-    }
-    tn[contract_path.last().unwrap().0].get_legs().clone()
-}
+// /// Fully contracts the abstract input Tensor and determines the output tensor shape a given contraction path using repeated SSA format.
+// ///
+// /// # Arguments
+// ///
+// /// * `tn` - [`Tensor`] to be contracted
+// /// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
+// ///
+// pub(crate) fn tn_output_tensor(mut tn: Tensor, contract_path: &Vec<(usize, usize)>) -> Vec<usize> {
+//     for (i, j) in contract_path {
+//         contract(&tn, *i, *j);
+//     }
+//     tn.get_tensor(contract_path.last().unwrap().0)
+//         .get_legs()
+//         .clone()
+// }
 
 #[cfg(test)]
 mod tests {
-    use super::tn_contract;
-    use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
+    use super::contract_tensor_network;
+    use crate::tensornetwork::{create_tensor_network, tensor::Tensor, tensordata::TensorData};
     use float_cmp::approx_eq;
     use itertools::Itertools;
     use num_complex::Complex64;
     use std::collections::HashMap;
-    use tetra::Tensor as DataTensor;
+    use tetra::{Layout, Tensor as DataTensor};
 
     fn setup() -> (
         Vec<Complex64>,
@@ -261,65 +230,51 @@ mod tests {
     #[test]
     fn test_tn_contraction() {
         // t1 is of shape [3, 2, 7]
-        let t1 = Tensor::new(vec![0, 1, 2]);
+        let mut t1 = Tensor::new(vec![0, 1, 2]);
+
         // t2 is of shape [7, 8, 6]
-        let t2 = Tensor::new(vec![2, 3, 4]);
+        let mut t2 = Tensor::new(vec![2, 3, 4]);
         // t3 is of shape [3, 5, 8]
-        let t3 = Tensor::new(vec![0, 5, 3]);
+        let mut t3 = Tensor::new(vec![0, 5, 3]);
         // tout is of shape [5, 6, 2]
-        let tout = Tensor::new(vec![5, 4, 1]);
+        let mut tout = Tensor::new(vec![5, 4, 1]);
+        let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
+
+        t1.set_bond_dims(&bond_dims);
+        t2.set_bond_dims(&bond_dims);
+        t3.set_bond_dims(&bond_dims);
+
+        tout.set_bond_dims(&bond_dims);
 
         let (d1, d2, d3, dout) = setup();
 
-        let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
-
-        let tc1 = DataTensor::new_from_flat(
-            &(t1.iter().map(|e| bond_dims[e] as u32).collect::<Vec<u32>>()),
+        t1.set_tensor_data(TensorData::new_from_flat(
+            t1.shape(),
             d1,
-            Some(tetra::Layout::RowMajor),
-        );
-        let tc2 = DataTensor::new_from_flat(
-            &(t2.iter().map(|e| bond_dims[e] as u32).collect::<Vec<u32>>()),
-            d2,
-            Some(tetra::Layout::RowMajor),
-        );
-        let tc3 = DataTensor::new_from_flat(
-            &(t3.iter().map(|e| bond_dims[e] as u32).collect::<Vec<u32>>()),
-            d3,
-            Some(tetra::Layout::RowMajor),
-        );
-        let tcout = DataTensor::new_from_flat(
-            &(tout
-                .iter()
-                .map(|e| bond_dims[e] as u32)
-                .collect::<Vec<u32>>()),
-            dout,
-            Some(tetra::Layout::RowMajor),
-        );
+            Some(Layout::RowMajor),
+        ));
 
-        let tn = TensorNetwork::new(vec![t1, t2, t3], bond_dims, None);
+        t2.set_tensor_data(TensorData::new_from_flat(
+            t2.shape(),
+            d2,
+            Some(Layout::RowMajor),
+        ));
+        t3.set_tensor_data(TensorData::new_from_flat(
+            t3.shape(),
+            d3,
+            Some(Layout::RowMajor),
+        ));
+        tout.set_tensor_data(TensorData::new_from_flat(
+            tout.shape(),
+            dout,
+            Some(Layout::RowMajor),
+        ));
+
+        let mut tn = create_tensor_network(vec![t1, t2, t3], &bond_dims, Some(&vec![5, 4, 1]));
         let contract_path = vec![(0, 1), (0, 2)];
 
-        let (_tn, d_tn) = tn_contract(tn, vec![tc1, tc2, tc3], &contract_path);
-        let range = tcout
-            .shape()
-            .iter()
-            .map(|e| 0..*e)
-            .multi_cartesian_product();
+        contract_tensor_network(&mut tn, &contract_path);
 
-        for index in range {
-            assert!(approx_eq!(
-                f64,
-                tcout.get(&index).re,
-                d_tn[0].get(&index).re,
-                epsilon = 1e-8
-            ));
-            assert!(approx_eq!(
-                f64,
-                tcout.get(&index).im,
-                d_tn[0].get(&index).im,
-                epsilon = 1e-8
-            ));
-        }
+        assert_eq!(tout, tn.get_tensors()[0]);
     }
 }
