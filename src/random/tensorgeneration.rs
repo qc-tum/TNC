@@ -161,7 +161,7 @@ pub fn random_tensor_network_with_rng<R>(n: usize, cycles: usize, rng: &mut R) -
 where
     R: Rng + ?Sized,
 {
-    let mut tensors: Vec<Vec<usize>> = Vec::new();
+    let mut tensors = Vec::new();
     // counter for indices in tensor network
     let mut index = 3;
     // keeps track of which edge is one a specific wire
