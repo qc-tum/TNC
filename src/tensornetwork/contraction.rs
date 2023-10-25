@@ -15,12 +15,15 @@ use crate::tensornetwork::Tensor;
 /// # extern crate tensorcontraction;
 /// # use tensorcontraction::{
 ///     contractionpath::paths::{BranchBound, CostType, OptimizePath},
-///     random::tensorgeneration::{random_sparse_tensor, random_tensor_network},
+///     random::tensorgeneration::random_tensor_network_with_rng,
 ///     tensornetwork::tensor::Tensor,
 ///     tensornetwork::contraction::contract_tensor_network,
 /// };
+/// # use rand::rngs::StdRng;
+/// # use rand::SeedableRng;
 ///
-/// let mut r_tn = random_tensor_network(2, 3);
+/// let mut r = StdRng::seed_from_u64(42);
+/// let mut r_tn = random_tensor_network_with_rng(2, 3, &mut r);
 /// let mut opt = BranchBound::new(&r_tn, None, 20, CostType::Flops);
 /// opt.optimize_path();
 /// let opt_path = opt.get_best_replace_path();
