@@ -39,22 +39,6 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &Vec<(usize, usiz
     tn.drain(1..);
 }
 
-// /// Fully contracts the abstract input Tensor and determines the output tensor shape a given contraction path using repeated SSA format.
-// ///
-// /// # Arguments
-// ///
-// /// * `tn` - [`Tensor`] to be contracted
-// /// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
-// ///
-// pub(crate) fn tn_output_tensor(mut tn: Tensor, contract_path: &Vec<(usize, usize)>) -> Vec<usize> {
-//     for (i, j) in contract_path {
-//         contract(&tn, *i, *j);
-//     }
-//     tn.get_tensor(contract_path.last().unwrap().0)
-//         .get_legs()
-//         .clone()
-// }
-
 #[cfg(test)]
 mod tests {
     use super::contract_tensor_network;
@@ -279,5 +263,92 @@ mod tests {
         contract_tensor_network(&mut tn, &contract_path);
 
         assert_eq!(tout, tn.get_tensors()[0]);
+    }
+
+    #[test]
+    fn test_tn_partitioned_contraction() {
+        // t1 is of shape [3, 2, 7]
+        let t1 = Tensor::new(vec![0, 1, 2]);
+        // t3 is of shape [7, 8, 6]
+        let t3 = Tensor::new(vec![2, 3, 4]);
+        // t5 is of shape [3, 5, 8]
+        let t5 = Tensor::new(vec![0, 5, 3]);
+        // tout is of shape [5, 6, 2]
+        let tout = Tensor::new(vec![5, 4, 1]);
+
+        let t2 = Tensor::new(vec![6, 7, 8, 9]);
+        let t4 = Tensor::new(vec![10, 11, 12]);
+
+        let (d1, d2, d3, dout) = setup();
+
+        let bond_dims = HashMap::from([
+            (0, 3),
+            (1, 2),
+            (2, 7),
+            (3, 8),
+            (4, 6),
+            (5, 5),
+            (6, 10),
+            (7, 10),
+            (8, 10),
+            (9, 10),
+            (10, 10),
+            (11, 10),
+            (12, 10),
+        ]);
+
+        let tc1 = DataTensor::new_from_flat(
+            &(t1.iter().map(|e| bond_dims[e] as u32).collect::<Vec<u32>>()),
+            d1,
+            Some(tetra::Layout::RowMajor),
+        );
+        let tc3 = DataTensor::new_from_flat(
+            &(t3.iter().map(|e| bond_dims[e] as u32).collect::<Vec<u32>>()),
+            d2,
+            Some(tetra::Layout::RowMajor),
+        );
+        let tc5 = DataTensor::new_from_flat(
+            &(t5.iter().map(|e| bond_dims[e] as u32).collect::<Vec<u32>>()),
+            d3,
+            Some(tetra::Layout::RowMajor),
+        );
+
+        let tc2 = DataTensor::new(&[0]);
+        let tc4 = DataTensor::new(&[0]);
+        let tcout = DataTensor::new_from_flat(
+            &(tout
+                .iter()
+                .map(|e| bond_dims[e] as u32)
+                .collect::<Vec<u32>>()),
+            dout,
+            Some(tetra::Layout::RowMajor),
+        );
+
+        let mut tn = TensorNetwork::new(vec![t1, t2, t3, t4, t5], bond_dims, None);
+        tn.set_partitioning(vec![1, 0, 1, 0, 1]);
+
+        let contract_path = vec![(0, 1), (0, 2)];
+        let mut d_tn = vec![tc1, tc2, tc3, tc4, tc5];
+        tn_contract_partition(&mut tn, &mut d_tn, 1, &contract_path);
+        let range = tcout
+            .shape()
+            .iter()
+            .map(|e| 0..*e)
+            .multi_cartesian_product();
+
+        for index in range {
+            assert!(approx_eq!(
+                f64,
+                tcout.get(&index).re,
+                d_tn[0].get(&index).re,
+                epsilon = 1e-8
+            ));
+            assert!(approx_eq!(
+                f64,
+                tcout.get(&index).im,
+                d_tn[0].get(&index).im,
+                epsilon = 1e-8
+            ));
+        }
     }
 }

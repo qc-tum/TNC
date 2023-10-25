@@ -2,6 +2,7 @@ use self::tensor::Tensor;
 
 pub mod contraction;
 // pub mod feynman;
+pub mod circuits;
 pub mod tensor;
 pub mod tensordata;
 

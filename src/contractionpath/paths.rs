@@ -18,9 +18,11 @@ use crate::tensornetwork::tensor::Tensor;
 
 pub trait OptimizePath {
     fn optimize_path(&mut self);
+    fn optimize_partitioned_path(&mut self, k: i32);
 
     fn get_best_path(&self) -> &Vec<(usize, usize)>;
     fn get_best_replace_path(&self) -> Vec<(usize, usize)>;
+    fn get_best_partition_replace_path(&self, k: usize) -> Vec<(usize, usize)>;
     fn get_best_flops(&self) -> u64;
     fn get_best_size(&self) -> u64;
 }
@@ -208,11 +210,10 @@ impl<'a> BranchBound<'a> {
 
 impl<'a> OptimizePath for BranchBound<'a> {
     fn optimize_path(&mut self) {
-        let tensors = self.tn.get_tensors();
         if self.tn.is_empty() {
             return;
         }
-
+        let tensors = self.tn.get_tensors();
         self.flop_cache.clear();
         self.size_cache.clear();
 
@@ -223,6 +224,37 @@ impl<'a> OptimizePath for BranchBound<'a> {
         }
 
         let remaining: Vec<u32> = (0u32..self.tn.get_tensors().len() as u32).collect();
+        BranchBound::_branch_iterate(self, vec![], remaining, 0, 0);
+    }
+
+    fn optimize_partitioned_path(&mut self, k: i32) {
+        if self.tn.is_empty() {
+            return;
+        }
+        let partition = self.tn.get_partitioning();
+        assert!(partition.iter().max().unwrap() == &k);
+        let tensors: Vec<Tensor> = self
+            .tn
+            .get_tensors()
+            .iter()
+            .enumerate()
+            .filter_map(|(i, e)| {
+                if partition[i] == k {
+                    Some(e.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        self.flop_cache.clear();
+        self.size_cache.clear();
+        // Get the initial space requirements for uncontracted tensors
+        for (index, tensor) in tensors.iter().enumerate() {
+            self.size_cache.entry(index).or_insert(size(self.tn, index));
+            self.tensor_cache.entry(index).or_insert(tensor.clone());
+        }
+
+        let remaining: Vec<u32> = (0u32..tensors.len() as u32).collect();
         BranchBound::_branch_iterate(self, vec![], remaining, 0, 0);
     }
 
@@ -240,6 +272,17 @@ impl<'a> OptimizePath for BranchBound<'a> {
 
     fn get_best_replace_path(&self) -> Vec<(usize, usize)> {
         ssa_replace_ordering(&self.best_path, self.tn.get_tensors().len())
+    }
+
+    fn get_best_partition_replace_path(&self, k: usize) -> Vec<(usize, usize)> {
+        ssa_replace_ordering(
+            &self.best_path,
+            self.tn
+                .get_partitioning()
+                .iter()
+                .filter(|e| **e == (k - 1) as i32)
+                .count(),
+        )
     }
 }
 
@@ -320,6 +363,7 @@ impl<'a> Greedy<'a> {
         size12 - size1 - size2
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn _push_candidate(
         output: &Tensor,
         bond_dims: &HashMap<usize, u64>,
@@ -353,6 +397,7 @@ impl<'a> Greedy<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn _get_candidate<'b>(
         output: &Tensor,
         bond_dims: &HashMap<usize, u64>,
@@ -715,6 +760,65 @@ impl<'a> OptimizePath for Greedy<'a> {
         self.best_flops = op_cost;
     }
 
+    fn optimize_partitioned_path(&mut self, k: i32) {
+        if self.tn.get_tensors().len() <= 1 {
+            // Perform a single contraction to match output shape.
+            self.best_flops = 0;
+            self.best_size = 0;
+            self.best_path = vec![];
+            return;
+        }
+
+        let partition = self.tn.get_partitioning();
+        assert!(partition.iter().max().unwrap() >= &k);
+        let inputs: Vec<Tensor> = self
+            .tn
+            .get_tensors()
+            .iter()
+            .enumerate()
+            .filter_map(|(i, e)| {
+                if partition[i] == k {
+                    Some(e.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        // Vector of output leg ids
+        let output_dims = Tensor::new(self.tn.get_ext_edges().clone());
+        // Dictionary that maps leg id to bond dimension
+        let bond_dims = self.tn.get_bond_dims();
+        self.best_path = self._ssa_greedy_optimize(
+            &inputs,
+            &output_dims,
+            bond_dims,
+            Box::new(&Greedy::_simple_chooser),
+            Box::new(&Greedy::_cost_memory_removed),
+        );
+
+        let inputs: Vec<Tensor> = self
+            .tn
+            .get_tensors()
+            .iter()
+            .enumerate()
+            .filter_map(|(i, e)| {
+                if partition[i] == k {
+                    Some(e.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let (op_cost, mem_cost) = _contract_path_cost(
+            &inputs,
+            &self.get_best_partition_replace_path(k as usize),
+            self.tn.get_bond_dims(),
+        );
+        self.best_size = mem_cost;
+        self.best_flops = op_cost;
+    }
+
     fn get_best_flops(&self) -> u64 {
         self.best_flops
     }
@@ -729,6 +833,17 @@ impl<'a> OptimizePath for Greedy<'a> {
 
     fn get_best_replace_path(&self) -> Vec<(usize, usize)> {
         ssa_replace_ordering(&self.best_path, self.tn.get_tensors().len())
+    }
+
+    fn get_best_partition_replace_path(&self, k: usize) -> Vec<(usize, usize)> {
+        ssa_replace_ordering(
+            &self.best_path,
+            self.tn
+                .get_partitioning()
+                .iter()
+                .filter(|e| **e == k as i32)
+                .count(),
+        )
     }
 }
 
@@ -782,6 +897,21 @@ mod tests {
                 (11, 17),
             ]
             .into(),
+            None,
+        )
+    }
+
+    fn setup_complex_simple() -> TensorNetwork {
+        TensorNetwork::from_vector(
+            vec![
+                Tensor::new(vec![4, 3, 2]),
+                Tensor::new(vec![0, 1, 3, 2]),
+                Tensor::new(vec![4, 5, 6]),
+                Tensor::new(vec![6, 8, 9]),
+                Tensor::new(vec![10, 8, 9]),
+                Tensor::new(vec![5, 1, 0]),
+            ],
+            vec![5, 2, 6, 8, 1, 3, 4, 22, 45, 65, 5, 17],
             None,
         )
     }
@@ -866,5 +996,16 @@ mod tests {
             opt.get_best_replace_path(),
             vec![(1, 5), (3, 4), (0, 1), (2, 3), (0, 2)]
         );
+    }
+
+    #[test]
+    fn test_contract_order_greedy_partition() {
+        let mut tn = setup_complex_simple();
+        tn.set_partitioning(vec![1, 1, 1, 0, 0, 0]);
+        let mut opt = Greedy::new(&tn, CostType::Flops);
+        opt.optimize_partitioned_path(1);
+        assert_eq!(opt.best_flops, 600);
+        assert_eq!(opt.best_size, 538);
+        assert_eq!(opt.get_best_partition_replace_path(1), vec![(0, 1), (2, 0)]);
     }
 }
