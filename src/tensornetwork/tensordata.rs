@@ -28,8 +28,6 @@ impl PartialEq for TensorData {
                         return false;
                     }
                     if !approx_eq!(f64, l0.get(&index).re, r0.get(&index).re, epsilon = 1e-8) {
-                        println!("l0: {:?}", l0.get(&index).re);
-                        println!("r0: {:?}", r0.get(&index).re);
                         return false;
                     }
                 }
