@@ -1,5 +1,5 @@
 use core::ops::{BitAnd, BitOr, BitXor, Sub};
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
@@ -19,11 +19,11 @@ use super::tensordata::TensorData;
 #[derive(Debug, Eq, PartialEq)]
 /// Abstract representation of a tensor.
 pub struct Tensor {
-    tensors: Vec<Tensor>,
+    pub(crate) tensors: Vec<Tensor>,
     legs: Vec<EdgeIndex>,
     bond_dims: Rc<RefCell<HashMap<EdgeIndex, u64>>>,
     edges: HashMap<EdgeIndex, Vec<Vertex>>,
-    tensordata: TensorData,
+    tensordata: RefCell<TensorData>,
 }
 
 impl Hash for Tensor {
@@ -66,7 +66,7 @@ impl Tensor {
             legs,
             bond_dims: Rc::new(RefCell::new(HashMap::new())),
             edges: HashMap::new(),
-            tensordata: TensorData::Empty,
+            tensordata: RefCell::new(TensorData::Empty),
         }
     }
 
@@ -445,10 +445,10 @@ impl Tensor {
     /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// # use std::collections::HashMap;
     /// let tensor = Tensor::new(vec![0,1]);
-    /// assert_eq!(tensor.get_tensor_data(), &TensorData::Empty);
+    /// assert_eq!(*tensor.get_tensor_data(), TensorData::Empty);
     /// ```
-    pub fn get_tensor_data(&self) -> &TensorData {
-        &self.tensordata
+    pub fn get_tensor_data(&self) -> Ref<'_, TensorData> {
+        self.tensordata.borrow()
     }
 
     /// Setter for tensor data.
@@ -461,20 +461,21 @@ impl Tensor {
     /// let mut tensor = Tensor::new(vec![0,1]);
     /// let tensordata = TensorData::Gate("X");
     /// tensor.set_tensor_data(tensordata);
-    /// assert_eq!(tensor.get_tensor_data(), &PAULIX);
+    /// assert_eq!(*tensor.get_tensor_data(), PAULIX);
     /// ```
-    pub fn set_tensor_data(&mut self, tensordata: TensorData) {
+    pub fn set_tensor_data(&self, tensordata: TensorData) {
         assert!(
             self.get_tensors().len() <= 1,
             "Cannot add data to Tensor object with multiple child Tensors"
         );
-        self.tensordata = tensordata
+        let mut td = self.tensordata.borrow_mut();
+        *td = tensordata;
     }
 
     /// Getter for underlying raw data
     pub(crate) fn get_data(&self) -> DataTensor {
-        match self.get_tensor_data() {
-            TensorData::File(filename) => load_data(filename).unwrap(),
+        match self.get_tensor_data().clone() {
+            TensorData::File(filename) => load_data(&filename).unwrap(),
             TensorData::Gate(gatename) => load_gate(gatename), // load_gate[gatename.to_lowercase()],
             TensorData::Matrix(rawdata) => rawdata.clone(),
             TensorData::Empty => DataTensor::new(&[]),
@@ -719,7 +720,7 @@ impl Default for Tensor {
             legs: Vec::new(),
             bond_dims: Rc::new(RefCell::new(HashMap::new())),
             edges: HashMap::new(),
-            tensordata: TensorData::Empty,
+            tensordata: RefCell::new(TensorData::Empty),
         }
     }
 }
@@ -810,7 +811,7 @@ mod tests {
         let tensor = Tensor::new(vec![2, 4, 5]);
         assert_eq!(tensor.get_legs(), &vec![2, 4, 5]);
         assert_eq!(tensor.dims(), 3);
-        assert_eq!(tensor.get_tensor_data(), &TensorData::Empty);
+        assert_eq!(*tensor.get_tensor_data(), TensorData::Empty);
     }
 
     #[test]
@@ -848,7 +849,7 @@ mod tests {
         let bond_dims_2 = HashMap::from([(8, 3), (9, 20)]);
         tensor.push_tensor(tensor_2, Some(&bond_dims_2), None);
 
-        assert_eq!(tensor.get_tensor_data(), &TensorData::Empty);
+        assert_eq!(*tensor.get_tensor_data(), TensorData::Empty);
         for (key, value) in tensor.get_bond_dims().iter() {
             assert_eq!(reference_bond_dims_2[key], *value);
         }
@@ -917,7 +918,7 @@ mod tests {
         let tensor_3 = Tensor::new(vec![7, 10, 2]);
         tensor.push_tensors(vec![tensor_2, tensor_3], Some(&reference_bond_dims_3), None);
 
-        assert_eq!(tensor.get_tensor_data(), &TensorData::Empty);
+        assert_eq!(*tensor.get_tensor_data(), TensorData::Empty);
         assert_eq!(
             tensor.get_tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3]
