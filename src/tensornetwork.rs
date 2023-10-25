@@ -1,9 +1,3 @@
-// #[allow(unused_imports)]
-// use array_tool::vec::{Intersect, Union};
-// use std::collections::HashMap;
-// use std::fmt::{self, Write};
-// use std::ops::{Index, IndexMut};
-// use tetra::{contract, Tensor as DataTensor};
 use self::tensor::Tensor;
 
 pub mod contraction;
