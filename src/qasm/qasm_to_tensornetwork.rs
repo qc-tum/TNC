@@ -151,17 +151,12 @@ mod tests {
         cx q[0], q[1];
         ";
         let mut tn = create_tensornetwork(code);
-        println!("TN {:?}", tn);
         let opt_path = (1..tn.get_tensors().len())
-            .map(|tid| (0, tid))
+            .map(|tid| ContractionIndex::Pair(0, tid))
             .collect_vec();
         contract_tensor_network(&mut tn, &opt_path);
 
-        let [resulting_tensor] = &tn.get_tensors()[..] else {
-            panic!("Expected a single tensor after contraction")
-        };
-
-        let resulting_state = resulting_tensor.get_data();
+        let resulting_state = tn.get_data();
         assert_eq!(resulting_state.shape(), &[2, 2]);
         assert_approx_eq!(f64, resulting_state.get(&[0, 0]).re, 1.0 / 2.0f64.sqrt());
         assert_approx_eq!(f64, resulting_state.get(&[0, 0]).im, 0.0);
