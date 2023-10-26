@@ -186,7 +186,7 @@ mod tests {
     fn load_tensor_test() -> bool {
         let _ = write_hdf5_tensor();
         let mut ref_tn = Tensor::default();
-        let mut ref_tensor = Tensor::new(vec![0, 1]);
+        let ref_tensor = Tensor::new(vec![0, 1]);
 
         ref_tensor.set_tensor_data(TensorData::new_from_flat(
             vec![2, 2],
