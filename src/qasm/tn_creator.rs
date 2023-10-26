@@ -116,7 +116,7 @@ impl TensorNetworkCreator {
                         tensors.reserve(*count as usize);
                         for i in 0..*count {
                             let edge = self.new_edge();
-                            let mut tensor = Tensor::new(vec![edge]);
+                            let tensor = Tensor::new(vec![edge]);
                             tensor
                                 .set_tensor_data(TensorData::Matrix(TensorNetworkCreator::ket0()));
                             tensors.push(tensor);
@@ -130,7 +130,7 @@ impl TensorNetworkCreator {
                         for single_call in Self::broadcast(&call.qargs, &register_sizes) {
                             let open_edge = wires.get_mut(&single_call[0]).unwrap();
                             let out_edge = self.new_edge();
-                            let mut tensor = Tensor::new(vec![out_edge, *open_edge]);
+                            let tensor = Tensor::new(vec![out_edge, *open_edge]);
                             let [theta, phi, lambda] = &call.args[..] else {
                                 panic!("Expected 3 classical arguments for U gate")
                             };
@@ -150,7 +150,7 @@ impl TensorNetworkCreator {
                                 .unwrap();
                             let out_edge1 = self.new_edge();
                             let out_edge2 = self.new_edge();
-                            let mut tensor =
+                            let tensor =
                                 Tensor::new(vec![out_edge1, out_edge2, *open_edge1, *open_edge2]);
                             tensor.set_tensor_data(TensorData::Matrix(
                                 TensorNetworkCreator::cx_gate(),
