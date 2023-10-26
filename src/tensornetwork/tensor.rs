@@ -105,6 +105,19 @@ impl Tensor {
         &self.legs
     }
 
+    /// Returns iterator over leg ids of Tensor object
+    ///
+    /// # Examples
+    /// ```
+    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// let vec = Vec::from([1,2,3]);
+    /// let tensor = Tensor::new(vec.clone()) ;
+    /// assert!(tensor.legs_iter().eq(vec.iter()));
+    /// ```
+    pub fn legs_iter(&self) -> std::slice::Iter<'_, usize> {
+        self.legs.iter()
+    }
+
     /// Internal method to set legs
     pub(crate) fn set_legs(&mut self, legs: Vec<EdgeIndex>) {
         self.legs = legs;
@@ -155,6 +168,53 @@ impl Tensor {
     /// ```
     pub fn get_tensor(&self, i: usize) -> &Tensor {
         &self.tensors[i]
+    }
+
+    /// Getter for list of Tensor objects.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
+    /// # use std::collections::HashMap;
+    /// let mut v1 = Tensor::new(vec![0,1]);
+    /// let mut v2 = Tensor::new(vec![1,2]);
+    /// let bond_dims = HashMap::from([
+    /// (0, 17), (1, 19), (2, 8)
+    /// ]);
+    /// let mut tn = Tensor::default();
+    /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
+    /// tn.set_bond_dims(&bond_dims);
+    /// let mut ref_tensor = Tensor::new(vec![0,1]);
+    /// ref_tensor.set_bond_dims(&bond_dims);
+    /// assert_eq!(*tn.get_tensor(0), ref_tensor);
+    /// ```
+    pub(crate) fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor {
+        &mut self.tensors[i]
+    }
+
+    /// Getter for iterator over Tensor objects.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
+    /// # use std::collections::HashMap;
+    /// let mut v1 = Tensor::new(vec![0,1]);
+    /// let mut v2 = Tensor::new(vec![1,2]);
+    /// let bond_dims = HashMap::from([
+    /// (0, 17), (1, 19), (2, 8)
+    /// ]);
+    /// let mut tn = Tensor::default();
+    /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
+    /// v1.set_bond_dims(&bond_dims);
+    /// v2.set_bond_dims(&bond_dims);
+    /// assert!(tn.tensor_iter().eq(vec![v1, v2].iter()));
+    /// ```
+    pub fn tensor_iter(&self) -> std::slice::Iter<'_, Tensor> {
+        self.get_tensors().iter()
     }
 
     /// Getter for bond dimensions.
@@ -640,6 +700,7 @@ impl Tensor {
         self.tensors.swap(i, j);
     }
 
+    /// Get output after tensor contraction
     pub fn get_external_edges(&self) -> Vec<usize> {
         if !self.get_legs().is_empty() {
             return self.get_legs().clone();
@@ -661,7 +722,18 @@ impl Tensor {
         ext_edges.get_legs().clone()
     }
 
-    pub fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) {
+    pub(crate) fn contract_tensor(
+        &mut self,
+        tensor_a_loc: usize,
+        contract_path: Vec<ContractionIndex>,
+    ) {
+        if self.get_tensor(tensor_a_loc).get_tensors().is_empty() {
+            return;
+        }
+        contract_tensor_network(self, &contract_path)
+    }
+
+    pub(crate) fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) {
         let tensor_a = self.clone().get_tensor(tensor_a_loc).clone();
         let tensor_b = self.clone().get_tensor(tensor_b_loc).clone();
         let tensor_a_legs = tensor_a.get_legs();
