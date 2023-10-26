@@ -1,9 +1,7 @@
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
-    contractionpath::paths::{CostType, Greedy, OptimizePath},
     random::tensorgeneration::create_filled_tensor_network,
     tensornetwork::{
-        contraction::contract_tensor_network,
         partitioning::{find_partitioning, partition_tensor_network},
         tensor::Tensor,
     },

@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use float_cmp::approx_eq;
 use itertools::Itertools;
 use num_complex::Complex64;

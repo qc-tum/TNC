@@ -51,12 +51,15 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
 #[cfg(test)]
 mod tests {
     use super::contract_tensor_network;
-    use crate::tensornetwork::{create_tensor_network, tensor::Tensor, tensordata::TensorData};
-    use float_cmp::approx_eq;
-    use itertools::Itertools;
+    use crate::{
+        path,
+        tensornetwork::{create_tensor_network, tensor::Tensor, tensordata::TensorData},
+        types::{ContractionIndex, Vertex},
+    };
+
     use num_complex::Complex64;
     use std::collections::HashMap;
-    use tetra::{Layout, Tensor as DataTensor};
+    use tetra::Layout;
 
     fn setup() -> (
         Vec<Complex64>,

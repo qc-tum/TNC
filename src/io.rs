@@ -141,12 +141,6 @@ mod tests {
         T: FnOnce() + panic::UnwindSafe,
     {
         let result = panic::catch_unwind(test);
-        if Path::new(DATA_TEST_FILE).exists() {
-            fs::remove_file(DATA_TEST_FILE).expect("could not remove file");
-        }
-        if Path::new(TENSOR_TEST_FILE).exists() {
-            fs::remove_file(TENSOR_TEST_FILE).expect("could not remove file");
-        }
 
         assert!(result.is_ok())
     }
@@ -156,7 +150,10 @@ mod tests {
         run_test(|| {
             let true_or_false = load_data_test();
             assert!(true_or_false);
-        })
+        });
+        if Path::new(DATA_TEST_FILE).exists() {
+            fs::remove_file(DATA_TEST_FILE).expect("could not remove file");
+        }
     }
 
     #[test]
@@ -164,7 +161,10 @@ mod tests {
         run_test(|| {
             let true_or_false = load_tensor_test();
             assert!(true_or_false);
-        })
+        });
+        if Path::new(TENSOR_TEST_FILE).exists() {
+            fs::remove_file(TENSOR_TEST_FILE).expect("could not remove file");
+        }
     }
 
     fn load_data_test() -> bool {
