@@ -1,6 +1,7 @@
 use itertools::Itertools;
 
 use crate::tensornetwork::tensor::Tensor;
+use crate::types::ContractionIndex;
 use std::cmp::max;
 use std::collections::HashMap;
 
@@ -191,18 +192,27 @@ pub fn size(tn: &Tensor, i: usize) -> u64 {
 /// * `bond_dims`- Dict of bond dimensions.
 pub fn _contract_path_cost(
     inputs: &[Tensor],
-    ssa_path: &[(usize, usize)],
+    ssa_path: &[ContractionIndex],
     bond_dims: &HashMap<usize, u64>,
 ) -> (u64, u64) {
     let mut op_cost = 0;
     let mut mem_cost = 0;
     let mut inputs = inputs.to_vec();
-    for (i, j) in ssa_path.iter().cloned() {
-        op_cost += _contract_cost(&inputs[i], &inputs[j], bond_dims);
-        let (k12, new_mem_cost) = _contract_size(&inputs[i], &inputs[j], bond_dims);
-        mem_cost = max(mem_cost, new_mem_cost);
-        inputs[i] = k12;
-    }
+    let mut costs = (0, 0);
+    ssa_path.iter().cloned().for_each(|index| match index {
+        ContractionIndex::Pair(i, j) => {
+            op_cost += _contract_cost(&inputs[i], &inputs[j], bond_dims);
+            let (k12, new_mem_cost) = _contract_size(&inputs[i], &inputs[j], bond_dims);
+            mem_cost = max(mem_cost, new_mem_cost);
+            inputs[i] = k12;
+        }
+        ContractionIndex::Path((i, path)) => {
+            costs = _contract_path_cost(inputs[i].get_tensors(), &path, bond_dims);
+            op_cost += costs.0;
+            mem_cost += costs.1;
+            inputs[i] = inputs[i].get_tensor(0).clone();
+        }
+    });
 
     (op_cost, mem_cost)
 }
