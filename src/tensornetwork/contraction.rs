@@ -1,5 +1,5 @@
 // use super::{contract, DataTensor};
-use crate::tensornetwork::Tensor;
+use crate::{tensornetwork::Tensor, types::ContractionIndex};
 
 /// Fully contracts a list of [DataTensor] objects based on a given contraction path using repeated SSA format.
 ///
@@ -29,14 +29,23 @@ use crate::tensornetwork::Tensor;
 /// let opt_path = opt.get_best_replace_path();
 /// contract_tensor_network(&mut r_tn, &opt_path);
 /// ```
-pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &Vec<(usize, usize)>) {
+pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionIndex]) {
     let mut last_index = 0;
-    for (i, j) in contract_path {
-        tn.contract_tensors(*i, *j);
-        last_index = *i;
+    for contract_index in contract_path.iter() {
+        match contract_index {
+            ContractionIndex::Pair(i, j) => {
+                tn.contract_tensors(*i, *j);
+                last_index = *i;
+            }
+            ContractionIndex::Path((i, inner_contract_path)) => {
+                contract_tensor_network(tn.get_mut_tensor(*i), inner_contract_path)
+            }
+        }
     }
-    tn.swap_tensor(0, last_index);
-    tn.drain(1..);
+    tn.set_legs(tn.get_tensor(last_index).get_legs().clone());
+    let tmp_data = tn.get_tensor(last_index).get_tensor_data().clone();
+    tn.drain(0..);
+    tn.set_tensor_data(tmp_data);
 }
 
 #[cfg(test)]

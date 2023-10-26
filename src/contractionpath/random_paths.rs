@@ -93,7 +93,7 @@ impl<'a> Greedy<'a> {
 }
 
 impl<'a> RandomOptimizePath for Greedy<'a> {
-    fn random_optimize_path<R>(&mut self, trials: usize, rng: &mut R)
+    fn random_optimize_path<R>(&mut self, trials: usize, _rng: &mut R)
     where
         R: ?Sized + Rng,
     {
@@ -129,7 +129,6 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
 #[cfg(test)]
 mod tests {
     use rand::rngs::StdRng;
-    use rand::thread_rng;
     use rand::SeedableRng;
 
     use crate::contractionpath::paths::CostType;
@@ -138,8 +137,10 @@ mod tests {
     use crate::contractionpath::paths::Greedy;
     use crate::contractionpath::paths::OptimizePath;
     use crate::contractionpath::random_paths::RandomOptimizePath;
+    use crate::path;
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
+    use crate::types::ContractionIndex;
 
     fn setup_simple() -> Tensor {
         create_tensor_network(
@@ -189,22 +190,22 @@ mod tests {
         opt.random_optimize_path(32, &mut StdRng::seed_from_u64(42));
         assert_eq!(opt.best_flops, 600);
         assert_eq!(opt.best_size, 538);
-        assert_eq!(opt.best_path, vec![(0, 1), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), vec![(0, 1), (2, 0)]);
+        assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
+        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
     }
     #[test]
     fn test_contract_order_greedy_complex() {
-        let mut r = StdRng::seed_from_u64(42);
+        StdRng::seed_from_u64(42);
         let tn = setup_complex();
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.random_optimize_path(32, &mut StdRng::seed_from_u64(42));
 
         assert_eq!(opt.best_flops, 528750);
         assert_eq!(opt.best_size, 89478);
-        assert_eq!(opt.best_path, vec![(1, 5), (3, 4), (0, 6), (2, 8), (7, 9)]);
+        assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 8), (7, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),
-            vec![(1, 5), (3, 4), (0, 1), (2, 0), (3, 2)]
+            path![(1, 5), (3, 4), (0, 1), (2, 0), (3, 2)]
         );
     }
 }

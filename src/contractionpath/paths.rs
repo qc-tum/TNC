@@ -15,14 +15,16 @@ use crate::contractionpath::{
     ssa_ordering, ssa_replace_ordering,
 };
 use crate::tensornetwork::tensor::Tensor;
+use crate::types::ContractionIndex;
+use crate::{pair, path};
 
 pub trait OptimizePath {
     fn optimize_path(&mut self);
-    fn optimize_partitioned_path(&mut self, k: i32);
+    // fn optimize_partitioned_path(&mut self, k: i32);
 
-    fn get_best_path(&self) -> &Vec<(usize, usize)>;
-    fn get_best_replace_path(&self) -> Vec<(usize, usize)>;
-    fn get_best_partition_replace_path(&self, k: usize) -> Vec<(usize, usize)>;
+    fn get_best_path(&self) -> &Vec<ContractionIndex>;
+    fn get_best_replace_path(&self) -> Vec<ContractionIndex>;
+    // fn get_best_partition_replace_path(&self, k: usize) -> Vec<(usize, usize)>;
     fn get_best_flops(&self) -> u64;
     fn get_best_size(&self) -> u64;
 }
@@ -40,7 +42,7 @@ pub struct BranchBound<'a> {
     minimize: CostType,
     best_flops: u64,
     best_size: u64,
-    best_path: Vec<(usize, usize)>,
+    best_path: Vec<ContractionIndex>,
     best_progress: HashMap<usize, u64>,
     result_cache: HashMap<Vec<usize>, usize>,
     flop_cache: HashMap<usize, u64>,
@@ -227,36 +229,36 @@ impl<'a> OptimizePath for BranchBound<'a> {
         BranchBound::_branch_iterate(self, vec![], remaining, 0, 0);
     }
 
-    fn optimize_partitioned_path(&mut self, k: i32) {
-        if self.tn.is_empty() {
-            return;
-        }
-        let partition = self.tn.get_partitioning();
-        assert!(partition.iter().max().unwrap() == &k);
-        let tensors: Vec<Tensor> = self
-            .tn
-            .get_tensors()
-            .iter()
-            .enumerate()
-            .filter_map(|(i, e)| {
-                if partition[i] == k {
-                    Some(e.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        self.flop_cache.clear();
-        self.size_cache.clear();
-        // Get the initial space requirements for uncontracted tensors
-        for (index, tensor) in tensors.iter().enumerate() {
-            self.size_cache.entry(index).or_insert(size(self.tn, index));
-            self.tensor_cache.entry(index).or_insert(tensor.clone());
-        }
+    // fn optimize_partitioned_path(&mut self, k: i32) {
+    //     if self.tn.is_empty() {
+    //         return;
+    //     }
+    //     let partition = self.tn.get_partitioning();
+    //     assert!(partition.iter().max().unwrap() == &k);
+    //     let tensors: Vec<Tensor> = self
+    //         .tn
+    //         .get_tensors()
+    //         .iter()
+    //         .enumerate()
+    //         .filter_map(|(i, e)| {
+    //             if partition[i] == k {
+    //                 Some(e.clone())
+    //             } else {
+    //                 None
+    //             }
+    //         })
+    //         .collect();
+    //     self.flop_cache.clear();
+    //     self.size_cache.clear();
+    //     // Get the initial space requirements for uncontracted tensors
+    //     for (index, tensor) in tensors.iter().enumerate() {
+    //         self.size_cache.entry(index).or_insert(size(self.tn, index));
+    //         self.tensor_cache.entry(index).or_insert(tensor.clone());
+    //     }
 
-        let remaining: Vec<u32> = (0u32..tensors.len() as u32).collect();
-        BranchBound::_branch_iterate(self, vec![], remaining, 0, 0);
-    }
+    //     let remaining: Vec<u32> = (0u32..tensors.len() as u32).collect();
+    //     BranchBound::_branch_iterate(self, vec![], remaining, 0, 0);
+    // }
 
     fn get_best_flops(&self) -> u64 {
         self.best_flops
@@ -266,24 +268,24 @@ impl<'a> OptimizePath for BranchBound<'a> {
         self.best_size
     }
 
-    fn get_best_path(&self) -> &Vec<(usize, usize)> {
+    fn get_best_path(&self) -> &Vec<ContractionIndex> {
         &self.best_path
     }
 
-    fn get_best_replace_path(&self) -> Vec<(usize, usize)> {
+    fn get_best_replace_path(&self) -> Vec<ContractionIndex> {
         ssa_replace_ordering(&self.best_path, self.tn.get_tensors().len())
     }
 
-    fn get_best_partition_replace_path(&self, k: usize) -> Vec<(usize, usize)> {
-        ssa_replace_ordering(
-            &self.best_path,
-            self.tn
-                .get_partitioning()
-                .iter()
-                .filter(|e| **e == (k - 1) as i32)
-                .count(),
-        )
-    }
+    // fn get_best_partition_replace_path(&self, k: usize) -> Vec<(usize, usize)> {
+    //     ssa_replace_ordering(
+    //         &self.best_path,
+    //         self.tn
+    //             .get_partitioning()
+    //             .iter()
+    //             .filter(|e| **e == (k - 1) as i32)
+    //             .count(),
+    //     )
+    // }
 }
 
 type CostFnType = dyn Fn(&HashMap<usize, u64>, i64, i64, i64, &Tensor, &Tensor, &Tensor) -> i64;
@@ -301,7 +303,7 @@ pub struct Greedy<'a> {
     minimize: CostType,
     pub(crate) best_flops: u64,
     pub(crate) best_size: u64,
-    pub(crate) best_path: Vec<(usize, usize)>,
+    pub(crate) best_path: Vec<ContractionIndex>,
     best_progress: HashMap<usize, u64>,
 }
 
@@ -494,17 +496,18 @@ impl<'a> Greedy<'a> {
         bond_dims: &HashMap<usize, u64>,
         choice_fn: Box<ChoiceFnType>,
         cost_fn: Box<CostFnType>,
-    ) -> Vec<(usize, usize)> {
+    ) -> Vec<ContractionIndex> {
         let mut ssa_path = Vec::new();
 
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
+        // Clone here to avoid mutating HashMap keys
         let mut remaining_tensors = HashMap::<Tensor, usize>::new();
         let mut next_ssa_id: usize = inputs.len();
 
         for (ssa_id, v) in inputs.iter().enumerate() {
             if remaining_tensors.contains_key(v) {
                 // greedily compute inner products
-                ssa_path.push((remaining_tensors[v], ssa_id));
+                ssa_path.push(pair!(remaining_tensors[v], ssa_id));
                 remaining_tensors.entry(v.clone()).or_insert(next_ssa_id);
                 next_ssa_id += 1;
             } else {
@@ -537,7 +540,8 @@ impl<'a> Greedy<'a> {
             }
         }
 
-        // Maps tensor to size
+        // Maps tensor legs to size
+        // Clone here to avoid mutating HashMap keys
         let mut tensor_mem_size = HashMap::from_iter(inputs.iter().map(|legs| {
             let size = _tensor_size(legs, bond_dims);
             (legs.clone(), size)
@@ -609,7 +613,7 @@ impl<'a> Greedy<'a> {
                     }
                 });
             }
-            ssa_path.push((*ssa_id1, *ssa_id2));
+            ssa_path.push(pair!(*ssa_id1, *ssa_id2));
 
             if let Entry::Occupied(o) = remaining_tensors.entry(k1.clone()) {
                 o.remove_entry();
@@ -619,7 +623,7 @@ impl<'a> Greedy<'a> {
             }
 
             if remaining_tensors.contains_key(&k12) {
-                ssa_path.push((remaining_tensors[&k12], next_ssa_id));
+                ssa_path.push(pair!(remaining_tensors[&k12], next_ssa_id));
                 next_ssa_id += 1;
             } else {
                 for dim in (&k12 - output_dims).get_legs().iter().cloned() {
@@ -701,7 +705,7 @@ impl<'a> Greedy<'a> {
             else {
                 continue;
             };
-            ssa_path.push((min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2)));
+            ssa_path.push(pair!(min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2)));
             let k12 = &(&k1 | &k2) & output_dims;
 
             let cost = _tensor_size(&k12, bond_dims) as i64;
@@ -716,8 +720,8 @@ impl<'a> Greedy<'a> {
             let Some(Candidate {
                 flop_cost: _flop_cost,
                 size_cost: _cost,
-                parent_ids: (_ssa_id1, _id2),
-                parent_tensors: Some((_k1, _k2)),
+                parent_ids: (ssa_id1, _id2),
+                parent_tensors: Some((k1, _k2)),
                 child_id: _child_id,
                 child_tensor: _child_tensor,
             }) = queue.pop()
@@ -760,64 +764,64 @@ impl<'a> OptimizePath for Greedy<'a> {
         self.best_flops = op_cost;
     }
 
-    fn optimize_partitioned_path(&mut self, k: i32) {
-        if self.tn.get_tensors().len() <= 1 {
-            // Perform a single contraction to match output shape.
-            self.best_flops = 0;
-            self.best_size = 0;
-            self.best_path = vec![];
-            return;
-        }
+    // fn optimize_partitioned_path(&mut self, k: i32) {
+    //     if self.tn.get_tensors().len() <= 1 {
+    //         // Perform a single contraction to match output shape.
+    //         self.best_flops = 0;
+    //         self.best_size = 0;
+    //         self.best_path = vec![];
+    //         return;
+    //     }
 
-        let partition = self.tn.get_partitioning();
-        assert!(partition.iter().max().unwrap() >= &k);
-        let inputs: Vec<Tensor> = self
-            .tn
-            .get_tensors()
-            .iter()
-            .enumerate()
-            .filter_map(|(i, e)| {
-                if partition[i] == k {
-                    Some(e.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        // Vector of output leg ids
-        let output_dims = Tensor::new(self.tn.get_ext_edges().clone());
-        // Dictionary that maps leg id to bond dimension
-        let bond_dims = self.tn.get_bond_dims();
-        self.best_path = self._ssa_greedy_optimize(
-            &inputs,
-            &output_dims,
-            bond_dims,
-            Box::new(&Greedy::_simple_chooser),
-            Box::new(&Greedy::_cost_memory_removed),
-        );
+    //     let partition = self.tn.get_partitioning();
+    //     assert!(partition.iter().max().unwrap() >= &k);
+    //     let inputs: Vec<Tensor> = self
+    //         .tn
+    //         .get_tensors()
+    //         .iter()
+    //         .enumerate()
+    //         .filter_map(|(i, e)| {
+    //             if partition[i] == k {
+    //                 Some(e.clone())
+    //             } else {
+    //                 None
+    //             }
+    //         })
+    //         .collect();
+    //     // Vector of output leg ids
+    //     let output_dims = Tensor::new(self.tn.get_ext_edges().clone());
+    //     // Dictionary that maps leg id to bond dimension
+    //     let bond_dims = self.tn.get_bond_dims();
+    //     self.best_path = self._ssa_greedy_optimize(
+    //         &inputs,
+    //         &output_dims,
+    //         bond_dims,
+    //         Box::new(&Greedy::_simple_chooser),
+    //         Box::new(&Greedy::_cost_memory_removed),
+    //     );
 
-        let inputs: Vec<Tensor> = self
-            .tn
-            .get_tensors()
-            .iter()
-            .enumerate()
-            .filter_map(|(i, e)| {
-                if partition[i] == k {
-                    Some(e.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
+    //     let inputs: Vec<Tensor> = self
+    //         .tn
+    //         .get_tensors()
+    //         .iter()
+    //         .enumerate()
+    //         .filter_map(|(i, e)| {
+    //             if partition[i] == k {
+    //                 Some(e.clone())
+    //             } else {
+    //                 None
+    //             }
+    //         })
+    //         .collect();
 
-        let (op_cost, mem_cost) = _contract_path_cost(
-            &inputs,
-            &self.get_best_partition_replace_path(k as usize),
-            self.tn.get_bond_dims(),
-        );
-        self.best_size = mem_cost;
-        self.best_flops = op_cost;
-    }
+    //     let (op_cost, mem_cost) = _contract_path_cost(
+    //         &inputs,
+    //         &self.get_best_partition_replace_path(k as usize),
+    //         self.tn.get_bond_dims(),
+    //     );
+    //     self.best_size = mem_cost;
+    //     self.best_flops = op_cost;
+    // }
 
     fn get_best_flops(&self) -> u64 {
         self.best_flops
@@ -827,28 +831,31 @@ impl<'a> OptimizePath for Greedy<'a> {
         self.best_size
     }
 
-    fn get_best_path(&self) -> &Vec<(usize, usize)> {
+    fn get_best_path(&self) -> &Vec<ContractionIndex> {
         &self.best_path
     }
 
-    fn get_best_replace_path(&self) -> Vec<(usize, usize)> {
+    fn get_best_replace_path(&self) -> Vec<ContractionIndex> {
         ssa_replace_ordering(&self.best_path, self.tn.get_tensors().len())
     }
 
-    fn get_best_partition_replace_path(&self, k: usize) -> Vec<(usize, usize)> {
-        ssa_replace_ordering(
-            &self.best_path,
-            self.tn
-                .get_partitioning()
-                .iter()
-                .filter(|e| **e == k as i32)
-                .count(),
-        )
-    }
+    // fn get_best_partition_replace_path(&self, k: usize) -> Vec<(usize, usize)> {
+    //     ssa_replace_ordering(
+    //         &self.best_path,
+    //         self.tn
+    //             .get_partitioning()
+    //             .iter()
+    //             .filter(|e| **e == k as i32)
+    //             .count(),
+    //     )
+    // }
 }
 
 #[cfg(test)]
 mod tests {
+    use rand::rngs::StdRng;
+    use rand::SeedableRng;
+
     // use rand::distributions::{Distribution, Uniform};
     // TODO: Use random tensors
     use super::ssa_ordering;
@@ -857,8 +864,10 @@ mod tests {
     use crate::contractionpath::paths::CostType;
     use crate::contractionpath::paths::Greedy;
     use crate::contractionpath::paths::OptimizePath;
+    use crate::path;
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
+    use crate::types::ContractionIndex;
 
     fn setup_simple() -> Tensor {
         create_tensor_network(
@@ -901,8 +910,8 @@ mod tests {
         )
     }
 
-    fn setup_complex_simple() -> TensorNetwork {
-        TensorNetwork::from_vector(
+    fn setup_complex_simple() -> Tensor {
+        create_tensor_network(
             vec![
                 Tensor::new(vec![4, 3, 2]),
                 Tensor::new(vec![0, 1, 3, 2]),
@@ -911,7 +920,21 @@ mod tests {
                 Tensor::new(vec![10, 8, 9]),
                 Tensor::new(vec![5, 1, 0]),
             ],
-            vec![5, 2, 6, 8, 1, 3, 4, 22, 45, 65, 5, 17],
+            &[
+                (0, 5),
+                (1, 2),
+                (2, 6),
+                (3, 8),
+                (4, 1),
+                (5, 3),
+                (6, 4),
+                (7, 22),
+                (8, 45),
+                (9, 65),
+                (10, 5),
+                (11, 17),
+            ]
+            .into(),
             None,
         )
     }
@@ -930,18 +953,18 @@ mod tests {
 
         assert_eq!(
             new_path,
-            vec![(0, 3), (1, 2), (6, 4), (5, 7), (9, 8), (11, 10)]
+            path![(0, 3), (1, 2), (6, 4), (5, 7), (9, 8), (11, 10)]
         )
     }
 
     #[test]
     fn test_ssa_replace_ordering() {
-        let path = vec![(0, 3), (1, 2), (6, 4), (5, 7), (9, 8), (11, 10)];
+        let path = path![(0, 3), (1, 2), (6, 4), (5, 7), (9, 8), (11, 10)];
         let new_path = ssa_replace_ordering(&path, 7);
 
         assert_eq!(
             new_path,
-            vec![(0, 3), (1, 2), (6, 4), (5, 0), (6, 1), (6, 5)]
+            path![(0, 3), (1, 2), (6, 4), (5, 0), (6, 1), (6, 5)]
         )
     }
 
@@ -953,8 +976,8 @@ mod tests {
 
         assert_eq!(opt.best_flops, 600);
         assert_eq!(opt.best_size, 538);
-        assert_eq!(opt.get_best_path(), &vec![(0, 1), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), vec![(0, 1), (2, 0)]);
+        assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3)]);
+        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
     }
 
     #[test]
@@ -965,10 +988,10 @@ mod tests {
 
         assert_eq!(opt.best_flops, 332685);
         assert_eq!(opt.best_size, 89478);
-        assert_eq!(opt.best_path, vec![(1, 5), (0, 6), (2, 7), (3, 8), (4, 9)]);
+        assert_eq!(opt.best_path, path![(1, 5), (0, 6), (2, 7), (3, 8), (4, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),
-            vec![(1, 5), (0, 1), (2, 0), (3, 2), (4, 3)]
+            path![(1, 5), (0, 1), (2, 0), (3, 2), (4, 3)]
         );
     }
 
@@ -980,32 +1003,33 @@ mod tests {
 
         assert_eq!(opt.best_flops, 600);
         assert_eq!(opt.best_size, 538);
-        assert_eq!(opt.best_path, vec![(0, 1), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), vec![(0, 1), (2, 0)]);
+        assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
+        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
     }
     #[test]
     fn test_contract_order_greedy_complex() {
+        let mut rng = StdRng::seed_from_u64(52);
         let tn = setup_complex();
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 529815);
         assert_eq!(opt.best_size, 89478);
-        assert_eq!(opt.best_path, vec![(1, 5), (3, 4), (0, 6), (2, 7), (8, 9)]);
+        assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 7), (8, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),
-            vec![(1, 5), (3, 4), (0, 1), (2, 3), (0, 2)]
+            path![(1, 5), (3, 4), (0, 1), (2, 3), (0, 2)]
         );
     }
 
-    #[test]
-    fn test_contract_order_greedy_partition() {
-        let mut tn = setup_complex_simple();
-        tn.set_partitioning(vec![1, 1, 1, 0, 0, 0]);
-        let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.optimize_partitioned_path(1);
-        assert_eq!(opt.best_flops, 600);
-        assert_eq!(opt.best_size, 538);
-        assert_eq!(opt.get_best_partition_replace_path(1), vec![(0, 1), (2, 0)]);
-    }
+    // #[test]
+    // fn test_contract_order_greedy_partition() {
+    // let mut tn = setup_complex_simple();
+    // tn.set_partitioning(vec![1, 1, 1, 0, 0, 0]);
+    // let mut opt = Greedy::new(&tn, CostType::Flops);
+    // opt.optimize_partitioned_path(1);
+    // assert_eq!(opt.best_flops, 600);
+    // assert_eq!(opt.best_size, 538);
+    // assert_eq!(opt.get_best_partition_replace_path(1), vec![(0, 1), (2, 0)]);
+    // }
 }
