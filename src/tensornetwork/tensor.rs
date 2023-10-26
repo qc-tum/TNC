@@ -14,9 +14,10 @@ use crate::gates::*;
 use crate::io::load_data;
 use crate::types::*;
 
+use super::contraction::contract_tensor_network;
 use super::tensordata::TensorData;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq)]
 /// Abstract representation of a tensor.
 pub struct Tensor {
     pub(crate) tensors: Vec<Tensor>,
@@ -24,6 +25,27 @@ pub struct Tensor {
     bond_dims: Rc<RefCell<HashMap<EdgeIndex, u64>>>,
     edges: HashMap<EdgeIndex, Vec<Vertex>>,
     tensordata: RefCell<TensorData>,
+}
+
+impl PartialEq for Tensor {
+    fn eq(&self, other: &Self) -> bool {
+        if *self.get_bond_dims() != *other.get_bond_dims() {
+            return false;
+        }
+        if *self.get_legs() != *other.get_legs() {
+            return false;
+        }
+        if *self.get_tensor_data() != *other.get_tensor_data() {
+            return false;
+        }
+        let other_edges = other.get_edges();
+        for (k, v) in self.get_edges().iter() {
+            if !(other_edges[k].iter().eq(v.iter())) {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 impl Hash for Tensor {
