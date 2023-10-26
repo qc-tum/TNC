@@ -14,9 +14,9 @@ use crate::contractionpath::{
     contraction_cost::{_contract_cost, _contract_path_cost, _contract_size, _tensor_size, size},
     ssa_ordering, ssa_replace_ordering,
 };
+use crate::pair;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
-use crate::{pair, path};
 
 pub trait OptimizePath {
     fn optimize_path(&mut self);
@@ -1008,7 +1008,7 @@ mod tests {
     }
     #[test]
     fn test_contract_order_greedy_complex() {
-        let mut rng = StdRng::seed_from_u64(52);
+        let mut _rng = StdRng::seed_from_u64(52);
         let tn = setup_complex();
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
