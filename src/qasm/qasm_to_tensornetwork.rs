@@ -45,7 +45,7 @@ mod tests {
 
     use crate::{
         tensornetwork::{contraction::contract_tensor_network, tensor::Tensor},
-        types::Vertex,
+        types::{ContractionIndex, Vertex},
     };
 
     use super::create_tensornetwork;
