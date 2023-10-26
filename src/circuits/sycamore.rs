@@ -4,9 +4,9 @@ use std::collections::HashMap;
 
 use crate::contractionpath::paths::{CostType, Greedy, OptimizePath};
 use crate::contractionpath::random_paths::RandomOptimizePath;
-use crate::random::tensorgeneration::random_sparse_tensor;
-use crate::tensornetwork::contraction::tn_contract;
-use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
+use crate::random::tensorgeneration::random_sparse_tensor_data;
+use crate::tensornetwork::contraction::contract_tensor_network;
+use crate::tensornetwork::tensor::Tensor;
 
 pub fn sycamore_circuit<R>(
     size: usize,
@@ -14,7 +14,7 @@ pub fn sycamore_circuit<R>(
     single_qubit: Option<f64>,
     two_qubit: Option<f64>,
     rng: &mut R,
-) -> TensorNetwork
+) -> Tensor
 where
     R: Rng + ?Sized,
 {
@@ -110,14 +110,9 @@ where
     let mut open_edges = HashMap::<usize, usize>::new();
 
     // Initialize tensornetwork of size `usize`
-    let mut sycamore_tn = TensorNetwork::empty_tensor_network();
+    let mut sycamore_tn = Tensor::default();
     let mut sycamore_bonddims = HashMap::<usize, u64>::new();
     let mut tensors = Vec::<Tensor>::new();
-    for i in 0..size {
-        tensors.push(Tensor::new(vec![i]));
-        sycamore_bonddims.insert(i, 2);
-        open_edges.insert(i, i);
-    }
 
     // Filter connectivity map
     let filtered_connectivity = sycamore_connect
@@ -141,8 +136,17 @@ where
     } else {
         0.4
     };
+
     let mut next_edge = size;
     let uniform_prob = Uniform::new(0.0, 1.0);
+
+    // set up initial state
+    for i in 0..size {
+        tensors.push(Tensor::new(vec![i]));
+        sycamore_bonddims.insert(i, 2);
+        open_edges.insert(i, i);
+    }
+
     sycamore_tn.push_tensors(tensors, Some(&sycamore_bonddims), None);
     for _ in 1..round {
         for i in 0..size {
@@ -177,16 +181,16 @@ where
             }
         }
     }
+    for tensor in sycamore_tn.get_tensors() {
+        tensor.set_tensor_data(random_sparse_tensor_data(tensor.shape(), None));
+    }
+
     sycamore_tn
 }
 
-pub fn sycamore_contract(tn: TensorNetwork) {
+pub fn sycamore_contract(mut tn: Tensor) {
     let mut opt = Greedy::new(&tn, CostType::Flops);
     opt.random_optimize_path(32, &mut thread_rng());
     let contract_path = opt.get_best_replace_path();
-    let mut d_tn = Vec::new();
-    for t in tn.get_tensors() {
-        d_tn.push(random_sparse_tensor(t, tn.get_bond_dims(), None));
-    }
-    let _d_tn = tn_contract(tn, d_tn, &contract_path);
+    contract_tensor_network(&mut tn, &contract_path);
 }
