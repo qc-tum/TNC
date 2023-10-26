@@ -2,8 +2,6 @@ extern crate num;
 
 use std::convert::From;
 
-use num::{Integer, Num};
-
 pub type EdgeIndex = usize;
 pub type TensorIndex = usize;
 
