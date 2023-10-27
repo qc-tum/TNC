@@ -10,7 +10,7 @@ use kahypar_sys::{partition, KaHyParContext};
 
 pub fn find_partitioning(tn: &mut Tensor, k: i32, config_file: String) -> Vec<usize> {
     let num_vertices = tn.get_tensors().len() as u32;
-    let num_hyperedges = tn.get_edges().len() as u32;
+    let mut num_hyperedges = 0;
     let mut context = KaHyParContext::new();
     context.configure(config_file);
 
@@ -21,8 +21,13 @@ pub fn find_partitioning(tn: &mut Tensor, k: i32, config_file: String) -> Vec<us
     let mut hyperedges = vec![];
     let bond_dims = tn.get_bond_dims();
     for (edges, tensor_ids) in tn.get_edges() {
-        hyperedge_weights.push(bond_dims[&edges] as i32);
         let mut length = 0;
+        // Don't add edges that connect only one vertex
+        if tensor_ids.len() == 2 && tensor_ids.contains(&Vertex::Open) {
+            continue;
+        }
+        hyperedge_weights.push(bond_dims[&edges] as i32);
+
         for id in tensor_ids {
             match id {
                 Vertex::Closed(id) => {
@@ -33,6 +38,7 @@ pub fn find_partitioning(tn: &mut Tensor, k: i32, config_file: String) -> Vec<us
             }
         }
         hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
+        num_hyperedges += 1;
     }
     let mut partitioning = vec![-1; num_vertices as usize];
     partition(
