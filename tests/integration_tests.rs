@@ -1,54 +1,23 @@
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
-    random::tensorgeneration::create_filled_tensor_network,
+    circuits::sycamore::sycamore_circuit,
+    contractionpath::paths::{CostType, Greedy, OptimizePath},
     tensornetwork::{
+        contraction::contract_tensor_network,
         partitioning::{find_partitioning, partition_tensor_network},
-        tensor::Tensor,
     },
 };
 
-fn setup_complex() -> Tensor {
-    let mut rng = StdRng::seed_from_u64(52);
-    create_filled_tensor_network(
-        vec![
-            Tensor::new(vec![4, 3, 2]),
-            Tensor::new(vec![0, 1, 3, 2]),
-            Tensor::new(vec![4, 5, 6]),
-            Tensor::new(vec![6, 8, 9]),
-            Tensor::new(vec![10, 8, 9]),
-            Tensor::new(vec![5, 1, 0]),
-        ],
-        &[
-            (0, 27),
-            (1, 18),
-            (2, 12),
-            (3, 15),
-            (4, 5),
-            (5, 3),
-            (6, 18),
-            (7, 22),
-            (8, 45),
-            (9, 65),
-            (10, 5),
-            (11, 17),
-        ]
-        .into(),
-        None,
-        &mut rng,
-    )
-}
-
 #[test]
-fn test_partitioned_tn_contraction() {
-    let mut tn = setup_complex();
-    let partitioning = find_partitioning(&mut tn, 3, std::string::String::from("tests/km1"));
-    let mut partitioned_tn: Tensor = partition_tensor_network(&tn, partitioning.as_slice());
-    // for tensor in partitioned_tn.get_tensors().iter() {
-    //     for tn in tensor.get_tensors().iter() {
-    //         println!("{:?}", tn.shape());
-    //     }
-    // }
-    // let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
-    // opt.optimize_path();
-    // contract_tensor_network(&mut partitioned_tn);
+fn test_partitioned_contraction() {
+    let mut rng = StdRng::seed_from_u64(52);
+    let k = 5;
+
+    let mut r_tn = sycamore_circuit(k, 15, None, None, &mut rng);
+    let partitioning = find_partitioning(&mut r_tn, 5, std::string::String::from("tests/km1"));
+    let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+    let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+    opt.optimize_path();
+    let path = opt.get_best_replace_path();
+    contract_tensor_network(&mut partitioned_tn.clone(), &path);
 }
