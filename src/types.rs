@@ -75,14 +75,5 @@ mod tests {
                 (0, 3)
             ]
         );
-        // , (0, {0, 1}, {2, 3} )
-        // assert_eq!(path![(0, 1)], vec![ContractionIndex::Pair(0, 1)]);
-        // assert_eq!(
-        //     path![(0, [(0, 1), (0, 2)])],
-        //     vec![ContractionIndex::Path((
-        //         0,
-        //         vec![ContractionIndex::Pair(0, 1), ContractionIndex::Pair(0, 2)]
-        //     ))]
-        // );
     }
 }
