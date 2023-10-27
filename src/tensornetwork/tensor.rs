@@ -389,6 +389,19 @@ impl Tensor {
         bond_dims: Option<&HashMap<usize, u64>>,
         external_hyperedge: Option<&Vec<usize>>,
     ) {
+        // In the case of pushing to an empty tensor, avoid unnecessary heirarchies
+        if self.get_tensors().is_empty() && self.get_legs().is_empty() {
+            self.set_legs(tensor.get_legs().clone());
+            self.set_tensor_data(tensor.get_tensor_data().clone());
+            if let Some(bond_dims) = bond_dims {
+                self._update_bond_dims(bond_dims);
+            };
+            if let Some(external_hyperedge) = external_hyperedge {
+                self._update_external_edges(external_hyperedge);
+            };
+            return;
+        }
+
         if self.get_tensors().is_empty() && !self.get_legs().is_empty() {
             let mut new_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
