@@ -1,5 +1,11 @@
-// use super::{contract, DataTensor};
-use crate::{tensornetwork::Tensor, types::ContractionIndex};
+use std::{collections::HashMap, ops::RangeBounds, rc::Rc};
+
+use array_tool::vec::Uniq;
+use tetra::{contract, Tensor as DataTensor};
+
+use crate::{gates::load_gate, io::load_data, tensornetwork::Tensor, types::*};
+
+use super::tensordata::TensorData;
 
 /// Fully contracts a list of [DataTensor] objects based on a given contraction path using repeated SSA format.
 ///
@@ -48,12 +54,147 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
     tn.set_tensor_data(tmp_data);
 }
 
+pub(crate) trait TensorContraction {
+    /// Internal method to permute tensor
+    fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor;
+    fn get_mut_edges(&mut self) -> &mut HashMap<EdgeIndex, Vec<Vertex>>;
+    fn get_data(&self) -> DataTensor;
+    fn swap(&mut self, i: usize, j: usize);
+    fn drain<R>(&mut self, range: R)
+    where
+        R: RangeBounds<usize>;
+    fn contract_tensor(&mut self, tensor_a_loc: usize, contract_path: Vec<ContractionIndex>);
+    fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize);
+}
+
+impl TensorContraction for Tensor {
+    fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor {
+        &mut self.tensors[i]
+    }
+
+    // Internal method to update edges
+    fn get_mut_edges(&mut self) -> &mut HashMap<EdgeIndex, Vec<Vertex>> {
+        &mut self.edges
+    }
+
+    /// Getter for underlying raw data
+    fn get_data(&self) -> DataTensor {
+        match self.get_tensor_data().clone() {
+            TensorData::File(filename) => load_data(&filename).unwrap(),
+            TensorData::Gate(gatename) => load_gate(gatename), // load_gate[gatename.to_lowercase()],
+            TensorData::Matrix(rawdata) => rawdata.clone(),
+            TensorData::Empty => DataTensor::new(&[]),
+        }
+    }
+
+    // Internal method to swap tensors
+    fn swap(&mut self, i: usize, j: usize) {
+        self.tensors.swap(i, j);
+    }
+
+    /// Drains the `tensor` vector. Mainly used to clear data after contraction.
+    fn drain<R>(&mut self, range: R)
+    where
+        R: RangeBounds<usize>,
+    {
+        self.tensors.drain(range);
+    }
+
+    fn contract_tensor(&mut self, tensor_a_loc: usize, contract_path: Vec<ContractionIndex>) {
+        if self.get_tensor(tensor_a_loc).get_tensors().is_empty() {
+            return;
+        }
+        contract_tensor_network(self, &contract_path)
+    }
+
+    fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) {
+        let tensor_a = self.clone().get_tensor(tensor_a_loc).clone();
+        let tensor_b = self.clone().get_tensor(tensor_b_loc).clone();
+        let tensor_a_legs = tensor_a.get_legs();
+        let tensor_b_legs = tensor_b.get_legs();
+        let tensor_union = &tensor_b | &tensor_a;
+        let mut tensor_symmetric_difference = &tensor_b ^ &tensor_a;
+        let counter = count_edges(tensor_union.get_legs().iter());
+
+        let edges = self.get_mut_edges();
+        for leg in tensor_union.get_legs().unique().iter() {
+            // Check if hyperedges are being contracted, if so, only append once to output tensor
+            let mut i = 0;
+            while edges[leg].len() - 1 > (counter[leg] + i) {
+                i += 1;
+                tensor_symmetric_difference.legs.push(*leg);
+            }
+        }
+        // Update internal edges HashMap to point tensor b legs to new contracted tensor
+        for leg in tensor_b_legs.iter() {
+            edges.entry(*leg).and_modify(|e| {
+                e.retain(|e| {
+                    if let Vertex::Closed(edge) = e {
+                        *edge != tensor_a_loc
+                    } else {
+                        true
+                    }
+                });
+                for edge in &mut e.iter_mut() {
+                    if let Vertex::Closed(tensor_loc) = edge {
+                        if *tensor_loc == tensor_b_loc {
+                            *edge = Vertex::Closed(tensor_a_loc);
+                        }
+                    }
+                }
+            });
+        }
+        let mut new_tensor = Tensor::new(tensor_symmetric_difference.get_legs().clone());
+        new_tensor.bond_dims = Rc::clone(&self.bond_dims);
+        new_tensor.set_tensor_data(TensorData::Matrix(contract(
+            tensor_symmetric_difference
+                .get_legs()
+                .iter()
+                .map(|e| *e as u32)
+                .collect::<Vec<u32>>()
+                .as_slice(),
+            tensor_a_legs
+                .iter()
+                .map(|e| *e as u32)
+                .collect::<Vec<u32>>()
+                .as_slice(),
+            &self.get_tensor(tensor_a_loc).get_data(),
+            tensor_b_legs
+                .iter()
+                .map(|e| *e as u32)
+                .collect::<Vec<u32>>()
+                .as_slice(),
+            &self.get_tensor(tensor_b_loc).get_data(),
+        )));
+        self.tensors[tensor_a_loc] = new_tensor;
+        // remove old tensor
+        self.tensors[tensor_b_loc] = Tensor::new(Vec::new());
+        // (tensor_intersect, tensor_difference)
+    }
+}
+
+fn count_edges<I>(it: I) -> HashMap<I::Item, usize>
+where
+    I: IntoIterator,
+    I::Item: Eq + core::hash::Hash,
+{
+    let mut result = HashMap::new();
+
+    for item in it {
+        *result.entry(item).or_insert(0) += 1;
+    }
+
+    result
+}
 #[cfg(test)]
 mod tests {
     use super::contract_tensor_network;
     use crate::{
         path,
-        tensornetwork::{create_tensor_network, tensor::Tensor, tensordata::TensorData},
+        tensornetwork::{
+            contraction::TensorContraction, create_tensor_network, tensor::Tensor,
+            tensordata::TensorData,
+        },
         types::{ContractionIndex, Vertex},
     };
 

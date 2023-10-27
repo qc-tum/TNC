@@ -4,26 +4,20 @@ use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 use std::iter::Iterator;
-use std::ops::{Index, IndexMut, RangeBounds};
+use std::ops::{Index, IndexMut};
 use std::rc::Rc;
 
-use array_tool::vec::Uniq;
-use tetra::{contract, Tensor as DataTensor};
-
-use crate::gates::*;
-use crate::io::load_data;
 use crate::types::*;
 
-use super::contraction::contract_tensor_network;
 use super::tensordata::TensorData;
 
 #[derive(Debug, Eq)]
 /// Abstract representation of a tensor.
 pub struct Tensor {
     pub(crate) tensors: Vec<Tensor>,
-    legs: Vec<EdgeIndex>,
-    bond_dims: Rc<RefCell<HashMap<EdgeIndex, u64>>>,
-    edges: HashMap<EdgeIndex, Vec<Vertex>>,
+    pub(crate) legs: Vec<EdgeIndex>,
+    pub(crate) bond_dims: Rc<RefCell<HashMap<EdgeIndex, u64>>>,
+    pub(crate) edges: HashMap<EdgeIndex, Vec<Vertex>>,
     tensordata: RefCell<TensorData>,
 }
 
@@ -170,30 +164,6 @@ impl Tensor {
         &self.tensors[i]
     }
 
-    /// Getter for list of Tensor objects.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
-    /// # use std::collections::HashMap;
-    /// let mut v1 = Tensor::new(vec![0,1]);
-    /// let mut v2 = Tensor::new(vec![1,2]);
-    /// let bond_dims = HashMap::from([
-    /// (0, 17), (1, 19), (2, 8)
-    /// ]);
-    /// let mut tn = Tensor::default();
-    /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
-    /// tn.set_bond_dims(&bond_dims);
-    /// let mut ref_tensor = Tensor::new(vec![0,1]);
-    /// ref_tensor.set_bond_dims(&bond_dims);
-    /// assert_eq!(*tn.get_tensor(0), ref_tensor);
-    /// ```
-    pub(crate) fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor {
-        &mut self.tensors[i]
-    }
-
     /// Getter for iterator over Tensor objects.
     ///
     /// # Examples
@@ -266,7 +236,7 @@ impl Tensor {
             .or_insert(v);
     }
 
-    /// Setter for bond dimensions.
+    /// Setter for multiple bond dimensions.
     ///
     /// # Examples
     ///
@@ -320,10 +290,6 @@ impl Tensor {
     /// ```
     pub fn get_edges(&self) -> &HashMap<EdgeIndex, Vec<Vertex>> {
         &self.edges
-    }
-
-    pub(crate) fn get_mut_edges(&mut self) -> &mut HashMap<EdgeIndex, Vec<Vertex>> {
-        &mut self.edges
     }
 
     /// Returns number of dimensions of Tensor object
@@ -432,6 +398,10 @@ impl Tensor {
             self.tensors.push(new_self);
             self.set_tensor_data(TensorData::Empty);
         }
+        // Ensure that external legs are cleared each time a new tensor is pushed
+        if !self.get_legs().is_empty() {
+            self.set_legs(vec![]);
+        }
         if let Some(bond_dims) = bond_dims {
             self._update_bond_dims(bond_dims);
         };
@@ -475,6 +445,8 @@ impl Tensor {
         }
     }
 
+    // Internal method to update bond dimensions based on `bond_dims`. Only incorporates missing dimensions,
+    // existing keys are not changed.
     fn _update_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
         let mut shared_bond_dims = self.bond_dims.borrow_mut();
         for (key, value) in bond_dims.iter() {
@@ -482,6 +454,8 @@ impl Tensor {
         }
     }
 
+    // Internal method to update hyperedges in edge HashMap. Adds an additional open vertex to each indicated
+    // edge
     fn _update_external_edges(&mut self, external_hyperedge: &Vec<usize>) {
         for i in external_hyperedge {
             self.edges
@@ -490,7 +464,9 @@ impl Tensor {
         }
     }
 
-    /// Updates edges in tensornetwork after adding new tensors. DOes
+    // Internal method to update edges in tensornetwork after new tensor is added.
+    // If existing edges are introduced, assume that a contraction occurs between them
+    // Otherwise, introdce a new open vertex in edges
     fn _update_tensor(&mut self, tensor: &mut Tensor) {
         tensor.bond_dims = Rc::clone(&self.bond_dims);
         let shared_bond_dims = self.bond_dims.borrow();
@@ -552,24 +528,6 @@ impl Tensor {
         );
         let mut td = self.tensordata.borrow_mut();
         *td = tensordata;
-    }
-
-    /// Getter for underlying raw data
-    pub(crate) fn get_data(&self) -> DataTensor {
-        match self.get_tensor_data().clone() {
-            TensorData::File(filename) => load_data(&filename).unwrap(),
-            TensorData::Gate(gatename) => load_gate(gatename), // load_gate[gatename.to_lowercase()],
-            TensorData::Matrix(rawdata) => rawdata.clone(),
-            TensorData::Empty => DataTensor::new(&[]),
-        }
-    }
-
-    /// Getter for underlying raw data
-    pub(crate) fn drain<R>(&mut self, range: R)
-    where
-        R: RangeBounds<usize>,
-    {
-        self.tensors.drain(range);
     }
 
     /// Partitions tensor network using the provided partitioning vector
@@ -696,10 +654,6 @@ impl Tensor {
         Tensor::new(new_legs)
     }
 
-    pub(crate) fn swap_tensor(&mut self, i: usize, j: usize) {
-        self.tensors.swap(i, j);
-    }
-
     /// Get output after tensor contraction
     pub fn get_external_edges(&self) -> Vec<usize> {
         if !self.get_legs().is_empty() {
@@ -721,82 +675,20 @@ impl Tensor {
         }
         ext_edges.get_legs().clone()
     }
+}
 
-    pub(crate) fn contract_tensor(
-        &mut self,
-        tensor_a_loc: usize,
-        contract_path: Vec<ContractionIndex>,
-    ) {
-        if self.get_tensor(tensor_a_loc).get_tensors().is_empty() {
-            return;
-        }
-        contract_tensor_network(self, &contract_path)
+fn count_edges<I>(it: I) -> HashMap<I::Item, usize>
+where
+    I: IntoIterator,
+    I::Item: Eq + core::hash::Hash,
+{
+    let mut result = HashMap::new();
+
+    for item in it {
+        *result.entry(item).or_insert(0) += 1;
     }
 
-    pub(crate) fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) {
-        let tensor_a = self.clone().get_tensor(tensor_a_loc).clone();
-        let tensor_b = self.clone().get_tensor(tensor_b_loc).clone();
-        let tensor_a_legs = tensor_a.get_legs();
-        let tensor_b_legs = tensor_b.get_legs();
-        let tensor_union = &tensor_b | &tensor_a;
-        let mut tensor_symmetric_difference = &tensor_b ^ &tensor_a;
-        let counter = count_edges(tensor_union.get_legs().iter());
-
-        let edges = self.get_mut_edges();
-        for leg in tensor_union.get_legs().unique().iter() {
-            // Check if hyperedges are being contracted, if so, only append once to output tensor
-            let mut i = 0;
-            while edges[leg].len() - 1 > (counter[leg] + i) {
-                i += 1;
-                tensor_symmetric_difference.legs.push(*leg);
-            }
-        }
-        // Update internal edges HashMap to point tensor b legs to new contracted tensor
-        for leg in tensor_b_legs.iter() {
-            edges.entry(*leg).and_modify(|e| {
-                e.retain(|e| {
-                    if let Vertex::Closed(edge) = e {
-                        *edge != tensor_a_loc
-                    } else {
-                        true
-                    }
-                });
-                for edge in &mut e.iter_mut() {
-                    if let Vertex::Closed(tensor_loc) = edge {
-                        if *tensor_loc == tensor_b_loc {
-                            *edge = Vertex::Closed(tensor_a_loc);
-                        }
-                    }
-                }
-            });
-        }
-        let mut new_tensor = Tensor::new(tensor_symmetric_difference.get_legs().clone());
-        new_tensor.bond_dims = Rc::clone(&self.bond_dims);
-        new_tensor.set_tensor_data(TensorData::Matrix(contract(
-            tensor_symmetric_difference
-                .get_legs()
-                .iter()
-                .map(|e| *e as u32)
-                .collect::<Vec<u32>>()
-                .as_slice(),
-            tensor_a_legs
-                .iter()
-                .map(|e| *e as u32)
-                .collect::<Vec<u32>>()
-                .as_slice(),
-            &self.get_tensor(tensor_a_loc).get_data(),
-            tensor_b_legs
-                .iter()
-                .map(|e| *e as u32)
-                .collect::<Vec<u32>>()
-                .as_slice(),
-            &self.get_tensor(tensor_b_loc).get_data(),
-        )));
-        self.tensors[tensor_a_loc] = new_tensor;
-        // remove old tensor
-        self.tensors[tensor_b_loc] = Tensor::new(Vec::new());
-        // (tensor_intersect, tensor_difference)
-    }
+    result
 }
 
 impl Default for Tensor {
@@ -868,20 +760,6 @@ impl Sub for &Tensor {
     fn sub(self, rhs: &Tensor) -> Tensor {
         self.difference(rhs)
     }
-}
-
-fn count_edges<I>(it: I) -> HashMap<I::Item, usize>
-where
-    I: IntoIterator,
-    I::Item: Eq + core::hash::Hash,
-{
-    let mut result = HashMap::new();
-
-    for item in it {
-        *result.entry(item).or_insert(0) += 1;
-    }
-
-    result
 }
 
 #[cfg(test)]
