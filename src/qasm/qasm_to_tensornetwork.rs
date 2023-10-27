@@ -44,7 +44,10 @@ mod tests {
     use itertools::Itertools;
 
     use crate::{
-        tensornetwork::{contraction::contract_tensor_network, tensor::Tensor},
+        tensornetwork::{
+            contraction::{contract_tensor_network, TensorContraction},
+            tensor::Tensor,
+        },
         types::{ContractionIndex, Vertex},
     };
 
