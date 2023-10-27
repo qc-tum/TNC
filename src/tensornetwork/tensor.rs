@@ -672,15 +672,21 @@ impl Tensor {
         if !self.get_legs().is_empty() {
             return self.get_legs().clone();
         }
+
         let mut ext_edges = Tensor::new(Vec::<usize>::new());
         for tensor in self.tensors.iter() {
-            let tensor_union = &ext_edges | tensor;
+            let tensor_legs = if tensor.get_legs().is_empty() {
+                Tensor::new(tensor.get_external_edges())
+            } else {
+                tensor.clone()
+            };
+            let tensor_union = &ext_edges | &tensor_legs;
             let counter = count_edges(tensor_union.get_legs().iter());
-            ext_edges = &ext_edges ^ tensor;
+            ext_edges = &ext_edges ^ &tensor_legs;
             for leg in tensor_union.get_legs().iter() {
                 // Check if hyperedges are being contracted, if so, only append once to output tensor
-                let mut i = 0;
-                while self.edges[leg].len() > (counter[leg] + i) {
+                let mut i = 1;
+                while self.edges.contains_key(leg) && self.edges[leg].len() > (counter[leg] + i) {
                     i += 1;
                     ext_edges.legs.push(*leg);
                 }
