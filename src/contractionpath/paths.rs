@@ -219,7 +219,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
         let mut tensors = self.tn.get_tensors().clone();
         self.flop_cache.clear();
         self.size_cache.clear();
-
+        let mut sub_tensor_contraction = Vec::new();
         // Get the initial space requirements for uncontracted tensors
         for (index, tensor) in tensors.iter_mut().enumerate() {
             // Check that tensor has sub-tensors and doesn't have external legs set
@@ -231,7 +231,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
                     self.minimize.clone(),
                 );
                 bb.optimize_path();
-                self.best_path
+                sub_tensor_contraction
                     .push(ContractionIndex::Path((index, bb.get_best_path().clone())));
                 tensor.set_legs(tensor.get_external_edges());
             }
@@ -243,6 +243,8 @@ impl<'a> OptimizePath for BranchBound<'a> {
         }
         let remaining: Vec<u32> = (0u32..self.tn.get_tensors().len() as u32).collect();
         BranchBound::_branch_iterate(self, vec![], remaining, 0, 0);
+        sub_tensor_contraction.append(&mut self.best_path.clone());
+        self.best_path = sub_tensor_contraction;
     }
 
     fn get_best_flops(&self) -> u64 {
@@ -364,7 +366,7 @@ impl<'a> Greedy<'a> {
                 cost_function,
             ));
         }
-        if true {
+        if false {
             for candidate in candidates {
                 queue.push(candidate);
             }
@@ -499,6 +501,7 @@ impl<'a> Greedy<'a> {
                     .or_insert(vec![key.clone()]);
             }
         }
+
         // Get dims that are contracted
         let mut dim_tensor_counts = HashMap::<usize, HashSet<usize>>::new();
         for i in 2..=3 {
@@ -694,8 +697,8 @@ impl<'a> Greedy<'a> {
             let Some(Candidate {
                 flop_cost: _flop_cost,
                 size_cost: _cost,
-                parent_ids: (ssa_id1, _id2),
-                parent_tensors: Some((k1, _k2)),
+                parent_ids: (_ssa_id1, _id2),
+                parent_tensors: Some((_k1, _k2)),
                 child_id: _child_id,
                 child_tensor: _child_tensor,
             }) = queue.pop()
@@ -720,16 +723,18 @@ impl<'a> OptimizePath for Greedy<'a> {
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.get_legs().is_empty() {
                 let external_legs = input_tensor.get_external_edges().clone();
-                self.best_path.push(ContractionIndex::Path((
-                    index,
-                    self._ssa_greedy_optimize(
-                        input_tensor.get_tensors(),
-                        &Tensor::new(external_legs.clone()),
-                        &input_tensor.get_bond_dims(),
-                        Box::new(&Greedy::_simple_chooser),
-                        Box::new(&Greedy::_cost_memory_removed),
-                    ),
-                )));
+                let path = self._ssa_greedy_optimize(
+                    input_tensor.get_tensors(),
+                    &Tensor::new(external_legs.clone()),
+                    &input_tensor.get_bond_dims(),
+                    Box::new(&Greedy::_simple_chooser),
+                    Box::new(&Greedy::_cost_memory_removed),
+                );
+                if !path.is_empty() {
+                    let ssa_path = ssa_replace_ordering(&path, input_tensor.get_tensors().len());
+                    self.best_path
+                        .push(ContractionIndex::Path((index, ssa_path)));
+                }
                 input_tensor.set_legs(external_legs);
             }
         }
@@ -738,13 +743,13 @@ impl<'a> OptimizePath for Greedy<'a> {
         let output_dims = Tensor::new(self.tn.get_external_edges().clone());
         // Dictionary that maps leg id to bond dimension
         let bond_dims = self.tn.get_bond_dims();
-        self.best_path = self._ssa_greedy_optimize(
+        self.best_path.append(&mut self._ssa_greedy_optimize(
             &inputs,
             &output_dims,
             &bond_dims,
             Box::new(&Greedy::_simple_chooser),
             Box::new(&Greedy::_cost_memory_removed),
-        );
+        ));
         let (op_cost, mem_cost) = _contract_path_cost(
             self.tn.get_tensors(),
             &self.get_best_replace_path(),
@@ -753,81 +758,6 @@ impl<'a> OptimizePath for Greedy<'a> {
         self.best_size = mem_cost;
         self.best_flops = op_cost;
     }
-
-    // fn optimize_partitioned_path(&mut self, partition: Vec<usize>) {
-    //     if self.tn.get_tensors().len() <= 1 {
-    //         // Perform a single contraction to match output shape.
-    //         self.best_flops = 0;
-    //         self.best_size = 0;
-    //         self.best_path = vec![];
-    //         return;
-    //     }
-
-    //     assert!(partition.len() == self.tn.get_tensors().len());
-    //     let partitions = partition.iter().unique().collect::<Vec<&usize>>();
-    //     for &partition_id in partitions.iter() {
-    //         let inputs: Vec<Tensor> = self
-    //             .tn
-    //             .get_tensors()
-    //             .iter()
-    //             .enumerate()
-    //             .filter_map(|(i, e)| {
-    //                 if partition[i] == k {
-    //                     Some(e.clone())
-    //                 } else {
-    //                     None
-    //                 }
-    //             })
-    //             .collect();
-    //     }
-
-    //     let inputs: Vec<Tensor> = self
-    //         .tn
-    //         .get_tensors()
-    //         .iter()
-    //         .enumerate()
-    //         .filter_map(|(i, e)| {
-    //             if partition[i] == k {
-    //                 Some(e.clone())
-    //             } else {
-    //                 None
-    //             }
-    //         })
-    //         .collect();
-    //     // Vector of output leg ids
-    //     let output_dims = Tensor::new(self.tn.get_ext_edges().clone());
-    //     // Dictionary that maps leg id to bond dimension
-    //     let bond_dims = self.tn.get_bond_dims();
-    //     self.best_path = self._ssa_greedy_optimize(
-    //         &inputs,
-    //         &output_dims,
-    //         bond_dims,
-    //         Box::new(&Greedy::_simple_chooser),
-    //         Box::new(&Greedy::_cost_memory_removed),
-    //     );
-
-    //     let inputs: Vec<Tensor> = self
-    //         .tn
-    //         .get_tensors()
-    //         .iter()
-    //         .enumerate()
-    //         .filter_map(|(i, e)| {
-    //             if partition[i] == k {
-    //                 Some(e.clone())
-    //             } else {
-    //                 None
-    //             }
-    //         })
-    //         .collect();
-
-    //     let (op_cost, mem_cost) = _contract_path_cost(
-    //         &inputs,
-    //         &self.get_best_partition_replace_path(k as usize),
-    //         self.tn.get_bond_dims(),
-    //     );
-    //     self.best_size = mem_cost;
-    //     self.best_flops = op_cost;
-    // }
 
     fn get_best_flops(&self) -> u64 {
         self.best_flops
@@ -844,17 +774,6 @@ impl<'a> OptimizePath for Greedy<'a> {
     fn get_best_replace_path(&self) -> Vec<ContractionIndex> {
         ssa_replace_ordering(&self.best_path, self.tn.get_tensors().len())
     }
-
-    // fn get_best_partition_replace_path(&self, k: usize) -> Vec<(usize, usize)> {
-    //     ssa_replace_ordering(
-    //         &self.best_path,
-    //         self.tn
-    //             .get_partitioning()
-    //             .iter()
-    //             .filter(|e| **e == k as i32)
-    //             .count(),
-    //     )
-    // }
 }
 
 #[cfg(test)]
@@ -1025,15 +944,4 @@ mod tests {
             path![(1, 5), (3, 4), (0, 1), (2, 3), (0, 2)]
         );
     }
-
-    // #[test]
-    // fn test_contract_order_greedy_partition() {
-    // let mut tn = setup_complex_simple();
-    // tn.set_partitioning(vec![1, 1, 1, 0, 0, 0]);
-    // let mut opt = Greedy::new(&tn, CostType::Flops);
-    // opt.optimize_partitioned_path(1);
-    // assert_eq!(opt.best_flops, 600);
-    // assert_eq!(opt.best_size, 538);
-    // assert_eq!(opt.get_best_partition_replace_path(1), vec![(0, 1), (2, 0)]);
-    // }
 }
