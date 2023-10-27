@@ -62,7 +62,9 @@ pub(super) fn ssa_replace_ordering(
                 ssa_path.push(pair!(*new_tup0, *new_tup1));
                 n += 1;
             }
-            ContractionIndex::Path(_path) => {}
+            ContractionIndex::Path(path) => {
+                ssa_path.push(ContractionIndex::Path(path.clone()));
+            }
         }
     }
     ssa_path
