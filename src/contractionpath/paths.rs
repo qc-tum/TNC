@@ -631,7 +631,7 @@ impl<'a> Greedy<'a> {
                     }
                 }
             }
-            if k2.dims() > 0 {
+            if !k2s.is_empty() {
                 Greedy::_push_candidate(
                     output_dims,
                     bond_dims,
