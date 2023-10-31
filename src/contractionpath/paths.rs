@@ -506,7 +506,7 @@ impl<'a> Greedy<'a> {
         let mut dim_tensor_counts = HashMap::<usize, HashSet<usize>>::new();
         for i in 2..=3 {
             for (dim, tensor_legs) in dim_to_tensors.iter() {
-                if tensor_legs.len() >= i {
+                if tensor_legs.len() >= i && !output_dims.get_legs().contains(&dim) {
                     dim_tensor_counts
                         .entry(i)
                         .and_modify(|entry| {
