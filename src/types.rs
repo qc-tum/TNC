@@ -26,20 +26,20 @@ impl From<(i32, i32)> for ContractionIndex {
 #[macro_export]
 macro_rules! path {
     ($index:expr, [$(($l:expr, $r:expr)),*]) => {
-        ContractionIndex::Path(($index, vec![$(pair![$l, $r]),*]))
+        $crate::types::ContractionIndex::Path(($index, vec![$(pair![$l, $r]),*]))
     };
     ($(($index:expr, $($tokens:tt),*)),*) => {
         vec![$(path![$index, $($tokens),*]),*]
     };
     ($e:expr, $p:expr) => {
-        ContractionIndex::Pair($e, $p)
+        $crate::types::ContractionIndex::Pair($e, $p)
     };
 }
 
 #[macro_export]
 macro_rules! pair {
     ($e:expr, $p:expr) => {
-        ContractionIndex::Pair($e, $p)
+        $crate::types::ContractionIndex::Pair($e, $p)
     };
 }
 
