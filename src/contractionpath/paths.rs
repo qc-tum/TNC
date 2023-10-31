@@ -645,32 +645,36 @@ impl<'a> Greedy<'a> {
                 );
             }
         }
+        // println!("Remaining tensors: {:?}",);
 
+        let mut heapq = BinaryHeap::new();
         for (key, ssa_id) in remaining_tensors {
-            let candidate = Candidate {
-                flop_cost: 0,
-                size_cost: _tensor_size(&(&key & output_dims), bond_dims) as i64,
-                parent_ids: (ssa_id, 0),
-                parent_tensors: Some((key, Tensor::default())),
-                child_id: 0,
-                child_tensor: None,
-            };
-            queue.push(candidate);
+            let tensor_size = _tensor_size(&(&key & output_dims), bond_dims) as i64;
+            if tensor_size > 0 {
+                let candidate = Candidate {
+                    flop_cost: 0,
+                    size_cost: tensor_size,
+                    parent_ids: (ssa_id, 0),
+                    parent_tensors: Some((key, Tensor::default())),
+                    child_id: 0,
+                    child_tensor: None,
+                };
+                heapq.push(candidate);
+            }
         }
 
-        let Some(Candidate {
-            flop_cost: 0,
-            size_cost: _cost,
-            parent_ids: (ssa_id1, _id2),
-            parent_tensors: Some((k1, _k2)),
-            child_id: 0,
-            child_tensor: None,
-        }) = queue.pop()
-        else {
-            return ssa_path;
-        };
-
-        while !queue.is_empty() {
+        while !heapq.is_empty() {
+            let Some(Candidate {
+                flop_cost: _flop_cost,
+                size_cost: _cost,
+                parent_ids: (ssa_id1, _id2),
+                parent_tensors: Some((k1, _k2)),
+                child_id: _child_id,
+                child_tensor: _child_tensor,
+            }) = heapq.pop()
+            else {
+                continue;
+            };
             let Some(Candidate {
                 flop_cost: _flop_cost,
                 size_cost: _cost,
@@ -678,7 +682,7 @@ impl<'a> Greedy<'a> {
                 parent_tensors: Some((k2, _k2)),
                 child_id: _child_id,
                 child_tensor: _child_tensor,
-            }) = queue.pop()
+            }) = heapq.pop()
             else {
                 continue;
             };
@@ -686,26 +690,16 @@ impl<'a> Greedy<'a> {
             let k12 = &(&k1 | &k2) & output_dims;
 
             let cost = _tensor_size(&k12, bond_dims) as i64;
-            queue.push(Candidate {
+            heapq.push(Candidate {
                 flop_cost: 0,
                 size_cost: cost,
-                parent_ids: (ssa_id1, 0),
-                parent_tensors: Some((k1.clone(), _k2)),
+                parent_ids: (min(ssa_id1, ssa_id2), 0),
+                parent_tensors: Some((k1.clone(), k2)),
                 child_id: 0,
                 child_tensor: None,
             });
-            let Some(Candidate {
-                flop_cost: _flop_cost,
-                size_cost: _cost,
-                parent_ids: (_ssa_id1, _id2),
-                parent_tensors: Some((_k1, _k2)),
-                child_id: _child_id,
-                child_tensor: _child_tensor,
-            }) = queue.pop()
-            else {
-                continue;
-            };
         }
+        let _ = validate_path(&ssa_path);
         ssa_path
     }
 }
