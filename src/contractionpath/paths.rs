@@ -6,7 +6,9 @@ use std::cmp::min;
 use std::collections::hash_map::Entry;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
+use std::error::Error;
 use std::option::Option;
+use std::thread::AccessError;
 use std::{cmp::max, collections::HashSet};
 
 use crate::contractionpath::{
@@ -33,6 +35,28 @@ pub trait OptimizePath {
 pub enum CostType {
     Flops = 0,
     Size = 1,
+}
+
+pub(crate) fn validate_path(path: &Vec<ContractionIndex>) -> Result<bool, String> {
+    let mut contracted = Vec::<usize>::new();
+    for index in path {
+        match index {
+            ContractionIndex::Pair(u, v) => {
+                if contracted.contains(u) {
+                    panic!(
+                        "Contracting already contracted tensors: {:?}, path: {:?}",
+                        u, path
+                    );
+                } else {
+                    contracted.push(*v);
+                }
+            }
+            ContractionIndex::Path((_, path)) => {
+                let _ = validate_path(path);
+            }
+        }
+    }
+    Ok(true)
 }
 
 /// A struct with an OptimizePath implementation that explores possible pair contractions in a depth-first manner.
@@ -564,7 +588,6 @@ impl<'a> Greedy<'a> {
             else {
                 continue;
             };
-
             let Some(ssa_id1) = remaining_tensors.get(&k1) else {
                 panic!("SSA ID '{:?}' missing", k1)
             };
@@ -572,6 +595,7 @@ impl<'a> Greedy<'a> {
             let Some(ssa_id2) = remaining_tensors.get(&k2) else {
                 panic!("SSA ID '{:?}' missing", k2)
             };
+            // already_contracted.push(ssa_id2);
 
             for dim in (&k1 - output_dims).get_legs().iter().cloned() {
                 dim_to_tensors.entry(dim).and_modify(|e| {
@@ -611,11 +635,13 @@ impl<'a> Greedy<'a> {
             }
             remaining_tensors.entry(k12.clone()).or_insert(next_ssa_id);
             next_ssa_id += 1;
+
             Greedy::_update_ref_counts(
                 &dim_to_tensors,
                 &mut dim_tensor_counts,
                 &(&(&k1 | &k2) - output_dims),
             );
+
             tensor_mem_size
                 .entry(k12.clone())
                 .or_insert(_tensor_size(&k12, bond_dims));
@@ -784,7 +810,6 @@ mod tests {
     use crate::path;
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
-    use crate::types::ContractionIndex;
 
     fn setup_simple() -> Tensor {
         create_tensor_network(
