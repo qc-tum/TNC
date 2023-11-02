@@ -1,7 +1,6 @@
 use self::tensor::Tensor;
 
 pub mod contraction;
-// #[cfg(feature = "partitioning")]
 pub mod partitioning;
 pub mod tensor;
 pub mod tensordata;
