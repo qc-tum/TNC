@@ -1,3 +1,5 @@
+use std::iter::zip;
+
 use float_cmp::approx_eq;
 use itertools::Itertools;
 use num_complex::Complex64;
@@ -6,7 +8,7 @@ use tetra::{Layout, Tensor as DataTensor};
 #[derive(Debug, Clone)]
 pub enum TensorData {
     File(String),
-    Gate(&'static str),
+    Gate((&'static str, Vec<f64>)),
     Matrix(DataTensor),
     Empty,
 }
@@ -17,7 +19,17 @@ impl PartialEq for TensorData {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::File(l0), Self::File(r0)) => l0.to_lowercase() == r0.to_lowercase(),
-            (Self::Gate(l0), Self::Gate(r0)) => l0.to_lowercase() == r0.to_lowercase(),
+            (Self::Gate((l0, angles_l)), Self::Gate((r0, angles_r))) => {
+                if l0.to_lowercase() != r0.to_lowercase() {
+                    return false;
+                }
+                for (angle1, angle2) in zip(angles_l.iter(), angles_r.iter()) {
+                    if angle1 != angle2 {
+                        return false;
+                    }
+                }
+                true
+            }
             (Self::Matrix(l0), Self::Matrix(r0)) => {
                 let range = l0.shape().iter().map(|e| 0..*e).multi_cartesian_product();
 
