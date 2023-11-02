@@ -66,8 +66,3 @@ impl TensorData {
         ))
     }
 }
-
-pub const PAULIX: TensorData = TensorData::Gate("X");
-pub const PAULIY: TensorData = TensorData::Gate("Y");
-pub const PAULIZ: TensorData = TensorData::Gate("Z");
-pub const CNOT: TensorData = TensorData::Gate("CNOT");
