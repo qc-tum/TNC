@@ -1,6 +1,11 @@
-extern crate num;
-
 use std::convert::From;
+
+use memoffset::offset_of;
+use mpi::{
+    datatype::{UncommittedUserDatatype, UserDatatype},
+    traits::Equivalence,
+    Address,
+};
 
 pub type EdgeIndex = usize;
 pub type TensorIndex = usize;
@@ -20,6 +25,33 @@ pub enum ContractionIndex {
 impl From<(i32, i32)> for ContractionIndex {
     fn from(value: (i32, i32)) -> Self {
         ContractionIndex::Pair(value.0 as usize, value.1 as usize)
+    }
+}
+impl ContractionIndex {
+    pub fn get_data(self) -> Vec<ContractionIndex> {
+        match self {
+            ContractionIndex::Pair(a, b) => vec![ContractionIndex::Pair(a, b)],
+            ContractionIndex::Path(_a, b) => b,
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct TupleType(usize, usize);
+
+unsafe impl Equivalence for ContractionIndex {
+    type Out = UserDatatype;
+
+    fn equivalent_datatype() -> Self::Out {
+        UserDatatype::structured(
+            &[2],
+            &[offset_of!(TupleType, 0) as Address],
+            &[UncommittedUserDatatype::structured(
+                &[2],
+                &[offset_of!(TupleType, 0) as Address],
+                &[usize::equivalent_datatype()],
+            )],
+        )
     }
 }
 
