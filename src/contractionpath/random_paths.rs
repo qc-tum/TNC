@@ -140,7 +140,6 @@ mod tests {
     use crate::path;
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
-    use crate::types::ContractionIndex;
 
     fn setup_simple() -> Tensor {
         create_tensor_network(
