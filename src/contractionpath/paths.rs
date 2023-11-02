@@ -6,9 +6,7 @@ use std::cmp::min;
 use std::collections::hash_map::Entry;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
-use std::error::Error;
 use std::option::Option;
-use std::thread::AccessError;
 use std::{cmp::max, collections::HashSet};
 
 use crate::contractionpath::{
