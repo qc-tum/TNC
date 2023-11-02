@@ -82,7 +82,7 @@ impl TensorContraction for Tensor {
     fn get_data(&self) -> DataTensor {
         match self.get_tensor_data().clone() {
             TensorData::File(filename) => load_data(&filename).unwrap(),
-            TensorData::Gate(gatename) => load_gate(gatename), // load_gate[gatename.to_lowercase()],
+            TensorData::Gate((gatename, angles)) => load_gate(gatename, Some(angles)), // load_gate[gatename.to_lowercase()],
             TensorData::Matrix(rawdata) => rawdata.clone(),
             TensorData::Empty => DataTensor::new(&[]),
         }
@@ -115,6 +115,7 @@ impl TensorContraction for Tensor {
         let tensor_b_legs = tensor_b.get_legs();
         let tensor_union = &tensor_b | &tensor_a;
         let mut tensor_symmetric_difference = &tensor_b ^ &tensor_a;
+
         let counter = count_edges(tensor_union.get_legs().iter());
 
         let edges = self.get_mut_edges();
@@ -196,7 +197,7 @@ mod tests {
             contraction::TensorContraction, create_tensor_network, tensor::Tensor,
             tensordata::TensorData,
         },
-        types::{ContractionIndex, Vertex},
+        types::Vertex,
     };
 
     use num_complex::Complex64;
