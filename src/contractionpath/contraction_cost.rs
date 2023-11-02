@@ -206,7 +206,7 @@ pub fn _contract_path_cost(
             mem_cost = max(mem_cost, new_mem_cost);
             inputs[i] = k12;
         }
-        ContractionIndex::Path((i, path)) => {
+        ContractionIndex::Path(i, path) => {
             costs = _contract_path_cost(inputs[i].get_tensors(), &path, bond_dims);
             op_cost += costs.0;
             mem_cost += costs.1;

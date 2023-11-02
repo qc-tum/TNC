@@ -51,7 +51,7 @@ pub(crate) fn validate_path(path: &Vec<ContractionIndex>) -> Result<bool, String
                     contracted.push(*v);
                 }
             }
-            ContractionIndex::Path((_, path)) => {
+            ContractionIndex::Path(_, path) => {
                 let _ = validate_path(path);
             }
         }
@@ -256,7 +256,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
                 );
                 bb.optimize_path();
                 sub_tensor_contraction
-                    .push(ContractionIndex::Path((index, bb.get_best_path().clone())));
+                    .push(ContractionIndex::Path(index, bb.get_best_path().clone()));
                 tensor.set_legs(tensor.get_external_edges());
             }
             self.size_cache
@@ -752,8 +752,7 @@ impl<'a> OptimizePath for Greedy<'a> {
                 );
                 if !path.is_empty() {
                     let ssa_path = ssa_replace_ordering(&path, input_tensor.get_tensors().len());
-                    self.best_path
-                        .push(ContractionIndex::Path((index, ssa_path)));
+                    self.best_path.push(ContractionIndex::Path(index, ssa_path));
                 }
                 input_tensor.set_legs(external_legs);
             }

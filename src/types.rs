@@ -14,7 +14,7 @@ pub enum Vertex {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ContractionIndex {
     Pair(usize, usize),
-    Path((usize, Vec<ContractionIndex>)),
+    Path(usize, Vec<ContractionIndex>),
 }
 
 impl From<(i32, i32)> for ContractionIndex {
@@ -26,7 +26,7 @@ impl From<(i32, i32)> for ContractionIndex {
 #[macro_export]
 macro_rules! path {
     ($index:expr, [$(($l:expr, $r:expr)),*]) => {
-        $crate::types::ContractionIndex::Path(($index, vec![$(pair![$l, $r]),*]))
+        $crate::types::ContractionIndex::Path($index, vec![$(pair![$l, $r]),*])
     };
     ($(($index:expr, $($tokens:tt),*)),*) => {
         vec![$(path![$index, $($tokens),*]),*]
@@ -52,19 +52,19 @@ mod tests {
         assert_eq!(
             vec![
                 ContractionIndex::Pair(0, 1),
-                ContractionIndex::Path((
+                ContractionIndex::Path(
                     2,
                     vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
-                )),
+                ),
                 ContractionIndex::Pair(0, 2),
-                ContractionIndex::Path((
+                ContractionIndex::Path(
                     3,
                     vec![
                         ContractionIndex::Pair(4, 1),
                         ContractionIndex::Pair(3, 4),
                         ContractionIndex::Pair(3, 5)
                     ]
-                )),
+                ),
                 ContractionIndex::Pair(0, 3),
             ],
             path![
