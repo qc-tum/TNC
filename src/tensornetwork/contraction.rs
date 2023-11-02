@@ -43,7 +43,7 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
                 tn.contract_tensors(*i, *j);
                 last_index = *i;
             }
-            ContractionIndex::Path((i, inner_contract_path)) => {
+            ContractionIndex::Path(i, inner_contract_path) => {
                 contract_tensor_network(tn.get_mut_tensor(*i), inner_contract_path);
                 tn._update_tensor(&mut tn.get_tensor(*i).clone());
             }
