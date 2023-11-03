@@ -109,8 +109,9 @@ impl TensorContraction for Tensor {
     }
 
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) {
-        let tensor_a = self.clone().get_tensor(tensor_a_loc).clone();
-        let tensor_b = self.clone().get_tensor(tensor_b_loc).clone();
+        let tensor_a = self.get_mut_tensor(tensor_a_loc).clone();
+        let tensor_b = self.get_mut_tensor(tensor_b_loc).clone();
+
         let tensor_a_legs = tensor_a.get_legs();
         let tensor_b_legs = tensor_b.get_legs();
         let tensor_union = &tensor_b | &tensor_a;
