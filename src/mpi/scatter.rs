@@ -169,15 +169,18 @@ pub fn scatter_tensor_network(
 }
 
 pub fn gather_tensor_network(
-    mut local_tn: Tensor,
+    local_tn: Tensor,
     path: &[ContractionIndex],
     rank: i32,
     size: i32,
     world: &SimpleCommunicator,
-) {
+) -> Tensor {
+    let mut new_tn = Tensor::default();
     if rank == 0 {
-        let edges = local_tn.get_mut_edges();
-        edges.clear();
+        // let edges = local_tn.get_mut_edges();
+        // edges.clear();
+        let bond_dims = local_tn.get_bond_dims().clone();
+        new_tn.push_tensor(local_tn, Some(&bond_dims), None);
         for i in 1..size {
             let (legs, _status) = world.process_at_rank(i).receive_vec::<usize>();
             let returned_tensor = Tensor::new(legs);
@@ -186,7 +189,7 @@ pub fn gather_tensor_network(
             let (data, _status) = world.process_at_rank(i).receive_vec::<Complex64>();
             let tensor_data = TensorData::new_from_flat(shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);
-            local_tn.push_tensor(returned_tensor, None, None);
+            new_tn.push_tensor(returned_tensor, None, None);
         }
     } else {
         let legs = local_tn.get_legs().clone();
@@ -199,6 +202,7 @@ pub fn gather_tensor_network(
     }
     world.barrier();
     if rank == 0 {
-        contract_tensor_network(&mut local_tn, &path[(size as usize)..path.len()]);
+        contract_tensor_network(&mut new_tn, &path[(size as usize)..path.len()]);
     }
+    new_tn
 }
