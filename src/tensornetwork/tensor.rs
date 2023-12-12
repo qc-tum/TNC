@@ -528,9 +528,10 @@ impl Tensor {
     ///
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::tensordata::{TensorData, PAULIX};
+    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
+    /// # use tensorcontraction::gates::PAULIX;
     /// let mut tensor = Tensor::new(vec![0,1]);
-    /// let tensordata = TensorData::Gate("X");
+    /// let tensordata = TensorData::Gate(("X", vec![]));
     /// tensor.set_tensor_data(tensordata);
     /// assert_eq!(*tensor.get_tensor_data(), PAULIX);
     /// ```
