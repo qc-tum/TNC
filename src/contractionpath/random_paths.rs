@@ -6,10 +6,8 @@ use std::{
 
 use crate::tensornetwork::tensor::Tensor;
 
-use super::{
-    candidates::Candidate, contraction_cost::_contract_path_cost, paths::Greedy,
-    ssa_replace_ordering,
-};
+use super::{candidates::Candidate, contraction_cost::_contract_path_cost, ssa_replace_ordering};
+use crate::contractionpath::paths::greedy::Greedy;
 
 pub trait RandomOptimizePath {
     fn random_optimize_path<R>(&mut self, trials: usize, rng: &mut R)
@@ -134,8 +132,8 @@ mod tests {
     use crate::contractionpath::paths::CostType;
     // use rand::distributions::{Distribution, Uniform};
     // TODO: Use random tensors
-    use crate::contractionpath::paths::Greedy;
     use crate::contractionpath::paths::OptimizePath;
+    use crate::contractionpath::random_paths::Greedy;
     use crate::contractionpath::random_paths::RandomOptimizePath;
     use crate::path;
     use crate::tensornetwork::create_tensor_network;

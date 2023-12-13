@@ -2,7 +2,7 @@ use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
     circuits::sycamore::sycamore_circuit,
-    contractionpath::paths::{CostType, Greedy, OptimizePath},
+    contractionpath::paths::{greedy::Greedy, CostType, OptimizePath},
     mpi::scatter::{gather_tensor_network, scatter_tensor_network},
     tensornetwork::{
         contraction::contract_tensor_network,

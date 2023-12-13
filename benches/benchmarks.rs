@@ -2,7 +2,8 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Samplin
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Duration;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
-use tensorcontraction::contractionpath::paths::{CostType, Greedy, OptimizePath};
+use tensorcontraction::contractionpath::paths::OptimizePath;
+use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
 use tensorcontraction::mpi::scatter::{gather_tensor_network, scatter_tensor_network};
 // use tensorcontraction::tensornetwork::parallel_contraction::parallel_contract_tensor_network;
 use mpi::traits::*;

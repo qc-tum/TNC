@@ -69,3 +69,41 @@ pub(super) fn ssa_replace_ordering(
     }
     ssa_path
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::{
+        contractionpath::{ssa_ordering, ssa_replace_ordering},
+        path,
+    };
+
+    #[test]
+    fn test_ssa_ordering() {
+        let path = vec![
+            (0, 3, 15),
+            (1, 2, 44),
+            (6, 4, 8),
+            (5, 15, 22),
+            (8, 44, 12),
+            (12, 22, 99),
+        ];
+        let new_path = ssa_ordering(&path, 7);
+
+        assert_eq!(
+            new_path,
+            path![(0, 3), (1, 2), (6, 4), (5, 7), (9, 8), (11, 10)]
+        )
+    }
+
+    #[test]
+    fn test_ssa_replace_ordering() {
+        let path = path![(0, 3), (1, 2), (6, 4), (5, 7), (9, 8), (11, 10)];
+        let new_path = ssa_replace_ordering(&path, 7);
+
+        assert_eq!(
+            new_path,
+            path![(0, 3), (1, 2), (6, 4), (5, 0), (6, 1), (6, 5)]
+        )
+    }
+}

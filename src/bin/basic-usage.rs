@@ -3,7 +3,7 @@ extern crate tensorcontraction;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
-use tensorcontraction::contractionpath::paths::{CostType, Greedy, OptimizePath};
+use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::scatter::{gather_tensor_network, scatter_tensor_network};
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
@@ -26,8 +26,12 @@ fn main() {
     if rank == 0 {
         let k = 5;
         let mut r_tn = sycamore_circuit(k, 5, None, None, &mut rng);
-        let partitioning =
-            find_partitioning(&mut r_tn, size, std::string::String::from("tests/km1"));
+        let partitioning = find_partitioning(
+            &mut r_tn,
+            size,
+            std::string::String::from("tests/km1"),
+            true,
+        );
         partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 

@@ -3,7 +3,8 @@ use rand::prelude::Distribution;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 
-use crate::contractionpath::paths::{CostType, Greedy, OptimizePath};
+use crate::contractionpath::paths::OptimizePath;
+use crate::contractionpath::paths::{greedy::Greedy, CostType};
 use crate::contractionpath::random_paths::RandomOptimizePath;
 use crate::fsim;
 use crate::gates::{SQRX, SQRY, SQRZ};
