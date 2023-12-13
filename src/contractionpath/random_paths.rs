@@ -15,7 +15,6 @@ pub trait RandomOptimizePath {
         R: ?Sized + Rng;
 }
 
-// __all__ = ["RandomGreedy", "random_greedy", "random_greedy_128"]
 impl<'a> Greedy<'a> {
     pub(crate) fn _thermal_chooser<R: Rng + ?Sized>(
         queue: &mut BinaryHeap<Candidate>,
