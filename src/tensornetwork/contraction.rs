@@ -20,7 +20,7 @@ use super::tensordata::TensorData;
 /// ```
 /// # extern crate tensorcontraction;
 /// # use tensorcontraction::{
-///     contractionpath::paths::{BranchBound, CostType, OptimizePath},
+///     contractionpath::paths::{branchbound::BranchBound, CostType, OptimizePath},
 ///     random::tensorgeneration::random_tensor_network_with_rng,
 ///     tensornetwork::tensor::Tensor,
 ///     tensornetwork::contraction::contract_tensor_network,
