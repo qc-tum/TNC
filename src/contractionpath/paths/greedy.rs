@@ -627,7 +627,6 @@ mod tests {
     }
     #[test]
     fn test_contract_order_greedy_complex() {
-        let mut _rng = StdRng::seed_from_u64(52);
         let tn = setup_complex();
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
