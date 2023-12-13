@@ -363,6 +363,20 @@ impl<'a> Greedy<'a> {
         size12 - size1 - size2
     }
 
+    /// Con cost, corresponding to the total reduction in
+    /// memory of performing a contraction.
+    pub(crate) fn _cost_communication(
+        _bond_dims: &HashMap<usize, u64>,
+        _size12: i64,
+        size1: i64,
+        _size2: i64,
+        _k12: &Tensor,
+        _k1: &Tensor,
+        _k2: &Tensor,
+    ) -> i64 {
+        size1
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn _push_candidate(
         output: &Tensor,
