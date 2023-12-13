@@ -4,7 +4,7 @@ use itertools::Itertools;
 use super::contraction::tn_output_tensor;
 use super::DataTensor;
 use super::{contraction::tn_contract, tensor::Tensor, TensorNetwork};
-use tetra::permutation::Permutation;
+use permutation::Permutation;
 
 /// Stores feynman contraction data specific to a given feynman scattering.
 pub struct FeynmanContractionData {
@@ -39,11 +39,10 @@ fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation
         }
     }
     perm.append(&mut feynman_perm);
-    (
-        Tensor::new(new_legs),
-        Permutation::between(&(0..t.get_legs().len()).collect_vec(), &perm),
-        feynman_indexing,
-    )
+    let p1 = permutation::sort(&(0..t.get_legs().len()).collect_vec());
+    let p2 = permutation::sort(&perm).inverse();
+    let mut c_perm = &p2 * &p1;
+    (Tensor::new(new_legs), &p2 * &p1, feynman_indexing)
 }
 
 /// Slices all [`Tensor`] objects in a [`TensorNetwork`] along given `feynman_indices`.
@@ -260,7 +259,9 @@ pub fn feynman_contraction(
         feynman_insert_data_tensor(&mut out_tensor, &index, &d_out[0]);
     }
 
-    let out_perm = Permutation::between(&feynman_output, out_indices);
+    let p1 = permutation::sort(feynman_output);
+    let p2 = permutation::sort(out_indices).inverse();
+    let mut out_perm = &p2 * &p1;
     out_tensor.transpose(&out_perm);
     out_tensor
 }
