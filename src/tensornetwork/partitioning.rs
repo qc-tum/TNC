@@ -8,11 +8,12 @@ use crate::types::Vertex;
 use kahypar_sys;
 use kahypar_sys::{partition, KaHyParContext};
 
-pub fn find_partitioning(tn: &mut Tensor, k: i32, config_file: String) -> Vec<usize> {
+pub fn find_partitioning(tn: &mut Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
     let num_vertices = tn.get_tensors().len() as u32;
     let mut num_hyperedges = 0;
     let mut context = KaHyParContext::new();
     context.configure(config_file);
+    let x = if min { 1 } else { -1 };
 
     let imbalance: f64 = 0.03;
     let mut objective = 0;
@@ -26,7 +27,7 @@ pub fn find_partitioning(tn: &mut Tensor, k: i32, config_file: String) -> Vec<us
         if tensor_ids.len() == 2 && tensor_ids.contains(&Vertex::Open) {
             continue;
         }
-        hyperedge_weights.push(bond_dims[&edges] as i32);
+        hyperedge_weights.push(x * bond_dims[&edges] as i32);
 
         for id in tensor_ids {
             match id {
@@ -148,7 +149,8 @@ mod tests {
             Some(&tn.get_bond_dims()),
             None,
         );
-        let partitioning = find_partitioning(&mut tn, 3, std::string::String::from("tests/km1"));
+        let partitioning =
+            find_partitioning(&mut tn, 3, std::string::String::from("tests/km1"), true);
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);
         let partitioned_tn = partition_tensor_network(&tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.get_tensors().len(), 3);

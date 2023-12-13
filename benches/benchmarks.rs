@@ -42,7 +42,8 @@ pub fn partition_benchmark(c: &mut Criterion) {
 
     for k in [10, 15, 20, 25] {
         let mut r_tn = sycamore_circuit(k, 5, None, None, &mut rng);
-        let partitioning = find_partitioning(&mut r_tn, 5, std::string::String::from("tests/km1"));
+        let partitioning =
+            find_partitioning(&mut r_tn, 5, std::string::String::from("tests/km1"), true);
         let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
         // let mut opt = BranchBound::new(&r_tn, None, 20, CostType::Flops);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
@@ -80,8 +81,12 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
         if rank == 0 {
             let k = 5;
             let mut r_tn = sycamore_circuit(k, 5, None, None, &mut rng);
-            let partitioning =
-                find_partitioning(&mut r_tn, size, std::string::String::from("tests/km1"));
+            let partitioning = find_partitioning(
+                &mut r_tn,
+                size,
+                std::string::String::from("tests/km1"),
+                true,
+            );
             partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
             let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
