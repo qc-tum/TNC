@@ -18,7 +18,7 @@ impl Ord for Candidate {
         other
             .size_cost
             .cmp(&self.size_cost)
-            .then_with(|| self.flop_cost.cmp(&other.flop_cost))
+            .then_with(|| other.flop_cost.cmp(&self.flop_cost))
     }
 }
 
