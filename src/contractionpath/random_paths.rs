@@ -196,12 +196,12 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.random_optimize_path(32, &mut StdRng::seed_from_u64(42));
 
-        assert_eq!(opt.best_flops, 529815);
+        assert_eq!(opt.best_flops, 528750);
         assert_eq!(opt.best_size, 89478);
-        assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 7), (8, 9)]);
+        assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 8), (7, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),
-            path![(1, 5), (3, 4), (0, 1), (2, 3), (0, 2)]
+            path![(1, 5), (3, 4), (0, 1), (2, 0), (3, 2)]
         );
     }
 }

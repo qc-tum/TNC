@@ -4,7 +4,7 @@ use std::{
 };
 
 use itertools::Itertools;
-use rand::{thread_rng, Rng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
     contractionpath::{
@@ -125,7 +125,7 @@ impl<'a> Greedy<'a> {
                 cost_function,
             ));
         }
-        if false {
+        if true {
             for candidate in candidates {
                 queue.push(candidate);
             }
@@ -310,7 +310,7 @@ impl<'a> Greedy<'a> {
                 0,
                 0.0,
                 false,
-                &mut thread_rng(),
+                &mut StdRng::seed_from_u64(42),
             );
             let Some(Candidate {
                 flop_cost: 0,
