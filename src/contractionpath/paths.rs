@@ -1,5 +1,4 @@
-use itertools::Itertools;
-use rand::rngs::ThreadRng;
+use rand::rngs::StdRng;
 use std::collections::HashMap;
 use std::option::Option;
 
@@ -57,5 +56,5 @@ type ChoiceFnType = dyn for<'b, 'c> Fn(
     usize,
     f64,
     bool,
-    &mut ThreadRng,
+    &mut StdRng,
 ) -> Option<Candidate>;
