@@ -5,7 +5,6 @@ pub mod candidates;
 pub mod contraction_cost;
 pub mod paths;
 pub mod random_paths;
-// pub mod optimizer;
 
 /// The contraction ordering labels [Tensor] objects from each possible contraction with a
 /// unique identifier in ssa format. As only a subset of these [Tensor] objects are seen in
