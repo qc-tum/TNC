@@ -23,7 +23,8 @@ fn test_partitioned_contraction() {
     let ref_path = ref_opt.get_best_replace_path();
     contract_tensor_network(&mut ref_tn, &ref_path);
 
-    let partitioning = find_partitioning(&mut r_tn, 5, std::string::String::from("tests/km1"));
+    let partitioning =
+        find_partitioning(&mut r_tn, 5, std::string::String::from("tests/km1"), true);
     let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
     opt.optimize_path();
@@ -51,8 +52,12 @@ fn test_mpi_partitioned_contraction() {
         let k = 5;
         let mut r_tn = sycamore_circuit(k, 10, None, None, &mut rng);
         ref_tn = r_tn.clone();
-        let partitioning =
-            find_partitioning(&mut r_tn, size, std::string::String::from("tests/km1"));
+        let partitioning = find_partitioning(
+            &mut r_tn,
+            size,
+            std::string::String::from("tests/km1"),
+            true,
+        );
         partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
