@@ -1,7 +1,3 @@
-stages:
-- docker
-- main
-
 include:
 - project: 'quantum-research/rust-ci'
   ref: main
