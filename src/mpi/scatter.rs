@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::iter::zip;
 
@@ -164,7 +165,74 @@ pub fn scatter_tensor_network(
     (local_tn, local_path)
 }
 
-pub fn gather_tensor_network(
+pub fn intermediate_gather_tensor_network(
+    local_tn: &mut Tensor,
+    path: &[ContractionIndex],
+    rank: i32,
+    _size: i32,
+    world: &SimpleCommunicator,
+) -> Tensor {
+    let new_tn: Tensor = Tensor::default();
+    let mut empty = false;
+    let mut final_rank = 0;
+    path.iter().for_each(|i| match i {
+        ContractionIndex::Pair(x, y) => {
+            let receiver = *x as i32;
+            let sender = *y as i32;
+            final_rank = receiver;
+            if receiver == rank {
+                let (legs, _status) = world.process_at_rank(sender).receive_vec::<usize>();
+                let returned_tensor = Tensor::new(legs);
+                let (shape, _status) = world.process_at_rank(sender).receive_vec::<u32>();
+                let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
+                let (data, _status) = world.process_at_rank(sender).receive_vec::<Complex64>();
+                let tensor_data = TensorData::new_from_flat(shape, data, None);
+                returned_tensor.set_tensor_data(tensor_data);
+                local_tn.push_tensor(returned_tensor, None, None);
+                contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
+            }
+            if sender == rank {
+                let legs = local_tn.get_legs().clone();
+                world.process_at_rank(receiver).send(&legs);
+                let local_tensor = local_tn.get_data();
+                world
+                    .process_at_rank(receiver)
+                    .send(&(*local_tensor.shape()));
+                world
+                    .process_at_rank(receiver)
+                    .send(&(*local_tensor.get_raw_data()));
+                empty = true;
+            }
+        }
+        ContractionIndex::Path(..) => (),
+    });
+    if final_rank != 0 {
+        if rank == 0 {
+            let (legs, _status) = world.process_at_rank(final_rank).receive_vec::<usize>();
+            let returned_tensor = Tensor::new(legs);
+            let (shape, _status) = world.process_at_rank(final_rank).receive_vec::<u32>();
+            let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
+            let (data, _status) = world.process_at_rank(final_rank).receive_vec::<Complex64>();
+            let tensor_data = TensorData::new_from_flat(shape, data, None);
+            returned_tensor.set_tensor_data(tensor_data);
+            return returned_tensor;
+        }
+        if rank == final_rank {
+            let legs = local_tn.get_legs().clone();
+            world.process_at_rank(0).send(&legs);
+            let local_tensor = local_tn.get_data();
+            world.process_at_rank(0).send(&(*local_tensor.shape()));
+            world
+                .process_at_rank(0)
+                .send(&(*local_tensor.get_raw_data()));
+        }
+    } else if rank == 0 {
+        return local_tn.clone();
+    }
+    new_tn
+}
+
+pub fn naive_gather_tensor_network(
     local_tn: Tensor,
     path: &[ContractionIndex],
     rank: i32,
@@ -199,4 +267,26 @@ pub fn gather_tensor_network(
         contract_tensor_network(&mut new_tn, &path[(size as usize)..path.len()]);
     }
     new_tn
+}
+
+pub fn broadcast_path(
+    local_path: &[ContractionIndex],
+    world: &SimpleCommunicator,
+) -> Vec<ContractionIndex> {
+    let root_rank = 0;
+    let root_process = world.process_at_rank(root_rank);
+    let mut path_length = if world.rank() == root_rank {
+        local_path.len()
+    } else {
+        0
+    };
+    root_process.broadcast_into(&mut path_length);
+    if world.rank() != root_rank {
+        let mut buffer = vec![ContractionIndex::Pair(0, 0); path_length];
+        root_process.broadcast_into(&mut buffer);
+        return buffer;
+    } else {
+        root_process.broadcast_into(&mut local_path.to_vec());
+        return local_path.to_vec();
+    }
 }
