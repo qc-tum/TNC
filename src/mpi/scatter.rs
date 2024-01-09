@@ -93,7 +93,6 @@ pub fn scatter_tensor_network(
         for (i, tensor) in zip(1..size, r_tn.get_tensors()[1..size as usize].iter()) {
             let num_tensors = tensor.get_tensors().len();
             world.process_at_rank(i).send(&num_tensors);
-            // let mut legs = Vec::new();
             for inner_tensor in tensor.get_tensors() {
                 let legs = inner_tensor.get_legs().clone();
                 world.process_at_rank(i).send(&legs);
@@ -118,7 +117,6 @@ pub fn scatter_tensor_network(
                         world
                             .process_at_rank(i)
                             .send(&(*matrix_data.get_raw_data()));
-                        // panic!("Sending raw data is not yet supported")
                     }
                 }
             }
@@ -126,8 +124,6 @@ pub fn scatter_tensor_network(
     } else {
         let (path, _status) = world.any_process().receive_vec::<ContractionIndex>();
         local_path = path;
-
-        // let bond_dims = tensors.
 
         let (num_tensors, _status) = world.any_process().receive::<usize>();
 
@@ -177,8 +173,6 @@ pub fn gather_tensor_network(
 ) -> Tensor {
     let mut new_tn = Tensor::default();
     if rank == 0 {
-        // let edges = local_tn.get_mut_edges();
-        // edges.clear();
         let bond_dims = local_tn.get_bond_dims().clone();
         new_tn.push_tensor(local_tn, Some(&bond_dims), None);
         for i in 1..size {
