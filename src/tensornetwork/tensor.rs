@@ -479,7 +479,7 @@ impl Tensor {
 
     // Internal method to update edges in tensornetwork after new tensor is added.
     // If existing edges are introduced, assume that a contraction occurs between them
-    // Otherwise, introdce a new open vertex in edges
+    // Otherwise, introduce a new open vertex in edges
     pub(crate) fn _update_tensor(&mut self, tensor: &mut Tensor) {
         tensor.bond_dims = Rc::clone(&self.bond_dims);
         let shared_bond_dims = self.bond_dims.borrow();

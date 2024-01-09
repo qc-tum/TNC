@@ -3,7 +3,7 @@ use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
     circuits::sycamore::sycamore_circuit,
     contractionpath::paths::{greedy::Greedy, CostType, OptimizePath},
-    mpi::scatter::{gather_tensor_network, scatter_tensor_network},
+    mpi::scatter::{naive_gather_tensor_network, scatter_tensor_network},
     tensornetwork::{
         contraction::contract_tensor_network,
         partitioning::{find_partitioning, partition_tensor_network},

@@ -4,7 +4,7 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
-use tensorcontraction::mpi::scatter::{gather_tensor_network, scatter_tensor_network};
+use tensorcontraction::mpi::scatter::{naive_gather_tensor_network, scatter_tensor_network};
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 
@@ -43,5 +43,5 @@ fn main() {
         scatter_tensor_network(partitioned_tn, &path, rank, size, &world);
     contract_tensor_network(&mut local_tn, &local_path);
 
-    gather_tensor_network(local_tn, &path, rank, size, &world);
+    naive_gather_tensor_network(local_tn, &path, rank, size, &world);
 }
