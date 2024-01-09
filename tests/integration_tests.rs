@@ -69,7 +69,7 @@ fn test_mpi_partitioned_contraction() {
         scatter_tensor_network(partitioned_tn, &path, rank, size, &world);
     contract_tensor_network(&mut local_tn, &local_path);
 
-    let return_tn = gather_tensor_network(local_tn, &path, rank, size, &world);
+    let return_tn = naive_gather_tensor_network(local_tn, &path, rank, size, &world);
     world.barrier();
 
     if rank == 0 {
