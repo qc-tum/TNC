@@ -437,6 +437,7 @@ impl Tensor {
         bond_dims: Option<&HashMap<usize, u64>>,
         external_hyperedge: Option<&Vec<usize>>,
     ) {
+        // Case that tensor is not empty and has no subtensors.
         if self.get_tensors().is_empty() && !self.get_legs().is_empty() {
             let mut new_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
