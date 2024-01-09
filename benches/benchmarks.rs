@@ -1,10 +1,14 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
+use mpi::topology::SimpleCommunicator;
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Duration;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
-use tensorcontraction::mpi::scatter::{gather_tensor_network, scatter_tensor_network};
+use tensorcontraction::mpi::scatter::{
+    broadcast_path, intermediate_gather_tensor_network, naive_gather_tensor_network,
+    scatter_tensor_network,
+};
 // use tensorcontraction::tensornetwork::parallel_contraction::parallel_contract_tensor_network;
 use mpi::traits::*;
 
@@ -63,12 +67,12 @@ pub fn partition_benchmark(c: &mut Criterion) {
 
 // Run with 4 processes
 // Current assumption is that we have the number of processes equal to intermediate tensors
-pub fn parallel_partition_benchmark(c: &mut Criterion) {
-    let mut rng = StdRng::seed_from_u64(52);
+pub fn parallel_naive_benchmark(c: &mut Criterion) {
+    let mut rng = StdRng::seed_from_u64(51);
 
-    let mut par_part_group = c.benchmark_group("MPI Partition");
-    par_part_group.measurement_time(Duration::from_secs(10));
-    par_part_group.sampling_mode(SamplingMode::Flat);
+    // let mut par_part_group = c.benchmark_group("MPI Naive");
+    // par_part_group.measurement_time(Duration::from_secs(30));
+    // par_part_group.sampling_mode(SamplingMode::Flat);
 
     let universe = mpi::initialize().unwrap();
     let world = universe.world();
@@ -76,12 +80,11 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
     let rank = world.rank();
 
     // Do we need to know communication beforehand?
-    for k in [10, 15, 20] {
+    for k in [25, 30] {
         let mut partitioned_tn = Tensor::default();
         let mut path = Vec::new();
         if rank == 0 {
-            let k = 5;
-            let mut r_tn = sycamore_circuit(k, 5, None, None, &mut rng);
+            let mut r_tn = sycamore_circuit(k, 20, None, None, &mut rng);
             let partitioning = find_partitioning(
                 &mut r_tn,
                 size,
@@ -102,7 +105,116 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
                     scatter_tensor_network(partitioned_tn.clone(), &path, rank, size, &world);
                 contract_tensor_network(&mut local_tn, &local_path);
 
-                gather_tensor_network(local_tn.clone(), &path, rank, size, &world);
+                naive_gather_tensor_network(local_tn.clone(), &path, rank, size, &world);
+            });
+        });
+    }
+    par_part_group.finish();
+
+    let mut par_group = c.benchmark_group("MPI Partition");
+    par_group.measurement_time(Duration::from_secs(30));
+    par_group.sampling_mode(SamplingMode::Flat);
+
+    let world = SimpleCommunicator::world();
+    let size = world.size();
+    let rank = world.rank();
+
+    // Do we need to know communication beforehand?
+    for k in [25, 30] {
+        let mut partitioned_tn = Tensor::default();
+        let mut path = Vec::new();
+        if rank == 0 {
+            let mut r_tn = sycamore_circuit(k, 20, None, None, &mut rng);
+            let partitioning = find_partitioning(
+                &mut r_tn,
+                size,
+                std::string::String::from("tests/km1"),
+                true,
+            );
+            partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+            let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+
+            opt.optimize_path();
+            path = opt.get_best_replace_path();
+        }
+        world.barrier();
+
+        par_group.bench_function(BenchmarkId::from_parameter(k), |b| {
+            b.iter(|| {
+                let (mut local_tn, local_path) =
+                    scatter_tensor_network(partitioned_tn.clone(), &path, rank, size, &world);
+                contract_tensor_network(&mut local_tn, &local_path);
+
+                let path = if rank == 0 {
+                    broadcast_path(&path[(size as usize)..path.len()], &world)
+                } else {
+                    broadcast_path(&[], &world)
+                };
+                world.barrier();
+                intermediate_gather_tensor_network(
+                    &mut local_tn.clone(),
+                    &path,
+                    rank,
+                    size,
+                    &world,
+                );
+            });
+        });
+    }
+    par_group.finish();
+}
+
+pub fn parallel_partition_benchmark(c: &mut Criterion) {
+    let mut rng = StdRng::seed_from_u64(52);
+
+    let mut par_part_group = c.benchmark_group("MPI Partition");
+    par_part_group.measurement_time(Duration::from_secs(10));
+    par_part_group.sampling_mode(SamplingMode::Flat);
+
+    let world = SimpleCommunicator::world();
+    let size = world.size();
+    let rank = world.rank();
+
+    // Do we need to know communication beforehand?
+    for k in [10, 15, 20] {
+        let mut partitioned_tn = Tensor::default();
+        let mut path = Vec::new();
+        if rank == 0 {
+            let k = 4;
+            let mut r_tn = sycamore_circuit(k, 10, None, None, &mut rng);
+            let partitioning = find_partitioning(
+                &mut r_tn,
+                size,
+                std::string::String::from("tests/km1"),
+                true,
+            );
+            partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+            let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+
+            opt.optimize_path();
+            path = opt.get_best_replace_path();
+        }
+        world.barrier();
+
+        par_part_group.bench_function(BenchmarkId::from_parameter(k), |b| {
+            b.iter(|| {
+                let (mut local_tn, local_path) =
+                    scatter_tensor_network(partitioned_tn.clone(), &path, rank, size, &world);
+                contract_tensor_network(&mut local_tn, &local_path);
+
+                let path = if rank == 0 {
+                    broadcast_path(&path[(size as usize)..path.len()], &world)
+                } else {
+                    broadcast_path(&[], &world)
+                };
+                world.barrier();
+                intermediate_gather_tensor_network(
+                    &mut local_tn.clone(),
+                    &path,
+                    rank,
+                    size,
+                    &world,
+                );
             });
         });
     }
@@ -113,6 +225,7 @@ criterion_group!(
     benches,
     // partition_benchmark,
     // criterion_benchmark,
-    parallel_partition_benchmark
+    parallel_naive_benchmark,
+    // parallel_partition_benchmark
 );
 criterion_main!(benches);
