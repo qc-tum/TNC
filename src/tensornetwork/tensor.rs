@@ -203,7 +203,7 @@ impl Tensor {
     /// let tn = create_tensor_network(vec![v1,v2], &bond_dims, None);
     /// assert_eq!(*tn.get_bond_dims(), bond_dims);
     /// ```
-    pub fn get_bond_dims(&self) -> std::cell::Ref<'_, std::collections::HashMap<EdgeIndex, u64>> {
+    pub fn get_bond_dims(&self) -> std::cell::Ref<std::collections::HashMap<EdgeIndex, u64>> {
         self.bond_dims.borrow()
     }
 
