@@ -18,7 +18,7 @@ pub struct Tensor {
     pub(crate) legs: Vec<EdgeIndex>,
     pub(crate) bond_dims: Rc<RefCell<HashMap<EdgeIndex, u64>>>,
     pub(crate) edges: HashMap<EdgeIndex, Vec<Vertex>>,
-    tensordata: RefCell<TensorData>,
+    pub(crate) tensordata: RefCell<TensorData>,
 }
 
 impl PartialEq for Tensor {
