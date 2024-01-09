@@ -8,7 +8,7 @@ use crate::types::Vertex;
 use kahypar_sys;
 use kahypar_sys::{partition, KaHyParContext};
 
-pub fn find_partitioning(tn: &mut Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
+pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
     let num_vertices = tn.get_tensors().len() as u32;
     let mut num_hyperedges = 0;
     let mut context = KaHyParContext::new();
@@ -41,6 +41,7 @@ pub fn find_partitioning(tn: &mut Tensor, k: i32, config_file: String, min: bool
         hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
         num_hyperedges += 1;
     }
+
     let mut partitioning = vec![-1; num_vertices as usize];
     partition(
         num_vertices,
