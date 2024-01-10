@@ -4,7 +4,7 @@ use itertools::Itertools;
 use super::contraction::tn_output_tensor;
 use super::DataTensor;
 use super::{contraction::tn_contract, tensor::Tensor, TensorNetwork};
-use tetra::permutation::Permutation;
+use permutation::{self, Permutation};
 
 /// Stores feynman contraction data specific to a given feynman scattering.
 pub struct FeynmanContractionData {
@@ -14,6 +14,22 @@ pub struct FeynmanContractionData {
     pub permutation_vector: Vec<Permutation>,
     /// Stores the index identifying which feynman index is iterated over for each Tensor object
     pub feynman_tensor_indexes: Vec<Vec<usize>>,
+}
+
+/// Computes the permutation that, when applied to slice `a`, will result in `b`.
+/// Assumes that `a` and `b` are permutations of each other.
+///
+/// # Arguments
+///
+/// * `a` - &[T] slice to be permuted
+/// * `b` - &[T] slice to be permuted to
+fn permutation_between<T>(a: &[T], b: &[T]) -> Permutation
+where
+    T: Ord,
+{
+    let a_to_sorted = permutation::sort(a);
+    let sorted_to_b = permutation::sort(b).inverse();
+    &sorted_to_b * &a_to_sorted
 }
 
 /// Slices a [`Tensor`] along given `feynman_indices`.
@@ -41,7 +57,7 @@ fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation
     perm.append(&mut feynman_perm);
     (
         Tensor::new(new_legs),
-        Permutation::between(&(0..t.get_legs().len()).collect_vec(), &perm),
+        permutation_between(&perm, &(0..t.get_legs().len()).collect_vec()),
         feynman_indexing,
     )
 }
@@ -71,7 +87,7 @@ fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation
 ///     feynman::{feynman_scatter, FeynmanContractionData}}
 /// };
 /// use std::collections::HashMap;
-/// use tetra::permutation::Permutation;
+/// use permutation::Permutation;
 /// let t1 = Tensor::new(vec![0, 1, 2]);
 /// let t2 = Tensor::new(vec![2, 3, 4]);
 /// let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6)]);
@@ -83,7 +99,7 @@ fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation
 /// permutation_vector,
 /// feynman_tensor_indexes,
 /// } = feynman_options;
-/// assert_eq!(permutation_vector, vec![Permutation::new(vec![1, 2, 0]), Permutation::new(vec![0, 2, 1])]);
+/// assert_eq!(permutation_vector, vec![Permutation::oneline([1, 2, 0]), Permutation::oneline([0, 2, 1])]);
 /// assert_eq!(feynman_tensor_indexes, vec![[0], [1]]);
 /// assert_eq!(*feyn_tn.get_tensors(), vec![Tensor::new(vec![1, 2]), Tensor::new(vec![2, 4])]);
 /// assert_eq!(*feyn_tn.get_bond_dims(), bond_dims);
@@ -259,7 +275,7 @@ pub fn feynman_contraction(
         feynman_insert_data_tensor(&mut out_tensor, &index, &d_out[0]);
     }
 
-    let out_perm = Permutation::between(&feynman_output, out_indices);
+    let out_perm = permutation_between(out_indices, &feynman_output);
     out_tensor.transpose(&out_perm);
     out_tensor
 }
@@ -271,8 +287,9 @@ mod tests {
     use float_cmp::{approx_eq, assert_approx_eq};
     use itertools::Itertools;
     use num_complex::Complex64;
+    use permutation::Permutation;
     use std::collections::HashMap;
-    use tetra::{permutation::Permutation, Tensor as DataTensor};
+    use tetra::Tensor as DataTensor;
 
     fn row_major_setup() -> (
         Vec<Complex64>,
@@ -531,9 +548,9 @@ mod tests {
             assert_eq!(tensor.get_legs(), feynman_tensor_ref[i].get_legs());
         }
         let perm_vector_ref = vec![
-            Permutation::new(vec![0, 2, 1]),
-            Permutation::new(vec![0, 1, 2]),
-            Permutation::new(vec![0, 2, 1]),
+            Permutation::oneline([0, 2, 1]),
+            Permutation::oneline([0, 1, 2]),
+            Permutation::oneline([0, 2, 1]),
         ];
 
         for (i, perm) in permutation_vector.iter().enumerate() {
