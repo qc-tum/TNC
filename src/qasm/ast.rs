@@ -47,9 +47,10 @@ impl Display for BinOp {
 impl BinOp {
     pub const fn get_precedence(self) -> u32 {
         match self {
-            Self::Add | Self::Sub => 2,
+            Self::Sub => 2,
+            Self::Add => 3,
             Self::Mul | Self::Div => 1,
-            Self::BitXor => 3,
+            Self::BitXor => 4,
         }
     }
 }
@@ -80,7 +81,7 @@ impl Display for FuncType {
 }
 
 #[derive(Debug, Clone)]
-/// An mathematical expression.
+/// A mathematical expression.
 pub enum Expr {
     Int(i32),
     Float(f64),
@@ -578,5 +579,19 @@ measure q[1] -> c[0];
         );
         let out = format!("{expr}");
         assert_eq!(out, "-(-4 * sin(2) / (2 - cos(-1.3)))");
+    }
+
+    #[test]
+    fn display2() {
+        let expr = Expr::Binary(
+            BinOp::Sub,
+            Box::new(Expr::Int(5)),
+            Box::new(Expr::Binary(
+                BinOp::Add,
+                Box::new(Expr::Int(2)),
+                Box::new(Expr::Int(3)),
+            )),
+        );
+        println!("{expr}");
     }
 }
