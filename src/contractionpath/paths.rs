@@ -8,7 +8,7 @@ use crate::types::ContractionIndex;
 
 pub mod branchbound;
 pub mod greedy;
-pub mod parallel_greedy;
+//pub mod parallel_greedy;
 
 pub trait OptimizePath {
     fn optimize_path(&mut self);
