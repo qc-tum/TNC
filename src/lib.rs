@@ -5,11 +5,9 @@
 #![feature(map_many_mut)]
 #![feature(const_trait_impl)]
 
-#[cfg(feature = "hdf5")]
-pub mod io;
-
 pub mod circuits;
 pub mod contractionpath;
+pub mod io;
 pub mod gates;
 pub mod mpi;
 pub mod qasm;
