@@ -547,9 +547,9 @@ impl Tensor {
 
     /// Partitions tensor network using the provided partitioning vector
     /// Only allows single layer of partitioning
-    pub fn partition(&mut self, partitioning: &Vec<usize>) {
+    pub fn partition(&mut self, partitioning: &[usize]) {
         assert!(partitioning.len() == self.tensors.len());
-        let mut partitions = partitioning.clone();
+        let mut partitions = partitioning.to_owned();
 
         partitions.dedup();
         let partition_map: HashMap<&usize, usize> =
