@@ -108,7 +108,7 @@ where
     // set up final state
     for (_index, i) in open_edges {
         let new_state = Tensor::new(vec![i]);
-        new_state.set_tensor_data(random_sparse_tensor_data(vec![sycamore_bonddims[&i]], None));
+        new_state.set_tensor_data(random_sparse_tensor_data(vec![2], None));
         final_state.push(new_state);
     }
     sycamore_tn.push_tensors(final_state, Some(&sycamore_bonddims), None);
