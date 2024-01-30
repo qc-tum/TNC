@@ -44,7 +44,6 @@ impl PartialEq for Tensor {
 
 impl Hash for Tensor {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.tensors.hash(state);
         self.legs.hash(state);
     }
 }
