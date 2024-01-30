@@ -1,4 +1,7 @@
-use std::convert::From;
+use std::{
+    convert::From,
+    hash::{DefaultHasher, Hash, Hasher},
+};
 
 use memoffset::offset_of;
 use mpi::{
