@@ -75,6 +75,12 @@ macro_rules! pair {
     };
 }
 
+pub(crate) fn calculate_hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+}
+
 #[cfg(test)]
 mod tests {
     use crate::types::ContractionIndex;
