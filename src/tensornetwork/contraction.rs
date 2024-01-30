@@ -1,6 +1,5 @@
 use std::{collections::HashMap, ops::RangeBounds, rc::Rc};
 
-use array_tool::vec::Uniq;
 use tetra::{contract, Tensor as DataTensor};
 
 use crate::{gates::load_gate, io::load_data, tensornetwork::Tensor, types::*};
