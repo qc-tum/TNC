@@ -52,7 +52,7 @@ pub(crate) fn validate_path(path: &Vec<ContractionIndex>) -> Result<bool, String
 type CostFnType = dyn Fn(&HashMap<usize, u64>, i64, i64, i64, &Tensor, &Tensor, &Tensor) -> i64;
 type ChoiceFnType = dyn for<'b, 'c> Fn(
     &'b mut std::collections::BinaryHeap<Candidate>,
-    &'c std::collections::HashMap<Tensor, usize>,
+    &'c std::collections::HashMap<u64, usize>,
     usize,
     f64,
     bool,

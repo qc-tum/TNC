@@ -14,7 +14,7 @@ use crate::{
     },
     pair,
     tensornetwork::tensor::Tensor,
-    types::ContractionIndex,
+    types::{calculate_hash, ContractionIndex},
 };
 
 use super::{validate_path, ChoiceFnType, CostFnType, CostType, OptimizePath};
@@ -42,7 +42,7 @@ impl<'a> Greedy<'a> {
 
     pub(crate) fn _simple_chooser<R: Rng + ?Sized>(
         queue: &mut BinaryHeap<Candidate>,
-        remaining_tensors: &HashMap<Tensor, usize>,
+        remaining_tensors: &HashMap<u64, usize>,
         _nbranch: usize,
         mut _temperature: f64,
         _rel_temperature: bool,
@@ -57,7 +57,9 @@ impl<'a> Greedy<'a> {
             child_tensor,
         }) = queue.pop()
         {
-            if !remaining_tensors.contains_key(&k1) || !remaining_tensors.contains_key(&k2) {
+            if !remaining_tensors.contains_key(&calculate_hash::<Tensor>(&k1))
+                || !remaining_tensors.contains_key(&calculate_hash::<Tensor>(&k2))
+            {
                 return None;
             }
             return Some(Candidate {
@@ -104,8 +106,8 @@ impl<'a> Greedy<'a> {
     fn _push_candidate(
         output: &Tensor,
         bond_dims: &HashMap<usize, u64>,
-        remaining: &HashMap<Tensor, usize>,
-        footprints: &HashMap<Tensor, u64>,
+        remaining: &HashMap<u64, usize>,
+        footprints: &HashMap<u64, u64>,
         dim_ref_counts: &HashMap<usize, HashSet<usize>>,
         k1: &Tensor,
         k2s: Vec<&Tensor>,
@@ -138,13 +140,16 @@ impl<'a> Greedy<'a> {
     fn _get_candidate<'b>(
         output: &Tensor,
         bond_dims: &HashMap<usize, u64>,
-        remaining_tensors: &HashMap<Tensor, usize>,
-        tensor_mem_size: &HashMap<Tensor, u64>,
+        remaining_tensors: &HashMap<u64, usize>,
+        tensor_mem_size: &HashMap<u64, u64>,
         dim_tensor_counts: &HashMap<usize, HashSet<usize>>,
         mut k1: &'b Tensor,
         mut k2: &'b Tensor,
         cost_function: &CostFnType,
     ) -> Candidate {
+        let k1_hash = calculate_hash(k1);
+        let k2_hash = calculate_hash(k2);
+
         let either = k1 | k2;
         let two = k1 & k2;
         let one = &either - &two;
@@ -168,14 +173,14 @@ impl<'a> Greedy<'a> {
         let cost = cost_function(
             bond_dims,
             size_k12 as i64,
-            tensor_mem_size[k1] as i64,
-            tensor_mem_size[k2] as i64,
+            tensor_mem_size[&k1_hash] as i64,
+            tensor_mem_size[&k2_hash] as i64,
             &k12,
             k1,
             k2,
         );
-        let mut id1 = remaining_tensors[k1];
-        let mut id2 = remaining_tensors[k2];
+        let mut id1 = remaining_tensors[&k1_hash];
+        let mut id2 = remaining_tensors[&k2_hash];
 
         if id1 > id2 {
             (k1, k2) = (k2, k1);
@@ -226,7 +231,7 @@ impl<'a> Greedy<'a> {
 
     pub(crate) fn _ssa_greedy_optimize(
         &self,
-        inputs: &Vec<Tensor>,
+        inputs: &[Tensor],
         output_dims: &Tensor,
         bond_dims: &HashMap<usize, u64>,
         choice_fn: Box<ChoiceFnType>,
@@ -236,23 +241,26 @@ impl<'a> Greedy<'a> {
 
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
         // Clone here to avoid mutating HashMap keys
-        let mut remaining_tensors: HashMap<Tensor, usize> = HashMap::<Tensor, usize>::new();
+        let mut remaining_tensors: HashMap<u64, usize> = HashMap::<u64, usize>::new();
+        let mut hash_to_tensor: HashMap<u64, Tensor> = HashMap::<u64, Tensor>::new();
         let mut next_ssa_id: usize = inputs.len();
 
         for (ssa_id, v) in inputs.iter().enumerate() {
-            if remaining_tensors.contains_key(v) {
+            let tensor_hash = calculate_hash(v);
+            hash_to_tensor.entry(tensor_hash).or_insert(v.clone());
+            if remaining_tensors.contains_key(&tensor_hash) {
                 // greedily compute inner products
-                ssa_path.push(pair!(remaining_tensors[v], ssa_id));
-                remaining_tensors.entry(v.clone()).or_insert(next_ssa_id);
+                ssa_path.push(pair!(remaining_tensors[&tensor_hash], ssa_id));
+                remaining_tensors.entry(tensor_hash).or_insert(next_ssa_id);
                 next_ssa_id += 1;
             } else {
-                remaining_tensors.entry(v.clone()).or_insert(ssa_id);
+                remaining_tensors.entry(tensor_hash).or_insert(ssa_id);
             }
         }
 
         // Dictionary that maps leg id to tensor
         let mut dim_to_tensors = HashMap::<usize, Vec<Tensor>>::new();
-        for key in remaining_tensors.keys() {
+        for key in inputs.iter() {
             for dim in (key - output_dims).get_legs().iter() {
                 dim_to_tensors
                     .entry(*dim)
@@ -280,7 +288,7 @@ impl<'a> Greedy<'a> {
         // Clone here to avoid mutating HashMap keys
         let mut tensor_mem_size = HashMap::from_iter(inputs.iter().map(|legs| {
             let size = _tensor_size(legs, bond_dims);
-            (legs.clone(), size)
+            (calculate_hash(legs), size)
         }));
 
         let mut queue = BinaryHeap::new();
@@ -323,13 +331,17 @@ impl<'a> Greedy<'a> {
             else {
                 continue;
             };
-            let Some(ssa_id1) = remaining_tensors.get(&k1) else {
+            let Some(ssa_id1) = remaining_tensors.get(&calculate_hash(&k1)) else {
                 panic!("SSA ID '{:?}' missing", k1)
             };
 
-            let Some(ssa_id2) = remaining_tensors.get(&k2) else {
+            let Some(ssa_id2) = remaining_tensors.get(&calculate_hash(&k2)) else {
                 panic!("SSA ID '{:?}' missing", k2)
             };
+
+            let k12_hash = calculate_hash(&k12);
+            let k1_hash = calculate_hash(&k1);
+            let k2_hash = calculate_hash(&k2);
             // already_contracted.push(ssa_id2);
 
             for dim in (&k1 - output_dims).get_legs().iter().cloned() {
@@ -351,15 +363,21 @@ impl<'a> Greedy<'a> {
             }
             ssa_path.push(pair!(*ssa_id1, *ssa_id2));
 
-            if let Entry::Occupied(o) = remaining_tensors.entry(k1.clone()) {
+            if let Entry::Occupied(o) = remaining_tensors.entry(k1_hash) {
                 o.remove_entry();
             }
-            if let Entry::Occupied(o) = remaining_tensors.entry(k2.clone()) {
+            if let Entry::Occupied(o) = remaining_tensors.entry(k2_hash) {
+                o.remove_entry();
+            }
+            if let Entry::Occupied(o) = hash_to_tensor.entry(k1_hash) {
+                o.remove_entry();
+            }
+            if let Entry::Occupied(o) = hash_to_tensor.entry(k2_hash) {
                 o.remove_entry();
             }
 
-            if remaining_tensors.contains_key(&k12) {
-                ssa_path.push(pair!(remaining_tensors[&k12], next_ssa_id));
+            if remaining_tensors.contains_key(&k12_hash) {
+                ssa_path.push(pair!(remaining_tensors[&k12_hash], next_ssa_id));
                 next_ssa_id += 1;
             } else {
                 for dim in (&k12 - output_dims).get_legs().iter().cloned() {
@@ -368,7 +386,12 @@ impl<'a> Greedy<'a> {
                         .and_modify(|e| e.push(k12.clone()));
                 }
             }
-            remaining_tensors.entry(k12.clone()).or_insert(next_ssa_id);
+            remaining_tensors
+                .entry(calculate_hash(&k12))
+                .or_insert(next_ssa_id);
+            hash_to_tensor
+                .entry(calculate_hash(&k12))
+                .or_insert(k12.clone());
             next_ssa_id += 1;
 
             Greedy::_update_ref_counts(
@@ -378,7 +401,7 @@ impl<'a> Greedy<'a> {
             );
 
             tensor_mem_size
-                .entry(k12.clone())
+                .entry(k12_hash)
                 .or_insert(_tensor_size(&k12, bond_dims));
 
             //Find new candidate contractions.
@@ -406,17 +429,17 @@ impl<'a> Greedy<'a> {
                 );
             }
         }
-        // println!("Remaining tensors: {:?}",);
 
         let mut heapq = BinaryHeap::new();
         for (key, ssa_id) in remaining_tensors {
-            let tensor_size = _tensor_size(&(&key & output_dims), bond_dims) as i64;
+            let k12_tensor = hash_to_tensor[&key].clone();
+            let tensor_size = _tensor_size(&(&k12_tensor & output_dims), bond_dims) as i64;
             if tensor_size > 0 {
                 let candidate = Candidate {
                     flop_cost: 0,
                     size_cost: tensor_size,
                     parent_ids: (ssa_id, 0),
-                    parent_tensors: Some((key, Tensor::default())),
+                    parent_tensors: Some((k12_tensor, Tensor::default())),
                     child_id: 0,
                     child_tensor: None,
                 };

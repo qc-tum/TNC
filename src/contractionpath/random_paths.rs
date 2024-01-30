@@ -4,7 +4,7 @@ use std::{
     collections::{BinaryHeap, HashMap},
 };
 
-use crate::tensornetwork::tensor::Tensor;
+use crate::{tensornetwork::tensor::Tensor, types::calculate_hash};
 
 use super::{candidates::Candidate, contraction_cost::_contract_path_cost, ssa_replace_ordering};
 use crate::contractionpath::paths::greedy::Greedy;
@@ -18,7 +18,7 @@ pub trait RandomOptimizePath {
 impl<'a> Greedy<'a> {
     pub(crate) fn _thermal_chooser<R: Rng + ?Sized>(
         queue: &mut BinaryHeap<Candidate>,
-        remaining_tensors: &HashMap<Tensor, usize>,
+        remaining_tensors: &HashMap<u64, usize>,
         nbranch: usize,
         mut temperature: f64,
         rel_temperature: bool,
@@ -37,7 +37,11 @@ impl<'a> Greedy<'a> {
                 child_tensor,
             }) = candidate
             {
-                if !remaining_tensors.contains_key(&k1) || !remaining_tensors.contains_key(&k2) {
+                let k1_hash = calculate_hash(&k1);
+                let k2_hash = calculate_hash(&k2);
+                if !remaining_tensors.contains_key(&k1_hash)
+                    || !remaining_tensors.contains_key(&k2_hash)
+                {
                     continue;
                 }
                 choices.push(Candidate {
