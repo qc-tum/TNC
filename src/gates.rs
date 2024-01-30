@@ -3,7 +3,7 @@ use tetra::Tensor as DataTensor;
 
 use crate::tensornetwork::tensordata::TensorData;
 
-pub fn load_gate(gate: &str, angles: Option<Vec<f64>>) -> DataTensor {
+pub fn load_gate(gate: &str, angles: Option<&Vec<f64>>) -> DataTensor {
     const X: [Complex64; 4] = [
         Complex64::new(0.0, 0.0),
         Complex64::new(1.0, 0.0),
