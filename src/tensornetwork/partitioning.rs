@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_simple_partitioning() {
-        let mut tn = setup_complex();
+        let tn = setup_complex();
         let mut ref_tensor_1 = Tensor::default();
         let mut ref_tensor_2 = Tensor::default();
         let mut ref_tensor_3 = Tensor::default();
@@ -150,8 +150,7 @@ mod tests {
             Some(&tn.get_bond_dims()),
             None,
         );
-        let partitioning =
-            find_partitioning(&mut tn, 3, std::string::String::from("tests/km1"), true);
+        let partitioning = find_partitioning(&tn, 3, std::string::String::from("tests/km1"), true);
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);
         let partitioned_tn = partition_tensor_network(&tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.get_tensors().len(), 3);
