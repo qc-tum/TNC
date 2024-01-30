@@ -284,9 +284,9 @@ pub fn broadcast_path(
     if world.rank() != root_rank {
         let mut buffer = vec![ContractionIndex::Pair(0, 0); path_length];
         root_process.broadcast_into(&mut buffer);
-        return buffer;
+        buffer
     } else {
         root_process.broadcast_into(&mut local_path.to_vec());
-        return local_path.to_vec();
+        local_path.to_vec()
     }
 }
