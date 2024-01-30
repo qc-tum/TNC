@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
-use mpi::topology::SimpleCommunicator;
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Duration;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;

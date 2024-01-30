@@ -564,8 +564,8 @@ mod tests {
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
 
-    use rand::rngs::StdRng;
-    use rand::SeedableRng;
+    // use rand::rngs::StdRng;
+    // use rand::SeedableRng;
 
     fn setup_simple() -> Tensor {
         create_tensor_network(
