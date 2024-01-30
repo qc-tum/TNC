@@ -79,8 +79,8 @@ impl TensorContraction for Tensor {
 
     /// Getter for underlying raw data
     fn get_data(&self) -> DataTensor {
-        match self.get_tensor_data().clone() {
-            TensorData::File(filename) => load_data(&filename).unwrap(),
+        match &*self.get_tensor_data() {
+            TensorData::File(filename) => load_data(filename).unwrap(),
             TensorData::Gate((gatename, angles)) => load_gate(gatename, Some(angles)), // load_gate[gatename.to_lowercase()],
             TensorData::Matrix(rawdata) => rawdata.clone(),
             TensorData::Empty => DataTensor::new(&[]),
