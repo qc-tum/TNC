@@ -41,7 +41,7 @@ fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<Contract
 ///
 /// Identical path that replaces the left input tensor upon contraction
 pub(super) fn ssa_replace_ordering(
-    path: &Vec<ContractionIndex>,
+    path: &[ContractionIndex],
     mut n: usize,
 ) -> Vec<ContractionIndex> {
     let mut ssa_path = Vec::with_capacity(path.len());
