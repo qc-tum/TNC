@@ -63,7 +63,6 @@ pub(crate) trait TensorContraction {
     fn drain<R>(&mut self, range: R)
     where
         R: RangeBounds<usize>;
-    fn contract_tensor(&mut self, tensor_a_loc: usize, contract_path: Vec<ContractionIndex>);
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize);
 }
 
@@ -100,33 +99,26 @@ impl TensorContraction for Tensor {
         self.tensors.drain(range);
     }
 
-    fn contract_tensor(&mut self, tensor_a_loc: usize, contract_path: Vec<ContractionIndex>) {
-        if self.get_tensor(tensor_a_loc).get_tensors().is_empty() {
-            return;
-        }
-        contract_tensor_network(self, &contract_path)
-    }
-
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) {
         let tensor_a = self.get_mut_tensor(tensor_a_loc).clone();
         let tensor_b = self.get_mut_tensor(tensor_b_loc).clone();
 
         let tensor_a_legs = tensor_a.get_legs();
         let tensor_b_legs = tensor_b.get_legs();
-        let tensor_union = &tensor_b | &tensor_a;
-        let mut tensor_symmetric_difference = &tensor_b ^ &tensor_a;
+        // let tensor_union = &tensor_b | &tensor_a;
+        let tensor_symmetric_difference = &tensor_b ^ &tensor_a;
 
-        let counter = count_edges(tensor_union.get_legs().iter());
+        // let counter = count_edges(tensor_union.get_legs().iter());
 
         let edges = self.get_mut_edges();
-        for leg in tensor_union.get_legs().unique().iter() {
-            // Check if hyperedges are being contracted, if so, only append once to output tensor
-            let mut i = 0;
-            while edges[leg].len() - 1 > (counter[leg] + i) {
-                i += 1;
-                tensor_symmetric_difference.legs.push(*leg);
-            }
-        }
+        // for leg in tensor_union.get_legs().unique().iter() {
+        //     // Check if hyperedges are being contracted, if so, only append once to output tensor
+        //     let mut i = 0;
+        //     while edges[leg].len() - 1 > (counter[leg] + i) {
+        //         i += 1;
+        //         tensor_symmetric_difference.legs.push(*leg);
+        //     }
+        // }
         // Update internal edges HashMap to point tensor b legs to new contracted tensor
         for leg in tensor_b_legs.iter() {
             edges.entry(*leg).and_modify(|e| {
@@ -185,7 +177,6 @@ where
     for item in it {
         *result.entry(item).or_insert(0) += 1;
     }
-
     result
 }
 #[cfg(test)]
