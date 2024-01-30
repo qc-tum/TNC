@@ -200,6 +200,7 @@ pub fn intermediate_gather_tensor_network(
                 world
                     .process_at_rank(receiver)
                     .send(&(*local_tensor.get_raw_data()));
+                drop(local_tensor);
                 empty = true;
             }
         }
