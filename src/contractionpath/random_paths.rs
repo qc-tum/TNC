@@ -175,8 +175,8 @@ mod tests {
         opt.random_optimize_path(32, &mut thread_rng());
         assert_eq!(opt.best_flops, 600);
         assert_eq!(opt.best_size, 538);
-        assert_eq!(opt.best_path, vec![(0, 1)]);
-        assert_eq!(opt.get_best_replace_path(), vec![(0, 1)]);
+        assert_eq!(opt.best_path, vec![(0, 1), (2, 3)]);
+        assert_eq!(opt.get_best_replace_path(), vec![(0, 1), (2, 0)]);
     }
     #[test]
     fn test_contract_order_greedy_complex() {
