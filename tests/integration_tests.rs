@@ -40,6 +40,7 @@ fn test_partitioned_contraction() {
     assert_eq!(*ref_tn.get_tensor_data(), *partitioned_tn.get_tensor_data());
 }
 
+// Ignored as requires MPI to run
 #[ignore]
 #[test]
 fn test_mpi_partitioned_contraction() {
@@ -56,10 +57,14 @@ fn test_mpi_partitioned_contraction() {
     let mut ref_tn = Tensor::default();
     if rank == 0 {
         let k = 5;
-        let r_tn = sycamore_circuit(k, 10, None, None, &mut rng);
+        let r_tn = sycamore_circuit(k, 10, None, None, &mut rng, "Osprey");
         ref_tn = r_tn.clone();
-        let partitioning =
-            find_partitioning(&r_tn, size, std::string::String::from("tests/km1"), true);
+        let partitioning = find_partitioning(
+            &r_tn,
+            size,
+            CString::new("tests/km1").expect("CString new fail"),
+            true,
+        );
         partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
