@@ -1,5 +1,6 @@
 extern crate tensorcontraction;
 
+use std::ffi::CString;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
@@ -25,11 +26,11 @@ fn main() {
     let mut path = Vec::new();
     if rank == 0 {
         let k = 5;
-        let mut r_tn = sycamore_circuit(k, 5, None, None, &mut rng);
+        let mut r_tn = sycamore_circuit(k, 5, None, None, &mut rng, "Osprey");
         let partitioning = find_partitioning(
             &mut r_tn,
             size,
-            std::string::String::from("tests/km1"),
+            CString::new("tests/km1").expect("CString::new failed"),
             true,
         );
         partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
