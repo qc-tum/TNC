@@ -2,7 +2,6 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::iter::zip;
-use std::ffi::CString;
 
 use super::tensor::Tensor;
 use crate::types::Vertex;
