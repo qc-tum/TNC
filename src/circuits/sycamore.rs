@@ -19,6 +19,7 @@ pub fn sycamore_circuit<R>(
     single_qubit: Option<f64>,
     two_qubit: Option<f64>,
     rng: &mut R,
+    connectivity: &str
 ) -> Tensor
 where
     R: Rng + ?Sized,
@@ -31,7 +32,7 @@ where
     let mut sycamore_tn = Tensor::default();
     let mut sycamore_bonddims = HashMap::<usize, u64>::new();
 
-    let sycamore_connect = Connectivity::new("Sycamore");
+    let sycamore_connect = Connectivity::new(connectivity);
     // Filter connectivity map
     let filtered_connectivity = sycamore_connect
         .connectivity
