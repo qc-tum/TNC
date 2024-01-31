@@ -1,3 +1,5 @@
+use std::ffi::CString;
+
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
@@ -14,16 +16,21 @@ use tensorcontraction::{
 #[test]
 fn test_partitioned_contraction() {
     let mut rng = StdRng::seed_from_u64(52);
-    let k = 5;
+    let k = 10;
 
-    let r_tn = sycamore_circuit(k, 10, None, None, &mut rng);
+    let r_tn = sycamore_circuit(k, 10, None, None, &mut rng, "Osprey");
     let mut ref_tn = r_tn.clone();
     let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
     ref_opt.optimize_path();
     let ref_path = ref_opt.get_best_replace_path();
     contract_tensor_network(&mut ref_tn, &ref_path);
 
-    let partitioning = find_partitioning(&r_tn, 5, std::string::String::from("tests/km1"), true);
+    let partitioning = find_partitioning(
+        &r_tn,
+        3,
+        CString::new("tests/km1").expect("CString fail."),
+        true,
+    );
     let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
     opt.optimize_path();
