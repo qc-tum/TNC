@@ -91,8 +91,8 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
 #[cfg(test)]
 mod tests {
     use std::env;
-    use std::path::PathBuf;
     use std::ffi::CString;
+    use std::path::PathBuf;
 
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
