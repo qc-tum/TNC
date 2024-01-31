@@ -528,21 +528,22 @@ impl<'a> Greedy<'a> {
                 &mut thread_rng(),
             );
             let Some(Candidate {
-                    flop_cost: 0,
-                    size_cost: _cost,
-                    parent_ids: (_id1, _id2),
-                    parent_tensors: Some((k1, k2)),
-                    child_id: 0,
-                    child_tensor: Some(k12)
-                }) = candidate else{
-                    continue;
-                };
+                flop_cost: 0,
+                size_cost: _cost,
+                parent_ids: (_id1, _id2),
+                parent_tensors: Some((k1, k2)),
+                child_id: 0,
+                child_tensor: Some(k12),
+            }) = candidate
+            else {
+                continue;
+            };
 
-            let Some(ssa_id1) = remaining_tensors.get(&k1) else{
+            let Some(ssa_id1) = remaining_tensors.get(&k1) else {
                 panic!("SSA ID '{:?}' missing", k1)
             };
 
-            let Some(ssa_id2) = remaining_tensors.get(&k2) else{
+            let Some(ssa_id2) = remaining_tensors.get(&k2) else {
                 panic!("SSA ID '{:?}' missing", k2)
             };
 
@@ -639,7 +640,8 @@ impl<'a> Greedy<'a> {
             parent_tensors: Some((k1, _k2)),
             child_id: 0,
             child_tensor: None,
-        }) = queue.pop() else{
+        }) = queue.pop()
+        else {
             return ssa_path;
         };
 
@@ -651,7 +653,8 @@ impl<'a> Greedy<'a> {
                 parent_tensors: Some((k2, _k2)),
                 child_id: _child_id,
                 child_tensor: _child_tensor,
-            }) = queue.pop() else{
+            }) = queue.pop()
+            else {
                 continue;
             };
 
@@ -673,8 +676,9 @@ impl<'a> Greedy<'a> {
                 parent_tensors: Some((k1, _k2)),
                 child_id: _child_id,
                 child_tensor: _child_tensor,
-            }) = queue.pop() else{
-                continue
+            }) = queue.pop()
+            else {
+                continue;
             };
         }
         ssa_path
