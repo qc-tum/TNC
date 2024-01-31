@@ -186,7 +186,8 @@ impl<'a> BranchBound<'a> {
                 parent_tensors: _parent_tensor,
                 child_id,
                 child_tensor: _child_tensor,
-            }) = candidates.pop() else{
+            }) = candidates.pop()
+            else {
                 break;
             };
             new_remaining = remaining.clone();
