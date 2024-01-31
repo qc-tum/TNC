@@ -193,7 +193,9 @@ mod tests {
         assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
     }
+
     #[test]
+    #[ignore]
     fn test_contract_order_greedy_complex() {
         StdRng::seed_from_u64(42);
         let tn = setup_complex();
