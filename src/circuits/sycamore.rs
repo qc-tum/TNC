@@ -19,7 +19,7 @@ pub fn sycamore_circuit<R>(
     single_qubit: Option<f64>,
     two_qubit: Option<f64>,
     rng: &mut R,
-    connectivity: &str
+    connectivity: &str,
 ) -> Tensor
 where
     R: Rng + ?Sized,

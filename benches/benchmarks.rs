@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use rand::{rngs::StdRng, SeedableRng};
-use std::time::Duration;
 use std::ffi::CString;
+use std::time::Duration;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
@@ -47,8 +47,12 @@ pub fn partition_benchmark(c: &mut Criterion) {
 
     for k in [10, 15, 20, 25] {
         let r_tn = sycamore_circuit(k, 5, None, None, &mut rng, "Osprey");
-        let partitioning =
-            find_partitioning(&r_tn, 5, CString::new("tests/km1").expect("CString::new failed"), true);
+        let partitioning = find_partitioning(
+            &r_tn,
+            5,
+            CString::new("tests/km1").expect("CString::new failed"),
+            true,
+        );
         let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
         // let mut opt = BranchBound::new(&r_tn, None, 20, CostType::Flops);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
@@ -85,8 +89,12 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
         let mut path = Vec::new();
         if rank == 0 {
             let r_tn = sycamore_circuit(k, 20, None, None, &mut rng, "Osprey");
-            let partitioning =
-                find_partitioning(&r_tn, size, CString::new("tests/km1").expect("CString::new failed"), true);
+            let partitioning = find_partitioning(
+                &r_tn,
+                size,
+                CString::new("tests/km1").expect("CString::new failed"),
+                true,
+            );
             partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
             let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
@@ -126,8 +134,12 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
         let mut path = Vec::new();
         if rank == 0 {
             let r_tn = sycamore_circuit(k, 2, None, None, &mut rng, "Osprey");
-            let partitioning =
-                find_partitioning(&r_tn, size, CString::new("tests/km1").expect("CString::new failed"), true);
+            let partitioning = find_partitioning(
+                &r_tn,
+                size,
+                CString::new("tests/km1").expect("CString::new failed"),
+                true,
+            );
             partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
             let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 

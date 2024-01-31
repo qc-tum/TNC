@@ -7,8 +7,8 @@
 
 pub mod circuits;
 pub mod contractionpath;
-pub mod io;
 pub mod gates;
+pub mod io;
 pub mod mpi;
 pub mod qasm;
 pub mod random;
