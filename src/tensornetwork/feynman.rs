@@ -79,7 +79,7 @@ fn scatter_tensor(t: &Tensor, feynman_indices: &[usize]) -> (Tensor, Permutation
 /// ```
 /// # extern crate tensorcontraction;
 /// # use tensorcontraction::{
-///     contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath},
+///     contractionpath::paths::{BranchBound, CostType, OptimizePath},
 ///     random::tensorgeneration::{random_sparse_tensor, random_tensor_network},
 ///     tensornetwork::{tensor::Tensor,
 ///     TensorNetwork,
