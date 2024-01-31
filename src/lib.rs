@@ -7,8 +7,6 @@
 pub mod circuits;
 pub mod contractionpath;
 pub mod io;
-
-pub mod contractionpath;
 pub mod qasm;
 pub mod random;
 pub mod tensornetwork;
