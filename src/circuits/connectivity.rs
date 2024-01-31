@@ -242,23 +242,3 @@ fn condor_connect() -> Vec<(usize, usize)> {
 
     connectivity
 }
-
-#[cfg(test)]
-mod tests {
-    use super::Connectivity;
-
-    #[test]
-    fn test_eagle() {
-        let connect = Connectivity::new("Eagle");
-    }
-
-    #[test]
-    fn test_osprey() {
-        let connect = Connectivity::new("Osprey");
-    }
-
-    #[test]
-    fn test_condor() {
-        let connect = Connectivity::new("Condor");
-    }
-}

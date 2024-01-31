@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::iter::zip;
 use std::ffi::CString;
 
@@ -14,6 +15,7 @@ pub fn find_partitioning(tn: &Tensor, k: i32, config_file: CString, min: bool) -
     let mut num_hyperedges = 0;
     let mut context = KaHyParContext::new();
     context.configure(config_file);
+
     let x = if min { 1 } else { -1 };
 
     let imbalance: f64 = 0.03;

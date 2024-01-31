@@ -123,4 +123,3 @@ macro_rules! fsim {
         $crate::tensornetwork::tensordata::TensorData::Gate(("FSIM", vec![$a, $b]))
     };
 }
-    

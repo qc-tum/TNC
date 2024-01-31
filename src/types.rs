@@ -1,7 +1,9 @@
+use std::collections::hash_map::DefaultHasher;
 use std::{
     convert::From,
-    hash::{DefaultHasher, Hash, Hasher},
+    hash::{Hash, Hasher},
 };
+// use std::hash::DefaultHasher;
 
 use memoffset::offset_of;
 use mpi::{
