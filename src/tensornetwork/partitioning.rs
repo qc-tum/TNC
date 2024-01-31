@@ -1,13 +1,13 @@
+use super::TensorNetwork;
 use kahypar_sys;
 use kahypar_sys::{partition, KaHyParContext};
-
-use super::TensorNetwork;
+use std::ffi::CString;
 
 pub fn partition_tn(
     partitioning: &mut Vec<i32>,
     tn: &mut TensorNetwork,
     k: i32,
-    config_file: String,
+    config_file: CString,
 ) {
     let num_vertices = tn.get_tensors().len() as u32;
     assert!(partitioning.len() == num_vertices as usize);
@@ -52,6 +52,7 @@ pub fn partition_tn(
 #[cfg(test)]
 mod tests {
     use std::env;
+    use std::ffi::CString;
     use std::path::PathBuf;
 
     use crate::tensornetwork::tensor::Tensor;
@@ -86,7 +87,7 @@ mod tests {
             &mut partitioning,
             &mut tn,
             2,
-            std::string::String::from("test/km1"),
+            CString::new("test/km1").expect("CString failure."),
         );
         assert_eq!(tn.partitioning, [1, 1, 0, 0, 0, 1]);
     }

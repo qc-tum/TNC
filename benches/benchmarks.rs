@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use std::time::Duration;
+use std::{ffi::CString, time::Duration};
 use tensorcontraction::{
     circuits::sycamore::{sycamore_circuit, sycamore_contract},
     contractionpath::paths::{CostType, Greedy, OptimizePath},
@@ -78,7 +78,7 @@ pub fn partition_benchmark(c: &mut Criterion) {
             &mut partitioning,
             &mut r_tn,
             k as i32,
-            std::string::String::from("test/km1"),
+            CString::new("test/km1").expect("CString fails"),
         );
         let mut opt = Greedy::new(&r_tn, CostType::Flops);
         let mut opt_paths = vec![];
