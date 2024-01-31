@@ -58,9 +58,9 @@ fn main() {
     let mut partitioned_tn = Tensor::default();
     let mut path = Vec::new();
     if rank == 0 {
-        let r_tn = sycamore_circuit(k, 30, None, None, &mut rng);
+        let r_tn = sycamore_circuit(k, 30, None, None, &mut rng, "Osprey");
         let partitioning =
-            find_partitioning(&r_tn, size, std::string::String::from("tests/km1"), true);
+            find_partitioning(&r_tn, size, CString::new("tests/km1").expect("Cstring new failed"), true);
         partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
