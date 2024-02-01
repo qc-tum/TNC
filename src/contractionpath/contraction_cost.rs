@@ -105,8 +105,8 @@ pub fn _contract_size(
     let diff = t_1 ^ t_2;
 
     let cost = diff.iter().map(|e| bond_dims[e]).product::<u64>()
-        + t_1.iter().map(|e| bond_dims[e]).product::<u64>()
-        + t_2.iter().map(|e| bond_dims[e]).product::<u64>();
+        + t_1.size(bond_dims)
+        + t_2.size(bond_dims);
 
     (Tensor::new(diff.iter().cloned().collect_vec()), cost)
 }
