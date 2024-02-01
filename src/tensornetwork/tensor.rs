@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
-#[derive(Eq, PartialEq, Debug, Clone, Hash)]
+#[derive(Eq, PartialEq, Debug, Clone, Hash, Default)]
 /// Abstract representation of a tensor. Stores a Vector of edge ids, used to indicate
 /// contractions between Tensors. Edge dimensions are stored in a separate HashMap object.
 /// See [TensorNetwork].
@@ -203,20 +203,6 @@ impl Tensor {
             }
         }
         Tensor::new(new_legs)
-    }
-}
-
-impl Default for Tensor {
-    /// Constructs an empty Tensor object
-    ///
-    ///
-    /// # Examples
-    /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor = Tensor::default();
-    /// ```
-    fn default() -> Self {
-        Self { legs: Vec::new() }
     }
 }
 
