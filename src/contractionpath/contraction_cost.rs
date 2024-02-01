@@ -51,11 +51,7 @@ pub fn contract_cost(tn: &TensorNetwork, i: usize, j: usize) -> u64 {
 /// ```
 pub fn _contract_cost(t_1: &Tensor, t_2: &Tensor, bond_dims: &HashMap<usize, u64>) -> u64 {
     let shared_dims = t_1 | t_2;
-    shared_dims
-        .get_legs()
-        .iter()
-        .map(|e| bond_dims[e])
-        .product()
+    shared_dims.iter().map(|e| bond_dims[e]).product()
 }
 
 /// Returns Schroedinger contraction space complexity of contracting [Tensor] objects at indices `i` and `j` and the output
