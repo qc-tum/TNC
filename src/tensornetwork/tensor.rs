@@ -117,7 +117,7 @@ impl Tensor {
     /// ```
     pub fn difference(&self, other: &Tensor) -> Tensor {
         let mut new_legs = Vec::new();
-        for i in self.iter().cloned() {
+        for &i in self.iter() {
             if !other.contains(i) {
                 new_legs.push(i);
             }
