@@ -183,7 +183,7 @@ pub fn _contract_path_cost(
     let mut op_cost = 0;
     let mut mem_cost = 0;
     let mut inputs = inputs.to_vec();
-    for (i, j) in ssa_path.iter().cloned() {
+    for &(i, j) in ssa_path.iter() {
         op_cost += _contract_cost(&inputs[i], &inputs[j], bond_dims);
         let (k12, new_mem_cost) = _contract_size(&inputs[i], &inputs[j], bond_dims);
         mem_cost = max(mem_cost, new_mem_cost);

@@ -694,14 +694,14 @@ impl<'a> OptimizePath for Greedy<'a> {
             self.best_path = vec![];
             return;
         }
-        let inputs: Vec<Tensor> = self.tn.get_tensors().clone();
+        let inputs = self.tn.get_tensors();
 
         // Vector of output leg ids
         let output_dims = Tensor::new(self.tn.get_ext_edges().clone());
         // Dictionary that maps leg id to bond dimension
         let bond_dims = self.tn.get_bond_dims();
         self.best_path = self._ssa_greedy_optimize(
-            &inputs,
+            inputs,
             &output_dims,
             bond_dims,
             Box::new(&Greedy::_simple_chooser),
