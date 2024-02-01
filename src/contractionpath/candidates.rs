@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use crate::tensornetwork::tensor::Tensor;
 
-// type alias to store contraction candidate when searching for optimal contraction path.
+/// Struct to store contraction candidate information when searching for optimal contraction path.
 #[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub(crate) struct Candidate {
     pub(crate) flop_cost: i64,
