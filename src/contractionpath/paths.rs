@@ -328,7 +328,7 @@ impl<'a> Greedy<'a> {
         footprints: &HashMap<Tensor, u64>,
         dim_ref_counts: &HashMap<usize, HashSet<usize>>,
         k1: &Tensor,
-        k2s: &[Tensor],
+        k2s: &[&Tensor],
         queue: &mut BinaryHeap<Candidate>,
         cost_function: &CostFnType,
     ) {
@@ -511,7 +511,7 @@ impl<'a> Greedy<'a> {
                     &tensor_mem_size,
                     &dim_tensor_counts,
                     k1,
-                    k2s,
+                    &k2s,
                     &mut queue,
                     &Greedy::_cost_memory_removed,
                 );
@@ -613,7 +613,7 @@ impl<'a> Greedy<'a> {
                     &tensor_mem_size,
                     &dim_tensor_counts,
                     &k1,
-                    k2s,
+                    &k2s,
                     &mut queue,
                     &cost_fn,
                 );
