@@ -821,6 +821,7 @@ mod tests {
         );
     }
 
+    // Currently ignored as this test is flakey. TODO: Fix this.
     #[ignore]
     #[test]
     fn test_contract_order_greedy_simple() {
