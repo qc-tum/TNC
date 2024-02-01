@@ -271,7 +271,7 @@ impl<'a> Greedy<'a> {
             best_flops: u64::MAX,
             best_size: u64::MAX,
             best_path: Vec::new(),
-            best_progress: HashMap::<usize, u64>::new(),
+            best_progress: HashMap::new(),
         }
     }
 
