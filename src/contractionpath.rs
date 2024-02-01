@@ -12,7 +12,8 @@ pub mod random_paths;
 ///
 /// # Arguments
 ///
-/// * `path` - Output path as Vec<(usize, usize)> after an [optimize_path] call.
+/// * `path` - Output path as Vec<(usize, usize, usize)> after an [optimize_path] call.
+/// * `n` - Number of initial input tensors.
 /// # Returns
 ///
 /// Identical path using ssa format
@@ -36,6 +37,8 @@ fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<(usize, 
 /// # Arguments
 ///
 /// * `path` - Output path as Vec<(usize, usize)> that is in ssa format.
+/// * `n` - Number of initial input tensors.
+
 /// # Returns
 ///
 /// Identical path that replaces the left input tensor upon contraction
