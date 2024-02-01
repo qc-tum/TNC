@@ -562,16 +562,10 @@ impl<'a> Greedy<'a> {
                 });
             }
             ssa_path.push((*ssa_id1, *ssa_id2));
-
-            if let Entry::Occupied(o) = remaining_tensors.entry(k1.clone()) {
-                o.remove_entry();
-            }
-            if let Entry::Occupied(o) = remaining_tensors.entry(k2.clone()) {
-                o.remove_entry();
-            }
-
-            if remaining_tensors.contains_key(&k12) {
-                ssa_path.push((remaining_tensors[&k12], next_ssa_id));
+            remaining_tensors.remove(&k1);
+            remaining_tensors.remove(&k2);
+            if let Some(id12) = remaining_tensors.get(&k12) {
+                ssa_path.push((*id12, next_ssa_id));
                 next_ssa_id += 1;
             } else {
                 for dim in (&k12 - output_dims).iter().cloned() {
@@ -580,6 +574,7 @@ impl<'a> Greedy<'a> {
                         .and_modify(|e| e.push(k12.clone()));
                 }
             }
+
             remaining_tensors.entry(k12.clone()).or_insert(next_ssa_id);
             next_ssa_id += 1;
             Greedy::_update_ref_counts(
