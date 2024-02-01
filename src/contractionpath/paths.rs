@@ -328,7 +328,7 @@ impl<'a> Greedy<'a> {
         footprints: &HashMap<Tensor, u64>,
         dim_ref_counts: &HashMap<usize, HashSet<usize>>,
         k1: &Tensor,
-        k2s: Vec<&Tensor>,
+        k2s: &[Tensor],
         queue: &mut BinaryHeap<Candidate>,
         cost_function: &CostFnType,
     ) {
