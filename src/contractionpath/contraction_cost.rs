@@ -128,11 +128,7 @@ pub fn _contract_size(
 /// assert_eq!(_tensor_size(&tn[0], tn.get_bond_dims()), 315);
 /// ```
 pub fn _tensor_size(tensor: &Tensor, bond_dims: &HashMap<usize, u64>) -> u64 {
-    tensor
-        .get_legs()
-        .iter()
-        .map(|e| bond_dims[e])
-        .product::<u64>()
+    tensor.iter().map(|e| bond_dims[e]).product::<u64>()
 }
 
 /// Returns number of elements in a given [Tensor].
