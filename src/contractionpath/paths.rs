@@ -470,10 +470,7 @@ impl<'a> Greedy<'a> {
         for key in remaining_tensors.keys() {
             for dim in (key - output_dims).iter() {
                 // for dim in key.iter().filter(|e| !output.contains(e)) {
-                dim_to_tensors
-                    .entry(*dim)
-                    .and_modify(|entry| entry.push(key.clone()))
-                    .or_insert(vec![key.clone()]);
+                dim_to_tensors.entry(*dim).or_default().push(key.clone());
             }
         }
 
@@ -487,7 +484,7 @@ impl<'a> Greedy<'a> {
                         .and_modify(|entry| {
                             entry.insert(*dim);
                         })
-                        .or_insert(HashSet::new());
+                        .or_default();
                 }
             }
         }
