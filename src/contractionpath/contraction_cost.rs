@@ -111,51 +111,6 @@ pub fn _contract_size(
     (Tensor::new(diff.iter().cloned().collect_vec()), cost)
 }
 
-/// Returns number of elements in a given [Tensor].
-///
-/// # Arguments
-///
-/// * `tensor` - Reference to [Tensor] object.
-/// * `bond_dims`- Dict of bond dimensions.
-///
-/// # Examples
-/// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::TensorNetwork;
-/// # use tensorcontraction::contractionpath::contraction_cost::_tensor_size;
-/// let vec1 = Vec::from([0,1,2]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1)], vec![5,7,9], None);
-/// assert_eq!(_tensor_size(&tn[0], tn.get_bond_dims()), 315);
-/// ```
-pub fn _tensor_size(tensor: &Tensor, bond_dims: &HashMap<usize, u64>) -> u64 {
-    tensor.iter().map(|e| bond_dims[e]).product::<u64>()
-}
-
-/// Returns number of elements in a given [Tensor].
-///
-/// # Arguments
-///
-/// * `tn` - Reference to [TensorNetwork] object.
-/// * `i`  - Index of [Tensor]
-///
-///
-/// # Examples
-/// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::TensorNetwork;
-/// # use tensorcontraction::contractionpath::contraction_cost::size;
-/// let vec1 = Vec::from([0,1,2]);
-/// let tn = TensorNetwork::from_vector(vec![Tensor::new(vec1)], vec![5,7,9], None);
-/// assert_eq!(size(&tn, 0), 315);
-/// ```
-pub fn size(tn: &TensorNetwork, i: usize) -> u64 {
-    tn[i]
-        .get_legs()
-        .iter()
-        .map(|e| tn.get_bond_dims()[e])
-        .product::<u64>()
-}
-
 /// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
 ///
 /// # Arguments

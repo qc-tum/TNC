@@ -11,7 +11,7 @@ use std::{cmp::max, collections::HashSet};
 
 use crate::contractionpath::{
     candidates::Candidate,
-    contraction_cost::{_contract_cost, _contract_path_cost, _contract_size, _tensor_size, size},
+    contraction_cost::{_contract_cost, _contract_path_cost, _contract_size},
     ssa_ordering, ssa_replace_ordering,
 };
 use crate::tensornetwork::tensor::Tensor;
@@ -219,7 +219,9 @@ impl<'a> OptimizePath for BranchBound<'a> {
 
         // Get the initial space requirements for uncontracted tensors
         for (index, tensor) in tensors.iter().enumerate() {
-            self.size_cache.entry(index).or_insert(size(self.tn, index));
+            self.size_cache
+                .entry(index)
+                .or_insert(self.tn.get_tensors()[index].size(self.tn.get_bond_dims()));
             self.tensor_cache.entry(index).or_insert(tensor.clone());
         }
 
@@ -381,7 +383,7 @@ impl<'a> Greedy<'a> {
             ref2
         };
 
-        let size_k12 = _tensor_size(&k12, bond_dims);
+        let size_k12 = k12.size(bond_dims);
 
         let cost = cost_function(
             bond_dims,
@@ -491,7 +493,7 @@ impl<'a> Greedy<'a> {
 
         // Maps tensor to size
         let mut tensor_mem_size = HashMap::from_iter(inputs.iter().map(|legs| {
-            let size = _tensor_size(legs, bond_dims);
+            let size = legs.size(bond_dims);
             (legs.clone(), size)
         }));
 
@@ -584,7 +586,7 @@ impl<'a> Greedy<'a> {
             );
             tensor_mem_size
                 .entry(k12.clone())
-                .or_insert(_tensor_size(&k12, bond_dims));
+                .or_insert(k12.size(bond_dims));
 
             //Find new candidate contractions.
             let k1 = k12;
@@ -616,7 +618,7 @@ impl<'a> Greedy<'a> {
         for (key, ssa_id) in remaining_tensors {
             let candidate = Candidate {
                 flop_cost: 0,
-                size_cost: _tensor_size(&(&key & output_dims), bond_dims) as i64,
+                size_cost: (&key & output_dims).size(bond_dims) as i64,
                 parent_ids: (ssa_id, 0),
                 parent_tensors: Some((key, Tensor::default())),
                 child_id: 0,
@@ -652,7 +654,7 @@ impl<'a> Greedy<'a> {
 
             ssa_path.push((min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2)));
             let k12 = &(&k1 | &k2) & output_dims;
-            let cost = _tensor_size(&k12, bond_dims) as i64;
+            let cost = k12.size(bond_dims) as i64;
             queue.push(Candidate {
                 flop_cost: 0,
                 size_cost: cost,
