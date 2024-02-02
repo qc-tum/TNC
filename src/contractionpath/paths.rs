@@ -456,40 +456,17 @@ impl<'a> Greedy<'a> {
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
         let mut remaining_tensors = HashMap::<Tensor, usize>::new();
         let mut next_ssa_id: usize = inputs.len();
-        for (ssa_id, v) in inputs.iter().enumerate() {
-            if remaining_tensors.contains_key(v) {
-                // greedily compute inner products
-                ssa_path.push((remaining_tensors[v], ssa_id));
-                remaining_tensors.entry(v.clone()).or_insert(next_ssa_id);
-                next_ssa_id += 1;
-            } else {
-                remaining_tensors.entry(v.clone()).or_insert(ssa_id);
-            }
-        }
 
-        // Dictionary that maps leg id to tensor
-        let mut dim_to_tensors = HashMap::<usize, Vec<Tensor>>::new();
-        for key in remaining_tensors.keys() {
-            for dim in (key - output_dims).iter() {
-                // for dim in key.iter().filter(|e| !output.contains(e)) {
-                dim_to_tensors.entry(*dim).or_default().push(key.clone());
-            }
-        }
+        populate_remaining_tensors(
+            inputs,
+            &mut remaining_tensors,
+            &mut ssa_path,
+            &mut next_ssa_id,
+        );
 
-        // Get dims that are contracted
-        let mut dim_tensor_counts = HashMap::<usize, HashSet<usize>>::new();
-        for i in 2..=3 {
-            for (dim, tensor_legs) in dim_to_tensors.iter() {
-                if tensor_legs.len() >= i {
-                    dim_tensor_counts
-                        .entry(i)
-                        .and_modify(|entry| {
-                            entry.insert(*dim);
-                        })
-                        .or_default();
-                }
-            }
-        }
+        let mut dim_to_tensors = populate_dim_to_tensors(&remaining_tensors, output_dims);
+
+        let mut dim_tensor_counts = populate_dim_tensor_counts(&dim_to_tensors);
 
         // Maps tensor to size
         let mut tensor_mem_size = HashMap::from_iter(inputs.iter().map(|legs| {
@@ -675,6 +652,59 @@ impl<'a> Greedy<'a> {
             };
         }
         ssa_path
+    }
+}
+
+fn populate_dim_tensor_counts(
+    dim_to_tensors: &HashMap<usize, Vec<Tensor>>,
+) -> HashMap<usize, HashSet<usize>> {
+    // Get dims that are contracted
+    let mut dim_tensor_counts = HashMap::<usize, HashSet<usize>>::new();
+    for i in 2..=3 {
+        for (dim, tensor_legs) in dim_to_tensors.iter() {
+            if tensor_legs.len() >= i {
+                dim_tensor_counts
+                    .entry(i)
+                    .and_modify(|entry| {
+                        entry.insert(*dim);
+                    })
+                    .or_default();
+            }
+        }
+    }
+    dim_tensor_counts
+}
+
+fn populate_dim_to_tensors(
+    remaining_tensors: &HashMap<Tensor, usize>,
+    output_dims: &Tensor,
+) -> HashMap<usize, Vec<Tensor>> {
+    // Dictionary that maps leg id to tensor
+    let mut dim_to_tensors = HashMap::<usize, Vec<Tensor>>::new();
+    for key in remaining_tensors.keys() {
+        for dim in (key - output_dims).iter() {
+            // for dim in key.iter().filter(|e| !output.contains(e)) {
+            dim_to_tensors.entry(*dim).or_default().push(key.clone());
+        }
+    }
+    dim_to_tensors
+}
+
+fn populate_remaining_tensors(
+    inputs: &[Tensor],
+    remaining_tensors: &mut HashMap<Tensor, usize>,
+    ssa_path: &mut Vec<(usize, usize)>,
+    next_ssa_id: &mut usize,
+) {
+    for (ssa_id, v) in inputs.iter().enumerate() {
+        if remaining_tensors.contains_key(v) {
+            // greedily compute inner products
+            ssa_path.push((remaining_tensors[v], ssa_id));
+            remaining_tensors.entry(v.clone()).or_insert(*next_ssa_id);
+            *next_ssa_id += 1;
+        } else {
+            remaining_tensors.entry(v.clone()).or_insert(ssa_id);
+        }
     }
 }
 
