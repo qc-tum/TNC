@@ -97,7 +97,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
     where
         R: ?Sized + Rng,
     {
-        let inputs: Vec<Tensor> = self.tn.get_tensors().clone();
+        let inputs = self.tn.get_tensors().clone();
 
         let output_dims = Tensor::new(self.tn.get_ext_edges().clone());
 
