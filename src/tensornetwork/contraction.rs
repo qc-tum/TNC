@@ -14,7 +14,7 @@ use crate::tensornetwork::TensorNetwork;
 /// ```
 /// # extern crate tensorcontraction;
 /// # use tensorcontraction::{
-///     contractionpath::paths::{BranchBound, BranchBoundType, OptimizePath},
+///     contractionpath::paths::{BranchBound, CostType, OptimizePath},
 ///     random::tensorgeneration::{random_sparse_tensor, random_tensor_network},
 ///     tensornetwork::{tensor::Tensor, TensorNetwork},
 ///     tensornetwork::contraction::tn_contract,
@@ -29,8 +29,8 @@ use crate::tensornetwork::TensorNetwork;
 ///         None,
 ///    ));
 /// }
-/// let mut opt = BranchBound::new(&r_tn, None, 20, BranchBoundType::Flops);
-/// opt.optimize_path(None);
+/// let mut opt = BranchBound::new(&r_tn, None, 20, CostType::Flops);
+/// opt.optimize_path();
 /// let opt_path = opt.get_best_replace_path();
 /// tn_contract(r_tn, d_tn, &opt_path);
 /// ```
