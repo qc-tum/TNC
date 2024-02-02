@@ -606,8 +606,8 @@ impl<'a> Greedy<'a> {
         let Some(Candidate {
             flop_cost: 0,
             size_cost: _cost,
-            parent_ids: (ssa_id1, _id2),
-            parent_tensors: Some((k1, _k2)),
+            parent_ids: (mut ssa_id1, _id2),
+            parent_tensors: Some((mut k1, _k2)),
             child_id: 0,
             child_tensor: None,
         }) = queue.pop()
@@ -642,14 +642,16 @@ impl<'a> Greedy<'a> {
             let Some(Candidate {
                 flop_cost: _flop_cost,
                 size_cost: _cost,
-                parent_ids: (ssa_id1, _id2),
-                parent_tensors: Some((k1, _k2)),
+                parent_ids: (new_ssa_id, _id2),
+                parent_tensors: Some((new_k1, _k2)),
                 child_id: _child_id,
                 child_tensor: _child_tensor,
             }) = queue.pop()
             else {
                 continue;
             };
+            ssa_id1 = new_ssa_id;
+            k1 = new_k1;
         }
         ssa_path
     }
