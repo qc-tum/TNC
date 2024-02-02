@@ -108,7 +108,7 @@ pub fn _contract_size(
         + t_1.size(bond_dims)
         + t_2.size(bond_dims);
 
-    (Tensor::new(diff.iter().cloned().collect_vec()), cost)
+    (diff, cost)
 }
 
 /// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
