@@ -347,13 +347,13 @@ impl<'a> Greedy<'a> {
                 cost_function,
             ));
         }
-        if true {
-            for candidate in candidates {
-                queue.push(candidate);
-            }
-        } else if let Some(min_value) = candidates.iter().cloned().min() {
-            queue.push(min_value);
+        // if true {
+        for candidate in candidates {
+            queue.push(candidate);
         }
+        // } else if let Some(min_value) = candidates.iter().cloned().min() {
+        // queue.push(min_value);
+        // }
     }
 
     fn _get_candidate<'b>(
