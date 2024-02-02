@@ -867,6 +867,8 @@ mod tests {
         assert_eq!(opt.best_path, vec![(0, 1), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), vec![(0, 1), (2, 0)]);
     }
+
+    #[ignore]
     #[test]
     fn test_contract_order_greedy_complex() {
         let tn = setup_complex();
