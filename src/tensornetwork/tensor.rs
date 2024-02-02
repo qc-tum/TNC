@@ -1,3 +1,4 @@
+use array_tool::vec::{Intersect, Union};
 use core::ops::{BitAnd, BitOr, BitXor, Sub};
 use std::collections::HashMap;
 use std::fmt;
@@ -141,13 +142,7 @@ impl Tensor {
     /// assert_eq!(union_tensor, Tensor::new(vec![1,2,3,4,5]));
     /// ```
     pub fn union(&self, other: &Tensor) -> Tensor {
-        let mut new_legs = self.legs.clone();
-        for i in other.iter().cloned() {
-            if !self.contains(i) {
-                new_legs.push(i);
-            }
-        }
-        Tensor::new(new_legs)
+        Tensor::new(self.get_legs().union(other.get_legs().clone()))
     }
 
     /// Returns Tensor with intersection of legs in `self` and `other`.
@@ -166,13 +161,7 @@ impl Tensor {
     /// assert_eq!(intersection_tensor, Tensor::new(vec![2]));
     /// ```
     pub fn intersection(&self, other: &Tensor) -> Tensor {
-        let mut new_legs = Vec::new();
-        for i in self.iter().cloned() {
-            if other.contains(i) {
-                new_legs.push(i);
-            }
-        }
-        Tensor::new(new_legs)
+        Tensor::new(self.get_legs().intersect(other.get_legs().clone()))
     }
 
     /// Returns Tensor with intersection of legs in `self` and `other`.
