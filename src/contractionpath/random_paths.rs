@@ -7,7 +7,7 @@ use std::{
 use crate::tensornetwork::tensor::Tensor;
 
 use super::{
-    candidates::Candidate, contraction_cost::_contract_path_cost, paths::Greedy,
+    candidates::Candidate, contraction_cost::contract_path_cost, paths::Greedy,
     ssa_replace_ordering,
 };
 
@@ -111,7 +111,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
                 Box::new(&Greedy::_thermal_chooser),
                 Box::new(&Greedy::_cost_memory_removed),
             );
-            let (cost, size) = _contract_path_cost(
+            let (cost, size) = contract_path_cost(
                 &inputs,
                 &ssa_replace_ordering(&ssa_path, inputs.len()),
                 bond_dims,

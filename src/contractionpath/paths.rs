@@ -11,7 +11,7 @@ use std::{cmp::max, collections::HashSet};
 
 use crate::contractionpath::{
     candidates::Candidate,
-    contraction_cost::{_contract_cost, _contract_path_cost, _contract_size},
+    contraction_cost::{_contract_cost, contract_path_cost, contract_size_tensors},
     ssa_ordering, ssa_replace_ordering,
 };
 use crate::tensornetwork::tensor::Tensor;
@@ -120,7 +120,7 @@ impl<'a> BranchBound<'a> {
                     &self.tensor_cache[&j],
                     self.tn.get_bond_dims(),
                 );
-                (k12_tensor, size_12) = _contract_size(
+                (k12_tensor, size_12) = contract_size_tensors(
                     &self.tensor_cache[&i],
                     &self.tensor_cache[&j],
                     self.tn.get_bond_dims(),
@@ -732,7 +732,7 @@ impl<'a> OptimizePath for Greedy<'a> {
             Box::new(&Greedy::_simple_chooser),
             Box::new(&Greedy::_cost_memory_removed),
         );
-        let (op_cost, mem_cost) = _contract_path_cost(
+        let (op_cost, mem_cost) = contract_path_cost(
             self.tn.get_tensors(),
             &self.get_best_replace_path(),
             self.tn.get_bond_dims(),
