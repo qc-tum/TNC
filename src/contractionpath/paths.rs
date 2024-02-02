@@ -446,7 +446,7 @@ impl<'a> Greedy<'a> {
 
     pub(crate) fn _ssa_greedy_optimize(
         &mut self,
-        inputs: &Vec<Tensor>,
+        inputs: &[Tensor],
         output_dims: &Tensor,
         bond_dims: &HashMap<usize, u64>,
         choice_fn: Box<ChoiceFnType>,
