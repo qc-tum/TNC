@@ -8,9 +8,7 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
     contractionpath::{
-        candidates::Candidate,
-        contraction_cost::{_contract_path_cost, _tensor_size},
-        ssa_replace_ordering,
+        candidates::Candidate, contraction_cost::contract_path_cost, ssa_replace_ordering,
     },
     pair,
     tensornetwork::tensor::Tensor,
