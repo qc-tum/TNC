@@ -19,7 +19,7 @@ pub mod random_paths;
 /// # Returns
 ///
 /// Identical path using ssa format
-fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<(usize, usize)> {
+fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<ContractionIndex> {
     let mut ssa_path = Vec::with_capacity(path.len());
     let mut hs = HashMap::new();
     let path_len = n;
