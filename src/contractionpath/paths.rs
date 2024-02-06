@@ -12,11 +12,9 @@ pub mod greedy;
 
 pub trait OptimizePath {
     fn optimize_path(&mut self);
-    // fn optimize_partitioned_path(&mut self, partition: Vec<usize>);
 
-    fn get_best_path(&self) -> &Vec<ContractionIndex>;
-    fn get_best_replace_path(&self) -> Vec<ContractionIndex>;
-    // fn get_best_partition_replace_path(&self, k: usize) -> Vec<(usize, usize)>;
+    fn get_best_path(&self) -> &Vec<(usize, usize)>;
+    fn get_best_replace_path(&self) -> Vec<(usize, usize)>;
     fn get_best_flops(&self) -> u64;
     fn get_best_size(&self) -> u64;
 }

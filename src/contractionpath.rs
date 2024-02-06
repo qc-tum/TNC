@@ -5,6 +5,7 @@ pub mod candidates;
 pub mod contraction_cost;
 pub mod paths;
 pub mod random_paths;
+// pub mod optimizer;
 
 /// The contraction ordering labels [Tensor] objects from each possible contraction with a
 /// unique identifier in ssa format. As only a subset of these [Tensor] objects are seen in
@@ -13,11 +14,12 @@ pub mod random_paths;
 ///
 /// # Arguments
 ///
-/// * `path` - Output path as Vec<(usize, usize)> after an [optimize_path] call.
+/// * `path` - Output path as Vec<(usize, usize, usize)> after an [optimize_path] call.
+/// * `n` - Number of initial input tensors.
 /// # Returns
 ///
 /// Identical path using ssa format
-fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<ContractionIndex> {
+fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<(usize, usize)> {
     let mut ssa_path = Vec::with_capacity(path.len());
     let mut hs = HashMap::new();
     let path_len = n;
@@ -37,6 +39,8 @@ fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<Contract
 /// # Arguments
 ///
 /// * `path` - Output path as Vec<(usize, usize)> that is in ssa format.
+/// * `n` - Number of initial input tensors.
+
 /// # Returns
 ///
 /// Identical path that replaces the left input tensor upon contraction
