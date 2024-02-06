@@ -1,6 +1,6 @@
 use array_tool::vec::{Intersect, Union};
 use core::ops::{BitAnd, BitOr, BitXor, Sub};
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
@@ -59,6 +59,26 @@ impl Clone for Tensor {
             //Ensure only pointer is cloned
             edges: self.edges.clone(),
             tensordata: self.tensordata.clone(),
+        }
+    }
+}
+
+impl Default for Tensor {
+    /// Constructs an empty Tensor object
+    ///
+    ///
+    /// # Examples
+    /// ```
+    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// let tensor = Tensor::default();
+    /// ```
+    fn default() -> Self {
+        Self {
+            tensors: Vec::new(),
+            legs: Vec::new(),
+            bond_dims: Rc::new(RefCell::new(HashMap::new())),
+            edges: HashMap::new(),
+            tensordata: RefCell::new(TensorData::Empty),
         }
     }
 }
@@ -487,12 +507,12 @@ impl Tensor {
 
         // Index is current length as tensor is pushed after.
         let index = self.get_tensors().len();
-        for leg in tensor.get_legs() {
-            if !shared_bond_dims.contains_key(leg) {
+        for &leg in tensor.get_legs() {
+            if !shared_bond_dims.contains_key(&leg) {
                 panic!("Leg {leg} bond dimension is not defined");
             }
             self.edges
-                .entry(*leg)
+                .entry(leg)
                 .and_modify(|edge| {
                     // New tensor contracts on a previous external leg
                     if let Some(pos) = edge.iter().position(|e| e == &Vertex::Open) {
@@ -606,7 +626,7 @@ impl Tensor {
     /// ```
     pub fn union(&self, other: &Tensor) -> Tensor {
         let mut new_tn = Tensor::new(self.get_legs().union(other.get_legs().clone()));
-        new_tn.set_bond_dimensions(self.get_bond_dims());
+        new_tn.set_bond_dims(&self.get_bond_dims());
         new_tn
     }
 
@@ -627,7 +647,7 @@ impl Tensor {
     /// ```
     pub fn intersection(&self, other: &Tensor) -> Tensor {
         let mut new_tn = Tensor::new(self.get_legs().intersect(other.get_legs().clone()));
-        new_tn.set_bond_dimensions(self.get_bond_dims());
+        new_tn.set_bond_dims(&self.get_bond_dims());
         new_tn
     }
 
@@ -659,7 +679,7 @@ impl Tensor {
             }
         }
         let mut new_tn = Tensor::new(new_legs);
-        new_tn.set_bond_dimensions(self.get_bond_dims());
+        new_tn.set_bond_dims(&self.get_bond_dims());
         new_tn
     }
 
@@ -704,121 +724,6 @@ where
     }
 
     result
-}
-
-impl Default for Tensor {
-    /// Constructs an empty Tensor object
-    ///
-    ///
-    /// # Examples
-    /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor = Tensor::default();
-    /// ```
-    fn default() -> Self {
-        Self {
-            tensors: Vec::new(),
-            legs: Vec::new(),
-            bond_dims: Rc::new(RefCell::new(HashMap::new())),
-            edges: HashMap::new(),
-            tensordata: RefCell::new(TensorData::Empty),
-        }
-    }
-}
-
-/// Returns Tensor with legs in `self` that are not in `other`.
-///
-/// # Arguments
-///
-/// * `other` - Tensor with legs to remove
-///
-/// # Examples
-/// ```
-/// use tensorcontraction::tensornetwork::tensor::Tensor;
-/// use std::collections::HashMap;
-/// let tensor1 = Tensor::new(vec![1,2,3]);
-/// let tensor2 = Tensor::new(vec![4,2,5]);
-/// let diff_tensor = &tensor1 - &tensor2;
-/// assert_eq!(diff_tensor, Tensor::new(vec![1,3]));
-/// ```
-pub fn difference(&self, other: &Tensor) -> Tensor {
-    let mut new_legs = Vec::new();
-    for &i in self.get_legs().iter() {
-        if !other.contains_leg(i) {
-            new_legs.push(i);
-        }
-    }
-    let mut new_tn = Tensor::new(new_legs);
-    new_tn.set_bond_dimensions(self.get_bond_dims());
-    new_tn
-}
-
-/// Returns Tensor with union of legs in both `self` and `other`.
-///
-/// # Arguments
-///
-/// * `other` - Tensor with legs to join
-///
-/// # Examples
-/// ```
-/// use tensorcontraction::tensornetwork::tensor::Tensor;
-/// use std::collections::HashMap;
-/// let tensor1 = Tensor::new(vec![1,2,3]);
-/// let tensor2 = Tensor::new(vec![4,2,5]);
-/// let union_tensor = &tensor1 | &tensor2;
-/// assert_eq!(union_tensor, Tensor::new(vec![1,2,3,4,5]));
-/// ```
-pub fn union(&self, other: &Tensor) -> Tensor {
-    Tensor::new(self.get_legs().union(other.get_legs().clone()))
-}
-
-/// Returns Tensor with intersection of legs in `self` and `other`.
-///
-/// # Arguments
-///
-/// * `other` - Tensor with legs to intersect
-///
-/// # Examples
-/// ```
-/// use tensorcontraction::tensornetwork::tensor::Tensor;
-/// use std::collections::HashMap;
-/// let tensor1 = Tensor::new(vec![1,2,3]);
-/// let tensor2 = Tensor::new(vec![4,2,5]);
-/// let intersection_tensor = &tensor1 & &tensor2;
-/// assert_eq!(intersection_tensor, Tensor::new(vec![2]));
-/// ```
-pub fn intersection(&self, other: &Tensor) -> Tensor {
-    Tensor::new(self.get_legs().intersect(other.get_legs().clone()))
-}
-
-/// Returns Tensor with intersection of legs in `self` and `other`.
-///
-/// # Arguments
-///
-/// * `other` - Tensor with legs to intersect
-///
-/// # Examples
-/// ```
-/// use tensorcontraction::tensornetwork::tensor::Tensor;
-/// use std::collections::HashMap;
-/// let tensor1 = Tensor::new(vec![1,2,3]);
-/// let tensor2 = Tensor::new(vec![4,2,5]);
-/// let sym_dif_tensor = &tensor1 ^ &tensor2;
-/// assert_eq!(sym_dif_tensor, Tensor::new(vec![1,3,4,5]));
-/// ```
-pub fn symmetric_difference(&self, other: &Tensor) -> Tensor {
-    let mut new_legs = Vec::new();
-    for &i in self.legs_iter() {
-        if !other.contains_leg(i) {
-            new_legs.push(i);
-        }
-    }
-    for &i in other.legs_iter() {
-        if !self.contains_leg(i) {
-            new_legs.push(i);
-        }
-    }
-    Tensor::new(new_legs)
 }
 
 /// Implementation of printing for Tensor. Simply prints the legs as a vector
