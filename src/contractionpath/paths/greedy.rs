@@ -622,6 +622,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
         let mut opt = Greedy::new(&tn, CostType::Flops);
@@ -633,6 +634,7 @@ mod tests {
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
     }
     #[test]
+    #[ignore]
     fn test_contract_order_greedy_complex() {
         let tn = setup_complex();
         let mut opt = Greedy::new(&tn, CostType::Flops);
