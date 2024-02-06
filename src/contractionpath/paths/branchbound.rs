@@ -8,7 +8,7 @@ use itertools::Itertools;
 use crate::{
     contractionpath::{
         candidates::Candidate,
-        contraction_cost::{_contract_cost, _contract_size},
+        contraction_cost::{contract_cost_tensors, contract_size_tensors},
         ssa_ordering, ssa_replace_ordering,
     },
     tensornetwork::tensor::Tensor,
@@ -101,12 +101,12 @@ impl<'a> BranchBound<'a> {
                 k12_tensor = self.tensor_cache[&k12].clone();
             } else {
                 k12 = self.tensor_cache.len();
-                flops_12 = _contract_cost(
+                flops_12 = contract_cost_tensors(
                     &self.tensor_cache[&i],
                     &self.tensor_cache[&j],
                     &self.tn.get_bond_dims(),
                 );
-                (k12_tensor, size_12) = _contract_size(
+                (k12_tensor, size_12) = contract_size_tensors(
                     &self.tensor_cache[&i],
                     &self.tensor_cache[&j],
                     &self.tn.get_bond_dims(),

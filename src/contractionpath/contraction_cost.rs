@@ -18,17 +18,17 @@ use std::collections::HashMap;
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
 /// # use tensorcontraction::tensornetwork::create_tensor_network;
-/// # use tensorcontraction::contractionpath::contraction_cost::contract_cost;
+/// # use tensorcontraction::contractionpath::contraction_cost::contract_cost_in_tn;
 /// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
 /// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_cost(&tn, 0, 1), 45045);
+/// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 45045);
 /// ```
-pub fn contract_cost(tn: &Tensor, i: usize, j: usize) -> u64 {
+pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> u64 {
     // let kept_dims = tensor_a.symmetric_difference(&tensor_b);
-    _contract_cost(tn.get_tensor(i), tn.get_tensor(j), &tn.get_bond_dims())
+    contract_cost_tensors(tn.get_tensor(i), tn.get_tensor(j), &tn.get_bond_dims())
 }
 
 /// Returns Schroedinger contraction time complexity of contracting two [Tensor] objects.
@@ -44,15 +44,15 @@ pub fn contract_cost(tn: &Tensor, i: usize, j: usize) -> u64 {
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
 /// # use tensorcontraction::tensornetwork::create_tensor_network;
-/// # use tensorcontraction::contractionpath::contraction_cost::_contract_cost;
+/// # use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
 /// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
 /// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(_contract_cost(&tn.get_tensor(0), &tn.get_tensor(1), &tn.get_bond_dims()), 45045);
+/// assert_eq!(contract_cost_tensors(&tn.get_tensor(0), &tn.get_tensor(1), &tn.get_bond_dims()), 45045);
 /// ```
-pub fn _contract_cost(t_1: &Tensor, t_2: &Tensor, bond_dims: &HashMap<usize, u64>) -> u64 {
+pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor, bond_dims: &HashMap<usize, u64>) -> u64 {
     let shared_dims = t_1 | t_2;
     shared_dims
         .get_legs()
