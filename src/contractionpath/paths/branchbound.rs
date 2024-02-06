@@ -101,16 +101,10 @@ impl<'a> BranchBound<'a> {
                 k12_tensor = self.tensor_cache[&k12].clone();
             } else {
                 k12 = self.tensor_cache.len();
-                flops_12 = contract_cost_tensors(
-                    &self.tensor_cache[&i],
-                    &self.tensor_cache[&j],
-                    &self.tn.get_bond_dims(),
-                );
-                (k12_tensor, size_12) = contract_size_tensors(
-                    &self.tensor_cache[&i],
-                    &self.tensor_cache[&j],
-                    &self.tn.get_bond_dims(),
-                );
+                flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
+                size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
+                k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
+
                 self.result_cache.entry(vec![i, j]).or_insert(k12);
                 self.flop_cache.entry(k12).or_insert(flops_12);
                 self.size_cache.entry(k12).or_insert(size_12);

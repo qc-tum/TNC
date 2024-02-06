@@ -6,7 +6,7 @@ use std::{
 
 use crate::{tensornetwork::tensor::Tensor, types::calculate_hash};
 
-use super::{candidates::Candidate, contraction_cost::_contract_path_cost, ssa_replace_ordering};
+use super::{candidates::Candidate, contraction_cost::contract_path_cost, ssa_replace_ordering};
 use crate::contractionpath::paths::greedy::Greedy;
 
 pub trait RandomOptimizePath {
@@ -111,10 +111,10 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
                 Box::new(&Greedy::_thermal_chooser),
                 Box::new(&Greedy::_cost_memory_removed),
             );
-            let (cost, size) = _contract_path_cost(
+            let (cost, size) = contract_path_cost(
                 &inputs,
                 &ssa_replace_ordering(&ssa_path, inputs.len()),
-                &bond_dims,
+                &*bond_dims,
             );
 
             if cost < self.best_flops {
