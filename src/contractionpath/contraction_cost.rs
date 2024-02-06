@@ -107,9 +107,7 @@ pub fn contract_size_in_tn(tn: &TensorNetwork, i: usize, j: usize) -> (Tensor, u
 pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor, bond_dims: &HashMap<usize, u64>) -> u64 {
     let diff = t_1 ^ t_2;
 
-    cost = diff.iter().map(|e| bond_dims[e]).product::<u64>()
-        + t_1.size(bond_dims)
-        + t_2.size(bond_dims)
+    diff.size() + t_1.size() + t_2.size()
 }
 
 /// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
@@ -141,7 +139,8 @@ pub fn contract_path_cost(
     let mut inputs = inputs.to_vec();
     for &(i, j) in ssa_path.iter() {
         op_cost += _contract_cost(&inputs[i], &inputs[j], bond_dims);
-        let (k12, new_mem_cost) = contract_size_tensors(&inputs[i], &inputs[j], bond_dims);
+        let k12 = &inputs[i] ^ &inputs[j];
+        let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j], bond_dims);
         mem_cost = max(mem_cost, new_mem_cost);
         inputs[i] = k12;
     }
@@ -156,7 +155,7 @@ pub fn contract_path_cost(
 /// * `inputs` - First tensor to determine contraction cost.
 /// * `ssa_path`  - Contraction order as SSA path
 /// * `bond_dims`- Dict of bond dimensions.
-pub fn _contract_path_cost(
+pub fn nested_contract_path_cost(
     inputs: &[Tensor],
     ssa_path: &[ContractionIndex],
     bond_dims: &HashMap<usize, u64>,
