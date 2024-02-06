@@ -161,7 +161,7 @@ impl<'a> Greedy<'a> {
 
         let k12 = &(&(&either & output) | &(&two & &ref3)) | &(&one & &ref2);
 
-        let size_k12 = _tensor_size(&k12, bond_dims);
+        let size_k12 = k12.size();
 
         let cost = cost_function(
             size_k12 as i64,
@@ -278,7 +278,7 @@ impl<'a> Greedy<'a> {
         // Maps tensor legs to size
         // Clone here to avoid mutating HashMap keys
         let mut tensor_mem_size = HashMap::from_iter(inputs.iter().map(|legs| {
-            let size = _tensor_size(legs, bond_dims);
+            let size = legs.size();
             (calculate_hash(legs), size)
         }));
 
@@ -390,9 +390,7 @@ impl<'a> Greedy<'a> {
                 &(&(&k1 | &k2) - output_dims),
             );
 
-            tensor_mem_size
-                .entry(k12_hash)
-                .or_insert(_tensor_size(&k12, bond_dims));
+            tensor_mem_size.entry(k12_hash).or_insert(k12.size());
 
             //Find new candidate contractions.
             let k1 = k12;
@@ -422,7 +420,7 @@ impl<'a> Greedy<'a> {
         let mut heapq = BinaryHeap::new();
         for (key, ssa_id) in remaining_tensors {
             let k12_tensor = hash_to_tensor[&key].clone();
-            let tensor_size = _tensor_size(&(&k12_tensor & output_dims), bond_dims) as i64;
+            let tensor_size = (&k12_tensor & output_dims).size() as i64;
             if tensor_size > 0 {
                 let candidate = Candidate {
                     flop_cost: 0,
@@ -462,7 +460,7 @@ impl<'a> Greedy<'a> {
             ssa_path.push(pair!(min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2)));
             let k12 = &(&k1 | &k2) & output_dims;
 
-            let cost = _tensor_size(&k12, bond_dims) as i64;
+            let cost = k12.size() as i64;
             heapq.push(Candidate {
                 flop_cost: 0,
                 size_cost: cost,
