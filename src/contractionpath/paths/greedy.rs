@@ -77,7 +77,6 @@ impl<'a> Greedy<'a> {
     /// The default heuristic cost, corresponding to the total reduction in
     /// memory of performing a contraction.
     pub(crate) fn _cost_memory_removed(
-        _bond_dims: &HashMap<usize, u64>,
         size12: i64,
         size1: i64,
         size2: i64,
@@ -91,7 +90,6 @@ impl<'a> Greedy<'a> {
     /// Con cost, corresponding to the total reduction in
     /// memory of performing a contraction.
     pub(crate) fn _cost_communication(
-        _bond_dims: &HashMap<usize, u64>,
         _size12: i64,
         size1: i64,
         _size2: i64,
@@ -105,7 +103,6 @@ impl<'a> Greedy<'a> {
     #[allow(clippy::too_many_arguments)]
     fn _push_candidate(
         output: &Tensor,
-        bond_dims: &HashMap<usize, u64>,
         remaining: &HashMap<u64, usize>,
         footprints: &HashMap<u64, u64>,
         dim_ref_counts: &HashMap<usize, HashSet<usize>>,
@@ -118,7 +115,6 @@ impl<'a> Greedy<'a> {
         for k2 in k2s {
             candidates.push(Greedy::_get_candidate(
                 output,
-                bond_dims,
                 remaining,
                 footprints,
                 dim_ref_counts,
@@ -139,7 +135,6 @@ impl<'a> Greedy<'a> {
     #[allow(clippy::too_many_arguments)]
     fn _get_candidate<'b>(
         output: &Tensor,
-        bond_dims: &HashMap<usize, u64>,
         remaining_tensors: &HashMap<u64, usize>,
         tensor_mem_size: &HashMap<u64, u64>,
         dim_tensor_counts: &HashMap<usize, HashSet<usize>>,
@@ -171,7 +166,6 @@ impl<'a> Greedy<'a> {
         let size_k12 = _tensor_size(&k12, bond_dims);
 
         let cost = cost_function(
-            bond_dims,
             size_k12 as i64,
             tensor_mem_size[&k1_hash] as i64,
             tensor_mem_size[&k2_hash] as i64,
@@ -233,7 +227,6 @@ impl<'a> Greedy<'a> {
         &self,
         inputs: &[Tensor],
         output_dims: &Tensor,
-        bond_dims: &HashMap<usize, u64>,
         choice_fn: Box<ChoiceFnType>,
         cost_fn: Box<CostFnType>,
     ) -> Vec<ContractionIndex> {
@@ -299,7 +292,6 @@ impl<'a> Greedy<'a> {
                 let k2s = new_keys[(i + 1)..new_keys.len()].iter().collect_vec();
                 Greedy::_push_candidate(
                     output_dims,
-                    bond_dims,
                     &remaining_tensors,
                     &tensor_mem_size,
                     &dim_tensor_counts,
@@ -418,7 +410,6 @@ impl<'a> Greedy<'a> {
             if !k2s.is_empty() {
                 Greedy::_push_candidate(
                     output_dims,
-                    bond_dims,
                     &remaining_tensors,
                     &tensor_mem_size,
                     &dim_tensor_counts,
@@ -505,7 +496,6 @@ impl<'a> OptimizePath for Greedy<'a> {
                 let path = self._ssa_greedy_optimize(
                     input_tensor.get_tensors(),
                     &Tensor::new(external_legs.clone()),
-                    &input_tensor.get_bond_dims(),
                     Box::new(&Greedy::_simple_chooser),
                     Box::new(&Greedy::_cost_memory_removed),
                 );
@@ -520,19 +510,17 @@ impl<'a> OptimizePath for Greedy<'a> {
         // Vector of output leg ids
         let output_dims = Tensor::new(self.tn.get_external_edges().clone());
         // Dictionary that maps leg id to bond dimension
-        let bond_dims = self.tn.get_bond_dims();
         // Start considering communication here!
         self.best_path.append(&mut self._ssa_greedy_optimize(
             &inputs,
             &output_dims,
-            &bond_dims,
             Box::new(&Greedy::_simple_chooser),
             Box::new(&Greedy::_cost_memory_removed),
         ));
-        let (op_cost, mem_cost) = _contract_path_cost(
+        let (op_cost, mem_cost) = contract_path_cost(
             self.tn.get_tensors(),
             &self.get_best_replace_path(),
-            &self.tn.get_bond_dims(),
+            &*self.tn.get_bond_dims(),
         );
         self.best_size = mem_cost;
         self.best_flops = op_cost;

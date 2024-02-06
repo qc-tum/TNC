@@ -108,7 +108,6 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
             let ssa_path = self._ssa_greedy_optimize(
                 &inputs,
                 &output_dims,
-                &bond_dims,
                 Box::new(&Greedy::_thermal_chooser),
                 Box::new(&Greedy::_cost_memory_removed),
             );
