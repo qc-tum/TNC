@@ -581,7 +581,7 @@ impl Tensor {
     /// ```
     pub fn difference(&self, other: &Tensor) -> Tensor {
         let mut new_legs = Vec::new();
-        for i in self.get_legs().iter().cloned() {
+        for &i in self.legs_iter() {
             if !other.contains_leg(i) {
                 new_legs.push(i);
             }
@@ -648,7 +648,7 @@ impl Tensor {
     /// ```
     pub fn symmetric_difference(&self, other: &Tensor) -> Tensor {
         let mut new_legs = Vec::new();
-        for i in self.get_legs().iter().cloned() {
+        for &i in self.legs_iter() {
             if !other.contains_leg(i) {
                 new_legs.push(i);
             }
@@ -726,16 +726,6 @@ impl Default for Tensor {
     }
 }
 
-/// Returns true if Tensor contains leg_id
-///
-/// # Arguments
-///
-/// * `leg_id` - `usize` referencing specific leg
-/// ```
-fn contains(&self, leg_id: usize) -> bool {
-    self.legs.contains(&leg_id)
-}
-
 /// Returns Tensor with legs in `self` that are not in `other`.
 ///
 /// # Arguments
@@ -754,7 +744,7 @@ fn contains(&self, leg_id: usize) -> bool {
 pub fn difference(&self, other: &Tensor) -> Tensor {
     let mut new_legs = Vec::new();
     for &i in self.get_legs().iter() {
-        if !other.contains(i) {
+        if !other.contains_leg(i) {
             new_legs.push(i);
         }
     }
@@ -818,13 +808,13 @@ pub fn intersection(&self, other: &Tensor) -> Tensor {
 /// ```
 pub fn symmetric_difference(&self, other: &Tensor) -> Tensor {
     let mut new_legs = Vec::new();
-    for i in self.iter().cloned() {
-        if !other.contains(i) {
+    for &i in self.legs_iter() {
+        if !other.contains_leg(i) {
             new_legs.push(i);
         }
     }
-    for i in other.iter().cloned() {
-        if !self.contains(i) {
+    for &i in other.legs_iter() {
+        if !self.contains_leg(i) {
             new_legs.push(i);
         }
     }
