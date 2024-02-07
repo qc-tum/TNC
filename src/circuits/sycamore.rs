@@ -125,18 +125,28 @@ where
         .filter(|&&(u, v)| u < size && v < size)
         .collect::<Vec<_>>();
 
-    let single_qubit_probability = if let Some(mut single_qubit_probability) = single_qubit {
-        if single_qubit_probability > 1.0 {
-            single_qubit_probability /= 100.0;
-        }
+    let single_qubit_probability = if let Some(single_qubit_probability) = single_qubit {
+        assert!(
+            single_qubit_probability <= 1.0,
+            "Probability should range [0.0, 1.0], values greater than one are not acceptable"
+        );
+        assert!(
+            single_qubit_probability >= 0.0,
+            "Probability should range [0.0, 1.0], values less than zero are not acceptable"
+        );
         single_qubit_probability
     } else {
         0.4
     };
-    let two_qubit_probability = if let Some(mut two_qubit_probability) = two_qubit {
-        if two_qubit_probability > 1.0 {
-            two_qubit_probability /= 100.0;
-        }
+    let two_qubit_probability = if let Some(two_qubit_probability) = two_qubit {
+        assert!(
+            two_qubit_probability <= 1.0,
+            "Probability should range [0.0, 1.0], values greater than one are not acceptable"
+        );
+        assert!(
+            two_qubit_probability >= 0.0,
+            "Probability should range [0.0, 1.0], values less than zero are not acceptable"
+        );
         two_qubit_probability
     } else {
         0.4
