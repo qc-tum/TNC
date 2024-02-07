@@ -127,10 +127,12 @@ impl<'a> BranchBound<'a> {
                     &self.tensor_cache[&j],
                     self.tn.get_bond_dims(),
                 );
-                self.result_cache.entry(vec![i, j]).or_insert(k12);
-                self.flop_cache.entry(k12).or_insert(flops_12);
-                self.size_cache.entry(k12).or_insert(size_12);
-                self.tensor_cache.entry(k12).or_insert(k12_tensor.clone());
+                self.result_cache.entry(vec![i, j]).or_insert_with(|| k12);
+                self.flop_cache.entry(k12).or_insert_with(|| flops_12);
+                self.size_cache.entry(k12).or_insert_with(|| size_12);
+                self.tensor_cache
+                    .entry(k12)
+                    .or_insert_with(|| k12_tensor.clone());
             }
             current_flops += flops_12;
             current_size = max(current_size, size_12);
@@ -145,7 +147,7 @@ impl<'a> BranchBound<'a> {
                 best_flops = current_flops;
                 self.best_progress
                     .entry(remaining.len())
-                    .or_insert(current_flops);
+                    .or_insert_with(|| current_flops);
             }
 
             if current_flops < best_flops {
@@ -222,8 +224,10 @@ impl<'a> OptimizePath for BranchBound<'a> {
         for (index, tensor) in tensors.iter().enumerate() {
             self.size_cache
                 .entry(index)
-                .or_insert(self.tn.get_tensors()[index].size(self.tn.get_bond_dims()));
-            self.tensor_cache.entry(index).or_insert(tensor.clone());
+                .or_insert_with(|| self.tn.get_tensors()[index].size(self.tn.get_bond_dims()));
+            self.tensor_cache
+                .entry(index)
+                .or_insert_with(|| tensor.clone());
         }
 
         let remaining: Vec<u32> = (0u32..self.tn.get_tensors().len() as u32).collect();
@@ -255,8 +259,10 @@ impl<'a> OptimizePath for BranchBound<'a> {
         for (index, tensor) in tensors.iter().enumerate() {
             self.size_cache
                 .entry(index)
-                .or_insert(self.tn.get_tensors()[index].size(self.tn.get_bond_dims()));
-            self.tensor_cache.entry(index).or_insert(tensor.clone());
+                .or_insert_with(|| self.tn.get_tensors()[index].size(self.tn.get_bond_dims()));
+            self.tensor_cache
+                .entry(index)
+                .or_insert_with(|| tensor.clone());
         }
 
         let remaining = (0u32..tensors.len() as u32).collect();
@@ -603,7 +609,9 @@ impl<'a> Greedy<'a> {
                 }
             }
 
-            remaining_tensors.entry(k12.clone()).or_insert(next_ssa_id);
+            remaining_tensors
+                .entry(k12.clone())
+                .or_insert_with(|| next_ssa_id);
             next_ssa_id += 1;
             Greedy::_update_ref_counts(
                 &dim_to_tensors,
@@ -612,7 +620,7 @@ impl<'a> Greedy<'a> {
             );
             tensor_mem_size
                 .entry(k12.clone())
-                .or_insert(k12.size(bond_dims));
+                .or_insert_with(|| k12.size(bond_dims));
 
             //Find new candidate contractions.
             let k1 = k12;
@@ -750,10 +758,12 @@ fn populate_remaining_tensors(
         if remaining_tensors.contains_key(v) {
             // greedily compute inner products
             ssa_path.push((remaining_tensors[v], ssa_id));
-            remaining_tensors.entry(v.clone()).or_insert(*next_ssa_id);
+            remaining_tensors
+                .entry(v.clone())
+                .or_insert_with(|| *next_ssa_id);
             *next_ssa_id += 1;
         } else {
-            remaining_tensors.entry(v.clone()).or_insert(ssa_id);
+            remaining_tensors.entry(v.clone()).or_insert_with(|| ssa_id);
         }
     }
 }
