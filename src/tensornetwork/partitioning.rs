@@ -3,12 +3,16 @@ use kahypar_sys;
 use kahypar_sys::{partition, KaHyParContext};
 use std::ffi::CString;
 
-pub fn partition_tn(
-    partitioning: &mut Vec<i32>,
-    tn: &mut TensorNetwork,
-    k: i32,
-    config_file: CString,
-) {
+/// Partitions input tensor network using KaHyPar library.
+///
+/// # Arguments
+///
+/// * `partitioning` - &mut [i32] to store final partitioning results
+/// * `tn` - [`TensorNetwork`] to be partitionined
+/// * `k` - imbalance parameter for KaHyPar
+/// * `config_file` - KaHyPar config file name
+pub fn partition_tn(partitioning: &mut [i32], tn: &mut TensorNetwork, k: i32, config_file: String) {
+    let config_file = CString::new(config_file).unwrap();
     let num_vertices = tn.get_tensors().len() as u32;
     assert!(partitioning.len() == num_vertices as usize);
     let num_hyperedges = tn.get_edges().len() as u32;
@@ -52,7 +56,6 @@ pub fn partition_tn(
 #[cfg(test)]
 mod tests {
     use std::env;
-    use std::ffi::CString;
     use std::path::PathBuf;
 
     use crate::tensornetwork::tensor::Tensor;
@@ -83,12 +86,7 @@ mod tests {
     fn test_simple_partitioning() {
         let mut tn = setup_complex();
         let mut partitioning: Vec<i32> = vec![-1; tn.get_tensors().len() as usize];
-        partition_tn(
-            &mut partitioning,
-            &mut tn,
-            2,
-            CString::new("test/km1").expect("CString failure."),
-        );
+        partition_tn(&mut partitioning, &mut tn, 2, String::from("test/km1"));
         assert_eq!(tn.partitioning, [1, 1, 0, 0, 0, 1]);
     }
 }

@@ -78,7 +78,7 @@ pub fn partition_benchmark(c: &mut Criterion) {
             &mut partitioning,
             &mut r_tn,
             k as i32,
-            CString::new("test/km1").expect("CString fails"),
+            String::from("test/km1"),
         );
         let mut opt = Greedy::new(&r_tn, CostType::Flops);
         let mut opt_paths = vec![];
