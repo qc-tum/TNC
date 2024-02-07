@@ -49,7 +49,7 @@ pub fn partition_tn(partitioning: &mut [i32], tn: &mut TensorNetwork, k: i32, co
         &mut context,
         partitioning,
     );
-    tn.partitioning = partitioning.to_vec();
+    tn.partitioning = partitioning.to_owned();
 }
 
 #[cfg(test)]
