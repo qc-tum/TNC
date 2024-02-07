@@ -193,28 +193,14 @@ where
     sycamore_tn
 }
 
-#[cfg(test)]
-mod tests {
-    use rand::thread_rng;
-
-    use crate::random::tensorgeneration::random_sparse_tensor;
-    use crate::tensornetwork::contraction::tn_contract;
-    use crate::{
-        contractionpath::{
-            paths::{CostType, Greedy, OptimizePath},
-            random_paths::RandomOptimizePath,
-        },
-        tensornetwork::TensorNetwork,
-    };
-
-    pub fn sycamore_contract(tn: TensorNetwork) {
-        let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.random_optimize_path(32, &mut thread_rng());
-        let contract_path = opt.get_best_replace_path();
-        let mut d_tn = Vec::new();
-        for t in tn.get_tensors() {
-            d_tn.push(random_sparse_tensor(t, tn.get_bond_dims(), None));
-        }
-        let _d_tn = tn_contract(tn, d_tn, &contract_path);
+pub fn sycamore_contract(tn: TensorNetwork) -> TensorNetwork {
+    let mut opt = Greedy::new(&tn, CostType::Flops);
+    opt.random_optimize_path(32, &mut thread_rng());
+    let contract_path = opt.get_best_replace_path();
+    let mut d_tn = Vec::new();
+    for t in tn.get_tensors() {
+        d_tn.push(random_sparse_tensor(t, tn.get_bond_dims(), None));
     }
+    let (tn, _dt) = tn_contract(tn, d_tn, &contract_path);
+    tn
 }
