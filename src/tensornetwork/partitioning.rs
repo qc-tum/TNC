@@ -62,10 +62,6 @@ mod tests {
 
     use super::partition_tn;
 
-    fn get_current_working_dir() -> std::io::Result<PathBuf> {
-        env::current_dir()
-    }
-
     fn setup_complex() -> TensorNetwork {
         TensorNetwork::from_vector(
             vec![
