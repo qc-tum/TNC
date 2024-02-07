@@ -29,10 +29,9 @@ pub fn partition_tn(partitioning: &mut [i32], tn: &mut TensorNetwork, k: i32, co
         hyperedge_weights.push(bond_dims[&edges].try_into().unwrap());
         let mut length = 0;
         for id in tensor_ids {
-            if id.is_some() {
-                hyperedges.push(id.unwrap() as u32);
-                length += 1;
-            }
+            let Some(id) = id else { continue };
+            hyperedges.push(*id as u32);
+            length += 1;
         }
         hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
     }
