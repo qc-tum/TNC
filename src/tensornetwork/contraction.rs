@@ -82,6 +82,7 @@ pub fn tn_contract_partition(
     d_tn: &mut [DataTensor],
     partition: i32,
     contract_path: &Vec<(usize, usize)>,
+) -> usize {
     let partition_indices =
         (0..tn.get_tensors().len()).filter(|&i| tn.get_partitioning()[i] == partition);
     let mut partition_map = HashMap::new();
