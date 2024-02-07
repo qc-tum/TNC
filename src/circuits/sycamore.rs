@@ -123,7 +123,7 @@ where
     let filtered_connectivity = sycamore_connect
         .iter()
         .filter(|(u, v)| u < &size && v < &size)
-        .collect::<Vec<&(usize, usize)>>();
+        .collect::<Vec<_>>();
 
     let sqp = if let Some(mut sqp) = single_qubit {
         if sqp > 1.0 {
