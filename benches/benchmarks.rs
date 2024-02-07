@@ -58,9 +58,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
 pub fn partition_benchmark(c: &mut Criterion) {
     let mut rng = StdRng::seed_from_u64(52);
-    let mut mul_group = c.benchmark_group("Partition");
-    mul_group.measurement_time(Duration::from_secs(10));
-    mul_group.sampling_mode(SamplingMode::Flat);
+    let mut partition_group = c.benchmark_group("Partition");
+    partition_group.measurement_time(Duration::from_secs(10));
+    partition_group.sampling_mode(SamplingMode::Flat);
 
     for k in [5, 10, 15, 20] {
         let mut r_tn = sycamore_circuit(k, 10, None, None, &mut rng);
@@ -87,7 +87,7 @@ pub fn partition_benchmark(c: &mut Criterion) {
             opt_paths.push(opt.get_best_partition_replace_path(i as usize));
         }
 
-        mul_group.bench_function(BenchmarkId::from_parameter(k), |b| {
+        partition_group.bench_function(BenchmarkId::from_parameter(k), |b| {
             b.iter(|| {
                 let mut local_r_tn = r_tn.clone();
                 let mut local_d_tn = d_tn.clone();
@@ -102,7 +102,7 @@ pub fn partition_benchmark(c: &mut Criterion) {
             });
         });
     }
-    mul_group.finish();
+    partition_group.finish();
 }
 
 criterion_group!(benches, partition_benchmark, criterion_benchmark);
