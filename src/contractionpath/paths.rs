@@ -259,7 +259,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
             self.tensor_cache.entry(index).or_insert(tensor.clone());
         }
 
-        let remaining: Vec<u32> = (0u32..tensors.len() as u32).collect();
+        let remaining = (0u32..tensors.len() as u32).collect();
         BranchBound::_branch_iterate(self, vec![], remaining, 0, 0);
     }
 
