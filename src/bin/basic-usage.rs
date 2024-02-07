@@ -1,11 +1,12 @@
 extern crate tensorcontraction;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-use tensorcontraction::circuits::sycamore::{sycamore_circuit, sycamore_contract};
-use tensorcontraction::contractionpath::paths::{BranchBound, CostType, OptimizePath};
-use tensorcontraction::random::tensorgeneration::{random_sparse_tensor, random_tensor_network};
-// use tensorcontraction::tensornetwork::contraction::tn_contract;
-use tensorcontraction::tensornetwork::TensorNetwork;
+use tensorcontraction::{
+    circuits::sycamore::{sycamore_circuit, sycamore_contract},
+    contractionpath::paths::{BranchBound, CostType, OptimizePath},
+    random::tensorgeneration::{random_sparse_tensor, random_tensor_network},
+    tensornetwork::TensorNetwork,
+};
 
 fn main() {
     let r_tn = random_tensor_network(4, 3);
@@ -19,6 +20,6 @@ fn main() {
     let mut rng = StdRng::seed_from_u64(52);
 
     let k = 5;
-    let tn: TensorNetwork = sycamore_circuit(5, k, None, None, &mut rng);
+    let tn = sycamore_circuit(5, k, None, None, &mut rng);
     sycamore_contract(tn);
 }
