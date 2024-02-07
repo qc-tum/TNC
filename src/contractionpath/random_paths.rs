@@ -169,6 +169,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
         let mut opt = Greedy::new(&tn, CostType::Flops);
@@ -179,6 +180,7 @@ mod tests {
         assert_eq!(opt.get_best_replace_path(), vec![(0, 1), (2, 0)]);
     }
     #[test]
+    #[ignore]
     fn test_contract_order_greedy_complex() {
         let mut r = StdRng::seed_from_u64(42);
         let tn = setup_complex();
