@@ -28,22 +28,22 @@ RUN --mount=type=ssh \
     mkdir -p -m 0700 ~/.ssh && \
     ssh-keyscan -H gitlab.lrz.de >> ~/.ssh/known_hosts && \
     if [ -z "${SSH_PRIVATE_KEY}" ]; then \
-    # To use SSH in local builds, use `docker build --ssh default .`
-    # (or `docker build --ssh default=${HOME}/.ssh/id_rsa .`} for a specific key)
-    # If the key is password protected, you can use `ssh-add ${HOME}/.ssh/mykey` first
-    echo "No SSH_PRIVATE_KEY provided, using SSH from the host"; \
+        # To use SSH in local builds, use `docker build --ssh default .`
+        # (or `docker build --ssh default=${HOME}/.ssh/id_rsa .`} for a specific key)
+        # If the key is password protected, you can use `ssh-add ${HOME}/.ssh/mykey` first
+        echo "No SSH_PRIVATE_KEY provided, using SSH from the host"; \
     else \
-    # The SSH_PRIVATE_KEY build argument must be a base64-encoded private key
-    # See https://stackoverflow.com/a/38570269
-    # and https://www.programonaut.com/how-to-mask-an-ssh-private-key-in-gitlab-ci/
-    echo "The SSH_PRIVATE_KEY variable was provided"; \
-    eval $(ssh-agent -s); \
-    if [ "${SSH_PRIVATE_KEY}" = "default" ]; then \
-    echo "SSH_PRIVATE_KEY is set to default value, no private repositories will be accessible"; \
-    else \
-    echo "Adding SSH_PRIVATE_KEY"; \
-    echo "$SSH_PRIVATE_KEY" | base64 -d | tr -d '\r' | ssh-add -; \
-    fi; \
+        # The SSH_PRIVATE_KEY build argument must be a base64-encoded private key
+        # See https://stackoverflow.com/a/38570269
+        # and https://www.programonaut.com/how-to-mask-an-ssh-private-key-in-gitlab-ci/
+        echo "The SSH_PRIVATE_KEY variable was provided"; \
+        eval $(ssh-agent -s); \
+        if [ "${SSH_PRIVATE_KEY}" = "default" ]; then \
+            echo "SSH_PRIVATE_KEY is set to default value, no private repositories will be accessible"; \
+        else \
+            echo "Adding SSH_PRIVATE_KEY"; \
+            echo "$SSH_PRIVATE_KEY" | base64 -d | tr -d '\r' | ssh-add -; \
+        fi; \
     fi && \
     # 1.3 Install dependencies
     cargo fetch && \
