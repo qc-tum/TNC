@@ -82,8 +82,8 @@ pub fn partition_benchmark(c: &mut Criterion) {
         );
         let mut opt = Greedy::new(&r_tn, CostType::Flops);
         let mut opt_paths = vec![];
-        for i in 0..5 {
-            opt.optimize_partitioned_path(i);
+        for i in 0..opt_paths.len() {
+            opt.optimize_partitioned_path(i as i32);
             opt_paths.push(opt.get_best_partition_replace_path(i as usize));
         }
 
