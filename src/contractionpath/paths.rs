@@ -426,13 +426,13 @@ impl<'a> Greedy<'a> {
         let ref3 = if let Some(ref_count_3) = dim_tensor_counts.get(&3) {
             Tensor::new(ref_count_3.iter().cloned().collect_vec())
         } else {
-            Tensor::new(vec![])
+            Tensor::default()
         };
 
         let ref2 = if let Some(ref_count_2) = dim_tensor_counts.get(&2) {
             Tensor::new(ref_count_2.iter().cloned().collect_vec())
         } else {
-            Tensor::new(vec![])
+            Tensor::default()
         };
 
         let k12 = &(&(&either & output) | &(&two & &ref3)) | &(&one & &ref2);
