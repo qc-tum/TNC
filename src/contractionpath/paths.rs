@@ -835,20 +835,6 @@ impl<'a> OptimizePath for Greedy<'a> {
             Box::new(&Greedy::_cost_memory_removed),
         );
 
-        let inputs: Vec<Tensor> = self
-            .tn
-            .get_tensors()
-            .iter()
-            .enumerate()
-            .filter_map(|(i, e)| {
-                if partition[i] == k {
-                    Some(e.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-
         let (op_cost, mem_cost) = contract_path_cost(
             &inputs,
             &self.get_best_partition_replace_path(k as usize),
