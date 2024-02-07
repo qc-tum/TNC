@@ -18,7 +18,7 @@ pub fn sycamore_circuit<R>(
 where
     R: Rng + ?Sized,
 {
-    let sycamore_connect: Vec<(usize, usize)> = vec![
+    let sycamore_connect = vec![
         (0, 1),
         (0, 3),
         (1, 4),
@@ -107,12 +107,12 @@ where
         (50, 52),
     ];
 
-    let mut open_edges = HashMap::<usize, usize>::new();
+    let mut open_edges = HashMap::new();
 
     // Initialize tensornetwork of size `usize`
     let mut sycamore_tn = TensorNetwork::empty_tensor_network();
-    let mut sycamore_bonddims = HashMap::<usize, u64>::new();
-    let mut tensors = Vec::<Tensor>::new();
+    let mut sycamore_bonddims = HashMap::new();
+    let mut tensors = Vec::new();
     for i in 0..size {
         tensors.push(Tensor::new(vec![i]));
         sycamore_bonddims.insert(i, 2);
