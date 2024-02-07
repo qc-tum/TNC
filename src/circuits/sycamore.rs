@@ -115,7 +115,7 @@ where
     // Initialize tensornetwork of size `usize`
     let mut sycamore_tn = TensorNetwork::empty_tensor_network();
     let mut sycamore_bonddims = HashMap::new();
-    let mut tensors = Vec::new();
+    let mut tensors = Vec::with_capacity(size);
     for i in 0..size {
         tensors.push(Tensor::new(vec![i]));
         sycamore_bonddims.insert(i, 2);
