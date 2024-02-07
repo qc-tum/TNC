@@ -8,6 +8,9 @@ use crate::random::tensorgeneration::random_sparse_tensor;
 use crate::tensornetwork::contraction::tn_contract;
 use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
 
+const DEFAULT_TWO_QUBIT_PROBABILITY: f64 = 0.4;
+const DEFAULT_SINGLE_QUBIT_PROBABILITY: f64 = 0.4;
+
 pub fn sycamore_circuit<R>(
     size: usize,
     round: usize,
@@ -136,7 +139,7 @@ where
         );
         single_qubit_probability
     } else {
-        0.4
+        DEFAULT_SINGLE_QUBIT_PROBABILITY
     };
     let two_qubit_probability = if let Some(two_qubit_probability) = two_qubit {
         assert!(
@@ -149,7 +152,7 @@ where
         );
         two_qubit_probability
     } else {
-        0.4
+        DEFAULT_TWO_QUBIT_PROBABILITY
     };
     let mut next_edge = size;
     let uniform_prob = Uniform::new(0.0, 1.0);
@@ -190,13 +193,28 @@ where
     sycamore_tn
 }
 
-pub fn sycamore_contract(tn: TensorNetwork) {
-    let mut opt = Greedy::new(&tn, CostType::Flops);
-    opt.random_optimize_path(32, &mut thread_rng());
-    let contract_path = opt.get_best_replace_path();
-    let mut d_tn = Vec::new();
-    for t in tn.get_tensors() {
-        d_tn.push(random_sparse_tensor(t, tn.get_bond_dims(), None));
+#[cfg(test)]
+mod tests {
+    use rand::thread_rng;
+
+    use crate::random::tensorgeneration::random_sparse_tensor;
+    use crate::tensornetwork::contraction::tn_contract;
+    use crate::{
+        contractionpath::{
+            paths::{CostType, Greedy, OptimizePath},
+            random_paths::RandomOptimizePath,
+        },
+        tensornetwork::TensorNetwork,
+    };
+
+    pub fn sycamore_contract(tn: TensorNetwork) {
+        let mut opt = Greedy::new(&tn, CostType::Flops);
+        opt.random_optimize_path(32, &mut thread_rng());
+        let contract_path = opt.get_best_replace_path();
+        let mut d_tn = Vec::new();
+        for t in tn.get_tensors() {
+            d_tn.push(random_sparse_tensor(t, tn.get_bond_dims(), None));
+        }
+        let _d_tn = tn_contract(tn, d_tn, &contract_path);
     }
-    let _d_tn = tn_contract(tn, d_tn, &contract_path);
 }
