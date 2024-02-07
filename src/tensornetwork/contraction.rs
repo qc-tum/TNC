@@ -68,7 +68,7 @@ pub fn tn_contract(
     (tn, d_tn)
 }
 
-/// Fully contracts a list of [DataTensor] objects based on a given contraction path using repeated SSA format.
+/// Fully contracts a list of partitioned [DataTensor] objects based on a given contraction path using repeated SSA format.
 ///
 /// # Arguments
 ///
@@ -76,30 +76,6 @@ pub fn tn_contract(
 /// * `d_tn` - [`Vector`] of [DataTensor] objects containing data of [TensorNetwork]
 /// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
 ///
-/// # Examples
-///
-/// ```
-/// # extern crate tensorcontraction;
-/// # use tensorcontraction::{
-///     contractionpath::paths::{BranchBound, CostType, OptimizePath},
-///     random::tensorgeneration::{random_sparse_tensor, random_tensor_network},
-///     tensornetwork::{tensor::Tensor, TensorNetwork},
-///     tensornetwork::contraction::tn_contract,
-/// };
-///
-/// let r_tn = random_tensor_network(2, 3);
-/// let mut d_tn = Vec::new();
-/// for r_t in r_tn.get_tensors() {
-///     d_tn.push(random_sparse_tensor(
-///         r_t,
-///         &r_tn.get_bond_dims(),
-///         None,
-///    ));
-/// }
-/// let mut opt = BranchBound::new(&r_tn, None, 20, CostType::Flops);
-/// opt.optimize_path();
-/// let opt_path = opt.get_best_replace_path();
-/// tn_contract(r_tn, d_tn, &opt_path);
 /// ```
 pub fn tn_contract_partition(
     tn: &mut TensorNetwork,
