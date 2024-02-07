@@ -30,7 +30,8 @@ pub struct TensorNetwork {
     edges: HashMap<usize, Vec<Option<usize>>>,
     /// List of external dimensions that remain after contraction.
     ext_edges: Vec<usize>,
-    /// Partitioning for contraction
+    /// Partitioning for contraction, same length as `tensors`
+    /// Each tensor with the same corresponding number in `partitioning` belong to the same partition.
     partitioning: Vec<i32>,
 }
 
