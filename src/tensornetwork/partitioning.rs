@@ -25,7 +25,7 @@ pub fn partition_tn(partitioning: &mut [i32], tn: &mut TensorNetwork, k: i32, co
     let mut hyperedge_indices = vec![0];
     let mut hyperedges = vec![];
     let bond_dims = tn.get_bond_dims();
-    for (edges, tensor_ids) in tn.get_edges().clone() {
+    for (edges, tensor_ids) in tn.get_edges() {
         hyperedge_weights.push(bond_dims[&edges] as i32);
         let mut length = 0;
         for id in tensor_ids {
