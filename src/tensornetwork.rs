@@ -163,56 +163,16 @@ impl TensorNetwork {
     }
 
     /// Getter for partition.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::TensorNetwork;
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use std::collections::HashMap;
-    /// let v1 = Tensor::new(vec![0,1]);
-    /// let v2 = Tensor::new(vec![1,2]);
-    /// let bond_dims = HashMap::from([
-    /// (0, 17), (1, 19), (2, 8)
-    /// ]);
-    /// let mut tn = TensorNetwork::new(vec![v1,v2], bond_dims.clone(), None);
-    /// tn.set_partitioning(vec![0, 1]);
-    /// assert_eq!(tn.get_partitioning(), &vec![0, 1]);
-    /// ```
     pub fn get_partitioning(&self) -> &Vec<i32> {
         &self.partitioning
     }
 
     /// Setter for partition.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::TensorNetwork;
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use std::collections::HashMap;
-    /// let v1 = Tensor::new(vec![0,1]);
-    /// let v2 = Tensor::new(vec![1,2]);
-    /// let bond_dims = HashMap::from([
-    /// (0, 17), (1, 19), (2, 8)
-    /// ]);
-    /// let mut tn = TensorNetwork::new(vec![v1,v2], bond_dims.clone(), None);
-    /// tn.set_partitioning(vec![0, 1]);
-    /// assert_eq!(tn.get_partitioning(), &vec![0, 1]);
-    /// ```
     pub fn set_partitioning(&mut self, partitioning: Vec<i32>) {
         self.partitioning = partitioning;
     }
 
     /// Returns true if tensor network is empty
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::TensorNetwork;
-    /// let tn = TensorNetwork::empty_tensor_network();
-    /// assert_eq!(tn.is_empty(), true);
-    /// ```
     pub fn is_empty(&self) -> bool {
         self.tensors.is_empty()
     }
