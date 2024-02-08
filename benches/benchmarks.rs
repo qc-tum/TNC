@@ -1,8 +1,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use std::{ffi::CString, time::Duration};
+use std::time::Duration;
 use tensorcontraction::{
-    circuits::sycamore::{sycamore_circuit, sycamore_contract},
+    circuits::sycamore::sycamore_circuit,
     contractionpath::paths::{CostType, Greedy, OptimizePath},
     random::tensorgeneration::random_sparse_tensor_with_rng,
     tensornetwork::{
@@ -78,13 +78,13 @@ pub fn partition_benchmark(c: &mut Criterion) {
             &mut partitioning,
             &mut r_tn,
             k as i32,
-            String::from("test/km1"),
+            String::from("test/km1_rKaHyPar_sea20.ini"),
         );
         let mut opt = Greedy::new(&r_tn, CostType::Flops);
         let mut opt_paths = vec![];
         for i in 0..opt_paths.len() {
             opt.optimize_partitioned_path(i as i32);
-            opt_paths.push(opt.get_best_partition_replace_path(i as usize));
+            opt_paths.push(opt.get_best_partition_replace_path(i));
         }
 
         partition_group.bench_function(BenchmarkId::from_parameter(k), |b| {

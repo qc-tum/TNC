@@ -81,7 +81,12 @@ mod tests {
     fn test_simple_partitioning() {
         let mut tn = setup_complex();
         let mut partitioning: Vec<i32> = vec![-1; tn.get_tensors().len() as usize];
-        partition_tn(&mut partitioning, &mut tn, 2, String::from("test/km1"));
+        partition_tn(
+            &mut partitioning,
+            &mut tn,
+            2,
+            String::from("test/km1_rKaHyPar_sea20.ini"),
+        );
         assert_eq!(tn.partitioning, [1, 1, 0, 0, 0, 1]);
     }
 }
