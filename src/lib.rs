@@ -4,10 +4,9 @@
 #![feature(slice_pattern)]
 #![feature(map_many_mut)]
 
-#[cfg(feature = "hdf5")]
-pub mod io;
-
+pub mod circuits;
 pub mod contractionpath;
+pub mod io;
 pub mod qasm;
 pub mod random;
 pub mod tensornetwork;

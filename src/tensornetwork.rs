@@ -2,11 +2,13 @@
 use array_tool::vec::{Intersect, Union};
 use std::collections::HashMap;
 use std::fmt::{self, Write};
+use std::iter::zip;
 use std::ops::{Index, IndexMut};
 use tetra::{contract, Tensor as DataTensor};
 
 pub mod contraction;
 pub mod feynman;
+pub mod partitioning;
 pub mod tensor;
 
 use tensor::Tensor;
@@ -28,6 +30,9 @@ pub struct TensorNetwork {
     edges: HashMap<usize, Vec<Option<usize>>>,
     /// List of external dimensions that remain after contraction.
     ext_edges: Vec<usize>,
+    /// Partitioning for contraction, same length as `tensors`
+    /// Each tensor with the same corresponding number in `partitioning` belong to the same partition.
+    partitioning: Vec<i32>,
 }
 
 /// Helper function that returns the largest edge id of all Tensors in a TensorNetwork.
@@ -73,6 +78,7 @@ impl TensorNetwork {
             bond_dims: HashMap::new(),
             edges: HashMap::new(),
             ext_edges: Vec::new(),
+            partitioning: Vec::new(),
         }
     }
 
@@ -156,15 +162,17 @@ impl TensorNetwork {
         &self.bond_dims
     }
 
+    /// Getter for partition.
+    pub fn get_partitioning(&self) -> &Vec<i32> {
+        &self.partitioning
+    }
+
+    /// Setter for partition.
+    pub fn set_partitioning(&mut self, partitioning: Vec<i32>) {
+        self.partitioning = partitioning;
+    }
+
     /// Returns true if tensor network is empty
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::TensorNetwork;
-    /// let tn = TensorNetwork::empty_tensor_network();
-    /// assert_eq!(tn.is_empty(), true);
-    /// ```
     pub fn is_empty(&self) -> bool {
         self.tensors.is_empty()
     }
@@ -293,6 +301,7 @@ impl TensorNetwork {
             bond_dims,
             edges,
             ext_edges,
+            partitioning: Vec::new(),
         }
     }
 
@@ -433,6 +442,33 @@ impl TensorNetwork {
         //ensure that new tensor is connected
         self.update_edge(&tensor, ext);
         self.tensors.push(tensor);
+    }
+
+    /// Appends a vector of new Tensor objects to TensorNetwork object. Optionally, accepts a HashMap of bond dimensions
+    /// if edge ids in new Tensor are not defined in `TensorNetwork::bond_dims`. Iteratively calls ['push_tensor']
+    ///
+    /// # Arguments
+    ///
+    /// * `tensor` - A Vector of Tensor objects
+    /// * `bond_dims` - A HashMap taking using edge ids as keys and returning the corresponding bond dimension.
+    /// * `ext` - Vector of Vector of external hyperedges
+    ///
+
+    pub fn push_tensors(
+        &mut self,
+        tensors: Vec<Tensor>,
+        bond_dims: Option<&HashMap<usize, u64>>,
+        ext: Option<&Vec<Vec<usize>>>,
+    ) {
+        if let Some(ext_edges) = ext {
+            for (ext_edge, tensor) in zip(ext_edges, tensors) {
+                self.push_tensor(tensor, bond_dims, Some(ext_edge))
+            }
+        } else {
+            for tensor in tensors {
+                self.push_tensor(tensor, bond_dims, None)
+            }
+        };
     }
 
     /// Updates TensorNetwork object by contracting two tensors, replacing the first contracted tensor with the
