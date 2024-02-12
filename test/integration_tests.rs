@@ -25,12 +25,8 @@ fn test_partitioned_contraction() {
     let ref_path = ref_opt.get_best_replace_path();
     contract_tensor_network(&mut ref_tn, &ref_path);
 
-    let partitioning = find_partitioning(
-        &r_tn,
-        3,
-        CString::new("tests/km1").expect("CString fail."),
-        true,
-    );
+    let partitioning =
+        find_partitioning(&r_tn, 3, String::from("test/km1_kKaHyPar_sea20.ini"), true);
     let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
     opt.optimize_path();
