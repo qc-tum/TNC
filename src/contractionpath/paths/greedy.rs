@@ -219,7 +219,7 @@ impl<'a> Greedy<'a> {
 
     /// Greedily finds cheapest contractions based on input choice_fn and cost_fn.
     /// This function relies on the fact that 'Tensor' hash depends only on leg ids
-    pub(crate) fn _ssa_greedy_optimize(
+    pub(crate) fn ssa_greedy_optimize(
         &self,
         inputs: &[Tensor],
         output_dims: &Tensor,
@@ -487,7 +487,7 @@ impl<'a> OptimizePath for Greedy<'a> {
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.get_legs().is_empty() {
                 let external_legs = input_tensor.get_external_edges().clone();
-                let path = self._ssa_greedy_optimize(
+                let path = self.ssa_greedy_optimize(
                     input_tensor.get_tensors(),
                     &Tensor::new(external_legs.clone()),
                     Box::new(&Greedy::_simple_chooser),
@@ -505,7 +505,7 @@ impl<'a> OptimizePath for Greedy<'a> {
         let output_dims = Tensor::new(self.tn.get_external_edges().clone());
         // Dictionary that maps leg id to bond dimension
         // Start considering communication here!
-        self.best_path.append(&mut self._ssa_greedy_optimize(
+        self.best_path.append(&mut self.ssa_greedy_optimize(
             &inputs,
             &output_dims,
             Box::new(&Greedy::_simple_chooser),

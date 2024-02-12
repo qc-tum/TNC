@@ -104,7 +104,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
 
         // Dictionary that maps leg id to bond dimension
         for _ in 0..trials {
-            let ssa_path = self._ssa_greedy_optimize(
+            let ssa_path = self.ssa_greedy_optimize(
                 &inputs,
                 &output_dims,
                 Box::new(&Greedy::_thermal_chooser),
