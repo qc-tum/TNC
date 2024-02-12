@@ -35,7 +35,6 @@ pub fn load_tensor(filename: &String) -> Result<Tensor> {
 
         let tensor_dataset = gr.dataset(&tensor_name).unwrap().read_dyn::<Complex64>()?;
         let new_tensor = Tensor::new(bond_ids.to_vec());
-        // let tensor_shape = tensor_dataset.shape().to_vec();
         new_tensor.set_tensor_data(TensorData::Matrix(DataTensor::new_from_flat(
             tensor_shape
                 .into_iter()
