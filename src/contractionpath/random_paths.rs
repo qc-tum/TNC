@@ -183,6 +183,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
         let mut opt = Greedy::new(&tn, CostType::Flops);

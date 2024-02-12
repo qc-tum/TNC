@@ -12,6 +12,7 @@ pub mod greedy;
 
 pub trait OptimizePath {
     fn optimize_path(&mut self);
+    fn optimize_partitioned_path(&mut self, k: i32);
 
     fn get_best_path(&self) -> &Vec<ContractionIndex>;
     fn get_best_replace_path(&self) -> Vec<ContractionIndex>;

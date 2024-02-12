@@ -40,19 +40,19 @@ where
         .filter(|(u, v)| u < &size && v < &size)
         .collect::<Vec<&(usize, usize)>>();
 
-    let sqp = if let Some(mut sqp) = single_qubit {
-        if sqp > 1.0 {
-            sqp /= 100.0;
+    let single_qubit = if let Some(mut single_qubit) = single_qubit {
+        if single_qubit > 1.0 {
+            single_qubit /= 100.0;
         }
-        sqp
+        single_qubit
     } else {
         0.4
     };
-    let tqp = if let Some(mut tqp) = two_qubit {
-        if tqp > 1.0 {
-            tqp /= 100.0;
+    let two_qubit = if let Some(mut two_qubit) = two_qubit {
+        if two_qubit > 1.0 {
+            two_qubit /= 100.0;
         }
-        tqp
+        two_qubit
     } else {
         0.4
     };
@@ -75,7 +75,7 @@ where
     for _ in 1..round {
         for i in 0..size {
             // Placing of random single qubit gate
-            if rng.sample(uniform_prob) < sqp {
+            if rng.sample(uniform_prob) < single_qubit {
                 sycamore_bonddims.insert(next_edge, 2);
                 let new_tensor = Tensor::new(vec![open_edges[&i], next_edge]);
                 new_tensor.set_tensor_data(single_qubit_gate[&die.sample(rng)].clone());
@@ -86,7 +86,7 @@ where
         }
         for (i, j) in filtered_connectivity.iter() {
             // Placing of random two qubit gate
-            if rng.sample(uniform_prob) < tqp {
+            if rng.sample(uniform_prob) < two_qubit {
                 sycamore_bonddims.insert(next_edge, 2);
                 sycamore_bonddims.insert(next_edge + 1, 2);
 

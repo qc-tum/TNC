@@ -9,7 +9,8 @@ use crate::types::Vertex;
 use kahypar_sys;
 use kahypar_sys::{partition, KaHyParContext};
 
-pub fn find_partitioning(tn: &Tensor, k: i32, config_file: CString, min: bool) -> Vec<usize> {
+pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
+    let config_file = CString::from(config_file).unwrap();
     let num_vertices = tn.get_tensors().len() as u32;
     let mut num_hyperedges = 0;
     let mut context = KaHyParContext::new();
@@ -91,7 +92,6 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
 #[cfg(test)]
 mod tests {
     use std::env;
-    use std::ffi::CString;
     use std::path::PathBuf;
 
     use crate::tensornetwork::create_tensor_network;
@@ -153,12 +153,7 @@ mod tests {
             Some(&tn.get_bond_dims()),
             None,
         );
-        let partitioning = find_partitioning(
-            &tn,
-            3,
-            CString::new("tests/km1").expect("CString::new failed"),
-            true,
-        );
+        let partitioning = find_partitioning(&tn, 3, String::from("tests/km1"), true);
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);
         let partitioned_tn = partition_tensor_network(&tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.get_tensors().len(), 3);

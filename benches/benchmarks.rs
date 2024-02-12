@@ -134,8 +134,12 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
         let mut path = Vec::new();
         if rank == 0 {
             let r_tn = sycamore_circuit(k, 20, None, None, &mut rng, "Osprey");
-            let partitioning =
-                find_partitioning(&r_tn, size, CString::new("tests/km1").expect("CString::new failed"), true);
+            let partitioning = find_partitioning(
+                &r_tn,
+                size,
+                CString::new("tests/km1").expect("CString::new failed"),
+                true,
+            );
             partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
             let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 

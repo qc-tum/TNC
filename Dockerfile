@@ -50,3 +50,4 @@ RUN --mount=type=ssh \
     # 2. Clean intermediate files
     cd .. && \
     rm -rf dummy
+
