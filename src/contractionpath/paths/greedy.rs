@@ -272,6 +272,7 @@ impl<'a> Greedy<'a> {
         }
 
         while !queue.is_empty() {
+            // Choose a candidate with lowest cost
             let candidate = choice_fn(
                 &mut queue,
                 &remaining_tensors,
