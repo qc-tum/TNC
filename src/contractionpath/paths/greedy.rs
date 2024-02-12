@@ -292,17 +292,18 @@ impl<'a> Greedy<'a> {
             else {
                 continue;
             };
-            let Some(ssa_id1) = remaining_tensors.get(&calculate_hash(&k1)) else {
+            let k1_hash = calculate_hash(&k1);
+            let k2_hash = calculate_hash(&k2);
+
+            let Some(ssa_id1) = remaining_tensors.get(&k1_hash) else {
                 panic!("SSA ID '{:?}' missing", k1)
             };
 
-            let Some(ssa_id2) = remaining_tensors.get(&calculate_hash(&k2)) else {
+            let Some(ssa_id2) = remaining_tensors.get(&k2_hash) else {
                 panic!("SSA ID '{:?}' missing", k2)
             };
 
             let k12_hash = calculate_hash(&k12);
-            let k1_hash = calculate_hash(&k1);
-            let k2_hash = calculate_hash(&k2);
 
             for &dim in (&k1 - output_dims).get_legs().iter() {
                 dim_to_tensors.entry(dim).and_modify(|e| {
