@@ -10,7 +10,7 @@ use kahypar_sys;
 use kahypar_sys::{partition, KaHyParContext};
 
 pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
-    let config_file = CString::from(config_file).unwrap();
+    let config_file = CString::new(config_file).unwrap();
     let num_vertices = tn.get_tensors().len() as u32;
     let mut num_hyperedges = 0;
     let mut context = KaHyParContext::new();
