@@ -380,7 +380,6 @@ impl<'a> Greedy<'a> {
             }
         }
 
-        let mut heapq = BinaryHeap::new();
         for (key, ssa_id) in remaining_tensors {
             let k12_tensor = hash_to_tensor[&key].clone();
             let tensor_size = (&k12_tensor & output_dims).size() as i64;
@@ -393,11 +392,11 @@ impl<'a> Greedy<'a> {
                     child_id: 0,
                     child_tensor: None,
                 };
-                heapq.push(candidate);
+                queue.push(candidate);
             }
         }
 
-        while !heapq.is_empty() {
+        while !queue.is_empty() {
             let Some(Candidate {
                 flop_cost: _flop_cost,
                 size_cost: _cost,
@@ -405,7 +404,7 @@ impl<'a> Greedy<'a> {
                 parent_tensors: Some((k1, _k2)),
                 child_id: _child_id,
                 child_tensor: _child_tensor,
-            }) = heapq.pop()
+            }) = queue.pop()
             else {
                 continue;
             };
@@ -416,7 +415,7 @@ impl<'a> Greedy<'a> {
                 parent_tensors: Some((k2, _k2)),
                 child_id: _child_id,
                 child_tensor: _child_tensor,
-            }) = heapq.pop()
+            }) = queue.pop()
             else {
                 continue;
             };
@@ -424,7 +423,7 @@ impl<'a> Greedy<'a> {
             let k12 = &(&k1 | &k2) & output_dims;
 
             let cost = k12.size() as i64;
-            heapq.push(Candidate {
+            queue.push(Candidate {
                 flop_cost: 0,
                 size_cost: cost,
                 parent_ids: (min(ssa_id1, ssa_id2), 0),
