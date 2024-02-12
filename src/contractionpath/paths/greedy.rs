@@ -234,14 +234,20 @@ impl<'a> Greedy<'a> {
 
         for (ssa_id, v) in inputs.iter().enumerate() {
             let tensor_hash = calculate_hash(v);
-            hash_to_tensor.entry(tensor_hash).or_insert(v.clone());
+            hash_to_tensor
+                .entry(tensor_hash)
+                .or_insert_with(|| v.clone());
             if remaining_tensors.contains_key(&tensor_hash) {
                 // greedily compute inner products
                 ssa_path.push(pair!(remaining_tensors[&tensor_hash], ssa_id));
-                remaining_tensors.entry(tensor_hash).or_insert(next_ssa_id);
+                remaining_tensors
+                    .entry(tensor_hash)
+                    .or_insert_with(|| next_ssa_id);
                 next_ssa_id += 1;
             } else {
-                remaining_tensors.entry(tensor_hash).or_insert(ssa_id);
+                remaining_tensors
+                    .entry(tensor_hash)
+                    .or_insert_with(|| ssa_id);
             }
         }
 
@@ -252,7 +258,7 @@ impl<'a> Greedy<'a> {
                 dim_to_tensors
                     .entry(*dim)
                     .and_modify(|entry| entry.push(key.clone()))
-                    .or_insert(vec![key.clone()]);
+                    .or_insert_with(|| vec![key.clone()]);
             }
         }
 
@@ -374,10 +380,10 @@ impl<'a> Greedy<'a> {
             }
             remaining_tensors
                 .entry(calculate_hash(&k12))
-                .or_insert(next_ssa_id);
+                .or_insert_with(|| next_ssa_id);
             hash_to_tensor
                 .entry(calculate_hash(&k12))
-                .or_insert(k12.clone());
+                .or_insert_with(|| k12.clone());
             next_ssa_id += 1;
 
             Greedy::_update_ref_counts(
@@ -386,7 +392,9 @@ impl<'a> Greedy<'a> {
                 &(&(&k1 | &k2) - output_dims),
             );
 
-            tensor_mem_size.entry(k12_hash).or_insert(k12.size());
+            tensor_mem_size
+                .entry(k12_hash)
+                .or_insert_with(|| k12.size());
 
             //Find new candidate contractions.
             let k1 = k12;
