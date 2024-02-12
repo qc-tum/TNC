@@ -1,7 +1,6 @@
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 use std::cmp::max;
-use std::collections::HashMap;
 
 /// Returns Schroedinger contraction time complexity of contracting [Tensor] objects at indices `i` and `j`.
 ///

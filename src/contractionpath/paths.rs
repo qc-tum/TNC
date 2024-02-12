@@ -1,5 +1,4 @@
 use rand::rngs::StdRng;
-use std::collections::HashMap;
 use std::option::Option;
 
 use crate::contractionpath::candidates::Candidate;
