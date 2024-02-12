@@ -101,9 +101,9 @@ impl<'a> Greedy<'a> {
     #[allow(clippy::too_many_arguments)]
     fn _push_candidate(
         output: &Tensor,
-        remaining: &HashMap<u64, usize>,
-        footprints: &HashMap<u64, u64>,
-        dim_ref_counts: &HashMap<usize, HashSet<usize>>,
+        remaining_tensors: &HashMap<u64, usize>,
+        tensor_mem_size: &HashMap<u64, u64>,
+        dim_tensor_counts: &HashMap<usize, HashSet<usize>>,
         k1: &Tensor,
         k2s: Vec<&Tensor>,
         queue: &mut BinaryHeap<Candidate>,
@@ -113,9 +113,9 @@ impl<'a> Greedy<'a> {
         for k2 in k2s {
             candidates.push(Greedy::_get_candidate(
                 output,
-                remaining,
-                footprints,
-                dim_ref_counts,
+                remaining_tensors,
+                tensor_mem_size,
+                dim_tensor_counts,
                 k1,
                 k2,
                 cost_function,
