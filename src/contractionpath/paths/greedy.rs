@@ -87,7 +87,7 @@ impl<'a> Greedy<'a> {
 
     /// Con cost, corresponding to the total reduction in
     /// memory of performing a contraction.
-    pub(crate) fn _cost_communication(
+    pub(crate) fn cost_communication(
         _size12: i64,
         size1: i64,
         _size2: i64,
@@ -99,7 +99,7 @@ impl<'a> Greedy<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn _push_candidate(
+    fn push_candidate(
         output: &Tensor,
         remaining_tensors: &HashMap<u64, usize>,
         tensor_mem_size: &HashMap<u64, u64>,
@@ -111,7 +111,7 @@ impl<'a> Greedy<'a> {
     ) {
         let mut candidates = Vec::new();
         for k2 in k2s {
-            candidates.push(Greedy::_get_candidate(
+            candidates.push(Greedy::get_candidate(
                 output,
                 remaining_tensors,
                 tensor_mem_size,
@@ -127,7 +127,7 @@ impl<'a> Greedy<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn _get_candidate<'b>(
+    fn get_candidate<'b>(
         output: &Tensor,
         remaining_tensors: &HashMap<u64, usize>,
         tensor_mem_size: &HashMap<u64, u64>,
@@ -185,7 +185,7 @@ impl<'a> Greedy<'a> {
         }
     }
 
-    fn _update_ref_counts(
+    fn update_ref_counts(
         dim_to_tensors: &HashMap<usize, Vec<Tensor>>,
         dim_tensor_counts: &mut HashMap<usize, HashSet<usize>>,
         dims: &Tensor,
@@ -258,7 +258,7 @@ impl<'a> Greedy<'a> {
             for (i, k1) in keys[0..keys.len()].iter().enumerate() {
                 // Get all possible unconsidered combinations
                 let k2s = keys[(i + 1)..keys.len()].iter().collect_vec();
-                Greedy::_push_candidate(
+                Greedy::push_candidate(
                     output_dims,
                     &remaining_tensors,
                     &tensor_mem_size,
@@ -344,7 +344,7 @@ impl<'a> Greedy<'a> {
                 .or_insert_with(|| k12.clone());
             next_ssa_id += 1;
 
-            Greedy::_update_ref_counts(
+            Greedy::update_ref_counts(
                 &dim_to_tensors,
                 &mut dim_tensor_counts,
                 &(&(&k1 | &k2) - output_dims),
@@ -366,7 +366,7 @@ impl<'a> Greedy<'a> {
                 }
             }
             if !k2s.is_empty() {
-                Greedy::_push_candidate(
+                Greedy::push_candidate(
                     output_dims,
                     &remaining_tensors,
                     &tensor_mem_size,
