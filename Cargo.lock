@@ -723,7 +723,7 @@ dependencies = [
 [[package]]
 name = "kahypar-sys"
 version = "0.1.0"
-source = "git+ssh://gitlab.lrz.de/quantum-research/kahypar-sys?branch=main#08d0f7d959afa3f22e2fa48d9e6deb11b325d2f2"
+source = "git+ssh://gitlab.lrz.de/quantum-research/kahypar-sys?branch=main#648dee5aedd168b16324a6c63c6aa2ec2f341481"
 dependencies = [
  "bindgen 0.65.1",
  "cmake",
