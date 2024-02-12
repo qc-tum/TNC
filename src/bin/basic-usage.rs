@@ -2,7 +2,6 @@ extern crate tensorcontraction;
 
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-use std::ffi::CString;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::scatter::{
