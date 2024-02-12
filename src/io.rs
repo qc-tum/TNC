@@ -29,7 +29,7 @@ pub fn load_tensor(filename: &String) -> Result<Tensor> {
         let tensor_dataset = gr.dataset(&tensor_name).unwrap().read_dyn::<Complex64>()?;
         let tensor_shape = tensor_dataset.shape().to_vec();
         let mut bond_dims = HashMap::<usize, u64>::new();
-        for (bond_id, bond_dim) in std::iter::zip(bond_ids.clone(), tensor_shape.clone()) {
+        for (&bond_id, &bond_dim) in std::iter::zip(&bond_ids, &tensor_shape) {
             bond_dims.entry(bond_id).or_insert(bond_dim as u64);
         }
 

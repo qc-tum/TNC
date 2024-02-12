@@ -194,7 +194,7 @@ impl<'a> Greedy<'a> {
         dim_tensor_counts: &mut HashMap<usize, HashSet<usize>>,
         dims: &Tensor,
     ) {
-        for dim in dims.get_legs().iter().cloned() {
+        for &dim in dims.get_legs().iter() {
             let count = dim_to_tensors[&dim].len();
             if count <= 1 {
                 dim_tensor_counts.entry(2).and_modify(|e| {

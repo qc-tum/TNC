@@ -673,7 +673,7 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        for i in other.get_legs().iter().cloned() {
+        for &i in other.get_legs().iter() {
             if !self.contains_leg(i) {
                 new_legs.push(i);
             }
