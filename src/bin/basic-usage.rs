@@ -28,7 +28,12 @@ fn main() {
     let mut path = Vec::new();
     if rank == 0 {
         let r_tn = sycamore_circuit(k, 30, None, None, &mut rng, "Osprey");
-        let partitioning = find_partitioning(&r_tn, size, String::from("tests/km1"), true);
+        let partitioning = find_partitioning(
+            &r_tn,
+            size,
+            String::from("test/km1_kKaHyPar_sea20.ini"),
+            true,
+        );
         partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
