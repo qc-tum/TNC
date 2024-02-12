@@ -154,9 +154,8 @@ impl<'a> Greedy<'a> {
         } else {
             Tensor::new(vec![])
         };
-
+        // Don't consider uncontracted dimensions
         let k12 = &(&(&either & output) | &(&two & &ref3)) | &(&one & &ref2);
-
         let size_k12 = k12.size();
 
         let cost = cost_function(
