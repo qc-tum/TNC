@@ -53,33 +53,30 @@ pub fn scatter_tensor_network(
     size: i32,
     world: &SimpleCommunicator,
 ) -> (Tensor, Vec<ContractionIndex>) {
-    let mut local_path = Vec::new();
     let mut local_tn = Tensor::default();
-    let mut bond_dims = Vec::<BondDim>::new();
     let mut bond_num = 0;
     let root_process = world.process_at_rank(0);
     // Distribute bond_dims
-    if rank == 0 {
+    let mut bond_vec = if rank == 0 {
         bond_num = r_tn.get_bond_dims().len();
         root_process.broadcast_into(&mut bond_num);
-        bond_dims = r_tn
-            .get_bond_dims()
+        r_tn.get_bond_dims()
             .iter()
             .map(|(bond_id, bond_size)| BondDim {
                 bond_id: *bond_id,
                 bond_size: *bond_size,
             })
-            .collect::<Vec<BondDim>>();
+            .collect::<Vec<BondDim>>()
     } else {
         root_process.broadcast_into(&mut bond_num);
-        bond_dims = vec![BondDim::default(); bond_num];
-    }
-    root_process.broadcast_into(&mut bond_dims);
+        vec![BondDim::default(); bond_num]
+    };
+    root_process.broadcast_into(&mut bond_vec);
     world.barrier();
-    let bond_dims = HashMap::from_iter(bond_dims.iter().map(|e| (e.bond_id, e.bond_size)));
+    let bond_dims = HashMap::from_iter(bond_vec.iter().map(|e| (e.bond_id, e.bond_size)));
 
-    if rank == 0 {
-        local_path = path[0].clone().get_data();
+    let local_path = if rank == 0 {
+        let local_path = path[0].clone().get_data();
         local_tn = r_tn.get_tensor(0).clone();
         for (i, contraction_path) in zip(1..size, path[1..size as usize].iter()) {
             match contraction_path {
@@ -121,9 +118,10 @@ pub fn scatter_tensor_network(
                 }
             }
         }
+        local_path
     } else {
         let (path, _status) = world.any_process().receive_vec::<ContractionIndex>();
-        local_path = path;
+        let local_path = path;
 
         let (num_tensors, _status) = world.any_process().receive::<usize>();
 
@@ -159,7 +157,8 @@ pub fn scatter_tensor_network(
             new_tensor.set_tensor_data(tensor_data);
             local_tn.push_tensor(new_tensor, Some(&bond_dims), None);
         }
-    }
+        local_path
+    };
     world.barrier();
     (local_tn, local_path)
 }
