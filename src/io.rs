@@ -157,10 +157,6 @@ mod tests {
     }
 
     #[test]
-    fn test_open_hdf5() {
-        let (r_tn, d_tn) = open_hdf5("test/bell_circuit_tensornet.hdf5").unwrap();
-
-    #[test]
     fn test_load_tensor() {
         run_test(|| {
             let true_or_false = load_tensor_test();
