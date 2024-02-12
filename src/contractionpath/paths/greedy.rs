@@ -518,7 +518,6 @@ impl<'a> OptimizePath for Greedy<'a> {
 
         // Vector of output leg ids
         let output_dims = Tensor::new(self.tn.get_external_edges().clone());
-        // Dictionary that maps leg id to bond dimension
         // Start considering communication here!
         self.best_path.append(&mut self.ssa_greedy_optimize(
             &inputs,
