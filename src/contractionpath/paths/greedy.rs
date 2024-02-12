@@ -275,10 +275,10 @@ impl<'a> Greedy<'a> {
             let candidate = choice_fn(
                 &mut queue,
                 &remaining_tensors,
-                0,
-                0.0,
-                false,
-                &mut StdRng::seed_from_u64(42),
+                5,
+                0.3,
+                true,
+                &mut StdRng::from_entropy(),
             );
             let Some(Candidate {
                 flop_cost: 0,
