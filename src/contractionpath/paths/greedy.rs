@@ -230,57 +230,22 @@ impl<'a> Greedy<'a> {
 
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
         // Clone here to avoid mutating HashMap keys
-        let mut remaining_tensors: HashMap<u64, usize> = HashMap::<u64, usize>::new();
-        let mut hash_to_tensor: HashMap<u64, Tensor> = HashMap::<u64, Tensor>::new();
         let mut next_ssa_id: usize = inputs.len();
+        let mut remaining_tensors = HashMap::new();
+        let mut hash_to_tensor = HashMap::new();
 
-        for (ssa_id, v) in inputs.iter().enumerate() {
-            let tensor_hash = calculate_hash(v);
-            hash_to_tensor
-                .entry(tensor_hash)
-                .or_insert_with(|| v.clone());
-            if remaining_tensors.contains_key(&tensor_hash) {
-                // greedily compute inner products
-                ssa_path.push(pair!(remaining_tensors[&tensor_hash], ssa_id));
-                remaining_tensors
-                    .entry(tensor_hash)
-                    .or_insert_with(|| next_ssa_id);
-                next_ssa_id += 1;
-            } else {
-                remaining_tensors
-                    .entry(tensor_hash)
-                    .or_insert_with(|| ssa_id);
-            }
-        }
+        populate_remaining_tensors(
+            inputs,
+            &mut remaining_tensors,
+            &mut hash_to_tensor,
+            &mut ssa_path,
+            &mut next_ssa_id,
+        );
 
-        // Dictionary that maps leg id to tensor
-        let mut dim_to_tensors = HashMap::<usize, Vec<Tensor>>::new();
-        for key in inputs.iter() {
-            for dim in (key - output_dims).get_legs().iter() {
-                dim_to_tensors
-                    .entry(*dim)
-                    .and_modify(|entry| entry.push(key.clone()))
-                    .or_insert_with(|| vec![key.clone()]);
-            }
-        }
-
-        // Get dims that are contracted
-        let mut dim_tensor_counts = HashMap::<usize, HashSet<usize>>::new();
-        for i in 2..=3 {
-            for (dim, tensor_legs) in dim_to_tensors.iter() {
-                if tensor_legs.len() >= i && !output_dims.get_legs().contains(dim) {
-                    dim_tensor_counts
-                        .entry(i)
-                        .and_modify(|entry| {
-                            entry.insert(*dim);
-                        })
-                        .or_default();
-                }
-            }
-        }
+        let mut dim_to_tensors = populate_dim_to_tensors(inputs, output_dims);
+        let mut dim_tensor_counts = populate_dim_tensor_counts(&dim_to_tensors);
 
         // Maps tensor legs to size
-        // Clone here to avoid mutating HashMap keys
         let mut tensor_mem_size = HashMap::from_iter(inputs.iter().map(|legs| {
             let size = legs.size();
             (calculate_hash(legs), size)
@@ -471,6 +436,58 @@ impl<'a> Greedy<'a> {
         let _ = validate_path(&ssa_path);
         ssa_path
     }
+}
+
+fn populate_remaining_tensors(
+    inputs: &[Tensor],
+    remaining_tensors: &mut HashMap<u64, usize>,
+    hash_to_tensor: &mut HashMap<u64, Tensor>,
+    ssa_path: &mut Vec<ContractionIndex>,
+    next_ssa_id: &mut usize,
+) {
+    for (ssa_id, v) in inputs.iter().enumerate() {
+        let tensor_hash = calculate_hash(v);
+        hash_to_tensor
+            .entry(tensor_hash)
+            .or_insert_with(|| v.clone());
+        // greedily calculate inner products
+        let entry = remaining_tensors
+            .entry(tensor_hash)
+            .and_modify(|e| {
+                *e = *next_ssa_id;
+                *next_ssa_id += 1;
+            })
+            .or_insert_with(|| ssa_id);
+        if *entry != ssa_id {
+            ssa_path.push(pair!(*entry, ssa_id))
+        }
+    }
+}
+
+fn populate_dim_to_tensors(inputs: &[Tensor], output_dims: &Tensor) -> HashMap<usize, Vec<Tensor>> {
+    // Dictionary that maps leg id to tensor
+    let mut dim_to_tensors = HashMap::<usize, Vec<Tensor>>::new();
+    for key in inputs.iter() {
+        for dim in (key - output_dims).get_legs().iter() {
+            dim_to_tensors.entry(*dim).or_default().push(key.clone());
+        }
+    }
+    dim_to_tensors
+}
+
+fn populate_dim_tensor_counts(
+    dim_to_tensors: &HashMap<usize, Vec<Tensor>>,
+) -> HashMap<usize, HashSet<usize>> {
+    // Get dims that are contracted
+    let mut dim_tensor_counts = HashMap::<usize, HashSet<usize>>::new();
+    for i in 2..=3 {
+        for (dim, tensor_legs) in dim_to_tensors.iter() {
+            if tensor_legs.len() >= i {
+                dim_tensor_counts.entry(i).or_default().insert(*dim);
+            }
+        }
+    }
+    dim_tensor_counts
 }
 
 // Assume one-level of parallelism
