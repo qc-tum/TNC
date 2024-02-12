@@ -513,11 +513,8 @@ impl<'a> OptimizePath for Greedy<'a> {
             Box::new(&Greedy::_simple_chooser),
             Box::new(&Greedy::_cost_memory_removed),
         ));
-        let (op_cost, mem_cost) = contract_path_cost(
-            self.tn.get_tensors(),
-            &self.get_best_replace_path(),
-            &*self.tn.get_bond_dims(),
-        );
+        let (op_cost, mem_cost) =
+            contract_path_cost(self.tn.get_tensors(), &self.get_best_replace_path());
         self.best_size = mem_cost;
         self.best_flops = op_cost;
     }

@@ -113,11 +113,7 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> u64 {
 /// * `inputs` - First tensor to determine contraction cost.
 /// * `ssa_path`  - Contraction order as SSA path
 /// * `bond_dims`- Dict of bond dimensions.
-pub fn contract_path_cost(
-    inputs: &[Tensor],
-    ssa_path: &[ContractionIndex],
-    bond_dims: &HashMap<usize, u64>,
-) -> (u64, u64) {
+pub fn contract_path_cost(inputs: &[Tensor], ssa_path: &[ContractionIndex]) -> (u64, u64) {
     let mut op_cost = 0;
     let mut mem_cost = 0;
     let mut inputs = inputs.to_vec();
@@ -131,7 +127,7 @@ pub fn contract_path_cost(
             inputs[i] = k12;
         }
         ContractionIndex::Path(i, path) => {
-            costs = contract_path_cost(inputs[i].get_tensors(), &path, bond_dims);
+            costs = contract_path_cost(inputs[i].get_tensors(), &path);
             op_cost += costs.0;
             mem_cost += costs.1;
             inputs[i] = inputs[i].get_tensor(0).clone();

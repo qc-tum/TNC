@@ -103,7 +103,6 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
         let output_dims = Tensor::new(self.tn.get_external_edges().clone());
 
         // Dictionary that maps leg id to bond dimension
-        let bond_dims = self.tn.get_bond_dims();
         for _ in 0..trials {
             let ssa_path = self._ssa_greedy_optimize(
                 &inputs,
@@ -111,11 +110,8 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
                 Box::new(&Greedy::_thermal_chooser),
                 Box::new(&Greedy::_cost_memory_removed),
             );
-            let (cost, size) = contract_path_cost(
-                &inputs,
-                &ssa_replace_ordering(&ssa_path, inputs.len()),
-                &*bond_dims,
-            );
+            let (cost, size) =
+                contract_path_cost(&inputs, &ssa_replace_ordering(&ssa_path, inputs.len()));
 
             if cost < self.best_flops {
                 self.best_flops = cost;
