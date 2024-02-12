@@ -78,7 +78,7 @@ impl<'a> Greedy<'a> {
             weights[0] = 1.0;
         } else {
             for c in costs {
-                weights.push((-(-c - cmin) as f64).exp());
+                weights.push((-(c - cmin) as f64 / temperature).exp());
             }
         }
         let dist = WeightedIndex::new(&weights).unwrap();
@@ -179,11 +179,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
         let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.random_optimize_path(32, &mut StdRng::seed_from_u64(42));
+        opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42));
         assert_eq!(opt.best_flops, 600);
         assert_eq!(opt.best_size, 538);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
@@ -191,12 +190,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_contract_order_greedy_complex() {
-        StdRng::seed_from_u64(42);
         let tn = setup_complex();
         let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.random_optimize_path(32, &mut StdRng::seed_from_u64(42));
+        opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42));
 
         assert_eq!(opt.best_flops, 528750);
         assert_eq!(opt.best_size, 89478);
