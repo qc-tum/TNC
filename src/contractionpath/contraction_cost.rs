@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 use std::cmp::max;
