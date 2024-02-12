@@ -252,11 +252,12 @@ impl<'a> Greedy<'a> {
         }));
 
         let mut queue = BinaryHeap::new();
-        for (_dim, key) in dim_to_tensors.iter() {
-            let mut new_keys = key.clone();
-            new_keys.sort_by_key(|a| a.get_legs().len());
-            for (i, k1) in new_keys[0..new_keys.len()].iter().enumerate() {
-                let k2s = new_keys[(i + 1)..new_keys.len()].iter().collect_vec();
+        for (_dim, keys) in dim_to_tensors.iter_mut() {
+            keys.sort_by_key(|a| a.get_legs().len());
+            // Loop over all but the last entry
+            for (i, k1) in keys[0..keys.len()].iter().enumerate() {
+                // Get all possible unconsidered combinations
+                let k2s = keys[(i + 1)..keys.len()].iter().collect_vec();
                 Greedy::_push_candidate(
                     output_dims,
                     &remaining_tensors,
@@ -301,21 +302,18 @@ impl<'a> Greedy<'a> {
             let k12_hash = calculate_hash(&k12);
             let k1_hash = calculate_hash(&k1);
             let k2_hash = calculate_hash(&k2);
-            // already_contracted.push(ssa_id2);
 
-            for dim in (&k1 - output_dims).get_legs().iter().cloned() {
+            for &dim in (&k1 - output_dims).get_legs().iter() {
                 dim_to_tensors.entry(dim).and_modify(|e| {
-                    let index = e.iter().position(|x| *x == k1);
-                    if let Some(index) = index {
+                    if let Some(index) = e.iter().position(|x| *x == k1) {
                         e.remove(index);
                     }
                 });
             }
 
-            for dim in (&k2 - output_dims).get_legs().iter().cloned() {
+            for &dim in (&k2 - output_dims).get_legs().iter() {
                 dim_to_tensors.entry(dim).and_modify(|e| {
-                    let index = e.iter().position(|x| *x == k2);
-                    if let Some(index) = index {
+                    if let Some(index) = e.iter().position(|x| *x == k2) {
                         e.remove(index);
                     }
                 });
@@ -328,10 +326,11 @@ impl<'a> Greedy<'a> {
             hash_to_tensor.remove(&k2_hash);
 
             if remaining_tensors.contains_key(&k12_hash) {
+                // Actively perform inner products first
                 ssa_path.push(pair!(remaining_tensors[&k12_hash], next_ssa_id));
                 next_ssa_id += 1;
             } else {
-                for dim in (&k12 - output_dims).get_legs().iter().cloned() {
+                for &dim in (&k12 - output_dims).get_legs().iter() {
                     dim_to_tensors
                         .entry(dim)
                         .and_modify(|e| e.push(k12.clone()));
