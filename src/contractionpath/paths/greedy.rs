@@ -355,18 +355,10 @@ impl<'a> Greedy<'a> {
             }
             ssa_path.push(pair!(*ssa_id1, *ssa_id2));
 
-            if let Entry::Occupied(o) = remaining_tensors.entry(k1_hash) {
-                o.remove_entry();
-            }
-            if let Entry::Occupied(o) = remaining_tensors.entry(k2_hash) {
-                o.remove_entry();
-            }
-            if let Entry::Occupied(o) = hash_to_tensor.entry(k1_hash) {
-                o.remove_entry();
-            }
-            if let Entry::Occupied(o) = hash_to_tensor.entry(k2_hash) {
-                o.remove_entry();
-            }
+            remaining_tensors.remove(&k1_hash);
+            remaining_tensors.remove(&k2_hash);
+            hash_to_tensor.remove(&k1_hash);
+            hash_to_tensor.remove(&k2_hash);
 
             if remaining_tensors.contains_key(&k12_hash) {
                 ssa_path.push(pair!(remaining_tensors[&k12_hash], next_ssa_id));
