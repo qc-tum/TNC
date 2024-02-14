@@ -177,8 +177,8 @@ fn hexagon_connectivity(
         }
         connectivity.push((count + i, count + i + 1));
     }
-    connectivity.push((prev_last + bridge_cycle_next.next().unwrap(), next_last));
     //last row
+    connectivity.push((prev_last + bridge_cycle_next.next().unwrap(), next_last));
 }
 
 fn eagle_connect() -> Vec<(usize, usize)> {
