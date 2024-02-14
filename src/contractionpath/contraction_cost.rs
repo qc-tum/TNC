@@ -57,9 +57,9 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> u64 {
 ///
 /// # Arguments
 ///
-/// * `t_1` - First tensor to determine contraction cost.
-/// * `t_2` - First tensor to determine contraction cost.
-///
+/// * `tn` - Tensor containing contracted tensors at positions i and j.
+/// * `i` - Position of first Tensor to be contracted
+/// * `j` - Position of second Tensor to be contracted
 ///
 /// # Examples
 /// ```
@@ -81,9 +81,9 @@ pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> u64 {
 ///
 /// # Arguments
 ///
-/// * `t_1` - First tensor to determine contraction cost.
-/// * `t_2` - First tensor to determine contraction cost.
-///
+/// * `tn` - Tensor containing contracted tensors at positions i and j.
+/// * `i` - Position of first Tensor to be contracted
+/// * `j` - Position of second Tensor to be contracted
 ///
 /// # Examples
 /// ```
