@@ -81,12 +81,8 @@ where
                 sycamore_bonddims.insert(next_edge, 2);
                 sycamore_bonddims.insert(next_edge + 1, 2);
 
-                let new_tensor = Tensor::new(vec![
-                    open_edges[&i],
-                    open_edges[&j],
-                    next_edge,
-                    next_edge + 1,
-                ]);
+                let new_tensor =
+                    Tensor::new(vec![open_edges[i], open_edges[j], next_edge, next_edge + 1]);
                 new_tensor.set_tensor_data(fsim!(0.3, 0.2));
                 sycamore_tn.push_tensor(new_tensor, Some(&sycamore_bonddims), None);
                 open_edges.entry(*i).insert_entry(next_edge);
