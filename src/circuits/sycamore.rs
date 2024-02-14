@@ -16,14 +16,22 @@ use crate::tensornetwork::tensor::Tensor;
 pub fn sycamore_circuit<R>(
     size: usize,
     round: usize,
-    single_qubit: Option<f64>,
-    two_qubit: Option<f64>,
+    single_qubit_probability: f64,
+    two_qubit_probability: f64,
     rng: &mut R,
     connectivity: &str,
 ) -> Tensor
 where
     R: Rng + ?Sized,
 {
+    assert!(
+        (0.0..=1.0).contains(&single_qubit_probability),
+        "Probabilities should range from 0.0 to 1.0"
+    );
+    assert!(
+        (0.0..=1.0).contains(&two_qubit_probability),
+        "Probabilities should range from 0.0 to 1.0"
+    );
     let single_qubit_gate = HashMap::from([(0, SQRX), (1, SQRY), (2, SQRZ)]);
 
     let mut open_edges = HashMap::<usize, usize>::new();
@@ -39,23 +47,6 @@ where
         .iter()
         .filter(|&&(u, v)| u < size && v < size)
         .collect::<Vec<_>>();
-
-    let single_qubit = if let Some(mut single_qubit) = single_qubit {
-        if single_qubit > 1.0 {
-            single_qubit /= 100.0;
-        }
-        single_qubit
-    } else {
-        0.4
-    };
-    let two_qubit = if let Some(mut two_qubit) = two_qubit {
-        if two_qubit > 1.0 {
-            two_qubit /= 100.0;
-        }
-        two_qubit
-    } else {
-        0.4
-    };
 
     let mut next_edge = size;
     let uniform_prob = Uniform::new(0.0, 1.0);
@@ -75,7 +66,7 @@ where
     for _ in 1..round {
         for i in 0..size {
             // Placing of random single qubit gate
-            if rng.sample(uniform_prob) < single_qubit {
+            if rng.sample(uniform_prob) < single_qubit_probability {
                 sycamore_bonddims.insert(next_edge, 2);
                 let new_tensor = Tensor::new(vec![open_edges[&i], next_edge]);
                 new_tensor.set_tensor_data(single_qubit_gate[&die.sample(rng)].clone());
@@ -86,7 +77,7 @@ where
         }
         for (i, j) in filtered_connectivity.iter() {
             // Placing of random two qubit gate
-            if rng.sample(uniform_prob) < two_qubit {
+            if rng.sample(uniform_prob) < two_qubit_probability {
                 sycamore_bonddims.insert(next_edge, 2);
                 sycamore_bonddims.insert(next_edge + 1, 2);
 

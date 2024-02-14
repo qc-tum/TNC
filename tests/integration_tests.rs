@@ -18,7 +18,7 @@ fn test_partitioned_contraction() {
     let mut rng = StdRng::seed_from_u64(52);
     let k = 10;
 
-    let r_tn = sycamore_circuit(k, 10, None, None, &mut rng, "Osprey");
+    let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, "Osprey");
     let mut ref_tn = r_tn.clone();
     let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
     ref_opt.optimize_path();
@@ -53,7 +53,7 @@ fn test_mpi_partitioned_contraction() {
     let mut ref_tn = Tensor::default();
     if rank == 0 {
         let k = 5;
-        let r_tn = sycamore_circuit(k, 10, None, None, &mut rng, "Osprey");
+        let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, "Osprey");
         ref_tn = r_tn.clone();
         let partitioning = find_partitioning(
             &r_tn,

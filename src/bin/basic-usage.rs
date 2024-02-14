@@ -27,7 +27,7 @@ fn main() {
     let mut partitioned_tn = Tensor::default();
     let mut path = Vec::new();
     if rank == 0 {
-        let r_tn = sycamore_circuit(k, 30, None, None, &mut rng, "Osprey");
+        let r_tn = sycamore_circuit(k, 30, 0.4, 0.4, &mut rng, "Osprey");
         let partitioning = find_partitioning(
             &r_tn,
             size,
