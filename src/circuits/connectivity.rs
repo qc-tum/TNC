@@ -30,7 +30,6 @@ impl Connectivity {
             "Osprey" => &osprey_connect,
             "Condor" => &condor_connect,
             _ => panic!("Unrecognized connectivity"),
-            // "Condor" => condor_connect,
         }
     }
 }
