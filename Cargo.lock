@@ -543,12 +543,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hash"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd7c49bdb7afdaaa64b46da1b344452ff3f2e29a3e0efa09538c262f096de990"
-
-[[package]]
 name = "hdf5"
 version = "0.8.1"
 source = "git+https://github.com/keefehuang/hdf5-rust.git?branch=feature/complex#70e62ad777ee23b9a1d6ba7cfba4be3b1cb5fabd"
@@ -1560,11 +1554,9 @@ dependencies = [
  "array_tool",
  "criterion",
  "float-cmp",
- "hash",
  "hdf5",
  "itertools 0.12.1",
  "kahypar-sys",
- "lazy_static",
  "linked_hash_set",
  "log",
  "memoffset",
@@ -1574,7 +1566,6 @@ dependencies = [
  "permutation",
  "rand",
  "random",
- "regex",
  "tetra",
  "tux",
 ]
