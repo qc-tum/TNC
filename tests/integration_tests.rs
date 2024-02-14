@@ -1,5 +1,3 @@
-use std::ffi::CString;
-
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
