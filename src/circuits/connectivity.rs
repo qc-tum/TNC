@@ -5,17 +5,16 @@ pub struct Connectivity {
 }
 
 impl Connectivity {
-    /// Constructs a Tensor object without underlying data
+    /// Struct that defines connectivity of IBM device
     ///
     /// # Arguments
     ///
-    /// * `legs` - A vector of usize containing edge ids.
+    /// * `str` - &str name of IBM device
     ///
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let vec = Vec::from([1,2,3]);
-    /// let tensor = Tensor::new(vec);
+    /// let cn = Connectivity::new("Eagle");
     /// ```
     pub fn new(name: &str) -> Self {
         Self {
