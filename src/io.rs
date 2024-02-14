@@ -86,8 +86,8 @@ mod tests {
         io::{load_data, load_tensor},
         tensornetwork::{tensor::Tensor, tensordata::TensorData},
     };
-    static TENSOR_TEST_FILE: &str = "./test/tensor_test.hdf5";
-    static DATA_TEST_FILE: &str = "./test/data_test.hdf5";
+    static TENSOR_TEST_FILE: &str = "./tests/tensor_test.hdf5";
+    static DATA_TEST_FILE: &str = "./tests/data_test.hdf5";
 
     fn write_hdf5_tensor() -> Result<File, Error> {
         let new_file = File::create(TENSOR_TEST_FILE)?;

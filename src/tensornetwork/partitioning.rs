@@ -154,7 +154,7 @@ mod tests {
             None,
         );
         let partitioning =
-            find_partitioning(&tn, 3, String::from("test/km1_kKaHyPar_sea20.ini"), true);
+            find_partitioning(&tn, 3, String::from("tests/km1_kKaHyPar_sea20.ini"), true);
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);
         let partitioned_tn = partition_tensor_network(&tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.get_tensors().len(), 3);
