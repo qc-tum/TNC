@@ -361,7 +361,7 @@ impl<'a> Greedy<'a> {
             let mut k2s = Vec::new();
             for dim in (&k1 - output_dims).get_legs().iter() {
                 for k2 in dim_to_tensors[dim].iter() {
-                    if k2 != &k1 {
+                    if calculate_hash(&k2) != calculate_hash(&k1) {
                         k2s.push(k2);
                     }
                 }
