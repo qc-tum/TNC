@@ -13,7 +13,7 @@ impl Connectivity {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// use tensorcontraction::circuits::connectivity::Connectivity;
     /// let cn = Connectivity::new("Eagle");
     /// ```
     pub fn new(name: &str) -> Self {
