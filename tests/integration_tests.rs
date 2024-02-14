@@ -55,12 +55,7 @@ fn test_mpi_partitioned_contraction() {
         let k = 5;
         let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, "Osprey");
         ref_tn = r_tn.clone();
-        let partitioning = find_partitioning(
-            &r_tn,
-            size,
-            CString::new("tests/km1").expect("CString new fail"),
-            true,
-        );
+        let partitioning = find_partitioning(&r_tn, size, String::from("tests/km1"), true);
         partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
