@@ -133,3 +133,34 @@ pub fn contract_path_cost(inputs: &[Tensor], ssa_path: &[ContractionIndex]) -> (
 
     (op_cost, mem_cost)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::contractionpath::contraction_cost::contract_path_cost;
+    use crate::path;
+    use crate::tensornetwork::create_tensor_network;
+    use crate::tensornetwork::tensor::Tensor;
+
+    fn setup_simple() -> Tensor {
+        create_tensor_network(
+            vec![
+                Tensor::new(vec![4, 3, 2]),
+                Tensor::new(vec![0, 1, 3, 2]),
+                Tensor::new(vec![4, 5, 6]),
+            ],
+            &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
+            None,
+        )
+    }
+
+    #[test]
+    fn test_contract_path_cost() {
+        let tn = setup_simple();
+        let (op_cost, mem_cost) = contract_path_cost(tn.get_tensors(), &path![(0, 1), (0, 2)]);
+        assert_eq!(op_cost, 600);
+        assert_eq!(mem_cost, 538);
+        let (op_cost, mem_cost) = contract_path_cost(tn.get_tensors(), &path![(0, 2), (0, 1)]);
+        assert_eq!(op_cost, 6336);
+        assert_eq!(mem_cost, 1176);
+    }
+}
