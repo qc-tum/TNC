@@ -24,7 +24,6 @@ use std::cmp::max;
 /// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 45045);
 /// ```
 pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> u64 {
-    // let kept_dims = tensor_a.symmetric_difference(&tensor_b);
     contract_cost_tensors(tn.get_tensor(i), tn.get_tensor(j))
 }
 
