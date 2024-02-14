@@ -34,11 +34,11 @@ where
     );
     let single_qubit_gate = HashMap::from([(0, SQRX), (1, SQRY), (2, SQRZ)]);
 
-    let mut open_edges = HashMap::<usize, usize>::new();
+    let mut open_edges = HashMap::new();
 
     // Initialize tensornetwork of size `usize`
     let mut sycamore_tn = Tensor::default();
-    let mut sycamore_bonddims = HashMap::<usize, u64>::new();
+    let mut sycamore_bonddims = HashMap::new();
 
     let sycamore_connect = Connectivity::new(connectivity);
     // Filter connectivity map
