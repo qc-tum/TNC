@@ -114,7 +114,7 @@ pub fn contract_path_cost(inputs: &[Tensor], ssa_path: &[ContractionIndex]) -> (
     let mut op_cost = 0;
     let mut mem_cost = 0;
     let mut inputs = inputs.to_vec();
-    let mut costs = (0, 0);
+
     ssa_path.iter().cloned().for_each(|index| match index {
         ContractionIndex::Pair(i, j) => {
             op_cost += contract_cost_tensors(&inputs[i], &inputs[j]);
@@ -124,7 +124,7 @@ pub fn contract_path_cost(inputs: &[Tensor], ssa_path: &[ContractionIndex]) -> (
             inputs[i] = k12;
         }
         ContractionIndex::Path(i, path) => {
-            costs = contract_path_cost(inputs[i].get_tensors(), &path);
+            let costs = contract_path_cost(inputs[i].get_tensors(), &path);
             op_cost += costs.0;
             mem_cost += costs.1;
             inputs[i] = inputs[i].get_tensor(0).clone();
