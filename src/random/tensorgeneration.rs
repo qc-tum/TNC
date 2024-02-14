@@ -134,7 +134,7 @@ where
 /// let r_tensor = random_sparse_tensor_data(shape, None);
 ///
 /// ```
-pub fn random_sparse_tensor_data(shape: Vec<u64>, sparsity: Option<f32>) -> TensorData {
+pub fn random_sparse_tensor_data(shape: &[u64], sparsity: Option<f32>) -> TensorData {
     let shape = shape.iter().map(|e| *e as u32).collect::<Vec<u32>>();
     random_sparse_tensor_data_with_rng(&shape, sparsity, &mut rand::thread_rng())
 }
@@ -212,7 +212,7 @@ where
     );
 
     for tensor in t.tensors.iter_mut() {
-        random_sparse_tensor_data(tensor.shape(), None);
+        random_sparse_tensor_data(&tensor.shape(), None);
     }
     if t.is_empty() {
         return random_tensor_network_with_rng(n, cycles, rng);
