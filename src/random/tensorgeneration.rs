@@ -77,7 +77,7 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
 /// # use std::collections::HashMap;
 ///
 /// let shape = vec![5, 4, 3];
-/// random_sparse_tensor_data_with_rng(shape, None, &mut rand::thread_rng());
+/// random_sparse_tensor_data_with_rng(&shape, None, &mut rand::thread_rng());
 /// ```
 pub fn random_sparse_tensor_data_with_rng<R>(
     dims: &[u32],
@@ -131,8 +131,7 @@ where
 /// # use std::collections::HashMap;
 ///
 /// let shape = vec![5,4,3];
-/// let r_tensor = random_sparse_tensor_data(shape, None);
-///
+/// let r_tensor = random_sparse_tensor_data(&shape, None);
 /// ```
 pub fn random_sparse_tensor_data(shape: &[u64], sparsity: Option<f32>) -> TensorData {
     let shape = shape.iter().map(|e| *e as u32).collect::<Vec<u32>>();
