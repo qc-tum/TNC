@@ -77,8 +77,8 @@ pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) ->
 pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
     let partition_ids = partitioning
         .iter()
-        .cloned()
         .unique()
+        .copied()
         .collect::<Vec<usize>>();
     let partition_dict = HashMap::<usize, usize>::from_iter(zip(
         partition_ids.iter().cloned(),
