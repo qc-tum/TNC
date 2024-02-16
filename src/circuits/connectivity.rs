@@ -126,14 +126,16 @@ fn sycamore_connect() -> Vec<(usize, usize)> {
     ]
 }
 
-fn hexagon_connectivity(
+fn hexagon_connectivity<I>(
     row_length: usize,
     connectivity: &mut Vec<(usize, usize)>,
     stride: usize,
-    mut bridge_cycle_prev: std::iter::Cycle<std::ops::RangeInclusive<usize>>,
+    mut bridge_cycle_prev: I,
     bridges: usize,
     rows: usize,
-) {
+) where
+    I: Iterator<Item = usize> + Clone,
+{
     let mut count = 0;
     let mut bridge_cycle_next = bridge_cycle_prev.clone();
     // first row
