@@ -153,8 +153,7 @@ pub fn intermediate_reduce_tensor_network(
     rank: i32,
     _size: i32,
     world: &SimpleCommunicator,
-) -> Tensor {
-    let new_tn = Tensor::default();
+) {
     let mut final_rank = 0;
     path.iter().for_each(|i| match i {
         ContractionIndex::Pair(x, y) => {
@@ -187,6 +186,8 @@ pub fn intermediate_reduce_tensor_network(
         }
         ContractionIndex::Path(..) => (),
     });
+
+    // Only runs if the final contracted process is not process 0
     if final_rank != 0 {
         if rank == 0 {
             let (legs, _status) = world.process_at_rank(final_rank).receive_vec::<EdgeIndex>();
@@ -196,7 +197,8 @@ pub fn intermediate_reduce_tensor_network(
             let (data, _status) = world.process_at_rank(final_rank).receive_vec::<Complex64>();
             let tensor_data = TensorData::new_from_flat(shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);
-            return returned_tensor;
+            // return returned_tensor;
+            *local_tn = returned_tensor;
         }
         if rank == final_rank {
             let legs = local_tn.get_legs().clone();
@@ -207,10 +209,7 @@ pub fn intermediate_reduce_tensor_network(
                 .process_at_rank(0)
                 .send(&(*local_tensor.get_raw_data()));
         }
-    } else if rank == 0 {
-        return local_tn.clone();
     }
-    new_tn
 }
 
 pub fn naive_reduce_tensor_network(

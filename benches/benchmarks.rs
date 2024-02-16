@@ -104,7 +104,7 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
                     scatter_tensor_network(partitioned_tn.clone(), &path, rank, size, &world);
                 contract_tensor_network(&mut local_tn, &local_path);
 
-                naive_reduce_tensor_network(local_tn.clone(), &path, rank, size, &world);
+                naive_reduce_tensor_network(&mut local_tn.clone(), &path, rank, size, &world);
             });
         });
     }
