@@ -432,7 +432,8 @@ impl<'a> Greedy<'a> {
                 child_tensor: None,
             });
         }
-        let _ = validate_path(&ssa_path);
+        validate_path(&ssa_path);
+
         ssa_path
     }
 }
