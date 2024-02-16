@@ -56,6 +56,72 @@ impl<'a> BranchBound<'a> {
         }
     }
 
+    fn assess_candidate(
+        &mut self,
+        i: usize,
+        j: usize,
+        flops: u64,
+        size: u64,
+        remaining: &[u32],
+    ) -> Option<Candidate> {
+        let flops_12: u64;
+        let size_12: u64;
+        let k12: usize;
+        let k12_tensor: Tensor;
+        let mut current_flops = flops;
+        let mut current_size = size;
+        if self.result_cache.contains_key(&vec![i, j]) {
+            k12 = self.result_cache[&vec![i, j]];
+            flops_12 = self.flop_cache[&k12];
+            size_12 = self.size_cache[&k12];
+            k12_tensor = self.tensor_cache[&k12].clone();
+        } else {
+            k12 = self.tensor_cache.len();
+            flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
+            size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
+            k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
+
+            self.result_cache.entry(vec![i, j]).or_insert_with(|| k12);
+            self.flop_cache.entry(k12).or_insert_with(|| flops_12);
+            self.size_cache.entry(k12).or_insert_with(|| size_12);
+            self.tensor_cache
+                .entry(k12)
+                .or_insert_with(|| k12_tensor.clone());
+        }
+        current_flops += flops_12;
+        current_size = max(current_size, size_12);
+
+        if current_flops > self.best_flops && current_size > self.best_size {
+            return None;
+        }
+        let best_flops: u64;
+        if self.best_progress.contains_key(&remaining.len()) {
+            best_flops = self.best_progress[&remaining.len()];
+        } else {
+            best_flops = current_flops;
+            self.best_progress
+                .entry(remaining.len())
+                .or_insert_with(|| current_flops);
+        }
+
+        if current_flops < best_flops {
+            self.best_progress
+                .entry(remaining.len())
+                .insert_entry(current_flops);
+        } else if current_flops > self.cutoff_flops_factor * self.best_progress[&remaining.len()] {
+            return None;
+        }
+
+        Some(Candidate {
+            flop_cost: current_flops as i64,
+            size_cost: current_size as i64,
+            parent_ids: (i, j),
+            parent_tensors: None,
+            child_id: k12,
+            child_tensor: Some(k12_tensor),
+        })
+    }
+
     /// Explores possible pair contractions in a depth-first
     /// recursive manner like the `optimal` approach, but with extra heuristic early pruning of branches
     /// as well sieving by `memory_limit` and the best path found so far. A rust implementation of
@@ -87,70 +153,10 @@ impl<'a> BranchBound<'a> {
             return;
         }
 
-        let mut assess_candidate = |i: usize, j: usize| -> Option<Candidate> {
-            let flops_12: u64;
-            let size_12: u64;
-            let k12: usize;
-            let k12_tensor: Tensor;
-            let mut current_flops = flops;
-            let mut current_size = size;
-            if self.result_cache.contains_key(&vec![i, j]) {
-                k12 = self.result_cache[&vec![i, j]];
-                flops_12 = self.flop_cache[&k12];
-                size_12 = self.size_cache[&k12];
-                k12_tensor = self.tensor_cache[&k12].clone();
-            } else {
-                k12 = self.tensor_cache.len();
-                flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
-                size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
-                k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
-
-                self.result_cache.entry(vec![i, j]).or_insert_with(|| k12);
-                self.flop_cache.entry(k12).or_insert_with(|| flops_12);
-                self.size_cache.entry(k12).or_insert_with(|| size_12);
-                self.tensor_cache
-                    .entry(k12)
-                    .or_insert_with(|| k12_tensor.clone());
-            }
-            current_flops += flops_12;
-            current_size = max(current_size, size_12);
-
-            if current_flops > self.best_flops && current_size > self.best_size {
-                return None;
-            }
-            let best_flops: u64;
-            if self.best_progress.contains_key(&remaining.len()) {
-                best_flops = self.best_progress[&remaining.len()];
-            } else {
-                best_flops = current_flops;
-                self.best_progress
-                    .entry(remaining.len())
-                    .or_insert_with(|| current_flops);
-            }
-
-            if current_flops < best_flops {
-                self.best_progress
-                    .entry(remaining.len())
-                    .insert_entry(current_flops);
-            } else if current_flops
-                > self.cutoff_flops_factor * self.best_progress[&remaining.len()]
-            {
-                return None;
-            }
-
-            Some(Candidate {
-                flop_cost: current_flops as i64,
-                size_cost: current_size as i64,
-                parent_ids: (i, j),
-                parent_tensors: None,
-                child_id: k12,
-                child_tensor: Some(k12_tensor),
-            })
-        };
-
         let mut candidates = BinaryHeap::<Candidate>::new();
         for i in remaining.iter().cloned().combinations(2) {
-            let candidate = assess_candidate(i[0] as usize, i[1] as usize);
+            let candidate =
+                self.assess_candidate(i[0] as usize, i[1] as usize, flops, size, &remaining);
             if let Some(new_candidate) = candidate {
                 candidates.push(new_candidate)
             } else {
