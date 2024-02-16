@@ -256,7 +256,7 @@ where
             &tensor
                 .shape()
                 .iter()
-                .map(|e| *e as u32)
+                .map(|&e| e.try_into().unwrap())
                 .collect::<Vec<u32>>(),
             None,
             rng,
