@@ -198,6 +198,9 @@ where
             }
         }
     }
+    if tensors.is_empty() {
+        return random_tensor_network_with_rng(n, cycles, rng);
+    }
     let bond_die = Uniform::from(2..4);
     let mut bond_dims = HashMap::new();
     for i in 0..index + 1 {
@@ -212,9 +215,6 @@ where
 
     for tensor in t.tensors.iter_mut() {
         random_sparse_tensor_data(&tensor.shape(), None);
-    }
-    if t.is_empty() {
-        return random_tensor_network_with_rng(n, cycles, rng);
     }
     t
 }
