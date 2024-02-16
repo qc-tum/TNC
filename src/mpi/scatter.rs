@@ -10,7 +10,7 @@ use num_complex::Complex64;
 use crate::tensornetwork::contraction::{contract_tensor_network, TensorContraction};
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
-use crate::types::ContractionIndex;
+use crate::types::{ContractionIndex, EdgeIndex};
 
 #[derive(Default, Clone, Equivalence)]
 struct BondDim {
@@ -112,7 +112,7 @@ pub fn scatter_tensor_network(
 
         for _ in 0..num_tensors {
             // First send tensor legs
-            let (legs, _status) = world.any_process().receive_vec::<usize>();
+            let (legs, _status) = world.any_process().receive_vec::<EdgeIndex>();
             // Then determine data type of sent tensor data
             let (tensor_data_type, _status) = world.any_process().receive::<i32>();
             let mut tensor_data = TensorData::Empty;
@@ -165,7 +165,7 @@ pub fn intermediate_gather_tensor_network(
             let sender = *y as i32;
             final_rank = receiver;
             if receiver == rank {
-                let (legs, _status) = world.process_at_rank(sender).receive_vec::<usize>();
+                let (legs, _status) = world.process_at_rank(sender).receive_vec::<EdgeIndex>();
                 let returned_tensor = Tensor::new(legs);
                 let (shape, _status) = world.process_at_rank(sender).receive_vec::<u32>();
                 let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
@@ -229,7 +229,7 @@ pub fn naive_gather_tensor_network(
         let bond_dims = local_tn.get_bond_dims().clone();
         new_tn.push_tensor(local_tn, Some(&bond_dims), None);
         for i in 1..size {
-            let (legs, _status) = world.process_at_rank(i).receive_vec::<usize>();
+            let (legs, _status) = world.process_at_rank(i).receive_vec::<EdgeIndex>();
             let returned_tensor = Tensor::new(legs);
             let (shape, _status) = world.process_at_rank(i).receive_vec::<u32>();
             let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
