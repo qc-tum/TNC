@@ -155,7 +155,6 @@ pub fn intermediate_reduce_tensor_network(
     world: &SimpleCommunicator,
 ) -> Tensor {
     let new_tn = Tensor::default();
-    let mut empty = false;
     let mut final_rank = 0;
     path.iter().for_each(|i| match i {
         ContractionIndex::Pair(x, y) => {
