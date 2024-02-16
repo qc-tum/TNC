@@ -172,8 +172,7 @@ impl<'a> BranchBound<'a> {
                 break;
             };
             new_remaining = remaining.clone();
-            new_remaining.retain(|e| *e != parent_ids.0 as u32);
-            new_remaining.retain(|e| *e != parent_ids.1 as u32);
+            new_remaining.retain(|e| *e != parent_ids.0 as u32 && *e != parent_ids.1 as u32);
             new_remaining.insert(new_remaining.len(), child_id as u32);
             new_path = path.clone();
             new_path.push((parent_ids.0, parent_ids.1, child_id));
