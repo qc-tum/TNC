@@ -64,7 +64,7 @@ impl RNGChooser for ThermalChooser {
             return None;
         }
         if n == 1 {
-            return Some(choices[0].clone());
+            return choices.pop();
         }
 
         let costs = choices.iter().map(|e| e.size_cost).collect::<Vec<i64>>();
