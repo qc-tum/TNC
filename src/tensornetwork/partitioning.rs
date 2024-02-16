@@ -21,6 +21,7 @@ use kahypar_sys::{partition, KaHyParContext};
 /// * `min` - if `true` performs min_cut to partition tensor network, if false, uses max_cut
 ///
 pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
+    assert!(k > 1, "Partitioning only valid for more than one process");
     let config_file = CString::new(config_file).unwrap();
     let num_vertices = tn.get_tensors().len() as u32;
     let mut context = KaHyParContext::new();
