@@ -30,7 +30,7 @@ pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) ->
         if tensor_ids.len() == 2 && tensor_ids.contains(&Vertex::Open) {
             continue;
         }
-        hyperedge_weights.push(x * bond_dims[&edges] as i32);
+        hyperedge_weights.push(x * bond_dims[edges] as i32);
 
         for id in tensor_ids {
             match id {
