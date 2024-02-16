@@ -8,14 +8,15 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
     contractionpath::{
-        candidates::Candidate, contraction_cost::contract_path_cost, ssa_replace_ordering,
+        candidates::Candidate, contraction_cost::contract_path_cost, paths::RNGChooser,
+        ssa_replace_ordering,
     },
     pair,
     tensornetwork::tensor::Tensor,
     types::{calculate_hash, ContractionIndex},
 };
 
-use super::{validate_path, ChoiceFnType, CostFnType, CostType, OptimizePath};
+use super::{validate_path, CostFnType, CostType, OptimizePath};
 
 pub struct Greedy<'a> {
     pub(crate) tn: &'a Tensor,
@@ -26,19 +27,11 @@ pub struct Greedy<'a> {
     best_progress: HashMap<usize, u64>,
 }
 
-impl<'a> Greedy<'a> {
-    pub fn new(tn: &'a Tensor, minimize: CostType) -> Self {
-        Self {
-            tn,
-            minimize,
-            best_flops: u64::MAX,
-            best_size: u64::MAX,
-            best_path: Vec::new(),
-            best_progress: HashMap::<usize, u64>::new(),
-        }
-    }
+struct SimpleChooser;
 
-    pub(crate) fn _simple_chooser<R: Rng + ?Sized>(
+impl RNGChooser for SimpleChooser {
+    fn choose<R: Rng + ?Sized>(
+        &self,
         queue: &mut BinaryHeap<Candidate>,
         remaining_tensors: &HashMap<u64, usize>,
         _nbranch: usize,
@@ -70,6 +63,19 @@ impl<'a> Greedy<'a> {
             });
         }
         None
+    }
+}
+
+impl<'a> Greedy<'a> {
+    pub fn new(tn: &'a Tensor, minimize: CostType) -> Self {
+        Self {
+            tn,
+            minimize,
+            best_flops: u64::MAX,
+            best_size: u64::MAX,
+            best_path: Vec::new(),
+            best_progress: HashMap::<usize, u64>::new(),
+        }
     }
 
     /// The default heuristic cost, corresponding to the total reduction in
@@ -222,7 +228,7 @@ impl<'a> Greedy<'a> {
         &self,
         inputs: &[Tensor],
         output_dims: &Tensor,
-        choice_fn: Box<ChoiceFnType>,
+        choice_fn: impl RNGChooser,
         cost_fn: Box<CostFnType>,
     ) -> Vec<ContractionIndex> {
         let mut ssa_path = Vec::new();
@@ -272,7 +278,7 @@ impl<'a> Greedy<'a> {
 
         while !queue.is_empty() {
             // Choose a candidate with lowest cost
-            let candidate = choice_fn(
+            let candidate = choice_fn.choose(
                 &mut queue,
                 &remaining_tensors,
                 5,
@@ -507,7 +513,7 @@ impl<'a> OptimizePath for Greedy<'a> {
                 let path = self.ssa_greedy_optimize(
                     input_tensor.get_tensors(),
                     &Tensor::new(external_legs.clone()),
-                    Box::new(&Greedy::_simple_chooser),
+                    SimpleChooser,
                     Box::new(&Greedy::_cost_memory_removed),
                 );
                 if !path.is_empty() {
@@ -524,7 +530,7 @@ impl<'a> OptimizePath for Greedy<'a> {
         self.best_path.append(&mut self.ssa_greedy_optimize(
             &inputs,
             &output_dims,
-            Box::new(&Greedy::_simple_chooser),
+            SimpleChooser,
             Box::new(&Greedy::_cost_memory_removed),
         ));
         let (op_cost, mem_cost) =

@@ -6,7 +6,10 @@ use std::{
 
 use crate::{tensornetwork::tensor::Tensor, types::calculate_hash};
 
-use super::{candidates::Candidate, contraction_cost::contract_path_cost, ssa_replace_ordering};
+use super::{
+    candidates::Candidate, contraction_cost::contract_path_cost, paths::RNGChooser,
+    ssa_replace_ordering,
+};
 use crate::contractionpath::paths::greedy::Greedy;
 
 pub trait RandomOptimizePath {
@@ -15,14 +18,17 @@ pub trait RandomOptimizePath {
         R: ?Sized + Rng;
 }
 
-impl<'a> Greedy<'a> {
-    pub(crate) fn _thermal_chooser<R: Rng + ?Sized>(
+struct ThermalChooser;
+
+impl RNGChooser for ThermalChooser {
+    fn choose<R: Rng>(
+        &self,
         queue: &mut BinaryHeap<Candidate>,
         remaining_tensors: &HashMap<u64, usize>,
         nbranch: usize,
         mut temperature: f64,
         rel_temperature: bool,
-        mut rng: &mut R,
+        rng: &mut R,
     ) -> Option<Candidate> {
         let mut n = 0;
         let mut choices = Vec::new();
@@ -82,7 +88,7 @@ impl<'a> Greedy<'a> {
             }
         }
         let dist = WeightedIndex::new(&weights).unwrap();
-        let chosen = dist.sample(&mut rng);
+        let chosen = dist.sample(rng);
         let candidate = choices.get(chosen);
         for (index, other) in choices.iter().enumerate() {
             if index != chosen {
@@ -107,7 +113,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
             let ssa_path = self.ssa_greedy_optimize(
                 inputs,
                 &output_dims,
-                Box::new(&Greedy::_thermal_chooser),
+                ThermalChooser,
                 Box::new(&Greedy::_cost_memory_removed),
             );
             let (cost, size) =

@@ -1,4 +1,5 @@
-use rand::rngs::StdRng;
+use rand::Rng;
+use std::collections::{BinaryHeap, HashMap};
 use std::option::Option;
 
 use crate::contractionpath::candidates::Candidate;
@@ -46,14 +47,19 @@ pub(crate) fn validate_path(path: &Vec<ContractionIndex>) {
 }
 
 type CostFnType = dyn Fn(i64, i64, i64, &Tensor, &Tensor, &Tensor) -> i64;
-type ChoiceFnType = dyn for<'b, 'c> Fn(
-    &'b mut std::collections::BinaryHeap<Candidate>,
-    &'c std::collections::HashMap<u64, usize>,
-    usize,
-    f64,
-    bool,
-    &mut StdRng,
-) -> Option<Candidate>;
+
+// Define a trait for functions that take an RNG as an argument
+pub(crate) trait RNGChooser {
+    fn choose<R: Rng>(
+        &self,
+        queue: &mut BinaryHeap<Candidate>,
+        remaining_tensors: &HashMap<u64, usize>,
+        nbranch: usize,
+        temperature: f64,
+        rel_temperature: bool,
+        rng: &mut R,
+    ) -> Option<Candidate>;
+}
 
 #[cfg(test)]
 mod tests {
