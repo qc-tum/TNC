@@ -105,10 +105,12 @@ impl<'a> BranchBound<'a> {
                 size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
                 k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
 
-                self.result_cache.entry(vec![i, j]).or_insert(k12);
-                self.flop_cache.entry(k12).or_insert(flops_12);
-                self.size_cache.entry(k12).or_insert(size_12);
-                self.tensor_cache.entry(k12).or_insert(k12_tensor.clone());
+                self.result_cache.entry(vec![i, j]).or_insert_with(|| k12);
+                self.flop_cache.entry(k12).or_insert_with(|| flops_12);
+                self.size_cache.entry(k12).or_insert_with(|| size_12);
+                self.tensor_cache
+                    .entry(k12)
+                    .or_insert_with(|| k12_tensor.clone());
             }
             current_flops += flops_12;
             current_size = max(current_size, size_12);
@@ -123,7 +125,7 @@ impl<'a> BranchBound<'a> {
                 best_flops = current_flops;
                 self.best_progress
                     .entry(remaining.len())
-                    .or_insert(current_flops);
+                    .or_insert_with(|| current_flops);
             }
 
             if current_flops < best_flops {
@@ -215,9 +217,11 @@ impl<'a> OptimizePath for BranchBound<'a> {
             }
             self.size_cache
                 .entry(index)
-                .or_insert(tensor.shape().iter().product::<u64>());
+                .or_insert_with(|| tensor.shape().iter().product::<u64>());
 
-            self.tensor_cache.entry(index).or_insert(tensor.clone());
+            self.tensor_cache
+                .entry(index)
+                .or_insert_with(|| tensor.clone());
         }
         let remaining: Vec<u32> = (0u32..self.tn.get_tensors().len() as u32).collect();
         BranchBound::_branch_iterate(self, vec![], remaining, 0, 0);
