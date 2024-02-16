@@ -94,7 +94,7 @@ impl<'a> Greedy<'a> {
 }
 
 impl<'a> RandomOptimizePath for Greedy<'a> {
-    fn random_optimize_path<R>(&mut self, trials: usize, _rng: &mut R)
+    fn random_optimize_path<R>(&mut self, trials: usize, rng: &mut R)
     where
         R: ?Sized + Rng,
     {
