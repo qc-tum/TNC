@@ -20,7 +20,7 @@ use tensorcontraction::{
     tensornetwork::{contraction::contract_tensor_network, tensor::Tensor},
 };
 
-pub fn criterion_benchmark(c: &mut Criterion) {
+pub fn multiplication_benchmark(c: &mut Criterion) {
     let mut rng = StdRng::seed_from_u64(52);
     let mut mul_group = c.benchmark_group("Multiplication");
     mul_group.measurement_time(Duration::from_secs(10));
