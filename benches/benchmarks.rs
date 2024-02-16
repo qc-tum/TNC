@@ -2,6 +2,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Samplin
 use mpi::topology::SimpleCommunicator;
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Duration;
+use tensorcontraction::circuits::connectivity::ConnectivityLayout;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
@@ -46,7 +47,7 @@ pub fn partition_benchmark(c: &mut Criterion) {
     part_group.sampling_mode(SamplingMode::Flat);
 
     for k in [10, 15, 20, 25] {
-        let r_tn = sycamore_circuit(k, 5, 0.4, 0.4, &mut rng, "Osprey");
+        let r_tn = sycamore_circuit(k, 5, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
         let partitioning =
             find_partitioning(&r_tn, 5, String::from("tests/km1_kKaHyPar_sea20.ini"), true);
         let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
@@ -84,7 +85,7 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
         let mut partitioned_tn = Tensor::default();
         let mut path = Vec::new();
         if rank == 0 {
-            let r_tn = sycamore_circuit(k, 20, 0.4, 0.4, &mut rng, "Osprey");
+            let r_tn = sycamore_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
             let partitioning = find_partitioning(
                 &r_tn,
                 size,
@@ -151,7 +152,7 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
         let mut partitioned_tn = Tensor::default();
         let mut path = Vec::new();
         if rank == 0 {
-            let r_tn = sycamore_circuit(k, 20, 0.4, 0.4, &mut rng, "Osprey");
+            let r_tn = sycamore_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
             let partitioning = find_partitioning(
                 &r_tn,
                 size,

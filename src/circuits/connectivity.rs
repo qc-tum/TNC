@@ -1,7 +1,15 @@
 #[derive(Debug, PartialEq, Eq)]
 pub struct Connectivity {
     pub connectivity: Vec<(usize, usize)>,
-    name: String,
+    name: ConnectivityLayout,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ConnectivityLayout {
+    Condor,
+    Eagle,
+    Osprey,
+    Sycamore,
 }
 
 impl Connectivity {
@@ -14,23 +22,16 @@ impl Connectivity {
     /// # Examples
     /// ```
     /// use tensorcontraction::circuits::connectivity::Connectivity;
-    /// let cn = Connectivity::new("Eagle");
+    /// let cn = Connectivity::new(ConnectivityLayout::Eagle);
     /// ```
-    pub fn new(name: &str) -> Self {
-        Self {
-            connectivity: Connectivity::match_connectivity(name)(),
-            name: name.to_string(),
-        }
-    }
-
-    fn match_connectivity(name: &str) -> &dyn Fn() -> Vec<(usize, usize)> {
-        match name {
-            "Eagle" => &eagle_connect,
-            "Sycamore" => &sycamore_connect,
-            "Osprey" => &osprey_connect,
-            "Condor" => &condor_connect,
-            _ => panic!("Unrecognized connectivity"),
-        }
+    pub fn new(name: ConnectivityLayout) -> Self {
+        let connectivity = match name {
+            ConnectivityLayout::Condor => condor_connect(),
+            ConnectivityLayout::Eagle => eagle_connect(),
+            ConnectivityLayout::Osprey => osprey_connect(),
+            ConnectivityLayout::Sycamore => sycamore_connect(),
+        };
+        Self { connectivity, name }
     }
 }
 

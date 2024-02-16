@@ -3,6 +3,7 @@ extern crate tensorcontraction;
 use mpi::topology::SimpleCommunicator;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use tensorcontraction::circuits::connectivity::ConnectivityLayout;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::scatter::{intermediate_reduce_tensor_network, scatter_tensor_network};
@@ -49,7 +50,7 @@ fn main() {
     let mut partitioned_tn = Tensor::default();
     let mut path = Vec::new();
     if rank == 0 {
-        let r_tn = sycamore_circuit(k, 30, 0.4, 0.4, &mut rng, "Osprey");
+        let r_tn = sycamore_circuit(k, 30, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
         let partitioning = find_partitioning(
             &r_tn,
             size,

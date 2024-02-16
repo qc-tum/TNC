@@ -1,4 +1,4 @@
-use super::connectivity::Connectivity;
+use super::connectivity::{Connectivity, ConnectivityLayout};
 use rand::distributions::Uniform;
 use rand::prelude::Distribution;
 use rand::{thread_rng, Rng};
@@ -19,7 +19,7 @@ pub fn sycamore_circuit<R>(
     single_qubit_probability: f64,
     two_qubit_probability: f64,
     rng: &mut R,
-    connectivity: &str,
+    connectivity: ConnectivityLayout,
 ) -> Tensor
 where
     R: Rng + ?Sized,

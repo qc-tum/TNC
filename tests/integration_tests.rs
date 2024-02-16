@@ -1,7 +1,7 @@
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
-    circuits::sycamore::sycamore_circuit,
+    circuits::{connectivity::ConnectivityLayout, sycamore::sycamore_circuit},
     contractionpath::paths::{greedy::Greedy, CostType, OptimizePath},
     mpi::scatter::{naive_reduce_tensor_network, scatter_tensor_network},
     tensornetwork::{
@@ -16,7 +16,7 @@ fn test_partitioned_contraction() {
     let mut rng = StdRng::seed_from_u64(52);
     let k = 10;
 
-    let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, "Osprey");
+    let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
     let mut ref_tn = r_tn.clone();
     let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
     ref_opt.optimize_path();
@@ -51,7 +51,7 @@ fn test_mpi_partitioned_contraction() {
     let mut ref_tn = Tensor::default();
     if rank == 0 {
         let k = 5;
-        let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, "Osprey");
+        let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
         ref_tn = r_tn.clone();
         let partitioning = find_partitioning(&r_tn, size, String::from("tests/km1"), true);
         partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
