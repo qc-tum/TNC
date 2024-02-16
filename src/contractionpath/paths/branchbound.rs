@@ -195,6 +195,8 @@ impl<'a> OptimizePath for BranchBound<'a> {
         let mut tensors = self.tn.get_tensors().clone();
         self.flop_cache.clear();
         self.size_cache.clear();
+        self.result_cache.clear();
+        self.tensor_cache.clear();
         let mut sub_tensor_contraction = Vec::new();
         // Get the initial space requirements for uncontracted tensors
         for (index, tensor) in tensors.iter_mut().enumerate() {
