@@ -21,7 +21,7 @@ pub trait RandomOptimizePath {
 struct ThermalChooser;
 
 impl RNGChooser for ThermalChooser {
-    fn choose<R: Rng>(
+    fn choose<R>(
         &self,
         queue: &mut BinaryHeap<Candidate>,
         remaining_tensors: &HashMap<u64, usize>,
@@ -29,7 +29,10 @@ impl RNGChooser for ThermalChooser {
         mut temperature: f64,
         rel_temperature: bool,
         rng: &mut R,
-    ) -> Option<Candidate> {
+    ) -> Option<Candidate>
+    where
+        R: ?Sized + Rng,
+    {
         let mut choices = Vec::new();
         while !queue.is_empty() && choices.len() <= nbranch {
             let candidate = queue.pop();
@@ -113,6 +116,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
                 &output_dims,
                 ThermalChooser,
                 Box::new(&Greedy::_cost_memory_removed),
+                rng,
             );
             let (cost, size) =
                 contract_path_cost(inputs, &ssa_replace_ordering(&ssa_path, inputs.len()));

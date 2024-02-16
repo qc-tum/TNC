@@ -224,13 +224,17 @@ impl<'a> Greedy<'a> {
 
     /// Greedily finds cheapest contractions based on input choice_fn and cost_fn.
     /// This function relies on the fact that 'Tensor' hash depends only on leg ids
-    pub(crate) fn ssa_greedy_optimize(
+    pub(crate) fn ssa_greedy_optimize<R>(
         &self,
         inputs: &[Tensor],
         output_dims: &Tensor,
         choice_fn: impl RNGChooser,
         cost_fn: Box<CostFnType>,
-    ) -> Vec<ContractionIndex> {
+        rng: &mut R,
+    ) -> Vec<ContractionIndex>
+    where
+        R: ?Sized + Rng,
+    {
         let mut ssa_path = Vec::new();
 
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
@@ -278,14 +282,7 @@ impl<'a> Greedy<'a> {
 
         while !queue.is_empty() {
             // Choose a candidate with lowest cost
-            let candidate = choice_fn.choose(
-                &mut queue,
-                &remaining_tensors,
-                5,
-                0.3,
-                true,
-                &mut StdRng::from_entropy(),
-            );
+            let candidate = choice_fn.choose(&mut queue, &remaining_tensors, 5, 0.3, true, rng);
             let Some(Candidate {
                 flop_cost: 0,
                 size_cost: _cost,
@@ -507,6 +504,7 @@ impl<'a> OptimizePath for Greedy<'a> {
             return;
         }
         let mut inputs: Vec<Tensor> = self.tn.get_tensors().clone();
+        let mut rng: StdRng = StdRng::seed_from_u64(24);
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.get_legs().is_empty() {
                 let external_legs = input_tensor.get_external_edges().clone();
@@ -515,6 +513,7 @@ impl<'a> OptimizePath for Greedy<'a> {
                     &Tensor::new(external_legs.clone()),
                     SimpleChooser,
                     Box::new(&Greedy::_cost_memory_removed),
+                    &mut rng,
                 );
                 if !path.is_empty() {
                     let ssa_path = ssa_replace_ordering(&path, input_tensor.get_tensors().len());
@@ -532,6 +531,7 @@ impl<'a> OptimizePath for Greedy<'a> {
             &output_dims,
             SimpleChooser,
             Box::new(&Greedy::_cost_memory_removed),
+            &mut rng,
         ));
         let (op_cost, mem_cost) =
             contract_path_cost(self.tn.get_tensors(), &self.get_best_replace_path());

@@ -50,7 +50,7 @@ type CostFnType = dyn Fn(i64, i64, i64, &Tensor, &Tensor, &Tensor) -> i64;
 
 // Define a trait for functions that take an RNG as an argument
 pub(crate) trait RNGChooser {
-    fn choose<R: Rng>(
+    fn choose<R>(
         &self,
         queue: &mut BinaryHeap<Candidate>,
         remaining_tensors: &HashMap<u64, usize>,
@@ -58,7 +58,9 @@ pub(crate) trait RNGChooser {
         temperature: f64,
         rel_temperature: bool,
         rng: &mut R,
-    ) -> Option<Candidate>;
+    ) -> Option<Candidate>
+    where
+        R: ?Sized + Rng;
 }
 
 #[cfg(test)]
