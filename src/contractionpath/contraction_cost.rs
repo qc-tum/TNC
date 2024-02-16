@@ -115,21 +115,23 @@ pub fn contract_path_cost(inputs: &[Tensor], ssa_path: &[ContractionIndex]) -> (
     let mut mem_cost = 0;
     let mut inputs = inputs.to_vec();
 
-    ssa_path.iter().for_each(|index| match index {
-        ContractionIndex::Pair(i, j) => {
-            op_cost += contract_cost_tensors(&inputs[*i], &inputs[*j]);
-            let k12 = &inputs[*i] ^ &inputs[*j];
-            let new_mem_cost = contract_size_tensors(&inputs[*i], &inputs[*j]);
-            mem_cost = max(mem_cost, new_mem_cost);
-            inputs[*i] = k12;
+    for index in ssa_path {
+        match *index {
+            ContractionIndex::Pair(i, j) => {
+                op_cost += contract_cost_tensors(&inputs[i], &inputs[j]);
+                let k12 = &inputs[i] ^ &inputs[j];
+                let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
+                mem_cost = max(mem_cost, new_mem_cost);
+                inputs[i] = k12;
+            }
+            ContractionIndex::Path(i, ref path) => {
+                let costs = contract_path_cost(inputs[i].get_tensors(), &path);
+                op_cost += costs.0;
+                mem_cost += costs.1;
+                inputs[i] = std::mem::take(&mut inputs[i].tensors[0]);
+            }
         }
-        ContractionIndex::Path(i, path) => {
-            let costs = contract_path_cost(inputs[*i].get_tensors(), path);
-            op_cost += costs.0;
-            mem_cost += costs.1;
-            inputs[*i] = inputs[*i].get_tensor(0).clone();
-        }
-    });
+    }
 
     (op_cost, mem_cost)
 }
