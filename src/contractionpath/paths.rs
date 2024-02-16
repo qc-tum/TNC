@@ -18,7 +18,7 @@ pub trait OptimizePath {
     fn get_best_size(&self) -> u64;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CostType {
     Flops,
     Size,
