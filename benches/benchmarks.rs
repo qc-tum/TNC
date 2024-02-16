@@ -1,13 +1,14 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
+use mpi::topology::SimpleCommunicator;
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Duration;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
 use tensorcontraction::mpi::scatter::{
-    broadcast_path, intermediate_reduce_tensor_network, naive_reduce_tensor_network,
-    scatter_tensor_network,
+    intermediate_reduce_tensor_network, naive_reduce_tensor_network, scatter_tensor_network,
 };
+use tensorcontraction::types::ContractionIndex;
 // use tensorcontraction::tensornetwork::parallel_contraction::parallel_contract_tensor_network;
 use mpi::traits::*;
 
@@ -109,6 +110,28 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
         });
     }
     par_part_group.finish();
+}
+
+pub fn broadcast_path(
+    local_path: &[ContractionIndex],
+    world: &SimpleCommunicator,
+) -> Vec<ContractionIndex> {
+    let root_rank = 0;
+    let root_process = world.process_at_rank(root_rank);
+    let mut path_length = if world.rank() == root_rank {
+        local_path.len()
+    } else {
+        0
+    };
+    root_process.broadcast_into(&mut path_length);
+    if world.rank() != root_rank {
+        let mut buffer = vec![ContractionIndex::Pair(0, 0); path_length];
+        root_process.broadcast_into(&mut buffer);
+        buffer
+    } else {
+        root_process.broadcast_into(&mut local_path.to_vec());
+        local_path.to_vec()
+    }
 }
 
 pub fn parallel_partition_benchmark(c: &mut Criterion) {
