@@ -94,15 +94,10 @@ impl<'a> BranchBound<'a> {
         if current_flops > self.best_flops && current_size > self.best_size {
             return None;
         }
-        let best_flops: u64;
-        if self.best_progress.contains_key(&remaining.len()) {
-            best_flops = self.best_progress[&remaining.len()];
-        } else {
-            best_flops = current_flops;
-            self.best_progress
-                .entry(remaining.len())
-                .or_insert_with(|| current_flops);
-        }
+        let best_flops = *self
+            .best_progress
+            .entry(remaining.len())
+            .or_insert(current_flops);
 
         if current_flops < best_flops {
             self.best_progress
