@@ -15,6 +15,7 @@ fn string_to_static_str(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
 }
 
+/// Partitions input Tensor `r_tn` into `size` partitions using KaHyPar and distributes the partitions to the various processes via `rank` via MPI.
 pub fn scatter_tensor_network(
     r_tn: Tensor,
     path: &[ContractionIndex],
@@ -132,6 +133,8 @@ pub fn scatter_tensor_network(
     (local_tn, local_path)
 }
 
+/// Uses the `path` as a communication blueprint to iteratively send tensors and contract them in a fan-in
+/// Assumes that `path` is a valid contraction path
 pub fn intermediate_reduce_tensor_network(
     local_tn: &mut Tensor,
     path: &[ContractionIndex],
@@ -197,6 +200,7 @@ pub fn intermediate_reduce_tensor_network(
     }
 }
 
+/// Sends all tensors to the root process before contracting all tensors
 pub fn naive_reduce_tensor_network(
     local_tn: &mut Tensor,
     path: &[ContractionIndex],
