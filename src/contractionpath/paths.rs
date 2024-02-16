@@ -20,8 +20,8 @@ pub trait OptimizePath {
 
 #[derive(Debug, Clone)]
 pub enum CostType {
-    Flops = 0,
-    Size = 1,
+    Flops,
+    Size,
 }
 
 pub(crate) fn validate_path(path: &Vec<ContractionIndex>) {
