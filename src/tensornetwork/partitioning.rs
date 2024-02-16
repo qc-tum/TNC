@@ -23,7 +23,6 @@ use kahypar_sys::{partition, KaHyParContext};
 pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
     let config_file = CString::new(config_file).unwrap();
     let num_vertices = tn.get_tensors().len() as u32;
-    let mut num_hyperedges = 0;
     let mut context = KaHyParContext::new();
     context.configure(config_file);
 
@@ -53,13 +52,12 @@ pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) ->
             }
         }
         hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
-        num_hyperedges += 1;
     }
 
     let mut partitioning = vec![-1; num_vertices as usize];
     partition(
         num_vertices,
-        num_hyperedges,
+        hyperedge_weights.len() as u32,
         imbalance,
         k,
         None,
