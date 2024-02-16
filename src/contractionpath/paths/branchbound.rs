@@ -204,7 +204,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
                     tensor,
                     self.nbranch,
                     self.cutoff_flops_factor,
-                    self.minimize.clone(),
+                    self.minimize,
                 );
                 bb.optimize_path();
                 sub_tensor_contraction
