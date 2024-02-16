@@ -154,8 +154,6 @@ impl<'a> BranchBound<'a> {
                 self.assess_candidate(i[0] as usize, i[1] as usize, flops, size, &remaining);
             if let Some(new_candidate) = candidate {
                 candidates.push(new_candidate)
-            } else {
-                continue;
             }
         }
         let bi = 0;
