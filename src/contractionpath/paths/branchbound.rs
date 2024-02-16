@@ -290,35 +290,6 @@ mod tests {
         )
     }
 
-    fn setup_complex_simple() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-                Tensor::new(vec![6, 8, 9]),
-                Tensor::new(vec![10, 8, 9]),
-                Tensor::new(vec![5, 1, 0]),
-            ],
-            &[
-                (0, 5),
-                (1, 2),
-                (2, 6),
-                (3, 8),
-                (4, 1),
-                (5, 3),
-                (6, 4),
-                (7, 22),
-                (8, 45),
-                (9, 65),
-                (10, 5),
-                (11, 17),
-            ]
-            .into(),
-            None,
-        )
-    }
-
     #[test]
     fn test_contract_order_simple() {
         let tn = setup_simple();
