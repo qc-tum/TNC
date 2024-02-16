@@ -40,7 +40,9 @@ pub fn multiplication_benchmark(c: &mut Criterion) {
     mul_group.finish();
 }
 
-pub fn partition_benchmark(c: &mut Criterion) {
+// Run with 4 processes
+// Current assumption is that we have the number of processes equal to intermediate tensors
+pub fn partitioned_contraction_benchmark(c: &mut Criterion) {
     let mut rng = StdRng::seed_from_u64(23);
     let mut part_group = c.benchmark_group("Partition");
     part_group.measurement_time(Duration::from_secs(10));
