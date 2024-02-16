@@ -147,8 +147,7 @@ mod tests {
     #[test]
     fn test_load_data() {
         run_test(|| {
-            let true_or_false = load_data_test();
-            assert!(true_or_false);
+            load_data_test();
         });
         if Path::new(DATA_TEST_FILE).exists() {
             fs::remove_file(DATA_TEST_FILE).expect("could not remove file");
@@ -158,15 +157,14 @@ mod tests {
     #[test]
     fn test_load_tensor() {
         run_test(|| {
-            let true_or_false = load_tensor_test();
-            assert!(true_or_false);
+            load_tensor_test();
         });
         if Path::new(TENSOR_TEST_FILE).exists() {
             fs::remove_file(TENSOR_TEST_FILE).expect("could not remove file");
         }
     }
 
-    fn load_data_test() -> bool {
+    fn load_data_test() {
         let _ = write_hdf5_data();
         let tensor_data = load_data(&String::from(DATA_TEST_FILE)).unwrap();
         let ref_data = array![
@@ -179,10 +177,9 @@ mod tests {
             assert_approx_eq!(f64, u.re, v.re, epsilon = 1e-8);
             assert_approx_eq!(f64, u.im, v.im, epsilon = 1e-8);
         }
-        true
     }
 
-    fn load_tensor_test() -> bool {
+    fn load_tensor_test() {
         let _ = write_hdf5_tensor();
         let mut ref_tn = Tensor::default();
         let ref_tensor = Tensor::new(vec![0, 1]);
@@ -201,6 +198,5 @@ mod tests {
         ref_tn.set_legs(vec![0, 1]);
         let tensor = load_tensor(&String::from(TENSOR_TEST_FILE)).unwrap();
         assert_eq!(tensor, ref_tn);
-        true
     }
 }
