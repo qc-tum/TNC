@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::iter::zip;
+use std::mem::offset_of;
 
+use mpi::datatype::{UncommittedUserDatatype, UserDatatype};
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::Equivalence;
-use mpi::traits::*;
+use mpi::{traits::*, Address};
 use num_complex::Complex64;
 
 use crate::tensornetwork::contraction::{contract_tensor_network, TensorContraction};
@@ -23,6 +25,25 @@ impl From<(usize, u64)> for BondDim {
             bond_id: value.0,
             bond_size: value.1,
         }
+    }
+}
+
+#[derive(Default)]
+pub struct TupleType(usize, usize);
+
+unsafe impl Equivalence for ContractionIndex {
+    type Out = UserDatatype;
+
+    fn equivalent_datatype() -> Self::Out {
+        UserDatatype::structured(
+            &[2],
+            &[offset_of!(TupleType, 0) as Address],
+            &[UncommittedUserDatatype::structured(
+                &[2],
+                &[offset_of!(TupleType, 0) as Address],
+                &[usize::equivalent_datatype()],
+            )],
+        )
     }
 }
 
