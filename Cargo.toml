@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mpi = { version = "0.7.0", features = ["complex"] }
+mpi = { version = "0.7.0", features = ["complex", "derive"] }
 array_tool = "1.0.3"
 criterion = "0.5.1"
 hdf5 = { version = "0.8.1", git = "https://github.com/keefehuang/hdf5-rust.git", branch = "feature/complex" }

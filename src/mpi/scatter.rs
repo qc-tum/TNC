@@ -12,25 +12,10 @@ use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 use crate::types::ContractionIndex;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Equivalence)]
 struct BondDim {
     bond_id: usize,
     bond_size: u64,
-}
-
-unsafe impl Equivalence for BondDim {
-    type Out = UserDatatype;
-
-    fn equivalent_datatype() -> Self::Out {
-        UserDatatype::structured(
-            &[1, 1],
-            &[
-                offset_of!(BondDim, bond_id) as Address,
-                offset_of!(BondDim, bond_size) as Address,
-            ],
-            &[usize::equivalent_datatype(), u64::equivalent_datatype()],
-        )
-    }
 }
 
 impl From<(usize, u64)> for BondDim {
