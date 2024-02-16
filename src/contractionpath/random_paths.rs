@@ -105,13 +105,13 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
         // Dictionary that maps leg id to bond dimension
         for _ in 0..trials {
             let ssa_path = self.ssa_greedy_optimize(
-                &inputs,
+                inputs,
                 &output_dims,
                 Box::new(&Greedy::_thermal_chooser),
                 Box::new(&Greedy::_cost_memory_removed),
             );
             let (cost, size) =
-                contract_path_cost(&inputs, &ssa_replace_ordering(&ssa_path, inputs.len()));
+                contract_path_cost(inputs, &ssa_replace_ordering(&ssa_path, inputs.len()));
 
             if cost < self.best_flops {
                 self.best_flops = cost;
