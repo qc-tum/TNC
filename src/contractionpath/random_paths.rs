@@ -100,7 +100,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
     {
         let inputs = self.tn.get_tensors();
 
-        let output_dims = Tensor::new(self.tn.get_external_edges().clone());
+        let output_dims = Tensor::new(self.tn.get_external_edges());
 
         // Dictionary that maps leg id to bond dimension
         for _ in 0..trials {
