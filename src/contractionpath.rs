@@ -53,16 +53,11 @@ pub(super) fn ssa_replace_ordering(
     for tup in path.iter() {
         match tup {
             ContractionIndex::Pair(tup0, tup1) => {
-                let mut new_tup0 = tup0;
-                let mut new_tup1 = tup1;
-                if hs.contains_key(tup0) {
-                    new_tup0 = hs[tup0];
-                }
-                if hs.contains_key(tup1) {
-                    new_tup1 = hs[tup1];
-                }
+                let new_tup0 = *hs.get(tup0).unwrap_or(tup0);
+                let new_tup1 = *hs.get(tup1).unwrap_or(tup1);
+
                 hs.entry(n).or_insert(new_tup0);
-                ssa_path.push(pair!(*new_tup0, *new_tup1));
+                ssa_path.push(pair!(new_tup0, new_tup1));
                 n += 1;
             }
             ContractionIndex::Path(index, path) => {
