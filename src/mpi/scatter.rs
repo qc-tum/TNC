@@ -37,7 +37,6 @@ pub fn scatter_tensor_network(
     size: i32,
     world: &SimpleCommunicator,
 ) -> (Tensor, Vec<ContractionIndex>) {
-    let mut local_tn = Tensor::default();
     let mut bond_num = 0;
     let root_process = world.process_at_rank(0);
     // Distribute bond_dims
@@ -59,9 +58,9 @@ pub fn scatter_tensor_network(
     world.barrier();
     let bond_dims = HashMap::from_iter(bond_vec.iter().map(|e| (e.bond_id, e.bond_size)));
 
-    let local_path = if rank == 0 {
+    let (local_tn, local_path) = if rank == 0 {
         let local_path = path[0].clone().get_data();
-        local_tn = r_tn.get_tensor(0).clone();
+        let local_tn = r_tn.get_tensor(0).clone();
         for (i, contraction_path) in zip(1..size, path[1..size as usize].iter()) {
             match contraction_path {
                 ContractionIndex::Path(_, local) => {
@@ -102,11 +101,11 @@ pub fn scatter_tensor_network(
                 }
             }
         }
-        local_path
+        (local_tn, local_path)
     } else {
         let (path, _status) = world.any_process().receive_vec::<ContractionIndex>();
         let local_path = path;
-
+        let mut local_tn = Tensor::default();
         let (num_tensors, _status) = world.any_process().receive::<usize>();
 
         for _ in 0..num_tensors {
@@ -142,7 +141,7 @@ pub fn scatter_tensor_network(
             new_tensor.set_tensor_data(tensor_data);
             local_tn.push_tensor(new_tensor, Some(&bond_dims), None);
         }
-        local_path
+        (local_tn, local_path)
     };
     world.barrier();
     (local_tn, local_path)
@@ -192,7 +191,7 @@ pub fn intermediate_gather_tensor_network(
     });
     if final_rank != 0 {
         if rank == 0 {
-            let (legs, _status) = world.process_at_rank(final_rank).receive_vec::<usize>();
+            let (legs, _status) = world.process_at_rank(final_rank).receive_vec::<EdgeIndex>();
             let returned_tensor = Tensor::new(legs);
             let (shape, _status) = world.process_at_rank(final_rank).receive_vec::<u32>();
             let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
