@@ -27,7 +27,7 @@ pub struct BranchBound<'a> {
     best_size: u64,
     best_path: Vec<ContractionIndex>,
     best_progress: HashMap<usize, u64>,
-    result_cache: HashMap<Vec<usize>, usize>,
+    result_cache: HashMap<(usize, usize), usize>,
     flop_cache: HashMap<usize, u64>,
     size_cache: HashMap<usize, u64>,
     tensor_cache: HashMap<usize, Tensor>,
@@ -70,8 +70,8 @@ impl<'a> BranchBound<'a> {
         let k12_tensor: Tensor;
         let mut current_flops = flops;
         let mut current_size = size;
-        if self.result_cache.contains_key(&vec![i, j]) {
-            k12 = self.result_cache[&vec![i, j]];
+        if self.result_cache.contains_key(&(i, j)) {
+            k12 = self.result_cache[&(i, j)];
             flops_12 = self.flop_cache[&k12];
             size_12 = self.size_cache[&k12];
             k12_tensor = self.tensor_cache[&k12].clone();
@@ -81,7 +81,7 @@ impl<'a> BranchBound<'a> {
             size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
             k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
 
-            self.result_cache.entry(vec![i, j]).or_insert_with(|| k12);
+            self.result_cache.entry((i, j)).or_insert_with(|| k12);
             self.flop_cache.entry(k12).or_insert_with(|| flops_12);
             self.size_cache.entry(k12).or_insert_with(|| size_12);
             self.tensor_cache
