@@ -147,14 +147,14 @@ pub fn scatter_tensor_network(
     (local_tn, local_path)
 }
 
-pub fn intermediate_gather_tensor_network(
+pub fn intermediate_reduce_tensor_network(
     local_tn: &mut Tensor,
     path: &[ContractionIndex],
     rank: i32,
     _size: i32,
     world: &SimpleCommunicator,
 ) -> Tensor {
-    let new_tn: Tensor = Tensor::default();
+    let new_tn = Tensor::default();
     let mut empty = false;
     let mut final_rank = 0;
     path.iter().for_each(|i| match i {
@@ -215,7 +215,7 @@ pub fn intermediate_gather_tensor_network(
     new_tn
 }
 
-pub fn naive_gather_tensor_network(
+pub fn naive_reduce_tensor_network(
     local_tn: Tensor,
     path: &[ContractionIndex],
     rank: i32,
