@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 use std::iter::zip;
 
-use memoffset::offset_of;
 use mpi::topology::SimpleCommunicator;
+use mpi::traits::Equivalence;
 use mpi::traits::*;
-use mpi::{datatype::UserDatatype, traits::Equivalence, Address};
 use num_complex::Complex64;
 
 use crate::tensornetwork::contraction::{contract_tensor_network, TensorContraction};
