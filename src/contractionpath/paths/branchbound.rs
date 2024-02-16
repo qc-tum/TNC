@@ -48,11 +48,11 @@ impl<'a> BranchBound<'a> {
             best_flops: u64::MAX,
             best_size: u64::MAX,
             best_path: Vec::new(),
-            best_progress: HashMap::<usize, u64>::new(),
-            result_cache: HashMap::<Vec<usize>, usize>::new(),
-            flop_cache: HashMap::<usize, u64>::new(),
-            size_cache: HashMap::<usize, u64>::new(),
-            tensor_cache: HashMap::<usize, Tensor>::new(),
+            best_progress: HashMap::new(),
+            result_cache: HashMap::new(),
+            flop_cache: HashMap::new(),
+            size_cache: HashMap::new(),
+            tensor_cache: HashMap::new(),
         }
     }
 
