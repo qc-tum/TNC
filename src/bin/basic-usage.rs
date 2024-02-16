@@ -5,7 +5,7 @@ use rand::SeedableRng;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::scatter::{
-    broadcast_path, intermediate_gather_tensor_network, scatter_tensor_network,
+    broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
 };
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
@@ -52,7 +52,7 @@ fn main() {
         broadcast_path(&[], &world)
     };
     world.barrier();
-    intermediate_gather_tensor_network(&mut local_tn, &path, rank, size, &world);
+    intermediate_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
     if rank == 0 {
         println!("{:?}", local_tn);
     }

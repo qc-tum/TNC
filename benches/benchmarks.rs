@@ -5,7 +5,7 @@ use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
 use tensorcontraction::mpi::scatter::{
-    broadcast_path, intermediate_gather_tensor_network, naive_gather_tensor_network,
+    broadcast_path, intermediate_reduce_tensor_network, naive_reduce_tensor_network,
     scatter_tensor_network,
 };
 // use tensorcontraction::tensornetwork::parallel_contraction::parallel_contract_tensor_network;
@@ -104,7 +104,7 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
                     scatter_tensor_network(partitioned_tn.clone(), &path, rank, size, &world);
                 contract_tensor_network(&mut local_tn, &local_path);
 
-                naive_gather_tensor_network(local_tn.clone(), &path, rank, size, &world);
+                naive_reduce_tensor_network(local_tn.clone(), &path, rank, size, &world);
             });
         });
     }
@@ -155,7 +155,7 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
                     broadcast_path(&[], &world)
                 };
                 world.barrier();
-                intermediate_gather_tensor_network(&mut local_tn, &path, rank, size, &world);
+                intermediate_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
             });
         });
     }
