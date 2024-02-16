@@ -9,6 +9,17 @@ use crate::types::Vertex;
 use kahypar_sys;
 use kahypar_sys::{partition, KaHyParContext};
 
+/// Partitions input tensor network using KaHyPar library.
+/// Returns a Vec<usize> of length equal to the number of input tensors storing final partitioning results.
+/// The usize associated with each Tensor indicates its partionining.
+///
+/// # Arguments
+///
+/// * `tn` - [`TensorNetwork`] to be partitionined
+/// * `k` - imbalance parameter for KaHyPar
+/// * `config_file` - KaHyPar config file name
+/// * `min` - if `true` performs min_cut to partition tensor network, if false, uses max_cut
+///
 pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
     let config_file = CString::new(config_file).unwrap();
     let num_vertices = tn.get_tensors().len() as u32;
