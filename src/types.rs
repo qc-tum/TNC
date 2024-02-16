@@ -59,6 +59,13 @@ mod tests {
     #[test]
     fn test_path_macro() {
         assert_eq!(
+            path![
+                (0, 1),
+                (2, [(1, 2), (1, 3)]),
+                (0, 2),
+                (3, [(4, 1), (3, 4), (3, 5)]),
+                (0, 3)
+            ],
             vec![
                 ContractionIndex::Pair(0, 1),
                 ContractionIndex::Path(
@@ -75,13 +82,6 @@ mod tests {
                     ]
                 ),
                 ContractionIndex::Pair(0, 3),
-            ],
-            path![
-                (0, 1),
-                (2, [(1, 2), (1, 3)]),
-                (0, 2),
-                (3, [(4, 1), (3, 4), (3, 5)]),
-                (0, 3)
             ]
         );
     }
