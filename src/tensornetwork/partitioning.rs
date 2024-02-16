@@ -108,10 +108,6 @@ mod tests {
 
     use super::{find_partitioning, partition_tensor_network};
 
-    fn get_current_working_dir() -> std::io::Result<PathBuf> {
-        env::current_dir()
-    }
-
     fn setup_complex() -> Tensor {
         create_tensor_network(
             vec![
