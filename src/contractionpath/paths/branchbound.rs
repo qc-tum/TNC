@@ -221,7 +221,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
 
             self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
-        let remaining: Vec<u32> = (0u32..self.tn.get_tensors().len() as u32).collect();
+        let remaining = (0u32..self.tn.get_tensors().len() as u32).collect();
         BranchBound::_branch_iterate(self, vec![], remaining, 0, 0);
         sub_tensor_contraction.extend_from_slice(&self.best_path);
         self.best_path = sub_tensor_contraction;
