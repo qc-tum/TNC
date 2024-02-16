@@ -141,7 +141,8 @@ pub fn scatter_tensor_network(
                     let (gate_name, _status) = world.any_process().receive_vec::<u8>();
                     let gate_name = String::from_utf8(gate_name).unwrap();
                     let (gate_angles, _status) = world.any_process().receive_vec::<f64>();
-                    tensor_data = TensorData::Gate((&string_to_static_str(gate_name), gate_angles));
+                    tensor_data =
+                        TensorData::Gate(((string_to_static_str(gate_name)), gate_angles));
                 }
                 3 => {
                     let (shape, _status) = world.any_process().receive_vec::<u32>();
