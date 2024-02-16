@@ -65,7 +65,7 @@ fn test_mpi_partitioned_contraction() {
         scatter_tensor_network(partitioned_tn, &path, rank, size, &world);
     contract_tensor_network(&mut local_tn, &local_path);
 
-    let return_tn = naive_gather_tensor_network(local_tn, &path, rank, size, &world);
+    naive_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
     world.barrier();
 
     if rank == 0 {
@@ -74,6 +74,6 @@ fn test_mpi_partitioned_contraction() {
         ref_opt.optimize_path();
         let ref_path = ref_opt.get_best_replace_path();
         contract_tensor_network(&mut ref_tn, &ref_path);
-        assert_eq!(*return_tn.get_tensor_data(), *ref_tn.get_tensor_data());
+        assert_eq!(*local_tn.get_tensor_data(), *ref_tn.get_tensor_data());
     }
 }
