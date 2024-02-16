@@ -27,11 +27,6 @@ pub enum ContractionIndex {
     Path(usize, Vec<ContractionIndex>),
 }
 
-impl From<(i32, i32)> for ContractionIndex {
-    fn from(value: (i32, i32)) -> Self {
-        ContractionIndex::Pair(value.0 as usize, value.1 as usize)
-    }
-}
 impl ContractionIndex {
     pub fn get_data(self) -> Vec<ContractionIndex> {
         match self {
