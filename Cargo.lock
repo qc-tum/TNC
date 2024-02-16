@@ -887,11 +887,24 @@ dependencies = [
  "build-probe-mpi",
  "conv",
  "libffi",
+ "memoffset",
+ "mpi-derive",
  "mpi-sys",
  "num-complex",
  "once_cell",
  "smallvec",
  "thiserror",
+]
+
+[[package]]
+name = "mpi-derive"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afac052fc749ada64568058c82fcb835bcba21a10453cdc5357c8385f055e657"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
