@@ -1,51 +1,15 @@
 use std::collections::HashMap;
 use std::iter::zip;
-use std::mem::offset_of;
 
-use mpi::datatype::{UncommittedUserDatatype, UserDatatype};
 use mpi::topology::SimpleCommunicator;
-use mpi::traits::Equivalence;
-use mpi::{traits::*, Address};
+use mpi::traits::*;
 use num_complex::Complex64;
 
+use super::mpi_types::BondDim;
 use crate::tensornetwork::contraction::{contract_tensor_network, TensorContraction};
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 use crate::types::{ContractionIndex, EdgeIndex};
-
-#[derive(Default, Clone, Equivalence)]
-struct BondDim {
-    bond_id: usize,
-    bond_size: u64,
-}
-
-impl From<(usize, u64)> for BondDim {
-    fn from(value: (usize, u64)) -> Self {
-        Self {
-            bond_id: value.0,
-            bond_size: value.1,
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct TupleType(usize, usize);
-
-unsafe impl Equivalence for ContractionIndex {
-    type Out = UserDatatype;
-
-    fn equivalent_datatype() -> Self::Out {
-        UserDatatype::structured(
-            &[2],
-            &[offset_of!(TupleType, 0) as Address],
-            &[UncommittedUserDatatype::structured(
-                &[2],
-                &[offset_of!(TupleType, 0) as Address],
-                &[usize::equivalent_datatype()],
-            )],
-        )
-    }
-}
 
 fn string_to_static_str(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
@@ -263,5 +227,73 @@ pub fn naive_reduce_tensor_network(
     world.barrier();
     if rank == 0 {
         contract_tensor_network(local_tn, &path[(size as usize)..path.len()]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::rngs::StdRng;
+    use rand::SeedableRng;
+
+    use crate::contractionpath::paths::{CostType, OptimizePath};
+    // use rand::distributions::{Distribution, Uniform};
+    // TODO: Use random tensors
+    use crate::contractionpath::paths::greedy::Greedy;
+    use crate::contractionpath::random_paths::RandomOptimizePath;
+    use crate::path;
+    use crate::tensornetwork::create_tensor_network;
+    use crate::tensornetwork::tensor::Tensor;
+
+    fn setup_simple() -> Tensor {
+        create_tensor_network(
+            vec![
+                Tensor::new(vec![4, 3, 2]),
+                Tensor::new(vec![0, 1, 3, 2]),
+                Tensor::new(vec![4, 5, 6]),
+            ],
+            &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
+            None,
+        )
+    }
+
+    fn setup_complex() -> Tensor {
+        create_tensor_network(
+            vec![
+                Tensor::new(vec![4, 3, 2]),
+                Tensor::new(vec![0, 1, 3, 2]),
+                Tensor::new(vec![4, 5, 6]),
+                Tensor::new(vec![6, 8, 9]),
+                Tensor::new(vec![10, 8, 9]),
+                Tensor::new(vec![5, 1, 0]),
+            ],
+            &[
+                (0, 27),
+                (1, 18),
+                (2, 12),
+                (3, 15),
+                (4, 5),
+                (5, 3),
+                (6, 18),
+                (7, 22),
+                (8, 45),
+                (9, 65),
+                (10, 5),
+                (11, 17),
+            ]
+            .into(),
+            None,
+        )
+    }
+
+    #[test]
+    #[ignore]
+    fn test_contract_order_greedy_simple() {
+        let tn = setup_simple();
+        let mut opt = Greedy::new(&tn, CostType::Flops);
+        opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42));
+        assert_eq!(opt.best_flops, 600);
+        assert_eq!(opt.best_size, 538);
+        assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
+        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
     }
 }
