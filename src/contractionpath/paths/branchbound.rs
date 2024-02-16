@@ -60,7 +60,7 @@ impl<'a> BranchBound<'a> {
     /// recursive manner like the `optimal` approach, but with extra heuristic early pruning of branches
     /// as well sieving by `memory_limit` and the best path found so far. A rust implementation of
     /// the Python based `opt_einsum` implementation. Found at github.com/dgasmith/opt_einsum.
-    fn _branch_iterate(
+    fn branch_iterate(
         &mut self,
         path: Vec<(usize, usize, usize)>,
         remaining: Vec<u32>,
@@ -178,7 +178,7 @@ impl<'a> BranchBound<'a> {
             new_remaining.insert(new_remaining.len(), child_id as u32);
             new_path = path.clone();
             new_path.push((parent_ids.0, parent_ids.1, child_id));
-            BranchBound::_branch_iterate(
+            BranchBound::branch_iterate(
                 self,
                 new_path,
                 new_remaining,
@@ -222,7 +222,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
             self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
         let remaining = (0u32..self.tn.get_tensors().len() as u32).collect();
-        BranchBound::_branch_iterate(self, vec![], remaining, 0, 0);
+        BranchBound::branch_iterate(self, vec![], remaining, 0, 0);
         sub_tensor_contraction.extend_from_slice(&self.best_path);
         self.best_path = sub_tensor_contraction;
     }
