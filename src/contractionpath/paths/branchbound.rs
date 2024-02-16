@@ -194,18 +194,18 @@ impl<'a> OptimizePath for BranchBound<'a> {
         if self.tn.is_empty() {
             return;
         }
-        let mut tensors = self.tn.get_tensors().clone();
+        let tensors = self.tn.get_tensors().clone();
         self.flop_cache.clear();
         self.size_cache.clear();
         self.result_cache.clear();
         self.tensor_cache.clear();
         let mut sub_tensor_contraction = Vec::new();
         // Get the initial space requirements for uncontracted tensors
-        for (index, tensor) in tensors.iter_mut().enumerate() {
+        for (index, mut tensor) in tensors.into_iter().enumerate() {
             // Check that tensor has sub-tensors and doesn't have external legs set
             if !tensor.get_tensors().is_empty() && tensor.get_legs().is_empty() {
                 let mut bb = BranchBound::new(
-                    tensor,
+                    &tensor,
                     self.nbranch,
                     self.cutoff_flops_factor,
                     self.minimize,
@@ -219,9 +219,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
                 .entry(index)
                 .or_insert_with(|| tensor.shape().iter().product::<u64>());
 
-            self.tensor_cache
-                .entry(index)
-                .or_insert_with(|| tensor.clone());
+            self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
         let remaining: Vec<u32> = (0u32..self.tn.get_tensors().len() as u32).collect();
         BranchBound::_branch_iterate(self, vec![], remaining, 0, 0);
