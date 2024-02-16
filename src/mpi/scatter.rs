@@ -213,16 +213,13 @@ pub fn intermediate_reduce_tensor_network(
 }
 
 pub fn naive_reduce_tensor_network(
-    local_tn: Tensor,
+    local_tn: &mut Tensor,
     path: &[ContractionIndex],
     rank: i32,
     size: i32,
     world: &SimpleCommunicator,
-) -> Tensor {
-    let mut new_tn = Tensor::default();
+) {
     if rank == 0 {
-        let bond_dims = local_tn.get_bond_dims().clone();
-        new_tn.push_tensor(local_tn, Some(&bond_dims), None);
         for i in 1..size {
             let (legs, _status) = world.process_at_rank(i).receive_vec::<EdgeIndex>();
             let returned_tensor = Tensor::new(legs);
@@ -231,7 +228,7 @@ pub fn naive_reduce_tensor_network(
             let (data, _status) = world.process_at_rank(i).receive_vec::<Complex64>();
             let tensor_data = TensorData::new_from_flat(shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);
-            new_tn.push_tensor(returned_tensor, None, None);
+            local_tn.push_tensor(returned_tensor, None, None);
         }
     } else {
         let legs = local_tn.get_legs().clone();
@@ -244,29 +241,6 @@ pub fn naive_reduce_tensor_network(
     }
     world.barrier();
     if rank == 0 {
-        contract_tensor_network(&mut new_tn, &path[(size as usize)..path.len()]);
-    }
-    new_tn
-}
-
-pub fn broadcast_path(
-    local_path: &[ContractionIndex],
-    world: &SimpleCommunicator,
-) -> Vec<ContractionIndex> {
-    let root_rank = 0;
-    let root_process = world.process_at_rank(root_rank);
-    let mut path_length = if world.rank() == root_rank {
-        local_path.len()
-    } else {
-        0
-    };
-    root_process.broadcast_into(&mut path_length);
-    if world.rank() != root_rank {
-        let mut buffer = vec![ContractionIndex::Pair(0, 0); path_length];
-        root_process.broadcast_into(&mut buffer);
-        buffer
-    } else {
-        root_process.broadcast_into(&mut local_path.to_vec());
-        local_path.to_vec()
+        contract_tensor_network(local_tn, &path[(size as usize)..path.len()]);
     }
 }
