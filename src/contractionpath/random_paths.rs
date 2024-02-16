@@ -30,9 +30,8 @@ impl RNGChooser for ThermalChooser {
         rel_temperature: bool,
         rng: &mut R,
     ) -> Option<Candidate> {
-        let mut n = 0;
         let mut choices = Vec::new();
-        while !queue.is_empty() && n <= nbranch {
+        while !queue.is_empty() && choices.len() <= nbranch {
             let candidate = queue.pop();
             if let Some(Candidate {
                 flop_cost,
@@ -58,10 +57,9 @@ impl RNGChooser for ThermalChooser {
                     child_id,
                     child_tensor,
                 });
-                n += 1;
             }
         }
-
+        let n = choices.len();
         if n == 0 {
             return None;
         }
