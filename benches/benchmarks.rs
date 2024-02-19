@@ -6,7 +6,7 @@ use tensorcontraction::circuits::connectivity::ConnectivityLayout;
 use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
-use tensorcontraction::mpi::scatter::{
+use tensorcontraction::mpi::communication::{
     intermediate_reduce_tensor_network, naive_reduce_tensor_network, scatter_tensor_network,
 };
 use tensorcontraction::types::ContractionIndex;
