@@ -5,8 +5,6 @@ use std::iter::zip;
 
 use super::tensor::Tensor;
 use crate::types::Vertex;
-
-use kahypar_sys;
 use kahypar_sys::{partition, KaHyParContext};
 
 /// Partitions input tensor network using KaHyPar library.
@@ -101,9 +99,6 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-    use std::path::PathBuf;
-
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
 
