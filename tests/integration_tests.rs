@@ -35,9 +35,8 @@ fn test_partitioned_contraction() {
 }
 
 // Ignored as requires MPI to run
-#[ignore]
 #[test]
-fn test_mpi_partitioned_contraction() {
+fn test_partitioned_contraction_need_mpi() {
     let mut rng = StdRng::seed_from_u64(23);
 
     let universe = mpi::initialize().unwrap();
@@ -53,7 +52,12 @@ fn test_mpi_partitioned_contraction() {
         let k = 5;
         let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
         ref_tn = r_tn.clone();
-        let partitioning = find_partitioning(&r_tn, size, String::from("tests/km1"), true);
+        let partitioning = find_partitioning(
+            &r_tn,
+            size,
+            String::from("tests/km1_kKaHyPar_sea20.ini"),
+            true,
+        );
         partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
@@ -83,9 +87,9 @@ mod test {
     use std::process::Command;
 
     const TESTS: [&str; 3] = [
-        "test_mpi_partitioned_contraction",
-        "test_sendrecv_contraction_index",
-        "test_sendrecv_bond_dims",
+        "test_partitioned_contraction_need_mpi",
+        "test_sendrecv_contraction_index_need_mpi",
+        "test_sendrecv_bond_dims_need_mpi",
     ];
 
     #[test]
@@ -97,12 +101,11 @@ mod test {
                 .arg("cargo")
                 .arg("test")
                 .arg(test)
-                .output();
-            // .spawn()
-            // .expect("Success");
-            println!("status: {:?}", output);
-            // println!("stdout: {:?}", &output.stdout);
-            // println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+                .output()
+                .unwrap()
+                .to_owned()
+                .stdout;
+            assert!(String::from_utf8_lossy(&output).contains("1 passed"));
         }
     }
 }

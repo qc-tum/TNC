@@ -43,8 +43,7 @@ mod tests {
     use mpi::traits::*;
 
     #[test]
-    #[ignore]
-    fn test_sendrecv_contraction_index() {
+    fn test_sendrecv_contraction_index_need_mpi() {
         let universe = mpi::initialize().unwrap();
         let world = universe.world();
         // let size = world.size();
@@ -64,8 +63,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn test_sendrecv_bond_dims() {
+    fn test_sendrecv_bond_dims_need_mpi() {
         let universe = mpi::initialize().unwrap();
         let world = universe.world();
         // let size = world.size();
