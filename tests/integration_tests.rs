@@ -77,3 +77,32 @@ fn test_mpi_partitioned_contraction() {
         assert_eq!(*local_tn.get_tensor_data(), *ref_tn.get_tensor_data());
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::process::Command;
+
+    const TESTS: [&str; 3] = [
+        "test_mpi_partitioned_contraction",
+        "test_sendrecv_contraction_index",
+        "test_sendrecv_bond_dims",
+    ];
+
+    #[test]
+    fn run_mpi_tests() {
+        for test in TESTS {
+            let output = Command::new("mpirun")
+                .arg("-n")
+                .arg("4")
+                .arg("cargo")
+                .arg("test")
+                .arg(test)
+                .output();
+            // .spawn()
+            // .expect("Success");
+            println!("status: {:?}", output);
+            // println!("stdout: {:?}", &output.stdout);
+            // println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        }
+    }
+}
