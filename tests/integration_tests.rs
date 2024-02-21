@@ -34,78 +34,106 @@ fn test_partitioned_contraction() {
     assert_eq!(*ref_tn.get_tensor_data(), *partitioned_tn.get_tensor_data());
 }
 
-// Ignored as requires MPI to run
-#[test]
-fn test_partitioned_contraction_need_mpi() {
-    let mut rng = StdRng::seed_from_u64(23);
-
-    let universe = mpi::initialize().unwrap();
-    let world = universe.world();
-    let size = world.size();
-    let rank = world.rank();
-
-    // let status;
-    let mut partitioned_tn = Tensor::default();
-    let mut path = Vec::new();
-    let mut ref_tn = Tensor::default();
-    if rank == 0 {
-        let k = 5;
-        let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
-        ref_tn = r_tn.clone();
-        let partitioning = find_partitioning(
-            &r_tn,
-            size,
-            String::from("tests/km1_kKaHyPar_sea20.ini"),
-            true,
-        );
-        partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
-        let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
-
-        opt.optimize_path();
-        path = opt.get_best_replace_path();
-    }
-    world.barrier();
-    let (mut local_tn, local_path) =
-        scatter_tensor_network(partitioned_tn, &path, rank, size, &world);
-    contract_tensor_network(&mut local_tn, &local_path);
-
-    naive_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
-    world.barrier();
-
-    if rank == 0 {
-        let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
-
-        ref_opt.optimize_path();
-        let ref_path = ref_opt.get_best_replace_path();
-        contract_tensor_network(&mut ref_tn, &ref_path);
-        assert_eq!(*local_tn.get_tensor_data(), *ref_tn.get_tensor_data());
+/// Given the module path and name of a test function, returns the name as it is
+/// used by cargo test.
+///
+/// # Examples
+/// ```ignore
+/// assert_eq!(make_full_test_name("mycrate", "my_test"), "my_test");
+/// assert_eq!(make_full_test_name("mycrate::foo", "my_test"), "foo::my_test");
+/// assert_eq!(make_full_test_name("mycrate::foo::bar", "my_test"), "foo::bar::my_test");
+/// ```
+pub(crate) fn make_full_test_name(module_path: &str, test_name: &str) -> String {
+    if let Some(idx) = module_path.find("::") {
+        // Not in the root module, remove the root name and concat test name
+        module_path[idx + 2..].to_string() + "::" + test_name
+    } else {
+        // In the root module, only use test name
+        test_name.to_string()
     }
 }
 
-#[cfg(test)]
-mod test {
-    use std::process::Command;
+/// Runs a test using `mpirun` with 4 processes. The test must be passed with as full
+/// name, e.g., `foo::bar::my_test`.
+pub(crate) fn run_mpi_test(test_full_name: &str, processes: usize) {
+    let mut command = std::process::Command::new("mpirun");
+    command
+        .arg("-n")
+        .arg(processes.to_string())
+        .arg("cargo")
+        .arg("test")
+        .arg(test_full_name)
+        .arg("--")
+        .arg("--ignored")
+        .arg("--exact");
+    let output = command.status().expect("failed to execute process");
+    assert!(output.success());
+}
 
-    const TESTS: [&str; 3] = [
-        "test_partitioned_contraction_need_mpi",
-        "test_sendrecv_contraction_index_need_mpi",
-        "test_sendrecv_bond_dims_need_mpi",
-    ];
+#[macro_export]
+macro_rules! mpi_test {
+    ($processes:expr, fn $name:ident $_:tt $body:block) => {
+        paste::paste! {
+            #[test]
+            fn $name() {
+                let full_path = module_path!();
+                let test_name = concat!(stringify!($name), "_internal");
+                let exact_name = make_full_test_name(full_path, test_name);
+                run_mpi_test(&exact_name, $processes);
+            }
 
-    #[test]
-    fn run_mpi_tests() {
-        for test in TESTS {
-            let output = Command::new("mpirun")
-                .arg("-n")
-                .arg("4")
-                .arg("cargo")
-                .arg("test")
-                .arg(test)
-                .output()
-                .unwrap()
-                .to_owned()
-                .stdout;
-            assert!(String::from_utf8_lossy(&output).contains("1 passed"));
+            #[test]
+            #[ignore]
+            fn [<$name _internal>]() $body
+        }
+    };
+}
+
+mpi_test!(
+    4,
+    fn test_partitioned_contraction_need_mpi() {
+        let mut rng = StdRng::seed_from_u64(23);
+
+        let universe = mpi::initialize().unwrap();
+        let world = universe.world();
+        let size = world.size();
+        let rank = world.rank();
+
+        // let status;
+        let mut partitioned_tn = Tensor::default();
+        let mut path = Vec::new();
+        let mut ref_tn = Tensor::default();
+        if rank == 0 {
+            let k = 5;
+            let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+            ref_tn = r_tn.clone();
+            let partitioning = find_partitioning(
+                &r_tn,
+                size,
+                String::from("tests/km1_kKaHyPar_sea20.ini"),
+                true,
+            );
+            partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+            let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+
+            opt.optimize_path();
+            path = opt.get_best_replace_path();
+        }
+        world.barrier();
+        let (mut local_tn, local_path) =
+            scatter_tensor_network(partitioned_tn, &path, rank, size, &world);
+        contract_tensor_network(&mut local_tn, &local_path);
+
+        naive_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
+        world.barrier();
+
+        if rank == 0 {
+            let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
+
+            ref_opt.optimize_path();
+            let ref_path = ref_opt.get_best_replace_path();
+            contract_tensor_network(&mut ref_tn, &ref_path);
+            assert_eq!(*local_tn.get_tensor_data(), *ref_tn.get_tensor_data());
         }
     }
-}
+);
