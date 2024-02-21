@@ -42,27 +42,30 @@ mod tests {
     use crate::{mpi_test, path};
     use mpi::traits::*;
 
-    #[test]
-    fn test_sendrecv_contraction_index_need_mpi() {
-        let universe = mpi::initialize().unwrap();
-        let world = universe.world();
-        // let size = world.size();
-        let rank = world.rank();
-        let root_process = world.process_at_rank(0);
+    mpi_test!(
+        2,
+        fn test_sendrecv_contraction_index_need_mpi() {
+            let universe = mpi::initialize().unwrap();
+            let world = universe.world();
+            // let size = world.size();
+            let rank = world.rank();
+            let root_process = world.process_at_rank(0);
 
-        let contraction_indices = if rank == 0 {
-            let mut contraction_indices = path![(0, 4), (1, 5), (2, 6)];
-            root_process.broadcast_into(&mut contraction_indices);
-            contraction_indices
-        } else {
-            let mut contraction_indices = vec![ContractionIndex::Pair(0, 0); 3];
-            root_process.broadcast_into(&mut contraction_indices);
-            contraction_indices
-        };
-        assert_eq!(contraction_indices, path![(0, 4), (1, 5), (2, 6)]);
-    }
+            let contraction_indices = if rank == 0 {
+                let mut contraction_indices = path![(0, 4), (1, 5), (2, 6)];
+                root_process.broadcast_into(&mut contraction_indices);
+                contraction_indices
+            } else {
+                let mut contraction_indices = vec![ContractionIndex::Pair(0, 0); 3];
+                root_process.broadcast_into(&mut contraction_indices);
+                contraction_indices
+            };
+            assert_eq!(contraction_indices, path![(0, 4), (1, 5), (2, 6)]);
+        }
+    );
 
     mpi_test!(
+        2,
         fn test_sendrecv_bond_dims_need_mpi() {
             let universe = mpi::initialize().unwrap();
             let world = universe.world();

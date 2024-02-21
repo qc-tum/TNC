@@ -19,11 +19,11 @@ pub(crate) fn make_full_test_name(module_path: &str, test_name: &str) -> String 
 
 /// Runs a test using `mpirun` with 4 processes. The test must be passed with as full
 /// name, e.g., `foo::bar::my_test`.
-pub(crate) fn run_mpi_test(test_full_name: &str) {
+pub(crate) fn run_mpi_test(test_full_name: &str, processes: usize) {
     let mut command = std::process::Command::new("mpirun");
     command
         .arg("-n")
-        .arg("4")
+        .arg(processes.to_string())
         .arg("cargo")
         .arg("test")
         .arg(test_full_name)
@@ -37,14 +37,14 @@ pub(crate) fn run_mpi_test(test_full_name: &str) {
 
 #[macro_export]
 macro_rules! mpi_test {
-    (fn $name:ident $_:tt $body:block) => {
+    ($processes:expr, fn $name:ident $_:tt $body:block) => {
         paste::paste! {
             #[test]
             fn $name() {
                 let full_path = module_path!();
                 let test_name = concat!(stringify!($name), "_internal");
                 let exact_name = $crate::mpi::testing::make_full_test_name(full_path, test_name);
-                $crate::mpi::testing::run_mpi_test(&exact_name);
+                $crate::mpi::testing::run_mpi_test(&exact_name, $processes);
             }
 
             #[test]
