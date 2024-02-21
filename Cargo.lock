@@ -1576,6 +1576,7 @@ dependencies = [
  "mpi",
  "ndarray",
  "num-complex",
+ "paste",
  "permutation",
  "rand",
  "random",

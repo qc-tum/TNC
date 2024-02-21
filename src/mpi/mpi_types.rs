@@ -38,8 +38,8 @@ unsafe impl Equivalence for ContractionIndex {
 mod tests {
 
     use crate::mpi::mpi_types::BondDim;
-    use crate::path;
     use crate::types::ContractionIndex;
+    use crate::{mpi_test, path};
     use mpi::traits::*;
 
     #[test]
@@ -62,33 +62,34 @@ mod tests {
         assert_eq!(contraction_indices, path![(0, 4), (1, 5), (2, 6)]);
     }
 
-    #[test]
-    fn test_sendrecv_bond_dims_need_mpi() {
-        let universe = mpi::initialize().unwrap();
-        let world = universe.world();
-        // let size = world.size();
-        let rank = world.rank();
-        let root_process = world.process_at_rank(0);
+    mpi_test!(
+        fn test_sendrecv_bond_dims_need_mpi() {
+            let universe = mpi::initialize().unwrap();
+            let world = universe.world();
+            // let size = world.size();
+            let rank = world.rank();
+            let root_process = world.process_at_rank(0);
 
-        let bond_dims = if rank == 0 {
-            let mut bond_dims = vec![
+            let bond_dims = if rank == 0 {
+                let mut bond_dims = vec![
+                    BondDim::new(10, 24),
+                    BondDim::new(31, 55),
+                    BondDim::new(27, 126),
+                ];
+                root_process.broadcast_into(&mut bond_dims);
+                bond_dims
+            } else {
+                let mut bond_dims = vec![BondDim::default(); 3];
+                root_process.broadcast_into(&mut bond_dims);
+                bond_dims
+            };
+            let bond_dims_ref = vec![
                 BondDim::new(10, 24),
                 BondDim::new(31, 55),
                 BondDim::new(27, 126),
             ];
-            root_process.broadcast_into(&mut bond_dims);
-            bond_dims
-        } else {
-            let mut bond_dims = vec![BondDim::default(); 3];
-            root_process.broadcast_into(&mut bond_dims);
-            bond_dims
-        };
-        let bond_dims_ref = vec![
-            BondDim::new(10, 24),
-            BondDim::new(31, 55),
-            BondDim::new(27, 126),
-        ];
 
-        assert_eq!(bond_dims, bond_dims_ref);
-    }
+            assert_eq!(bond_dims, bond_dims_ref);
+        }
+    );
 }
