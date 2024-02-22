@@ -60,6 +60,7 @@ pub(crate) fn run_mpi_test(test_full_name: &str, processes: usize) {
     command
         .arg("-n")
         .arg(processes.to_string())
+        .arg("--allow-run-as-root")
         .arg("cargo")
         .arg("test")
         .arg(test_full_name)
