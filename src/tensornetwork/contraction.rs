@@ -373,11 +373,11 @@ mod tests {
         let mut tout = Tensor::new(vec![5, 4, 1]);
         let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
 
-        t1.set_bond_dims(&bond_dims);
-        t2.set_bond_dims(&bond_dims);
-        t3.set_bond_dims(&bond_dims);
+        t1.insert_bond_dims(&bond_dims);
+        t2.insert_bond_dims(&bond_dims);
+        t3.insert_bond_dims(&bond_dims);
 
-        tout.set_bond_dims(&bond_dims);
+        tout.insert_bond_dims(&bond_dims);
         let edges = tout.get_mut_edges();
         edges
             .entry(5)
