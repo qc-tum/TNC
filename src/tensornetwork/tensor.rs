@@ -1,5 +1,6 @@
 use array_tool::vec::{Intersect, Union};
 use core::ops::{BitAnd, BitOr, BitXor, Sub};
+use itertools::Itertools;
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::fmt;
@@ -708,7 +709,7 @@ impl Tensor {
                 tensor.clone()
             };
             let tensor_union = &ext_edges | &tensor_legs;
-            let counter = count_edges(tensor_union.get_legs().iter());
+            let counter = tensor_union.get_legs().iter().counts();
             ext_edges = &ext_edges ^ &tensor_legs;
             for leg in tensor_union.get_legs().iter() {
                 // Check if hyperedges are being contracted, if so, only append once to output tensor
@@ -721,20 +722,6 @@ impl Tensor {
         }
         ext_edges.get_legs().clone()
     }
-}
-
-fn count_edges<I>(it: I) -> HashMap<I::Item, usize>
-where
-    I: IntoIterator,
-    I::Item: Eq + core::hash::Hash,
-{
-    let mut result = HashMap::new();
-
-    for item in it {
-        *result.entry(item).or_insert(0) += 1;
-    }
-
-    result
 }
 
 /// Implementation of indexing for Tensor.
