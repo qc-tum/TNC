@@ -753,13 +753,6 @@ impl Index<usize> for Tensor {
     }
 }
 
-/// Implementation of indexing of mutable Tensor object.
-impl IndexMut<usize> for Tensor {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.legs[index]
-    }
-}
-
 impl BitOr for &Tensor {
     type Output = Tensor;
     fn bitor(self, rhs: &Tensor) -> Tensor {
