@@ -189,7 +189,7 @@ impl<'a> BranchBound<'a> {
 
 impl<'a> OptimizePath for BranchBound<'a> {
     fn optimize_path(&mut self) {
-        if self.tn.is_empty() {
+        if self.tn.is_tensornetwork() {
             return;
         }
         let tensors = self.tn.get_tensors().clone();

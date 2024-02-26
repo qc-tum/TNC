@@ -391,9 +391,9 @@ impl Tensor {
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let tensor = Tensor::new(Vec::from([1,2,3]));
-    /// assert_eq!(tensor.is_empty(), true);
+    /// assert_eq!(tensor.is_tensornetwork(), true);
     /// ```
-    pub fn is_empty(&self) -> bool {
+    pub fn is_tensornetwork(&self) -> bool {
         self.tensors.is_empty()
     }
 
