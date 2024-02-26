@@ -464,15 +464,12 @@ fn populate_remaining_tensors(
             .entry(tensor_hash)
             .or_insert_with(|| v.clone());
         // greedily calculate inner products
-        let entry = remaining_tensors
-            .entry(tensor_hash)
-            .and_modify(|e| {
-                *e = *next_ssa_id;
-                *next_ssa_id += 1;
-            })
-            .or_insert_with(|| ssa_id);
-        if *entry != ssa_id {
-            ssa_path.push(pair!(*entry, ssa_id))
+        if let Some(x) = remaining_tensors.get_mut(&tensor_hash) {
+            ssa_path.push(pair!(*x, ssa_id));
+            *x = *next_ssa_id;
+            *next_ssa_id += 1;
+        } else {
+            remaining_tensors.insert(tensor_hash, ssa_id);
         }
     }
     (remaining_tensors, hash_to_tensor, ssa_path, *next_ssa_id)
