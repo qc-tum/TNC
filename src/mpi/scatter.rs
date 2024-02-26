@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::iter::zip;
+use std::os::unix::ffi::OsStrExt;
+use std::path::PathBuf;
 
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::*;
@@ -70,7 +72,9 @@ pub fn scatter_tensor_network(
                     }
                     TensorData::File(file_name) => {
                         world.process_at_rank(i).send(&1_i32);
-                        world.process_at_rank(i).send(file_name.as_bytes());
+                        world
+                            .process_at_rank(i)
+                            .send(file_name.as_os_str().as_bytes());
                     }
                     TensorData::Gate((gate_name, angles)) => {
                         world.process_at_rank(i).send(&2_i32);
@@ -104,7 +108,7 @@ pub fn scatter_tensor_network(
                 0 => {}
                 1 => {
                     let (file_name, _status) = world.any_process().receive::<u8>();
-                    tensor_data = TensorData::File(file_name.to_string());
+                    tensor_data = TensorData::File(PathBuf::from(file_name.to_string()));
                 }
                 2 => {
                     let (gate_name, _status) = world.any_process().receive_vec::<u8>();

@@ -1,4 +1,4 @@
-use std::iter::zip;
+use std::{iter::zip, path::PathBuf};
 
 use float_cmp::approx_eq;
 use itertools::Itertools;
@@ -7,7 +7,7 @@ use tetra::{Layout, Tensor as DataTensor};
 
 #[derive(Debug, Clone)]
 pub enum TensorData {
-    File(String),
+    File(PathBuf),
     Gate((&'static str, Vec<f64>)),
     Matrix(DataTensor),
     Empty,
@@ -18,7 +18,7 @@ impl Eq for TensorData {}
 impl PartialEq for TensorData {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::File(l0), Self::File(r0)) => l0.to_lowercase() == r0.to_lowercase(),
+            (Self::File(l0), Self::File(r0)) => l0 == r0,
             (Self::Gate((l0, angles_l)), Self::Gate((r0, angles_r))) => {
                 if l0.to_lowercase() != r0.to_lowercase() {
                     return false;

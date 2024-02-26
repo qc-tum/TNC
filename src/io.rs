@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use hdf5::{File, Result};
 use num_complex::Complex64;
@@ -7,8 +7,8 @@ use tetra::Tensor as DataTensor;
 
 use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
 
-pub fn load_tensor(filename: &String) -> Result<Tensor> {
-    let file = File::open(filename)?;
+pub fn load_tensor(filename: &PathBuf) -> Result<Tensor> {
+    let file = File::open(PathBuf::from(filename))?;
     let gr = file.group("/tensors")?;
     let tensor_names = gr.member_names()?;
     // let mut bond_dims = HashMap::<usize, u64>::new();
@@ -51,7 +51,7 @@ pub fn load_tensor(filename: &String) -> Result<Tensor> {
     Ok(new_tensor_network)
 }
 
-pub fn load_data(filename: &String) -> Result<DataTensor> {
+pub fn load_data(filename: &PathBuf) -> Result<DataTensor> {
     let file = File::open(filename)?;
     let gr = file.group("/tensors")?;
     let tensor_name = gr.member_names()?;
@@ -75,7 +75,13 @@ pub fn load_data(filename: &String) -> Result<DataTensor> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, fs, iter::zip, panic, path::Path};
+    use std::{
+        collections::HashMap,
+        fs,
+        iter::zip,
+        panic,
+        path::{Path, PathBuf},
+    };
 
     use float_cmp::assert_approx_eq;
     use hdf5::{AttributeBuilder, Error, File};
@@ -166,7 +172,7 @@ mod tests {
 
     fn load_data_test() {
         let _ = write_hdf5_data();
-        let tensor_data = load_data(&String::from(DATA_TEST_FILE)).unwrap();
+        let tensor_data = load_data(&PathBuf::from(DATA_TEST_FILE)).unwrap();
         let ref_data = array![
             Complex64::new(1.0, 0.0),
             Complex64::new(0.0, 2.0),
@@ -196,7 +202,7 @@ mod tests {
         ));
         ref_tn.push_tensor(ref_tensor, Some(&HashMap::from([(0, 2), (1, 2)])), None);
         ref_tn.set_legs(vec![0, 1]);
-        let tensor = load_tensor(&String::from(TENSOR_TEST_FILE)).unwrap();
+        let tensor = load_tensor(&PathBuf::from(TENSOR_TEST_FILE)).unwrap();
         assert_eq!(tensor, ref_tn);
     }
 }
