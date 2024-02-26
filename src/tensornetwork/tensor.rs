@@ -4,7 +4,7 @@ use itertools::Itertools;
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::ops::{Index, IndexMut};
+use std::ops::Index;
 use std::rc::Rc;
 
 use crate::types::*;
@@ -43,7 +43,7 @@ impl PartialEq for Tensor {
 }
 
 impl Hash for Tensor {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         self.legs.hash(state);
     }
 }
