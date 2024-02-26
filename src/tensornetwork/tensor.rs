@@ -3,7 +3,7 @@ use core::ops::{BitAnd, BitOr, BitXor, Sub};
 use itertools::Itertools;
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::ops::Index;
 use std::rc::Rc;
 
