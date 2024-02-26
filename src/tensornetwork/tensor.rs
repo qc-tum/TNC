@@ -580,7 +580,7 @@ impl Tensor {
     /// Partitions tensor network using the provided partitioning vector
     /// Only allows single layer of partitioning
     pub fn partition(&mut self, partitioning: &[usize]) {
-        assert!(partitioning.len() == self.tensors.len());
+        assert_eq!(partitioning.len(), self.tensors.len());
         let mut partitions = partitioning.to_owned();
 
         partitions.dedup();
