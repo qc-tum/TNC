@@ -500,7 +500,7 @@ impl Tensor {
     // If existing edges are introduced, assume that a contraction occurs between them
     // Otherwise, introduce a new open vertex in edges
     pub(crate) fn update_tensor(&mut self, tensor: &mut Tensor) {
-        tensor.bond_dims = Rc::clone(&self.bond_dims);
+        tensor.bond_dims = Arc::clone(&self.bond_dims);
         let shared_bond_dims = self.bond_dims.borrow();
 
         // Index is current length as tensor is pushed after.

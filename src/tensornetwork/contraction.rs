@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::RangeBounds, path::PathBuf, rc::Rc};
+use std::{collections::HashMap, ops::RangeBounds, sync::Arc};
 
 use tetra::{contract, Tensor as DataTensor};
 
@@ -139,7 +139,7 @@ impl TensorContraction for Tensor {
             });
         }
         let mut new_tensor = Tensor::new(tensor_symmetric_difference.get_legs().clone());
-        new_tensor.bond_dims = Rc::clone(&self.bond_dims);
+        new_tensor.bond_dims = Arc::clone(&self.bond_dims);
         new_tensor.set_tensor_data(TensorData::Matrix(contract(
             tensor_symmetric_difference
                 .get_legs()
