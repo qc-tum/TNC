@@ -737,13 +737,6 @@ where
     result
 }
 
-/// Implementation of printing for Tensor. Simply prints the legs as a vector
-impl fmt::Display for Tensor {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.legs)
-    }
-}
-
 /// Implementation of indexing for Tensor.
 impl Index<usize> for Tensor {
     type Output = usize;
