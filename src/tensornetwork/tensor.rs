@@ -701,7 +701,7 @@ impl Tensor {
             return self.get_legs().clone();
         }
 
-        let mut ext_edges = Tensor::new(Vec::<usize>::new());
+        let mut ext_edges = Tensor::new(Vec::new());
         for tensor in self.tensors.iter() {
             let tensor_legs = Tensor::new(tensor.get_external_edges());
             let tensor_union = &ext_edges | &tensor_legs;
