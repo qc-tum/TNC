@@ -7,7 +7,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::Index;
 use std::sync::Arc;
 
-use crate::types::*;
+use crate::types::{EdgeIndex, Vertex};
 
 use super::tensordata::TensorData;
 
