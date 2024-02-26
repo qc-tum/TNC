@@ -115,9 +115,12 @@ impl<'a> Greedy<'a> {
         queue: &mut BinaryHeap<Candidate>,
         cost_function: &CostFnType,
     ) {
-        let mut candidates = Vec::new();
+        // Currently accepts all possible candidates.
+        // Commented code from when only most optimal candidate chosen.
+        // Should this be implemented?
+        // let mut candidates = Vec::new();
         for k2 in k2s {
-            candidates.push(Greedy::get_candidate(
+            queue.push(Greedy::get_candidate(
                 output,
                 remaining_tensors,
                 tensor_mem_size,
@@ -127,9 +130,10 @@ impl<'a> Greedy<'a> {
                 cost_function,
             ));
         }
-        for candidate in candidates {
-            queue.push(candidate);
-        }
+
+        // for candidate in candidates {
+        //     queue.push(candidate);
+        // }
     }
 
     #[allow(clippy::too_many_arguments)]
