@@ -426,7 +426,7 @@ impl Tensor {
             self.set_legs(tensor.get_legs().clone());
             self.set_tensor_data(tensor.get_tensor_data().clone());
             if let Some(bond_dims) = bond_dims {
-                self._update_bond_dims(bond_dims);
+                self.update_bond_dims(bond_dims);
             };
             if let Some(external_hyperedge) = external_hyperedge {
                 self.update_external_edges(external_hyperedge);
@@ -448,7 +448,7 @@ impl Tensor {
             self.set_legs(vec![]);
         }
         if let Some(bond_dims) = bond_dims {
-            self._update_bond_dims(bond_dims);
+            self.update_bond_dims(bond_dims);
         };
         if let Some(external_hyperedge) = external_hyperedge {
             self.update_external_edges(external_hyperedge);
@@ -480,7 +480,7 @@ impl Tensor {
             self.set_tensor_data(TensorData::Uncontracted);
         }
         if let Some(bond_dims) = bond_dims {
-            self._update_bond_dims(bond_dims);
+            self.update_bond_dims(bond_dims);
         };
         if let Some(external_hyperedge) = external_hyperedge {
             self.update_external_edges(external_hyperedge);
@@ -493,7 +493,7 @@ impl Tensor {
 
     // Internal method to update bond dimensions based on `bond_dims`. Only incorporates missing dimensions,
     // existing keys are not changed.
-    fn _update_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
+    fn update_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
         let mut shared_bond_dims = self.bond_dims.borrow_mut();
         for (key, value) in bond_dims.iter() {
             shared_bond_dims.entry(*key).or_insert(*value);
