@@ -152,8 +152,8 @@ impl Tensor {
     /// ]);
     /// let mut tn = Tensor::default();
     /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
-    /// v1.set_bond_dims(&bond_dims);
-    /// v2.set_bond_dims(&bond_dims);
+    /// v1.insert_bond_dims(&bond_dims);
+    /// v2.insert_bond_dims(&bond_dims);
     /// assert_eq!(*tn.get_tensors(), vec![v1, v2]);
     /// ```
     pub fn get_tensors(&self) -> &Vec<Tensor> {
@@ -175,9 +175,9 @@ impl Tensor {
     /// ]);
     /// let mut tn = Tensor::default();
     /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
-    /// tn.set_bond_dims(&bond_dims);
+    /// tn.insert_bond_dims(&bond_dims);
     /// let mut ref_tensor = Tensor::new(vec![0,1]);
-    /// ref_tensor.set_bond_dims(&bond_dims);
+    /// ref_tensor.insert_bond_dims(&bond_dims);
     /// assert_eq!(*tn.get_tensor(0), ref_tensor);
     /// ```
     pub fn get_tensor(&self, i: usize) -> &Tensor {
@@ -199,8 +199,8 @@ impl Tensor {
     /// ]);
     /// let mut tn = Tensor::default();
     /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
-    /// v1.set_bond_dims(&bond_dims);
-    /// v2.set_bond_dims(&bond_dims);
+    /// v1.insert_bond_dims(&bond_dims);
+    /// v2.insert_bond_dims(&bond_dims);
     /// assert!(tn.tensor_iter().eq(vec![v1, v2].iter()));
     /// ```
     pub fn tensor_iter(&self) -> std::slice::Iter<'_, Tensor> {
@@ -223,7 +223,7 @@ impl Tensor {
     /// let tn = create_tensor_network(vec![v1,v2], &bond_dims, None);
     /// assert_eq!(*tn.get_bond_dims(), bond_dims);
     /// ```
-    pub fn get_bond_dims(&self) -> std::cell::Ref<std::collections::HashMap<EdgeIndex, u64>> {
+    pub fn get_bond_dims(&self) -> std::cell::Ref<HashMap<EdgeIndex, u64>> {
         self.bond_dims.borrow()
     }
 
@@ -243,10 +243,10 @@ impl Tensor {
     /// let mut tn = Tensor::default();
     /// tn.push_tensors(vec![v1,v2], Some(&bond_dims), None);
     /// assert_eq!(*tn.get_bond_dims(), bond_dims);
-    /// tn.set_bond_dim(1, 12);
+    /// tn.insert_bond_dim(1, 12);
     /// assert_ne!(*tn.get_bond_dims(), bond_dims);
     /// ```
-    pub fn set_bond_dim(&mut self, k: EdgeIndex, v: u64) {
+    pub fn insert_bond_dim(&mut self, k: EdgeIndex, v: u64) {
         self.bond_dims
             .borrow_mut()
             .entry(k)
@@ -270,10 +270,10 @@ impl Tensor {
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
     /// let mut tn = create_tensor_network(vec![v1,v2], &bond_dims, None);
-    /// tn.set_bond_dims(&HashMap::from([(1, 12), (0, 5)]));
+    /// tn.insert_bond_dims(&HashMap::from([(1, 12), (0, 5)]));
     /// assert_eq!(*tn.get_bond_dims(), HashMap::from([(0, 5), (1, 12), (2, 8)]) );
     /// ```
-    pub fn set_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
+    pub fn insert_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
         for (k, v) in bond_dims {
             self.bond_dims
                 .borrow_mut()
@@ -323,7 +323,7 @@ impl Tensor {
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
     /// let mut tensor = Tensor::new(vec.clone()) ;
-    /// tensor.set_bond_dims(&bond_dims);
+    /// tensor.insert_bond_dims(&bond_dims);
     ///
     /// assert_eq!(tensor.shape(), vec![17, 19, 8]);
     /// ```
@@ -362,7 +362,7 @@ impl Tensor {
     /// let bond_dims = HashMap::from([(1, 5),
     /// (2, 15),
     /// (3, 8)]);
-    /// tensor.set_bond_dims(&bond_dims);
+    /// tensor.insert_bond_dims(&bond_dims);
     /// assert_eq!(tensor.size(), 600);
     /// ```
     pub fn size(&self) -> u64 {
@@ -620,7 +620,7 @@ impl Tensor {
     /// ```
     pub fn union(&self, other: &Tensor) -> Tensor {
         let mut new_tn = Tensor::new(self.get_legs().union(other.get_legs().clone()));
-        new_tn.set_bond_dims(&self.get_bond_dims());
+        new_tn.insert_bond_dims(&self.get_bond_dims());
         new_tn
     }
 
@@ -641,7 +641,7 @@ impl Tensor {
     /// ```
     pub fn intersection(&self, other: &Tensor) -> Tensor {
         let mut new_tn = Tensor::new(self.get_legs().intersect(other.get_legs().clone()));
-        new_tn.set_bond_dims(&self.get_bond_dims());
+        new_tn.insert_bond_dims(&self.get_bond_dims());
         new_tn
     }
 
@@ -673,7 +673,7 @@ impl Tensor {
             }
         }
         let mut new_tn = Tensor::new(new_legs);
-        new_tn.set_bond_dims(&self.get_bond_dims());
+        new_tn.insert_bond_dims(&self.get_bond_dims());
         new_tn
     }
 
@@ -779,7 +779,7 @@ mod tests {
         ]);
 
         let mut ref_tensor_1 = Tensor::new(vec![4, 3, 2]);
-        ref_tensor_1.set_bond_dims(&reference_bond_dims_1);
+        ref_tensor_1.insert_bond_dims(&reference_bond_dims_1);
         ref_tensor_1.set_tensor_data(TensorData::new_from_data(
             ref_tensor_1.shape(),
             vec![Complex64::new(5.0, 3.0); 187],
@@ -787,10 +787,10 @@ mod tests {
         ));
 
         let mut ref_tensor_2 = Tensor::new(vec![8, 4, 9]);
-        ref_tensor_2.set_bond_dims(&reference_bond_dims_2);
+        ref_tensor_2.insert_bond_dims(&reference_bond_dims_2);
 
         let mut ref_tensor_3 = Tensor::new(vec![7, 10, 2]);
-        ref_tensor_3.set_bond_dims(&reference_bond_dims_3);
+        ref_tensor_3.insert_bond_dims(&reference_bond_dims_3);
 
         let mut tensor = ref_tensor_1.clone();
 
@@ -815,7 +815,7 @@ mod tests {
         for (key, value) in tensor.get_bond_dims().iter() {
             assert_eq!(reference_bond_dims_3[key], *value);
         }
-        ref_tensor_2.set_bond_dims(&reference_bond_dims_3);
+        ref_tensor_2.insert_bond_dims(&reference_bond_dims_3);
         assert_eq!(
             tensor.get_tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3]
@@ -848,7 +848,7 @@ mod tests {
         ]);
 
         let mut ref_tensor_1 = Tensor::new(vec![4, 3, 2]);
-        ref_tensor_1.set_bond_dims(&reference_bond_dims_1);
+        ref_tensor_1.insert_bond_dims(&reference_bond_dims_1);
         ref_tensor_1.set_tensor_data(TensorData::new_from_data(
             ref_tensor_1.shape(),
             vec![Complex64::new(5.0, 3.0); 187],
@@ -856,10 +856,10 @@ mod tests {
         ));
 
         let mut ref_tensor_2 = Tensor::new(vec![8, 4, 9]);
-        ref_tensor_2.set_bond_dims(&reference_bond_dims_3);
+        ref_tensor_2.insert_bond_dims(&reference_bond_dims_3);
 
         let mut ref_tensor_3 = Tensor::new(vec![7, 10, 2]);
-        ref_tensor_3.set_bond_dims(&reference_bond_dims_3);
+        ref_tensor_3.insert_bond_dims(&reference_bond_dims_3);
 
         let mut tensor = ref_tensor_1.clone();
 
