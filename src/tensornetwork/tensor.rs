@@ -577,25 +577,6 @@ impl Tensor {
         *td = tensordata;
     }
 
-    /// Partitions tensor network using the provided partitioning vector
-    /// Only allows single layer of partitioning
-    pub fn partition(&mut self, partitioning: &[usize]) {
-        assert_eq!(partitioning.len(), self.tensors.len());
-        let mut partitions = partitioning.to_owned();
-
-        partitions.dedup();
-        let partition_map: HashMap<&usize, usize> =
-            HashMap::from_iter(std::iter::zip(partitions.iter(), 0..self.tensors.len()));
-        let mut new_tensors = vec![Tensor::default(); self.tensors.len()];
-        for (partition, tensor) in
-            std::iter::zip(partitioning.iter().rev(), self.tensors.iter().rev())
-        {
-            new_tensors[partition_map[partition]].push_tensor(tensor.clone(), None, None);
-        }
-
-        self.tensors = new_tensors;
-    }
-
     /// Returns Tensor with legs in `self` that are not in `other`.
     ///
     /// # Arguments
