@@ -11,7 +11,7 @@ use crate::types::*;
 
 use super::tensordata::TensorData;
 
-#[derive(Debug, Eq)]
+#[derive(Debug, Eq, Clone)]
 /// Abstract representation of a tensor.
 pub struct Tensor {
     pub(crate) tensors: Vec<Tensor>,
@@ -45,20 +45,6 @@ impl PartialEq for Tensor {
 impl Hash for Tensor {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.legs.hash(state);
-    }
-}
-
-impl Clone for Tensor {
-    fn clone(&self) -> Self {
-        Self {
-            tensors: self.tensors.clone(),
-            legs: self.legs.clone(),
-            //Ensure only pointer is cloned
-            bond_dims: Rc::clone(&self.bond_dims),
-            //Ensure only pointer is cloned
-            edges: self.edges.clone(),
-            tensordata: self.tensordata.clone(),
-        }
     }
 }
 
