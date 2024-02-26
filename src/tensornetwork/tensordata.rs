@@ -24,7 +24,7 @@ impl PartialEq for TensorData {
                     return false;
                 }
                 for (angle1, angle2) in zip(angles_l.iter(), angles_r.iter()) {
-                    if angle1 != angle2 {
+                    if !approx_eq!(f64, *angle1, *angle2, ulps = 2) {
                         return false;
                     }
                 }
