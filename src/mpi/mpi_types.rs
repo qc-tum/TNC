@@ -7,9 +7,9 @@ use mpi::{
 use crate::types::ContractionIndex;
 
 #[derive(Default, Debug, Clone, Equivalence, PartialEq)]
-pub(crate) struct BondDim {
-    pub(crate) bond_id: usize,
-    pub(crate) bond_size: u64,
+pub(super) struct BondDim {
+    pub(super) bond_id: usize,
+    pub(super) bond_size: u64,
 }
 
 impl BondDim {
