@@ -515,7 +515,7 @@ impl<'a> OptimizePath for Greedy<'a> {
         let mut rng: StdRng = StdRng::seed_from_u64(24);
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.is_composite() {
-                let external_legs = input_tensor.get_external_edges().clone();
+                let external_legs = input_tensor.get_external_edges();
                 let path = self.ssa_greedy_optimize(
                     input_tensor.get_tensors(),
                     &Tensor::new(external_legs.clone()),
