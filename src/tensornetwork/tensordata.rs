@@ -50,7 +50,7 @@ impl PartialEq for TensorData {
 }
 
 impl TensorData {
-    pub fn new_from_flat(
+    pub fn new_from_data(
         dimensions: Vec<u64>,
         data: Vec<Complex64>,
         layout: Option<Layout>,

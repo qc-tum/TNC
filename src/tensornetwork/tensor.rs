@@ -818,7 +818,7 @@ mod tests {
 
         let mut ref_tensor_1 = Tensor::new(vec![4, 3, 2]);
         ref_tensor_1.set_bond_dims(&reference_bond_dims_1);
-        ref_tensor_1.set_tensor_data(TensorData::new_from_flat(
+        ref_tensor_1.set_tensor_data(TensorData::new_from_data(
             ref_tensor_1.shape(),
             vec![Complex64::new(5.0, 3.0); 187],
             None,
@@ -887,7 +887,7 @@ mod tests {
 
         let mut ref_tensor_1 = Tensor::new(vec![4, 3, 2]);
         ref_tensor_1.set_bond_dims(&reference_bond_dims_1);
-        ref_tensor_1.set_tensor_data(TensorData::new_from_flat(
+        ref_tensor_1.set_tensor_data(TensorData::new_from_data(
             ref_tensor_1.shape(),
             vec![Complex64::new(5.0, 3.0); 187],
             None,

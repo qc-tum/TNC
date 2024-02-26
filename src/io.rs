@@ -190,7 +190,7 @@ mod tests {
         let mut ref_tn = Tensor::default();
         let ref_tensor = Tensor::new(vec![0, 1]);
 
-        ref_tensor.set_tensor_data(TensorData::new_from_flat(
+        ref_tensor.set_tensor_data(TensorData::new_from_data(
             vec![2, 2],
             vec![
                 Complex64::new(1.0, 0.0),

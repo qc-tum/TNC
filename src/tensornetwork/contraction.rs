@@ -393,23 +393,23 @@ mod tests {
 
         let (d1, d2, d3, dout) = setup();
 
-        t1.set_tensor_data(TensorData::new_from_flat(
+        t1.set_tensor_data(TensorData::new_from_data(
             t1.shape(),
             d1,
             Some(Layout::RowMajor),
         ));
 
-        t2.set_tensor_data(TensorData::new_from_flat(
+        t2.set_tensor_data(TensorData::new_from_data(
             t2.shape(),
             d2,
             Some(Layout::RowMajor),
         ));
-        t3.set_tensor_data(TensorData::new_from_flat(
+        t3.set_tensor_data(TensorData::new_from_data(
             t3.shape(),
             d3,
             Some(Layout::RowMajor),
         ));
-        tout.set_tensor_data(TensorData::new_from_flat(
+        tout.set_tensor_data(TensorData::new_from_data(
             tout.shape(),
             dout,
             Some(Layout::RowMajor),

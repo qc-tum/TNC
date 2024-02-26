@@ -121,7 +121,7 @@ pub fn scatter_tensor_network(
                     let (shape, _status) = world.any_process().receive_vec::<u32>();
                     let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
                     let (data, _status) = world.any_process().receive_vec::<Complex64>();
-                    tensor_data = TensorData::new_from_flat(shape, data, None);
+                    tensor_data = TensorData::new_from_data(shape, data, None);
                 }
                 _ => {
                     panic!("Unrecognized data type");
@@ -158,7 +158,7 @@ pub fn intermediate_reduce_tensor_network(
                 let (shape, _status) = world.process_at_rank(sender).receive_vec::<u32>();
                 let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
                 let (data, _status) = world.process_at_rank(sender).receive_vec::<Complex64>();
-                let tensor_data = TensorData::new_from_flat(shape, data, None);
+                let tensor_data = TensorData::new_from_data(shape, data, None);
                 returned_tensor.set_tensor_data(tensor_data);
                 local_tn.push_tensor(returned_tensor, None, None);
                 contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
@@ -187,7 +187,7 @@ pub fn intermediate_reduce_tensor_network(
             let (shape, _status) = world.process_at_rank(final_rank).receive_vec::<u32>();
             let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
             let (data, _status) = world.process_at_rank(final_rank).receive_vec::<Complex64>();
-            let tensor_data = TensorData::new_from_flat(shape, data, None);
+            let tensor_data = TensorData::new_from_data(shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);
             // return returned_tensor;
             *local_tn = returned_tensor;
@@ -219,7 +219,7 @@ pub fn naive_reduce_tensor_network(
             let (shape, _status) = world.process_at_rank(i).receive_vec::<u32>();
             let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
             let (data, _status) = world.process_at_rank(i).receive_vec::<Complex64>();
-            let tensor_data = TensorData::new_from_flat(shape, data, None);
+            let tensor_data = TensorData::new_from_data(shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);
             local_tn.push_tensor(returned_tensor, None, None);
         }
