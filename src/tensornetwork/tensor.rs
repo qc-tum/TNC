@@ -4,7 +4,6 @@ use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
-use std::iter::Iterator;
 use std::ops::{Index, IndexMut};
 use std::rc::Rc;
 
