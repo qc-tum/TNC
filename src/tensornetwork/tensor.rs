@@ -703,11 +703,7 @@ impl Tensor {
 
         let mut ext_edges = Tensor::new(Vec::<usize>::new());
         for tensor in self.tensors.iter() {
-            let tensor_legs = if tensor.get_legs().is_empty() {
-                Tensor::new(tensor.get_external_edges())
-            } else {
-                tensor.clone()
-            };
+            let tensor_legs = Tensor::new(tensor.get_external_edges());
             let tensor_union = &ext_edges | &tensor_legs;
             let counter = tensor_union.get_legs().iter().counts();
             ext_edges = &ext_edges ^ &tensor_legs;
