@@ -34,7 +34,7 @@ impl PartialEq for Tensor {
         }
         let other_edges = other.get_edges();
         for (k, v) in self.get_edges().iter() {
-            if !(other_edges[k].iter().eq(v.iter())) {
+            if !(other_edges[k].iter().sorted().eq(v.iter().sorted())) {
                 return false;
             }
         }
