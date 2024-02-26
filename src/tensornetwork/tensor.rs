@@ -3,7 +3,6 @@ use core::ops::{BitAnd, BitOr, BitXor, Sub};
 use itertools::Itertools;
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
-use std::fmt;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut};
 use std::rc::Rc;
@@ -203,7 +202,7 @@ impl Tensor {
     /// v2.insert_bond_dims(&bond_dims);
     /// assert!(tn.tensor_iter().eq(vec![v1, v2].iter()));
     /// ```
-    pub fn tensor_iter(&self) -> std::slice::Iter<'_, Tensor> {
+    pub fn tensor_iter(&self) -> impl Iterator<Item = &Tensor> {
         self.get_tensors().iter()
     }
 
