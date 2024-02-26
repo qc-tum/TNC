@@ -439,8 +439,8 @@ impl Tensor {
             self.legs = Vec::new();
             // Don't clone large data is needed.
             self.update_tensor(&mut new_self);
-            self.tensors.push(new_self);
             self.set_tensor_data(TensorData::Uncontracted);
+            self.tensors.push(new_self);
         }
         // Ensure that external legs are cleared each time a new tensor is pushed
         if !self.get_legs().is_empty() {
@@ -475,8 +475,8 @@ impl Tensor {
             self.legs = Vec::new();
             // Don't clone large data is needed.
             self.update_tensor(&mut new_self);
-            self.tensors.push(new_self);
             self.set_tensor_data(TensorData::Uncontracted);
+            self.tensors.push(new_self);
         }
         if let Some(bond_dims) = bond_dims {
             self.update_bond_dims(bond_dims);
