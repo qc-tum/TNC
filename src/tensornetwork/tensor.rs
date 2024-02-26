@@ -569,8 +569,9 @@ impl Tensor {
     /// assert_eq!(*tensor.get_tensor_data(), PAULIX);
     /// ```
     pub fn set_tensor_data(&self, tensordata: TensorData) {
-        assert!(
-            self.get_tensors().len() <= 1,
+        assert_eq!(
+            self.get_tensors().len(),
+            0,
             "Cannot add data to Tensor object with multiple child Tensors"
         );
         let mut td = self.tensordata.borrow_mut();
