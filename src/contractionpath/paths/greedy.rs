@@ -226,6 +226,10 @@ impl<'a> Greedy<'a> {
         }
     }
 
+    const TEMPERATURE: f64 = 0.3;
+    const NBRANCH: usize = 5;
+    const REL_TEMPERATURE: bool = true;
+
     /// Greedily finds cheapest contractions based on input choice_fn and cost_fn.
     /// This function relies on the fact that 'Tensor' hash depends only on leg ids
     pub(crate) fn ssa_greedy_optimize<R>(
@@ -286,7 +290,14 @@ impl<'a> Greedy<'a> {
 
         while !queue.is_empty() {
             // Choose a candidate with lowest cost
-            let candidate = choice_fn.choose(&mut queue, &remaining_tensors, 5, 0.3, true, rng);
+            let candidate = choice_fn.choose(
+                &mut queue,
+                &remaining_tensors,
+                Self::NBRANCH,
+                Self::TEMPERATURE,
+                Self::REL_TEMPERATURE,
+                rng,
+            );
             let Some(Candidate {
                 flop_cost: 0,
                 size_cost: _cost,
