@@ -397,6 +397,18 @@ impl Tensor {
         self.tensors.is_empty()
     }
 
+    /// Returns true if Tensor is composite
+    ///
+    /// # Examples
+    /// ```
+    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// let mut tensor = Tensor::new(Vec::from([1,2,3]));
+    /// assert_eq!(tensor.is_composite(), false);
+    /// ```
+    pub fn is_composite(&self) -> bool {
+        self.get_legs().is_empty()
+    }
+
     /// Pushes additional tensor into Tensor object. If self is a leaf tensor, clone it and push it into itself.
     /// # Arguments
     ///
