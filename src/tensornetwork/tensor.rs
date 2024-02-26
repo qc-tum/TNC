@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::ops::Index;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::types::*;
 
@@ -16,7 +17,7 @@ use super::tensordata::TensorData;
 pub struct Tensor {
     pub(crate) tensors: Vec<Tensor>,
     pub(crate) legs: Vec<EdgeIndex>,
-    pub(crate) bond_dims: Rc<RefCell<HashMap<EdgeIndex, u64>>>,
+    pub(crate) bond_dims: Arc<RefCell<HashMap<EdgeIndex, u64>>>,
     pub(crate) edges: HashMap<EdgeIndex, Vec<Vertex>>,
     pub(crate) tensordata: RefCell<TensorData>,
 }
@@ -61,7 +62,7 @@ impl Default for Tensor {
         Self {
             tensors: Vec::new(),
             legs: Vec::new(),
-            bond_dims: Rc::new(RefCell::new(HashMap::new())),
+            bond_dims: Arc::new(RefCell::new(HashMap::new())),
             edges: HashMap::new(),
             tensordata: RefCell::new(TensorData::Uncontracted),
         }
@@ -85,7 +86,7 @@ impl Tensor {
         Self {
             tensors: Vec::new(),
             legs,
-            bond_dims: Rc::new(RefCell::new(HashMap::new())),
+            bond_dims: Arc::new(RefCell::new(HashMap::new())),
             edges: HashMap::new(),
             tensordata: RefCell::new(TensorData::Uncontracted),
         }
