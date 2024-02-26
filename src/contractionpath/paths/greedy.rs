@@ -242,21 +242,12 @@ impl<'a> Greedy<'a> {
         const TEMPERATURE: f64 = 0.3;
         const NBRANCH: usize = 5;
         const REL_TEMPERATURE: bool = true;
-        let mut ssa_path = Vec::new();
 
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
         // Clone here to avoid mutating HashMap keys
-        let mut next_ssa_id: usize = inputs.len();
-        let mut remaining_tensors = HashMap::new();
-        let mut hash_to_tensor = HashMap::new();
-
-        populate_remaining_tensors(
-            inputs,
-            &mut remaining_tensors,
-            &mut hash_to_tensor,
-            &mut ssa_path,
-            &mut next_ssa_id,
-        );
+        let mut next_ssa_id = inputs.len();
+        let (mut remaining_tensors, mut hash_to_tensor, mut ssa_path, mut next_ssa_id) =
+            populate_remaining_tensors(inputs, &mut next_ssa_id);
 
         let mut dim_to_tensors = populate_dim_to_tensors(inputs, output_dims);
         let mut dim_tensor_counts = populate_dim_tensor_counts(&dim_to_tensors);
@@ -457,11 +448,16 @@ impl<'a> Greedy<'a> {
 
 fn populate_remaining_tensors(
     inputs: &[Tensor],
-    remaining_tensors: &mut HashMap<u64, usize>,
-    hash_to_tensor: &mut HashMap<u64, Tensor>,
-    ssa_path: &mut Vec<ContractionIndex>,
     next_ssa_id: &mut usize,
+) -> (
+    HashMap<u64, usize>,
+    HashMap<u64, Tensor>,
+    Vec<ContractionIndex>,
+    usize,
 ) {
+    let mut ssa_path = Vec::new();
+    let mut remaining_tensors = HashMap::new();
+    let mut hash_to_tensor = HashMap::new();
     for (ssa_id, v) in inputs.iter().enumerate() {
         let tensor_hash = calculate_hash(v);
         hash_to_tensor
@@ -479,6 +475,7 @@ fn populate_remaining_tensors(
             ssa_path.push(pair!(*entry, ssa_id))
         }
     }
+    (remaining_tensors, hash_to_tensor, ssa_path, *next_ssa_id)
 }
 
 fn populate_dim_to_tensors(inputs: &[Tensor], output_dims: &Tensor) -> HashMap<usize, Vec<Tensor>> {
