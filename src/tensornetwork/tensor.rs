@@ -159,7 +159,7 @@ impl Tensor {
         &self.tensors
     }
 
-    /// Getter for list of Tensor objects.
+    /// Get ith Tensor.
     ///
     /// # Examples
     ///
