@@ -78,7 +78,7 @@ impl Default for Tensor {
             legs: Vec::new(),
             bond_dims: Rc::new(RefCell::new(HashMap::new())),
             edges: HashMap::new(),
-            tensordata: RefCell::new(TensorData::Empty),
+            tensordata: RefCell::new(TensorData::Uncontracted),
         }
     }
 }
@@ -102,7 +102,7 @@ impl Tensor {
             legs,
             bond_dims: Rc::new(RefCell::new(HashMap::new())),
             edges: HashMap::new(),
-            tensordata: RefCell::new(TensorData::Empty),
+            tensordata: RefCell::new(TensorData::Uncontracted),
         }
     }
 
@@ -429,7 +429,7 @@ impl Tensor {
             // Don't clone large data is needed.
             self._update_tensor(&mut new_self);
             self.tensors.push(new_self);
-            self.set_tensor_data(TensorData::Empty);
+            self.set_tensor_data(TensorData::Uncontracted);
         }
         // Ensure that external legs are cleared each time a new tensor is pushed
         if !self.get_legs().is_empty() {
@@ -465,7 +465,7 @@ impl Tensor {
             // Don't clone large data is needed.
             self._update_tensor(&mut new_self);
             self.tensors.push(new_self);
-            self.set_tensor_data(TensorData::Empty);
+            self.set_tensor_data(TensorData::Uncontracted);
         }
         if let Some(bond_dims) = bond_dims {
             self._update_bond_dims(bond_dims);
@@ -798,7 +798,7 @@ mod tests {
         let tensor = Tensor::new(vec![2, 4, 5]);
         assert_eq!(tensor.get_legs(), &vec![2, 4, 5]);
         assert_eq!(tensor.dims(), 3);
-        assert_eq!(*tensor.get_tensor_data(), TensorData::Empty);
+        assert_eq!(*tensor.get_tensor_data(), TensorData::Uncontracted);
     }
 
     #[test]
@@ -836,7 +836,7 @@ mod tests {
         let bond_dims_2 = HashMap::from([(8, 3), (9, 20)]);
         tensor.push_tensor(tensor_2, Some(&bond_dims_2), None);
 
-        assert_eq!(*tensor.get_tensor_data(), TensorData::Empty);
+        assert_eq!(*tensor.get_tensor_data(), TensorData::Uncontracted);
         for (key, value) in tensor.get_bond_dims().iter() {
             assert_eq!(reference_bond_dims_2[key], *value);
         }
@@ -905,7 +905,7 @@ mod tests {
         let tensor_3 = Tensor::new(vec![7, 10, 2]);
         tensor.push_tensors(vec![tensor_2, tensor_3], Some(&reference_bond_dims_3), None);
 
-        assert_eq!(*tensor.get_tensor_data(), TensorData::Empty);
+        assert_eq!(*tensor.get_tensor_data(), TensorData::Uncontracted);
         assert_eq!(
             tensor.get_tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3]

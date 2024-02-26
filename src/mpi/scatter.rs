@@ -67,7 +67,7 @@ pub fn scatter_tensor_network(
 
                 let tensor_data = inner_tensor.get_tensor_data().clone();
                 match tensor_data {
-                    TensorData::Empty => {
+                    TensorData::Uncontracted => {
                         world.process_at_rank(i).send(&0_i32);
                     }
                     TensorData::File(file_name) => {
@@ -103,7 +103,7 @@ pub fn scatter_tensor_network(
             let (legs, _status) = world.any_process().receive_vec::<EdgeIndex>();
             // Then determine data type of sent tensor data
             let (tensor_data_type, _status) = world.any_process().receive::<i32>();
-            let mut tensor_data = TensorData::Empty;
+            let mut tensor_data = TensorData::Uncontracted;
             match tensor_data_type {
                 0 => {}
                 1 => {

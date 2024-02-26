@@ -10,7 +10,7 @@ pub enum TensorData {
     File(PathBuf),
     Gate((&'static str, Vec<f64>)),
     Matrix(DataTensor),
-    Empty,
+    Uncontracted,
 }
 
 impl Eq for TensorData {}
@@ -43,7 +43,7 @@ impl PartialEq for TensorData {
                 }
                 true
             }
-            (Self::Empty, Self::Empty) => true,
+            (Self::Uncontracted, Self::Uncontracted) => true,
             _ => false,
         }
     }
