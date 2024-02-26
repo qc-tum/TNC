@@ -226,10 +226,6 @@ impl<'a> Greedy<'a> {
         }
     }
 
-    const TEMPERATURE: f64 = 0.3;
-    const NBRANCH: usize = 5;
-    const REL_TEMPERATURE: bool = true;
-
     /// Greedily finds cheapest contractions based on input choice_fn and cost_fn.
     /// This function relies on the fact that 'Tensor' hash depends only on leg ids
     pub(crate) fn ssa_greedy_optimize<R>(
@@ -243,6 +239,9 @@ impl<'a> Greedy<'a> {
     where
         R: ?Sized + Rng,
     {
+        const TEMPERATURE: f64 = 0.3;
+        const NBRANCH: usize = 5;
+        const REL_TEMPERATURE: bool = true;
         let mut ssa_path = Vec::new();
 
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
@@ -293,9 +292,9 @@ impl<'a> Greedy<'a> {
             let candidate = choice_fn.choose(
                 &mut queue,
                 &remaining_tensors,
-                Self::NBRANCH,
-                Self::TEMPERATURE,
-                Self::REL_TEMPERATURE,
+                NBRANCH,
+                TEMPERATURE,
+                REL_TEMPERATURE,
                 rng,
             );
             let Some(Candidate {
