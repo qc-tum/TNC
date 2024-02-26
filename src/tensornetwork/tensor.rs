@@ -537,7 +537,7 @@ impl Tensor {
     /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// # use std::collections::HashMap;
     /// let tensor = Tensor::new(vec![0,1]);
-    /// assert_eq!(*tensor.get_tensor_data(), TensorData::Empty);
+    /// assert_eq!(*tensor.get_tensor_data(), TensorData::Uncontracted);
     /// ```
     pub fn get_tensor_data(&self) -> Ref<'_, TensorData> {
         self.tensordata.borrow()
