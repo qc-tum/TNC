@@ -127,7 +127,7 @@ impl Tensor {
     /// let tensor = Tensor::new(vec.clone()) ;
     /// assert!(tensor.legs_iter().eq(vec.iter()));
     /// ```
-    pub fn legs_iter(&self) -> std::slice::Iter<'_, usize> {
+    pub fn legs_iter(&self) -> impl Iterator<Item = &EdgeIndex> {
         self.legs.iter()
     }
 
