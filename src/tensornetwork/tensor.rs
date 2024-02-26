@@ -5,7 +5,6 @@ use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::ops::Index;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::types::*;
@@ -19,7 +18,7 @@ pub struct Tensor {
     pub(crate) legs: Vec<EdgeIndex>,
     pub(crate) bond_dims: Arc<RefCell<HashMap<EdgeIndex, u64>>>,
     pub(crate) edges: HashMap<EdgeIndex, Vec<Vertex>>,
-    pub(crate) tensordata: RefCell<TensorData>,
+    tensordata: RefCell<TensorData>,
 }
 
 impl PartialEq for Tensor {
