@@ -663,7 +663,7 @@ impl Tensor {
         new_tn
     }
 
-    /// Returns Tensor with intersection of legs in `self` and `other`.
+    /// Returns Tensor with symmetrical difference of legs in `self` and `other`.
     ///
     /// # Arguments
     ///
