@@ -470,9 +470,9 @@ impl Tensor {
         if let Some(external_hyperedge) = external_hyperedge {
             self.update_external_edges(external_hyperedge);
         };
-        for tensor in tensors.iter_mut() {
-            self.update_tensor_edges(tensor);
-            self.tensors.push(tensor.clone());
+        for mut tensor in tensors.into_iter() {
+            self.update_tensor_edges(&mut tensor);
+            self.tensors.push(tensor);
         }
     }
 
