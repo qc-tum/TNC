@@ -411,13 +411,16 @@ impl Tensor {
             let Tensor {
                 legs,
                 tensors: _,
-                bond_dims,
+                bond_dims: _,
                 edges: _,
                 tensordata,
             } = tensor;
             self.set_legs(legs);
             self.set_tensor_data(tensordata.into_inner());
-            self.update_bond_dims(&bond_dims.borrow());
+
+            if let Some(bond_dims) = bond_dims {
+                self.update_bond_dims(bond_dims);
+            }
             if let Some(external_hyperedge) = external_hyperedge {
                 self.update_external_edges(external_hyperedge);
             };
@@ -471,6 +474,12 @@ impl Tensor {
             self.set_tensor_data(TensorData::Uncontracted);
             self.tensors.push(new_self);
         }
+
+        // Ensure that external legs are cleared each time a new tensor is pushed
+        if !self.get_legs().is_empty() {
+            self.set_legs(vec![]);
+        }
+
         if let Some(bond_dims) = bond_dims {
             self.update_bond_dims(bond_dims);
         };
