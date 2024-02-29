@@ -262,7 +262,7 @@ impl<'a> Greedy<'a> {
         for (_dim, keys) in dim_to_tensors.iter_mut() {
             keys.sort_by_key(|a| a.get_legs().len());
             // Loop over all but the last entry
-            for (i, k1) in keys[0..keys.len()].iter().enumerate() {
+            for (i, k1) in keys[0..keys.len() - 1].iter().enumerate() {
                 // Get all possible unconsidered combinations
                 let k2s = keys[(i + 1)..keys.len()].iter().collect_vec();
                 Greedy::push_candidate(
