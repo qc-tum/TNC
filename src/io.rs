@@ -34,7 +34,7 @@ pub fn load_tensor(filename: &PathBuf) -> Result<Tensor> {
         }
 
         let tensor_dataset = gr.dataset(&tensor_name).unwrap().read_dyn::<Complex64>()?;
-        let new_tensor = Tensor::new(bond_ids.to_vec());
+        let mut new_tensor = Tensor::new(bond_ids.to_vec());
         new_tensor.set_tensor_data(TensorData::Matrix(DataTensor::new_from_flat(
             tensor_shape
                 .into_iter()
@@ -188,7 +188,7 @@ mod tests {
     fn load_tensor_test() {
         let _ = write_hdf5_tensor();
         let mut ref_tn = Tensor::default();
-        let ref_tensor = Tensor::new(vec![0, 1]);
+        let mut ref_tensor = Tensor::new(vec![0, 1]);
 
         ref_tensor.set_tensor_data(TensorData::new_from_data(
             vec![2, 2],

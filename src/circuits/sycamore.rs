@@ -54,7 +54,7 @@ where
     let mut initial_state = Vec::<Tensor>::new();
     // set up initial state
     for i in 0..size {
-        let new_state = Tensor::new(vec![i]);
+        let mut new_state = Tensor::new(vec![i]);
         new_state.set_tensor_data(random_sparse_tensor_data(&[2], None));
         sycamore_bonddims.insert(i, 2);
         open_edges.insert(i, i);
@@ -70,7 +70,7 @@ where
             // Placing of random single qubit gate
             if rng.sample(uniform_prob) < single_qubit_probability {
                 sycamore_bonddims.insert(next_edge, 2);
-                let new_tensor = Tensor::new(vec![open_edges[&i], next_edge]);
+                let mut new_tensor = Tensor::new(vec![open_edges[&i], next_edge]);
                 new_tensor.set_tensor_data(single_qubit_gate[&die.sample(rng)].clone());
                 intermediate_gates.push(new_tensor);
                 open_edges.entry(i).insert_entry(next_edge);
@@ -82,7 +82,7 @@ where
             if rng.sample(uniform_prob) < two_qubit_probability {
                 sycamore_bonddims.insert(next_edge, 2);
                 sycamore_bonddims.insert(next_edge + 1, 2);
-                let new_tensor =
+                let mut new_tensor =
                     Tensor::new(vec![open_edges[i], open_edges[j], next_edge, next_edge + 1]);
                 new_tensor.set_tensor_data(fsim!(0.3, 0.2));
                 intermediate_gates.push(new_tensor);
@@ -97,7 +97,7 @@ where
     let mut final_state = Vec::<Tensor>::new();
     // set up final state
     for (_index, i) in open_edges {
-        let new_state = Tensor::new(vec![i]);
+        let mut new_state = Tensor::new(vec![i]);
         new_state.set_tensor_data(random_sparse_tensor_data(&[2], None));
         final_state.push(new_state);
     }

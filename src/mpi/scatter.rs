@@ -127,7 +127,7 @@ pub fn scatter_tensor_network(
                     panic!("Unrecognized data type");
                 }
             }
-            let new_tensor = Tensor::new(legs);
+            let mut new_tensor = Tensor::new(legs);
             new_tensor.set_tensor_data(tensor_data);
             local_tn.push_tensor(new_tensor, Some(&bond_dims), None);
         }
@@ -154,7 +154,7 @@ pub fn intermediate_reduce_tensor_network(
             final_rank = receiver;
             if receiver == rank {
                 let (legs, _status) = world.process_at_rank(sender).receive_vec::<EdgeIndex>();
-                let returned_tensor = Tensor::new(legs);
+                let mut returned_tensor = Tensor::new(legs);
                 let (shape, _status) = world.process_at_rank(sender).receive_vec::<u32>();
                 let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
                 let (data, _status) = world.process_at_rank(sender).receive_vec::<Complex64>();
@@ -183,7 +183,7 @@ pub fn intermediate_reduce_tensor_network(
     if final_rank != 0 {
         if rank == 0 {
             let (legs, _status) = world.process_at_rank(final_rank).receive_vec::<EdgeIndex>();
-            let returned_tensor = Tensor::new(legs);
+            let mut returned_tensor = Tensor::new(legs);
             let (shape, _status) = world.process_at_rank(final_rank).receive_vec::<u32>();
             let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
             let (data, _status) = world.process_at_rank(final_rank).receive_vec::<Complex64>();
@@ -215,7 +215,7 @@ pub fn naive_reduce_tensor_network(
     if rank == 0 {
         for i in 1..size {
             let (legs, _status) = world.process_at_rank(i).receive_vec::<EdgeIndex>();
-            let returned_tensor = Tensor::new(legs);
+            let mut returned_tensor = Tensor::new(legs);
             let (shape, _status) = world.process_at_rank(i).receive_vec::<u32>();
             let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
             let (data, _status) = world.process_at_rank(i).receive_vec::<Complex64>();

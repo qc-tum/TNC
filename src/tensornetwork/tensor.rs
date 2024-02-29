@@ -487,7 +487,7 @@ impl Tensor {
 
     // Internal method to update hyperedges in edge HashMap. Adds an additional open vertex to each indicated
     // edge
-    fn update_external_edges(&mut self, external_hyperedge: &Vec<usize>) {
+    pub(crate) fn update_external_edges(&mut self, external_hyperedge: &Vec<usize>) {
         for i in external_hyperedge {
             self.edges
                 .entry(*i)
@@ -553,7 +553,7 @@ impl Tensor {
     /// tensor.set_tensor_data(tensordata);
     /// assert_eq!(*tensor.get_tensor_data(), PAULIX);
     /// ```
-    pub fn set_tensor_data(&self, tensordata: TensorData) {
+    pub fn set_tensor_data(&mut self, tensordata: TensorData) {
         assert_eq!(
             self.get_tensors().len(),
             0,

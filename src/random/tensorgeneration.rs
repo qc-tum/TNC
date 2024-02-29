@@ -250,9 +250,15 @@ where
     R: Rng + ?Sized,
 {
     let mut tensor = Tensor::default();
-    tensor.push_tensors(tensors, Some(bond_dims), external_legs);
-    for tensor in tensor.get_tensors().iter() {
-        tensor.set_tensor_data(random_sparse_tensor_data_with_rng(
+    tensor.insert_bond_dims(bond_dims);
+    if let Some(legs) = external_legs {
+        tensor.update_external_edges(legs);
+    }
+
+    // tensor.push_tensors(tensors, Some(bond_dims), external_legs);
+    for child_tensor in tensors {
+        let mut new_tensor = Tensor::new(child_tensor.get_legs().clone());
+        new_tensor.set_tensor_data(random_sparse_tensor_data_with_rng(
             &tensor
                 .shape()
                 .iter()
@@ -261,6 +267,7 @@ where
             None,
             rng,
         ));
+        tensor.push_tensor(new_tensor, None, None);
     }
     tensor
 }
