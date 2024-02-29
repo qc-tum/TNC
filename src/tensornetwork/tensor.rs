@@ -447,6 +447,8 @@ impl Tensor {
     /// # Arguments
     ///
     /// * `tensors` - `Vec<Tensor>` to be added
+    /// * `bond_dims` - `HashMap<usize, u64>` mapping edge id to bond dimension
+    /// * 'external_hyperedge' - Optional `Vec<usize>`  of external hyperedges
     /// ```
     pub fn push_tensors(
         &mut self,
