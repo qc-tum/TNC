@@ -408,11 +408,16 @@ impl Tensor {
     ) {
         // In the case of pushing to an empty tensor, avoid unnecessary heirarchies
         if self.get_tensors().is_empty() && self.get_legs().is_empty() {
-            self.set_legs(tensor.get_legs().clone());
-            self.set_tensor_data(tensor.get_tensor_data().clone());
-            if let Some(bond_dims) = bond_dims {
-                self.update_bond_dims(bond_dims);
-            };
+            let Tensor {
+                legs,
+                tensors: _,
+                bond_dims,
+                edges: _,
+                tensordata,
+            } = tensor;
+            self.set_legs(legs);
+            self.set_tensor_data(tensordata.into_inner());
+            self.update_bond_dims(&bond_dims.borrow());
             if let Some(external_hyperedge) = external_hyperedge {
                 self.update_external_edges(external_hyperedge);
             };
