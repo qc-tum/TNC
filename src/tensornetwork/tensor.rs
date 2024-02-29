@@ -476,8 +476,8 @@ impl Tensor {
         }
     }
 
-    // Internal method to update bond dimensions based on `bond_dims`. Only incorporates missing dimensions,
-    // existing keys are not changed.
+    /// Internal method to update bond dimensions based on `bond_dims`. Only incorporates missing dimensions,
+    /// existing keys are not changed.
     fn update_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
         let mut shared_bond_dims = self.bond_dims.borrow_mut();
         for (key, value) in bond_dims.iter() {
@@ -488,8 +488,8 @@ impl Tensor {
         }
     }
 
-    // Internal method to update hyperedges in edge HashMap. Adds an additional open vertex to each indicated
-    // edge
+    /// Internal method to update hyperedges in edge HashMap. Adds an additional open vertex to each indicated
+    /// edge
     pub(crate) fn update_external_edges(&mut self, external_hyperedge: &Vec<usize>) {
         for i in external_hyperedge {
             self.edges
@@ -498,9 +498,9 @@ impl Tensor {
         }
     }
 
-    // Internal method to update edges in tensornetwork after new tensor is added.
-    // If existing edges are introduced, assume that a contraction occurs between them
-    // Otherwise, introduce a new open vertex in edges
+    /// Internal method to update edges in tensornetwork after new tensor is added.
+    /// If existing edges are introduced, assume that a contraction occurs between them
+    /// Otherwise, introduce a new open vertex in edges
     pub(super) fn update_tensor_edges(&mut self, tensor: &mut Tensor) {
         tensor.bond_dims = Arc::clone(&self.bond_dims);
         let shared_bond_dims = self.bond_dims.borrow();
