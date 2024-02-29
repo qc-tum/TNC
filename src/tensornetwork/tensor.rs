@@ -424,7 +424,7 @@ impl Tensor {
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
             // Don't clone large data is needed.
-            self.update_tensor(&mut new_self);
+            self.update_tensor_edges(&mut new_self);
             self.set_tensor_data(TensorData::Uncontracted);
             self.tensors.push(new_self);
         }
@@ -439,7 +439,7 @@ impl Tensor {
             self.update_external_edges(external_hyperedge);
         };
 
-        self.update_tensor(&mut tensor);
+        self.update_tensor_edges(&mut tensor);
         self.tensors.push(tensor)
     }
 
@@ -460,7 +460,7 @@ impl Tensor {
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
             // Don't clone large data is needed.
-            self.update_tensor(&mut new_self);
+            self.update_tensor_edges(&mut new_self);
             self.set_tensor_data(TensorData::Uncontracted);
             self.tensors.push(new_self);
         }
@@ -471,7 +471,7 @@ impl Tensor {
             self.update_external_edges(external_hyperedge);
         };
         for tensor in tensors.iter_mut() {
-            self.update_tensor(tensor);
+            self.update_tensor_edges(tensor);
             self.tensors.push(tensor.clone());
         }
     }
@@ -498,7 +498,7 @@ impl Tensor {
     // Internal method to update edges in tensornetwork after new tensor is added.
     // If existing edges are introduced, assume that a contraction occurs between them
     // Otherwise, introduce a new open vertex in edges
-    pub(super) fn update_tensor(&mut self, tensor: &mut Tensor) {
+    pub(super) fn update_tensor_edges(&mut self, tensor: &mut Tensor) {
         tensor.bond_dims = Arc::clone(&self.bond_dims);
         let shared_bond_dims = self.bond_dims.borrow();
 
