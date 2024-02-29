@@ -297,7 +297,7 @@ impl Tensor {
         &self.edges
     }
 
-    /// Returns number of dimensions of Tensor object
+    /// Returns shape of Tensor object
     ///
     /// # Examples
     /// ```
@@ -319,7 +319,7 @@ impl Tensor {
             .collect::<Vec<u64>>()
     }
 
-    /// Returns shape of Tensor object
+    /// Returns number of dimensions of Tensor object
     ///
     /// # Examples
     /// ```
