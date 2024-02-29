@@ -264,7 +264,7 @@ impl<'a> Greedy<'a> {
             // Loop over all but the last entry
             for (i, k1) in keys[0..keys.len() - 1].iter().enumerate() {
                 // Get all possible unconsidered combinations
-                let k2s = keys[(i + 1)..keys.len()].iter().collect_vec();
+                let k2s = keys[(i + 1)..].iter().collect_vec();
                 Greedy::push_candidate(
                     output_dims,
                     &remaining_tensors,
