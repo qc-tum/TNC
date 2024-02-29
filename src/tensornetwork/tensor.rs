@@ -498,7 +498,7 @@ impl Tensor {
     // Internal method to update edges in tensornetwork after new tensor is added.
     // If existing edges are introduced, assume that a contraction occurs between them
     // Otherwise, introduce a new open vertex in edges
-    pub(crate) fn update_tensor(&mut self, tensor: &mut Tensor) {
+    pub(super) fn update_tensor(&mut self, tensor: &mut Tensor) {
         tensor.bond_dims = Arc::clone(&self.bond_dims);
         let shared_bond_dims = self.bond_dims.borrow();
 
