@@ -481,7 +481,10 @@ impl Tensor {
     fn update_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
         let mut shared_bond_dims = self.bond_dims.borrow_mut();
         for (key, value) in bond_dims.iter() {
-            shared_bond_dims.entry(*key).or_insert(*value);
+            shared_bond_dims
+                .entry(*key)
+                .and_modify(|e| assert_eq!(e, value, "Updating bond dims will overwrite entry at key {} with value {} with new value of {}", key, e, value))
+                .or_insert(*value);
         }
     }
 
@@ -745,6 +748,16 @@ mod tests {
         assert_eq!(tensor.get_legs(), &vec![2, 4, 5]);
         assert_eq!(tensor.dims(), 3);
         assert_eq!(*tensor.get_tensor_data(), TensorData::Uncontracted);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_update_bond_dims() {
+        let mut tensor = Tensor::new(vec![2, 4, 5]);
+        tensor.insert_bond_dim(2, 5);
+
+        let bond_dims = HashMap::<usize, u64>::from([(2, 17), (4, 11), (5, 14)]);
+        tensor.update_bond_dims(&bond_dims);
     }
 
     #[test]
