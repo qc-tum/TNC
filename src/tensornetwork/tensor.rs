@@ -450,7 +450,7 @@ impl Tensor {
     /// ```
     pub fn push_tensors(
         &mut self,
-        mut tensors: Vec<Tensor>,
+        tensors: Vec<Tensor>,
         bond_dims: Option<&HashMap<usize, u64>>,
         external_hyperedge: Option<&Vec<usize>>,
     ) {
