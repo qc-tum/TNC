@@ -522,7 +522,6 @@ impl Tensor {
                 })
                 .or_insert(vec![Vertex::Closed(index), Vertex::Open]);
         }
-        // Add new external edges to TensorNetwork
     }
 
     /// Getter for tensor data.
