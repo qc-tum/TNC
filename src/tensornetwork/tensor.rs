@@ -433,7 +433,6 @@ impl Tensor {
             let mut new_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
-            // Don't clone large data is needed.
             self.update_tensor_edges(&mut new_self);
             self.set_tensor_data(TensorData::Uncontracted);
             self.tensors.push(new_self);
