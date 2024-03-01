@@ -260,7 +260,7 @@ impl<'a> Greedy<'a> {
 
         let mut queue = BinaryHeap::new();
         for (_dim, keys) in dim_to_tensors.iter_mut() {
-            keys.sort_by_key(|a| a.get_legs().len());
+            keys.sort_unstable_by_key(|a| a.get_legs().len());
             // Loop over all but the last entry
             for (i, k1) in keys[0..keys.len() - 1].iter().enumerate() {
                 // Get all possible unconsidered combinations
