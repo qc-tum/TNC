@@ -162,7 +162,7 @@ impl TensorContraction for Tensor {
         )));
         self.tensors[tensor_a_loc] = new_tensor;
         // remove old tensor
-        self.tensors[tensor_b_loc] = Tensor::new(Vec::new());
+        self.tensors[tensor_b_loc] = Tensor::default();
         // (tensor_intersect, tensor_difference)
     }
 }
