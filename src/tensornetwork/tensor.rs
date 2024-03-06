@@ -409,7 +409,10 @@ impl Tensor {
             external_hyperedge: other_external_hyperedges,
             tensordata: other_tensordata,
         } = other;
-
+        assert_eq!(tensors.len(), other_tensors.len());
+        for (tensor, other_tensor) in zip(tensors, other_tensors) {
+            assert!(tensor.approx_eq(other_tensor, epsilon));
+        }
         assert_eq!(legs, other_legs);
         assert_eq!(bond_dims, other_bond_dims);
         assert_eq!(external_hyperedge, other_external_hyperedges);
@@ -825,11 +828,13 @@ mod tests {
         for (key, value) in tensor.get_bond_dims().iter() {
             assert_eq!(reference_bond_dims_2[key], *value);
         }
-        zip(
+
+        for (tensor_legs, other_tensor_legs) in zip(
             tensor.get_tensors(),
             &vec![ref_tensor_1.clone(), ref_tensor_2.clone()],
-        )
-        .map(|(a, b)| assert_eq!(a.get_legs(), b.get_legs()));
+        ) {
+            assert_eq!(tensor_legs.get_legs(), other_tensor_legs.get_legs())
+        }
 
         assert_eq!(tensor.get_legs(), &Vec::<usize>::new());
 
@@ -842,11 +847,12 @@ mod tests {
         }
         ref_tensor_2.insert_bond_dims(&reference_bond_dims_3);
 
-        zip(
+        for (tensor_legs, other_tensor_legs) in zip(
             tensor.get_tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
-        )
-        .map(|(a, b)| assert_eq!(a.get_legs(), b.get_legs()));
+        ) {
+            assert_eq!(tensor_legs.get_legs(), other_tensor_legs.get_legs())
+        }
 
         assert_eq!(
             tensor.get_edges(),
@@ -899,11 +905,12 @@ mod tests {
             .get_tensor_data()
             .approx_eq(&TensorData::Uncontracted, 1e-12));
 
-        zip(
+        for (tensor, other_tensor) in zip(
             tensor.get_tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
-        )
-        .map(|(a, b)| assert_eq!(a.get_legs(), b.get_legs()));
+        ) {
+            assert_eq!(tensor.get_legs(), other_tensor.get_legs())
+        }
 
         assert_eq!(*tensor.get_bond_dims(), reference_bond_dims_3);
         assert_eq!(
