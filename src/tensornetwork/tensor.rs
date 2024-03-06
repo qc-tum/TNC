@@ -797,11 +797,6 @@ mod tests {
 
         let mut ref_tensor_1 = Tensor::new(vec![4, 3, 2]);
         ref_tensor_1.insert_bond_dims(&reference_bond_dims_1);
-        ref_tensor_1.set_tensor_data(TensorData::new_from_data(
-            ref_tensor_1.shape(),
-            vec![Complex64::new(5.0, 3.0); 187],
-            None,
-        ));
 
         let mut ref_tensor_2 = Tensor::new(vec![8, 4, 9]);
         ref_tensor_2.insert_bond_dims(&reference_bond_dims_2);
@@ -876,11 +871,6 @@ mod tests {
 
         let mut ref_tensor_1 = Tensor::new(vec![4, 3, 2]);
         ref_tensor_1.insert_bond_dims(&reference_bond_dims_1);
-        ref_tensor_1.set_tensor_data(TensorData::new_from_data(
-            ref_tensor_1.shape(),
-            vec![Complex64::new(5.0, 3.0); 187],
-            None,
-        ));
 
         let mut ref_tensor_2 = Tensor::new(vec![8, 4, 9]);
         ref_tensor_2.insert_bond_dims(&reference_bond_dims_3);
@@ -916,6 +906,71 @@ mod tests {
                 (8, vec![Vertex::Closed(1), Vertex::Open]),
                 (9, vec![Vertex::Closed(1), Vertex::Open]),
                 (10, vec![Vertex::Closed(2), Vertex::Open]),
+            ])
+        )
+    }
+
+    #[test]
+    fn test_push_tensor_hyperedges() {
+        let reference_bond_dims_0 = HashMap::<usize, u64>::from([(2, 17), (3, 1), (4, 11)]);
+        let reference_bond_dims_1 =
+            HashMap::<usize, u64>::from([(2, 17), (3, 1), (4, 11), (9, 20)]);
+        let reference_bond_dims_2 =
+            HashMap::<usize, u64>::from([(2, 17), (3, 1), (4, 11), (9, 20)]);
+
+        let reference_bond_dims_3 =
+            HashMap::<usize, u64>::from([(2, 17), (3, 1), (4, 11), (5, 2), (6, 6), (9, 20)]);
+
+        let mut ref_tensor_0 = Tensor::new(vec![4, 3, 2]);
+        ref_tensor_0.insert_bond_dims(&reference_bond_dims_0);
+
+        let mut ref_tensor_1 = Tensor::new(vec![3, 4, 9]);
+        ref_tensor_1.insert_bond_dims(&reference_bond_dims_1);
+
+        let mut ref_tensor_2 = Tensor::new(vec![4, 9, 2]);
+        ref_tensor_2.insert_bond_dims(&reference_bond_dims_2);
+
+        let mut ref_tensor_3 = Tensor::new(vec![5, 6, 6]);
+        ref_tensor_3.insert_bond_dims(&reference_bond_dims_3);
+
+        let mut tensor = ref_tensor_0.clone();
+
+        let tensor_1 = Tensor::new(vec![3, 4, 9]);
+        let bond_dims_1 = HashMap::from([(9, 20)]);
+        tensor.push_tensor(tensor_1, Some(&bond_dims_1));
+
+        assert_eq!(reference_bond_dims_1, *tensor.get_bond_dims());
+        assert_eq!(tensor.get_legs(), &Vec::<usize>::new());
+
+        let tensor_2 = Tensor::new(vec![4, 9, 2]);
+
+        tensor.push_tensor(tensor_2, None);
+        assert_eq!(reference_bond_dims_2, *tensor.get_bond_dims());
+
+        let tensor_3 = Tensor::new(vec![5, 6, 6]);
+        let bond_dims_3 = HashMap::from([(5, 2), (6, 6)]);
+        tensor.push_tensor(tensor_3, Some(&bond_dims_3));
+        assert_eq!(reference_bond_dims_3, *tensor.get_bond_dims());
+
+        for (tensor_legs, other_tensor_legs) in zip(
+            tensor.get_tensors(),
+            &vec![ref_tensor_0, ref_tensor_1, ref_tensor_2, ref_tensor_3],
+        ) {
+            assert_eq!(tensor_legs.get_legs(), other_tensor_legs.get_legs())
+        }
+
+        assert_eq!(
+            tensor.get_edges(),
+            &HashMap::from([
+                (2, vec![Vertex::Closed(0), Vertex::Closed(2)]),
+                (3, vec![Vertex::Closed(0), Vertex::Closed(1)]),
+                (
+                    4,
+                    vec![Vertex::Closed(0), Vertex::Closed(1), Vertex::Closed(2)]
+                ),
+                (5, vec![Vertex::Closed(3), Vertex::Open]),
+                (6, vec![Vertex::Closed(3), Vertex::Closed(3)]),
+                (9, vec![Vertex::Closed(1), Vertex::Closed(2)]),
             ])
         )
     }
