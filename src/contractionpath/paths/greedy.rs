@@ -104,6 +104,37 @@ impl<'a> Greedy<'a> {
         size1
     }
 
+    // #[allow(clippy::too_many_arguments)]
+    // fn push_candidate(
+    //     output: &Tensor,
+    //     remaining_tensors: &HashMap<u64, usize>,
+    //     tensor_mem_size: &HashMap<u64, u64>,
+    //     dim_tensor_counts: &HashMap<usize, HashSet<usize>>,
+    //     k1: &Tensor,
+    //     k2s: Vec<&Tensor>,
+    //     queue: &mut BinaryHeap<Candidate>,
+    //     cost_function: &CostFnType,
+    // ) {
+    //     // Currently accepts all possible candidates.
+    //     // Commented code from when only most optimal candidate chosen.
+    //     // Should this be implemented?
+    //     // let mut candidates = Vec::new();
+    //     for k2 in k2s {
+    //         queue.push(Greedy::get_candidate(
+    //             output,
+    //             remaining_tensors,
+    //             tensor_mem_size,
+    //             dim_tensor_counts,
+    //             k1,
+    //             k2,
+    //             cost_function,
+    //         ));
+    //     }
+    //
+    //     queue.push(candidate.iter().min().unwrap());
+    //
+    // }
+
     #[allow(clippy::too_many_arguments)]
     fn push_candidate(
         output: &Tensor,
