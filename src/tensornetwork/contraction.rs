@@ -122,8 +122,8 @@ impl TensorContraction for Tensor {
         // Update internal edges HashMap to point tensor b legs to new contracted tensor
         for leg in tensor_b_legs.iter() {
             edges.entry(*leg).and_modify(|e| {
-                e.retain(|e| {
-                    if let Vertex::Closed(edge) = e {
+                e.retain(|v| {
+                    if let Vertex::Closed(edge) = v {
                         *edge != tensor_a_loc
                     } else {
                         true
