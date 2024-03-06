@@ -395,7 +395,7 @@ impl Tensor {
     /// assert_eq!(tensor.is_composite(), false);
     /// ```
     pub fn is_composite(&self) -> bool {
-        self.get_legs().is_empty()
+        !self.tensors.is_empty()
     }
 
     /// Pushes additional tensor into Tensor object. If self is a leaf tensor, clone it and push it into itself.
