@@ -421,7 +421,7 @@ impl Tensor {
             self.set_tensor_data(tensordata.into_inner());
 
             if let Some(bond_dims) = bond_dims {
-                self.update_bond_dims(bond_dims);
+                self.add_bond_dims(bond_dims);
             }
             if let Some(external_hyperedge) = external_hyperedge {
                 self.update_external_edges(external_hyperedge);
@@ -442,7 +442,7 @@ impl Tensor {
             self.set_legs(vec![]);
         }
         if let Some(bond_dims) = bond_dims {
-            self.update_bond_dims(bond_dims);
+            self.add_bond_dims(bond_dims);
         };
         if let Some(external_hyperedge) = external_hyperedge {
             self.update_external_edges(external_hyperedge);
@@ -482,7 +482,7 @@ impl Tensor {
         }
 
         if let Some(bond_dims) = bond_dims {
-            self.update_bond_dims(bond_dims);
+            self.add_bond_dims(bond_dims);
         };
         if let Some(external_hyperedge) = external_hyperedge {
             self.update_external_edges(external_hyperedge);
@@ -495,7 +495,7 @@ impl Tensor {
 
     /// Internal method to update bond dimensions based on `bond_dims`. Only incorporates missing dimensions,
     /// existing keys are not changed.
-    fn update_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
+    fn add_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
         let mut shared_bond_dims = self.bond_dims.borrow_mut();
         for (key, value) in bond_dims.iter() {
             shared_bond_dims
@@ -774,7 +774,7 @@ mod tests {
         tensor.insert_bond_dim(2, 5);
 
         let bond_dims = HashMap::<usize, u64>::from([(2, 17), (4, 11), (5, 14)]);
-        tensor.update_bond_dims(&bond_dims);
+        tensor.add_bond_dims(&bond_dims);
     }
 
     #[test]
