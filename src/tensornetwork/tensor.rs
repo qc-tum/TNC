@@ -448,10 +448,7 @@ impl Tensor {
             self.set_tensor_data(TensorData::Uncontracted);
             self.tensors.push(new_self);
         }
-        // Ensure that external legs are cleared each time a new tensor is pushed
-        if !self.get_legs().is_empty() {
-            self.set_legs(vec![]);
-        }
+
         if let Some(bond_dims) = bond_dims {
             self.add_bond_dims(bond_dims);
         };
@@ -485,11 +482,6 @@ impl Tensor {
             self.update_tensor_edges(&mut new_self);
             self.set_tensor_data(TensorData::Uncontracted);
             self.tensors.push(new_self);
-        }
-
-        // Ensure that external legs are cleared each time a new tensor is pushed
-        if !self.get_legs().is_empty() {
-            self.set_legs(vec![]);
         }
 
         if let Some(bond_dims) = bond_dims {
