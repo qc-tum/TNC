@@ -6,12 +6,12 @@ use crate::{gates::load_gate, io::load_data, tensornetwork::Tensor, types::*};
 
 use super::tensordata::TensorData;
 
-/// Fully contracts a list of [DataTensor] objects based on a given contraction path using repeated SSA format.
+/// Fully contracts a series of [Tensor] objects based on a given contraction path using repeated SSA format.
 ///
 /// # Arguments
 ///
 /// * `tn` - [`Tensor`] to be contracted
-/// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
+/// * `contract_path` - [`Vector`] of [ContractionIndex], indicating contraction path. See [BranchBound] for details on `contract_path` format.
 ///
 /// # Examples
 ///
@@ -47,7 +47,8 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
             }
         }
     }
-    tn.set_legs(tn.get_tensor(last_index).get_legs().clone());
+
+    tn.set_legs(tn.get_tensor(last_index).get_legs().to_owned());
     let tmp_data = tn.get_tensor(last_index).get_tensor_data().clone();
     tn.drain(0..);
     tn.set_tensor_data(tmp_data);
@@ -104,21 +105,9 @@ impl TensorContraction for Tensor {
 
         let tensor_a_legs = tensor_a.get_legs();
         let tensor_b_legs = tensor_b.get_legs();
-        // let tensor_union = &tensor_b | &tensor_a;
         let tensor_symmetric_difference = &tensor_b ^ &tensor_a;
 
-        // let counter = count_edges(tensor_union.get_legs().iter());
-
         let edges = self.get_mut_edges();
-        // for leg in tensor_union.get_legs().unique().iter() {
-        //     // Check if hyperedges are being contracted, if so, only append once to output tensor
-        //     let mut i = 0;
-        //     while edges[leg].len() - 1 > (counter[leg] + i) {
-        //         i += 1;
-        //         tensor_symmetric_difference.legs.push(*leg);
-        //     }
-        // }
-        // Update internal edges HashMap to point tensor b legs to new contracted tensor
         for leg in tensor_b_legs.iter() {
             edges.entry(*leg).and_modify(|e| {
                 e.retain(|v| {
@@ -161,7 +150,6 @@ impl TensorContraction for Tensor {
         self.tensors[tensor_a_loc] = new_tensor;
         // remove old tensor
         self.tensors[tensor_b_loc] = Tensor::default();
-        // (tensor_intersect, tensor_difference)
     }
 }
 

@@ -111,9 +111,7 @@ impl<'a> BranchBound<'a> {
             flop_cost: current_flops as i64,
             size_cost: current_size as i64,
             parent_ids: (i, j),
-            parent_tensors: None,
             child_id: k12,
-            child_tensor: Some(k12_tensor),
         })
     }
 
@@ -164,9 +162,7 @@ impl<'a> BranchBound<'a> {
                 flop_cost,
                 size_cost,
                 parent_ids,
-                parent_tensors: _parent_tensor,
                 child_id,
-                child_tensor: _child_tensor,
             }) = candidates.pop()
             else {
                 break;

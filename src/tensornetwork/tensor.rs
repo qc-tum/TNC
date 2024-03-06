@@ -18,6 +18,7 @@ pub struct Tensor {
     pub(crate) legs: Vec<EdgeIndex>,
     pub(crate) bond_dims: Arc<RefCell<HashMap<EdgeIndex, u64>>>,
     pub(crate) edges: HashMap<EdgeIndex, Vec<Vertex>>,
+    external_hyperedge: HashMap<EdgeIndex, usize>,
     tensordata: RefCell<TensorData>,
 }
 

@@ -39,26 +39,20 @@ impl RNGChooser for ThermalChooser {
             if let Some(Candidate {
                 flop_cost,
                 size_cost,
-                parent_ids,
-                parent_tensors: Some((k1, k2)),
+                parent_ids: (k1, k2),
                 child_id,
-                child_tensor,
             }) = candidate
             {
-                let k1_hash = calculate_hash(&k1);
-                let k2_hash = calculate_hash(&k2);
-                if !remaining_tensors.contains_key(&k1_hash)
-                    || !remaining_tensors.contains_key(&k2_hash)
+                if !remaining_tensors.values().any(|&x| x == k1)
+                    && !remaining_tensors.values().any(|&x| x == k2)
                 {
                     continue;
                 }
                 choices.push(Candidate {
                     flop_cost,
                     size_cost,
-                    parent_ids,
-                    parent_tensors: Some((k1, k2)),
+                    parent_ids: (k1, k2),
                     child_id,
-                    child_tensor,
                 });
             }
         }

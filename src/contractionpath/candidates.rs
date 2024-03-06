@@ -1,16 +1,12 @@
 use std::cmp::Ordering;
 
-use crate::tensornetwork::tensor::Tensor;
-
 /// Struct to store contraction candidate information when searching for optimal contraction path.
 #[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub(crate) struct Candidate {
     pub(crate) flop_cost: i64,
     pub(crate) size_cost: i64,
     pub(crate) parent_ids: (usize, usize),
-    pub(crate) parent_tensors: Option<(Tensor, Tensor)>,
     pub(crate) child_id: usize,
-    pub(crate) child_tensor: Option<Tensor>,
 }
 
 impl Ord for Candidate {
