@@ -382,16 +382,9 @@ impl Tensor {
     }
 
     /// Comparison of two Tensors, returns true if Tensor objects are equivalent up to `epsilon` precision.
-    /// Considers `legs`, `bond_dims`, `external_hyperedges` and `tensordata`. Cannot be used for
-    /// composite tensors. `edges` are not compared as different contraction ordering will result in
+    /// Considers `legs`, `bond_dims`, `external_hyperedges` and `tensordata`.
+    /// edges` are not compared as different contraction ordering will result in
     /// different edges even though the tensors are otherwise identical.
-    ///
-    /// # Examples
-    /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let mut tensor = Tensor::new(Vec::from([1,2,3]));
-    /// assert_eq!(tensor.is_composite(), false);
-    /// ```
     pub fn approx_eq(&self, other: &Tensor, epsilon: f64) -> bool {
         let Tensor {
             tensors,
