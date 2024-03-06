@@ -377,9 +377,9 @@ impl Tensor {
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let tensor = Tensor::new(Vec::from([1,2,3]));
-    /// assert_eq!(tensor.is_tensornetwork(), true);
+    /// assert_eq!(tensor.is_single_tensor(), true);
     /// ```
-    pub fn is_tensornetwork(&self) -> bool {
+    pub fn is_single_tensor(&self) -> bool {
         self.tensors.is_empty()
     }
 
