@@ -125,7 +125,7 @@ pub fn contract_path_cost(inputs: &[Tensor], ssa_path: &[ContractionIndex]) -> (
                 inputs[i] = k12;
             }
             ContractionIndex::Path(i, ref path) => {
-                let costs = contract_path_cost(inputs[i].get_tensors(), &path);
+                let costs = contract_path_cost(inputs[i].get_tensors(), path);
                 op_cost += costs.0;
                 mem_cost += costs.1;
                 inputs[i] = std::mem::take(&mut inputs[i].tensors[0]);
