@@ -11,7 +11,7 @@ use crate::types::{EdgeIndex, Vertex};
 
 use super::tensordata::TensorData;
 
-#[derive(Debug, Eq, Clone)]
+#[derive(Debug, Clone)]
 /// Abstract representation of a tensor.
 pub struct Tensor {
     pub(crate) tensors: Vec<Tensor>,
@@ -22,6 +22,10 @@ pub struct Tensor {
     tensordata: RefCell<TensorData>,
 }
 
+#[cfg(test)]
+impl Eq for Tensor {}
+
+#[cfg(test)]
 impl PartialEq for Tensor {
     fn eq(&self, other: &Self) -> bool {
         if *self.get_bond_dims() != *other.get_bond_dims() {
@@ -101,7 +105,7 @@ impl Tensor {
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let vec = Vec::from([1,2,3]);
     /// let tensor = Tensor::new(vec.clone()) ;
-    /// assert_eq!(*tensor.get_legs(), vec);
+    /// assert_eq!(tensor.get_legs(), &vec);
     /// ```
     pub fn get_legs(&self) -> &Vec<EdgeIndex> {
         &self.legs
@@ -114,7 +118,7 @@ impl Tensor {
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let vec = Vec::from([1,2,3]);
     /// let tensor = Tensor::new(vec.clone()) ;
-    /// assert!(tensor.legs_iter().eq(vec.iter()));
+    /// assert_eq!(tensor.get_legs(), &vec);
     /// ```
     pub fn legs_iter(&self) -> impl Iterator<Item = &EdgeIndex> {
         self.legs.iter()
@@ -142,7 +146,9 @@ impl Tensor {
     /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
     /// v1.insert_bond_dims(&bond_dims);
     /// v2.insert_bond_dims(&bond_dims);
-    /// assert_eq!(*tn.get_tensors(), vec![v1, v2]);
+    /// for (tensor, ref_tensor) in std::iter::zip(tn.get_tensors(), vec![v1, v2]){
+    ///    assert_eq!(tensor.get_legs(), ref_tensor.get_legs());
+    /// }
     /// ```
     pub fn get_tensors(&self) -> &Vec<Tensor> {
         &self.tensors
@@ -166,7 +172,7 @@ impl Tensor {
     /// tn.insert_bond_dims(&bond_dims);
     /// let mut ref_tensor = Tensor::new(vec![0,1]);
     /// ref_tensor.insert_bond_dims(&bond_dims);
-    /// assert_eq!(*tn.get_tensor(0), ref_tensor);
+    /// assert_eq!(tn.get_tensor(0).get_legs(), ref_tensor.get_legs());
     /// ```
     pub fn get_tensor(&self, i: usize) -> &Tensor {
         &self.tensors[i]
@@ -189,7 +195,9 @@ impl Tensor {
     /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
     /// v1.insert_bond_dims(&bond_dims);
     /// v2.insert_bond_dims(&bond_dims);
-    /// assert!(tn.tensor_iter().eq(vec![v1, v2].iter()));
+    /// for (t1, ref_t1) in std::iter::zip(tn.tensor_iter(), vec![v1, v2].iter()) {
+    ///    assert_eq!(t1.get_legs(), ref_t1.get_legs());
+    ///}
     /// ```
     pub fn tensor_iter(&self) -> impl Iterator<Item = &Tensor> {
         self.get_tensors().iter()
@@ -551,17 +559,9 @@ impl Tensor {
         }
     }
 
+    //TODO: Implement docstring once comparison of data tensors done
     /// Getter for tensor data.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
-    /// # use std::collections::HashMap;
-    /// let tensor = Tensor::new(vec![0,1]);
-    /// assert_eq!(*tensor.get_tensor_data(), TensorData::Uncontracted);
-    /// ```
     pub fn get_tensor_data(&self) -> Ref<'_, TensorData> {
         self.tensordata.borrow()
     }
@@ -577,7 +577,6 @@ impl Tensor {
     /// let mut tensor = Tensor::new(vec![0,1]);
     /// let tensordata = TensorData::Gate(("X", vec![]));
     /// tensor.set_tensor_data(tensordata);
-    /// assert_eq!(*tensor.get_tensor_data(), PAULIX);
     /// ```
     pub fn set_tensor_data(&mut self, tensordata: TensorData) {
         assert_eq!(
@@ -602,7 +601,7 @@ impl Tensor {
     /// let tensor1 = Tensor::new(vec![1,2,3]);
     /// let tensor2 = Tensor::new(vec![4,2,5]);
     /// let diff_tensor = &tensor1 - &tensor2;
-    /// assert_eq!(diff_tensor, Tensor::new(vec![1,3]));
+    /// assert_eq!(diff_tensor.get_legs(), &vec![1,3]);
     /// ```
     pub fn difference(&self, other: &Tensor) -> Tensor {
         let mut new_legs = Vec::new();
@@ -627,7 +626,7 @@ impl Tensor {
     /// let tensor1 = Tensor::new(vec![1,2,3]);
     /// let tensor2 = Tensor::new(vec![4,2,5]);
     /// let union_tensor = &tensor1 | &tensor2;
-    /// assert_eq!(union_tensor, Tensor::new(vec![1,2,3,4,5]));
+    /// assert_eq!(union_tensor.get_legs(), &vec![1,2,3,4,5]);
     /// ```
     pub fn union(&self, other: &Tensor) -> Tensor {
         let mut new_tn = Tensor::new(self.get_legs().union(other.get_legs().clone()));
@@ -648,7 +647,7 @@ impl Tensor {
     /// let tensor1 = Tensor::new(vec![1,2,3]);
     /// let tensor2 = Tensor::new(vec![4,2,5]);
     /// let intersection_tensor = &tensor1 & &tensor2;
-    /// assert_eq!(intersection_tensor, Tensor::new(vec![2]));
+    /// assert_eq!(intersection_tensor.get_legs(), &vec![2]);
     /// ```
     pub fn intersection(&self, other: &Tensor) -> Tensor {
         let mut new_tn = Tensor::new(self.get_legs().intersect(other.get_legs().clone()));
@@ -669,7 +668,7 @@ impl Tensor {
     /// let tensor1 = Tensor::new(vec![1,2,3]);
     /// let tensor2 = Tensor::new(vec![4,2,5]);
     /// let sym_dif_tensor = &tensor1 ^ &tensor2;
-    /// assert_eq!(sym_dif_tensor, Tensor::new(vec![1,3,4,5]));
+    /// assert_eq!(sym_dif_tensor.get_legs(), &vec![1,3,4,5]);
     /// ```
     pub fn symmetric_difference(&self, other: &Tensor) -> Tensor {
         let mut new_legs = Vec::new();

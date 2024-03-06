@@ -1,7 +1,5 @@
-use std::{iter::zip, path::PathBuf};
+use std::path::PathBuf;
 
-use float_cmp::approx_eq;
-use itertools::Itertools;
 use num_complex::Complex64;
 use tetra::{Layout, Tensor as DataTensor};
 
@@ -13,8 +11,17 @@ pub enum TensorData {
     Uncontracted,
 }
 
+#[cfg(test)]
+use float_cmp::approx_eq;
+#[cfg(test)]
+use itertools::Itertools;
+#[cfg(test)]
+use std::iter::zip;
+
+#[cfg(test)]
 impl Eq for TensorData {}
 
+#[cfg(test)]
 impl PartialEq for TensorData {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
