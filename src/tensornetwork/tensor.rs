@@ -681,28 +681,21 @@ impl Tensor {
         new_tn
     }
 
-    /// Get output after tensor contraction
+    /// Get output legs after tensor contraction
     pub fn get_external_edges(&self) -> Vec<usize> {
         if !self.get_legs().is_empty() {
             return self.get_legs().clone();
         }
 
-        let mut ext_edges = Tensor::new(Vec::new());
+        let mut ext_edges = Tensor::default();
         for tensor in self.tensors.iter() {
-            let tensor_legs = Tensor::new(tensor.get_external_edges());
-            let tensor_union = &ext_edges | &tensor_legs;
-            let counter = tensor_union.get_legs().iter().counts();
-            ext_edges = &ext_edges ^ &tensor_legs;
-            for leg in tensor_union.get_legs().iter() {
-                // Check if hyperedges are being contracted, if so, only append once to output tensor
-                let mut i = 1;
-                while self.edges.contains_key(leg) && self.edges[leg].len() > (counter[leg] + i) {
-                    i += 1;
-                    ext_edges.legs.push(*leg);
-                }
-            }
+            ext_edges = &ext_edges ^ tensor;
         }
-        ext_edges.get_legs().clone()
+        let mut ext_edges = ext_edges.get_legs().to_owned();
+        for (&edge_index, &count) in self.external_hyperedge.iter() {
+            ext_edges.append(&mut vec![edge_index; count]);
+        }
+        ext_edges
     }
 }
 
