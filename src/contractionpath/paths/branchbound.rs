@@ -74,7 +74,6 @@ impl<'a> BranchBound<'a> {
             k12 = self.result_cache[&(i, j)];
             flops_12 = self.flop_cache[&k12];
             size_12 = self.size_cache[&k12];
-            k12_tensor = self.tensor_cache[&k12].clone();
         } else {
             k12 = self.tensor_cache.len();
             flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
