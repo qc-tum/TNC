@@ -24,8 +24,8 @@ fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<Contract
     let mut hs = HashMap::new();
     let path_len = n;
     for (u1, u2, u3) in path {
-        let t1 = if *u1 > path_len { hs[u1] } else { *u1 };
-        let t2 = if *u2 > path_len { hs[u2] } else { *u2 };
+        let t1 = if *u1 >= path_len { hs[u1] } else { *u1 };
+        let t2 = if *u2 >= path_len { hs[u2] } else { *u2 };
         hs.entry(*u3).or_insert(n);
         n += 1;
         ssa_path.push(pair!(t1, t2));
