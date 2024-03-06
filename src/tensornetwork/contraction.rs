@@ -104,12 +104,12 @@ impl TensorContraction for Tensor {
     }
 
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) {
-        let tensor_a = self.get_mut_tensor(tensor_a_loc).clone();
-        let tensor_b = self.get_mut_tensor(tensor_b_loc).clone();
+        let tensor_a = std::mem::take(&mut self.tensors[tensor_a_loc]);
+        let tensor_b = std::mem::take(&mut self.tensors[tensor_b_loc]);
 
         let tensor_a_legs = tensor_a.get_legs();
         let tensor_b_legs = tensor_b.get_legs();
-        let tensor_symmetric_difference = &tensor_b ^ &tensor_a;
+        let mut tensor_symmetric_difference = &tensor_b ^ &tensor_a;
 
         let edges = self.get_mut_edges();
         for leg in tensor_b_legs.iter() {
@@ -130,9 +130,8 @@ impl TensorContraction for Tensor {
                 }
             });
         }
-        let mut new_tensor = Tensor::new(tensor_symmetric_difference.get_legs().clone());
-        new_tensor.bond_dims = Arc::clone(&self.bond_dims);
-        new_tensor.set_tensor_data(TensorData::Matrix(contract(
+
+        tensor_symmetric_difference.set_tensor_data(TensorData::Matrix(contract(
             tensor_symmetric_difference
                 .legs_iter()
                 .map(|e| *e as u32)
@@ -143,17 +142,15 @@ impl TensorContraction for Tensor {
                 .map(|e| *e as u32)
                 .collect::<Vec<u32>>()
                 .as_slice(),
-            &self.get_tensor(tensor_a_loc).get_data(),
+            &tensor_a.get_data(),
             tensor_b_legs
                 .iter()
                 .map(|e| *e as u32)
                 .collect::<Vec<u32>>()
                 .as_slice(),
-            &self.get_tensor(tensor_b_loc).get_data(),
+            &tensor_b.get_data(),
         )));
-        self.tensors[tensor_a_loc] = new_tensor;
-        // remove old tensor
-        self.tensors[tensor_b_loc] = Tensor::default();
+        self.tensors[tensor_a_loc] = tensor_symmetric_difference;
     }
 }
 
