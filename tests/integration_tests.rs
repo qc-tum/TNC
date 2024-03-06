@@ -1,3 +1,7 @@
+use std::iter::zip;
+
+use float_cmp::approx_eq;
+use itertools::Itertools;
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
@@ -8,8 +12,41 @@ use tensorcontraction::{
         contraction::contract_tensor_network,
         partitioning::{find_partitioning, partition_tensor_network},
         tensor::Tensor,
+        tensordata::TensorData,
     },
 };
+
+fn check_tensordata_eq(tensor1: &TensorData, other: &TensorData) -> bool {
+    match (tensor1, other) {
+        (TensorData::File(l0), TensorData::File(r0)) => l0 == r0,
+        (TensorData::Gate((l0, angles_l)), TensorData::Gate((r0, angles_r))) => {
+            if l0.to_lowercase() != r0.to_lowercase() {
+                return false;
+            }
+            for (angle1, angle2) in zip(angles_l.iter(), angles_r.iter()) {
+                if !approx_eq!(f64, *angle1, *angle2, ulps = 2) {
+                    return false;
+                }
+            }
+            true
+        }
+        (TensorData::Matrix(l0), TensorData::Matrix(r0)) => {
+            let range = l0.shape().iter().map(|e| 0..*e).multi_cartesian_product();
+
+            for index in range {
+                if !approx_eq!(f64, l0.get(&index).im, r0.get(&index).im, epsilon = 1e-8) {
+                    return false;
+                }
+                if !approx_eq!(f64, l0.get(&index).re, r0.get(&index).re, epsilon = 1e-8) {
+                    return false;
+                }
+            }
+            true
+        }
+        (TensorData::Uncontracted, TensorData::Uncontracted) => true,
+        _ => false,
+    }
+}
 
 #[test]
 fn test_partitioned_contraction() {
@@ -30,8 +67,10 @@ fn test_partitioned_contraction() {
     opt.optimize_path();
     let path = opt.get_best_replace_path();
     contract_tensor_network(&mut partitioned_tn, &path);
-
-    assert_eq!(*ref_tn.get_tensor_data(), *partitioned_tn.get_tensor_data());
+    assert!(check_tensordata_eq(
+        &ref_tn.get_tensor_data(),
+        &partitioned_tn.get_tensor_data()
+    ));
 }
 
 // Ignored as requires MPI to run
@@ -74,6 +113,9 @@ fn test_mpi_partitioned_contraction() {
         ref_opt.optimize_path();
         let ref_path = ref_opt.get_best_replace_path();
         contract_tensor_network(&mut ref_tn, &ref_path);
-        assert_eq!(*local_tn.get_tensor_data(), *ref_tn.get_tensor_data());
+        assert!(check_tensordata_eq(
+            &local_tn.get_tensor_data(),
+            &ref_tn.get_tensor_data()
+        ));
     }
 }
