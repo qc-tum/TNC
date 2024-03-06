@@ -465,7 +465,6 @@ impl<'a> Greedy<'a> {
             next_ssa_id += 1;
         }
         if !scalar_tensors.is_empty() {
-            println!("Scalar tensors: {:?}", scalar_tensors);
             let mut latest_scalar = scalar_tensors[0];
             let last_tensor_position = ssa_path.len() - 1;
             // Mutiply the various scalar results together
