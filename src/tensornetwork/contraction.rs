@@ -352,18 +352,26 @@ mod tests {
         t3.insert_bond_dims(&bond_dims);
 
         tout.insert_bond_dims(&bond_dims);
-        let edges = tout.get_mut_edges();
-        edges
-            .entry(5)
-            .or_insert(vec![Vertex::Closed(0), Vertex::Open]);
-        edges
-            .entry(4)
-            .or_insert(vec![Vertex::Closed(0), Vertex::Open]);
-        edges
-            .entry(1)
-            .or_insert(vec![Vertex::Closed(0), Vertex::Open]);
-        edges.entry(2).or_insert(vec![Vertex::Closed(0)]);
-        edges.entry(3).or_insert(vec![Vertex::Closed(0)]);
+
+        let edges_before_contraction = HashMap::<_, _>::from_iter([
+            (0, vec![Vertex::Closed(0), Vertex::Closed(2)]),
+            (1, vec![Vertex::Closed(0), Vertex::Open]),
+            (2, vec![Vertex::Closed(0), Vertex::Closed(1)]),
+            (3, vec![Vertex::Closed(1), Vertex::Closed(2)]),
+            (4, vec![Vertex::Closed(1), Vertex::Open]),
+            (5, vec![Vertex::Closed(2), Vertex::Open]),
+        ]);
+
+        let edges_after_contraction = HashMap::<_, _>::from_iter([
+            (0, vec![Vertex::Closed(0)]),
+            (1, vec![Vertex::Closed(0), Vertex::Open]),
+            (2, vec![Vertex::Closed(0)]),
+            (3, vec![Vertex::Closed(0)]),
+            (4, vec![Vertex::Closed(0), Vertex::Open]),
+            (5, vec![Vertex::Closed(0), Vertex::Open]),
+        ]);
+
+        tout.get_mut_edges().extend(edges_after_contraction);
 
         let (d1, d2, d3, dout) = setup();
 
@@ -391,6 +399,7 @@ mod tests {
 
         let mut tn = create_tensor_network(vec![t1, t2, t3], &bond_dims, None);
         let contract_path = path![(0, 1), (0, 2)];
+        assert_eq!(tn.get_edges(), &edges_before_contraction);
 
         contract_tensor_network(&mut tn, &contract_path);
 
