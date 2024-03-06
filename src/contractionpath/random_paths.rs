@@ -4,7 +4,7 @@ use std::{
     collections::{BinaryHeap, HashMap},
 };
 
-use crate::{tensornetwork::tensor::Tensor, types::calculate_hash};
+use crate::tensornetwork::tensor::Tensor;
 
 use super::{
     candidates::Candidate, contraction_cost::contract_path_cost, paths::RNGChooser,

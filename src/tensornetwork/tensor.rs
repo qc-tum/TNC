@@ -3,6 +3,7 @@ use core::ops::{BitAnd, BitOr, BitXor, Sub};
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::iter::zip;
 use std::ops::Index;
 use std::sync::Arc;
 

@@ -1,6 +1,5 @@
 use rand::Rng;
 use std::collections::{BinaryHeap, HashMap};
-use std::option::Option;
 
 use crate::contractionpath::candidates::Candidate;
 use crate::tensornetwork::tensor::Tensor;

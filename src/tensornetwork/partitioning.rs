@@ -6,7 +6,6 @@ use std::iter::zip;
 use super::tensor::Tensor;
 use crate::types::Vertex;
 
-use kahypar_sys;
 use kahypar_sys::{partition, KaHyParContext};
 
 /// Partitions input tensor network using KaHyPar library.

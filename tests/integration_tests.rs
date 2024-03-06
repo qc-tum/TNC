@@ -1,7 +1,3 @@
-use std::iter::zip;
-
-use float_cmp::approx_eq;
-use itertools::Itertools;
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
@@ -12,7 +8,6 @@ use tensorcontraction::{
         contraction::contract_tensor_network,
         partitioning::{find_partitioning, partition_tensor_network},
         tensor::Tensor,
-        tensordata::TensorData,
     },
 };
 

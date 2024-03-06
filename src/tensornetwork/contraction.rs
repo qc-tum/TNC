@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::RangeBounds, sync::Arc};
+use std::{collections::HashMap, ops::RangeBounds};
 
 use tetra::{contract, Tensor as DataTensor};
 
