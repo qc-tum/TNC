@@ -691,7 +691,7 @@ impl Tensor {
 
     /// Get output legs after tensor contraction
     pub fn get_external_edges(&self) -> Vec<usize> {
-        if !self.get_legs().is_empty() {
+        if self.is_single_tensor() {
             return self.get_legs().clone();
         }
 
@@ -699,7 +699,7 @@ impl Tensor {
         for tensor in self.tensors.iter() {
             ext_edges = &ext_edges ^ tensor;
         }
-        let mut ext_edges = ext_edges.get_legs().to_owned();
+        let mut ext_edges = std::mem::take(&mut ext_edges.legs);
         for (&edge_index, &count) in self.external_hyperedge.iter() {
             ext_edges.append(&mut vec![edge_index; count]);
         }
