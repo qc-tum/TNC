@@ -142,10 +142,9 @@ impl TensorContraction for Tensor {
         new_tensor.bond_dims = Arc::clone(&self.bond_dims);
         new_tensor.set_tensor_data(TensorData::Matrix(contract(
             tensor_symmetric_difference
-                .get_legs()
-                .iter()
+                .legs_iter()
                 .map(|e| *e as u32)
-                .collect::<Vec<u32>>()
+                .collect::<Vec<_>>()
                 .as_slice(),
             tensor_a_legs
                 .iter()
