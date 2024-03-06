@@ -44,7 +44,7 @@ pub fn load_tensor(filename: &PathBuf) -> Result<Tensor> {
             tensor_dataset.into_raw_vec(),
             None,
         )));
-        new_tensor_network.push_tensor(new_tensor, Some(&bond_dims), None);
+        new_tensor_network.push_tensor(new_tensor, Some(&bond_dims));
     }
     new_tensor_network.set_legs(out_bond_ids.to_vec());
 
@@ -200,7 +200,7 @@ mod tests {
             ],
             None,
         ));
-        ref_tn.push_tensor(ref_tensor, Some(&HashMap::from([(0, 2), (1, 2)])), None);
+        ref_tn.push_tensor(ref_tensor, Some(&HashMap::from([(0, 2), (1, 2)])));
         ref_tn.set_legs(vec![0, 1]);
         let tensor = load_tensor(&PathBuf::from(TENSOR_TEST_FILE)).unwrap();
         assert_eq!(tensor, ref_tn);

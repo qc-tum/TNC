@@ -7,10 +7,12 @@ pub mod tensordata;
 
 use std::collections::HashMap;
 
+/// Creates a tensor network from a `Vec[Tensor]`,
+///
 pub fn create_tensor_network(
     tensors: Vec<Tensor>,
     bond_dims: &HashMap<usize, u64>,
-    external_legs: Option<&Vec<usize>>,
+    external_legs: Option<&HashMap<usize, usize>>,
 ) -> Tensor {
     let mut tensor = Tensor::default();
     tensor.push_tensors(tensors, Some(bond_dims), external_legs);

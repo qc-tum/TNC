@@ -129,7 +129,7 @@ pub fn scatter_tensor_network(
             }
             let mut new_tensor = Tensor::new(legs);
             new_tensor.set_tensor_data(tensor_data);
-            local_tn.push_tensor(new_tensor, Some(&bond_dims), None);
+            local_tn.push_tensor(new_tensor, Some(&bond_dims));
         }
         (local_tn, local_path)
     };
@@ -160,7 +160,7 @@ pub fn intermediate_reduce_tensor_network(
                 let (data, _status) = world.process_at_rank(sender).receive_vec::<Complex64>();
                 let tensor_data = TensorData::new_from_data(shape, data, None);
                 returned_tensor.set_tensor_data(tensor_data);
-                local_tn.push_tensor(returned_tensor, None, None);
+                local_tn.push_tensor(returned_tensor, None);
                 contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
             }
             if sender == rank {
@@ -221,7 +221,7 @@ pub fn naive_reduce_tensor_network(
             let (data, _status) = world.process_at_rank(i).receive_vec::<Complex64>();
             let tensor_data = TensorData::new_from_data(shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);
-            local_tn.push_tensor(returned_tensor, None, None);
+            local_tn.push_tensor(returned_tensor, None);
         }
     } else {
         let legs = local_tn.get_legs().clone();

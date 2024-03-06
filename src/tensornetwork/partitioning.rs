@@ -88,11 +88,8 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
     let mut partitions = vec![Tensor::default(); partition_ids.len()];
 
     for (partition_id, tensor) in zip(partitioning.iter(), tn.tensors.iter()) {
-        partitions[partition_dict[partition_id]].push_tensor(
-            tensor.clone(),
-            Some(&tensor.get_bond_dims()),
-            None,
-        );
+        partitions[partition_dict[partition_id]]
+            .push_tensor(tensor.clone(), Some(&tensor.get_bond_dims()));
     }
     let mut partitioned_tn = Tensor::default();
     partitioned_tn.push_tensors(partitions, Some(&*tn.get_bond_dims()), None);

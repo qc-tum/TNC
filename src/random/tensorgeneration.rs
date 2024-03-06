@@ -241,25 +241,18 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> Tensor {
 }
 
 pub fn create_filled_tensor_network<R>(
-    tensors: Vec<Tensor>,
+    mut tensors: Vec<Tensor>,
     bond_dims: &HashMap<usize, u64>,
-    external_legs: Option<&Vec<usize>>,
+    external_legs: Option<&HashMap<usize, usize>>,
     rng: &mut R,
 ) -> Tensor
 where
     R: Rng + ?Sized,
 {
-    let mut tensor = Tensor::default();
-    tensor.insert_bond_dims(bond_dims);
-    if let Some(legs) = external_legs {
-        tensor.update_external_edges(legs);
-    }
-
     // tensor.push_tensors(tensors, Some(bond_dims), external_legs);
-    for child_tensor in tensors {
-        let mut new_tensor = Tensor::new(child_tensor.get_legs().clone());
-        new_tensor.set_tensor_data(random_sparse_tensor_data_with_rng(
-            &tensor
+    for child_tensor in tensors.iter_mut() {
+        child_tensor.set_tensor_data(random_sparse_tensor_data_with_rng(
+            &child_tensor
                 .shape()
                 .iter()
                 .map(|&e| e.try_into().unwrap())
@@ -267,7 +260,6 @@ where
             None,
             rng,
         ));
-        tensor.push_tensor(new_tensor, None, None);
     }
-    tensor
+    create_tensor_network(tensors, bond_dims, external_legs)
 }

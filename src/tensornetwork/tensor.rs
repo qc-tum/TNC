@@ -63,6 +63,7 @@ impl Default for Tensor {
             legs: Vec::new(),
             bond_dims: Arc::new(RefCell::new(HashMap::new())),
             edges: HashMap::new(),
+            external_hyperedge: HashMap::new(),
             tensordata: RefCell::new(TensorData::Uncontracted),
         }
     }
@@ -87,6 +88,7 @@ impl Tensor {
             legs,
             bond_dims: Arc::new(RefCell::new(HashMap::new())),
             edges: HashMap::new(),
+            external_hyperedge: HashMap::new(),
             tensordata: RefCell::new(TensorData::Uncontracted),
         }
     }
@@ -400,14 +402,8 @@ impl Tensor {
     ///
     /// * `tensor` - new `Tensor` to be added
     /// * `bond_dims` - `HashMap<usize, u64>` mapping edge id to bond dimension
-    /// * 'external_hyperedge' - Optional `Vec<usize>`  of external hyperedges
     /// ```
-    pub fn push_tensor(
-        &mut self,
-        mut tensor: Tensor,
-        bond_dims: Option<&HashMap<usize, u64>>,
-        external_hyperedge: Option<&Vec<usize>>,
-    ) {
+    pub fn push_tensor(&mut self, mut tensor: Tensor, bond_dims: Option<&HashMap<usize, u64>>) {
         // In the case of pushing to an empty tensor, avoid unnecessary heirarchies
         if self.get_tensors().is_empty() && self.get_legs().is_empty() {
             let Tensor {
@@ -415,6 +411,7 @@ impl Tensor {
                 tensors: _,
                 bond_dims: _,
                 edges: _,
+                external_hyperedge,
                 tensordata,
             } = tensor;
             self.set_legs(legs);
@@ -423,9 +420,14 @@ impl Tensor {
             if let Some(bond_dims) = bond_dims {
                 self.add_bond_dims(bond_dims);
             }
-            if let Some(external_hyperedge) = external_hyperedge {
-                self.update_external_edges(external_hyperedge);
-            };
+            for (&key, &value) in external_hyperedge.iter() {
+                self.external_hyperedge
+                    .entry(key)
+                    .and_modify(|old_val| *old_val += value)
+                    .or_insert_with(|| value);
+            }
+            self.update_external_edges(&external_hyperedge);
+
             return;
         }
 
@@ -444,28 +446,28 @@ impl Tensor {
         if let Some(bond_dims) = bond_dims {
             self.add_bond_dims(bond_dims);
         };
-        if let Some(external_hyperedge) = external_hyperedge {
-            self.update_external_edges(external_hyperedge);
-        };
 
         self.update_tensor_edges(&mut tensor);
-        self.tensors.push(tensor)
+        self.update_external_edges(&tensor.external_hyperedge);
+
+        self.tensors.push(tensor);
     }
 
     /// Pushes additional tensor into Tensor object. If self is a leaf tensor, clone it and push it into itself.
+    /// Assumes that added tensors do not have external hyperedges, which is fed as an optional argument instead
     /// # Arguments
     ///
     /// * `tensors` - `Vec<Tensor>` to be added
     /// * `bond_dims` - `HashMap<usize, u64>` mapping edge id to bond dimension
-    /// * 'external_hyperedge' - Optional `Vec<usize>`  of external hyperedges
+    /// * 'external_hyperedge' - Optional `HashMap<EdgeIndex, usize>` of external hyperedges, mapping the edge index to count of external hyperedges.
     /// ```
     pub fn push_tensors(
         &mut self,
         tensors: Vec<Tensor>,
         bond_dims: Option<&HashMap<usize, u64>>,
-        external_hyperedge: Option<&Vec<usize>>,
+        external_hyperedge: Option<&HashMap<EdgeIndex, usize>>,
     ) {
-        // Case that tensor is not empty and has no subtensors.
+        // Case that tensor is not empty but has no subtensors.
         if self.get_tensors().is_empty() && !self.get_legs().is_empty() {
             let mut new_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
@@ -484,13 +486,15 @@ impl Tensor {
         if let Some(bond_dims) = bond_dims {
             self.add_bond_dims(bond_dims);
         };
-        if let Some(external_hyperedge) = external_hyperedge {
-            self.update_external_edges(external_hyperedge);
-        };
+
         for mut tensor in tensors.into_iter() {
             self.update_tensor_edges(&mut tensor);
             self.tensors.push(tensor);
         }
+
+        if let Some(external_hyperedge) = external_hyperedge {
+            self.update_external_edges(external_hyperedge);
+        };
     }
 
     /// Internal method to update bond dimensions based on `bond_dims`. Only incorporates missing dimensions,
@@ -505,13 +509,14 @@ impl Tensor {
         }
     }
 
-    /// Internal method to update hyperedges in edge HashMap. Adds an additional open vertex to each indicated
-    /// edge
-    pub(crate) fn update_external_edges(&mut self, external_hyperedge: &Vec<usize>) {
-        for i in external_hyperedge {
-            self.edges
-                .entry(*i)
-                .and_modify(|edge| edge.push(Vertex::Open));
+    /// Internal method to update hyperedges in edge HashMap. Adds an additional open vertex to each indicated edge if they are missing
+    pub(super) fn update_external_edges(&mut self, external_hyperedge: &HashMap<EdgeIndex, usize>) {
+        for (&edge_index, &count) in external_hyperedge {
+            self.edges.entry(edge_index).and_modify(|edge| {
+                let missing_hyperedges =
+                    edge.iter().filter(|e| e == &&Vertex::Open).count() - count;
+                edge.append(&mut vec![Vertex::Open; missing_hyperedges]);
+            });
         }
     }
 
@@ -528,6 +533,7 @@ impl Tensor {
             if !shared_bond_dims.contains_key(&leg) {
                 panic!("Leg {leg} bond dimension is not defined");
             }
+            // Never introduces a Vertex::Open as this is handled in `[update_external_hyperedge]`
             self.edges
                 .entry(leg)
                 .and_modify(|edge| {
@@ -803,7 +809,7 @@ mod tests {
 
         let tensor_2 = Tensor::new(vec![8, 4, 9]);
         let bond_dims_2 = HashMap::from([(8, 3), (9, 20)]);
-        tensor.push_tensor(tensor_2, Some(&bond_dims_2), None);
+        tensor.push_tensor(tensor_2, Some(&bond_dims_2));
 
         assert_eq!(*tensor.get_tensor_data(), TensorData::Uncontracted);
         for (key, value) in tensor.get_bond_dims().iter() {
@@ -818,7 +824,7 @@ mod tests {
         let tensor_3 = Tensor::new(vec![7, 10, 2]);
         let bond_dims_3 = HashMap::from([(7, 7), (10, 14)]);
 
-        tensor.push_tensor(tensor_3, Some(&bond_dims_3), None);
+        tensor.push_tensor(tensor_3, Some(&bond_dims_3));
         for (key, value) in tensor.get_bond_dims().iter() {
             assert_eq!(reference_bond_dims_3[key], *value);
         }
