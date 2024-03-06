@@ -124,7 +124,7 @@ impl Tensor {
         self.legs.iter()
     }
 
-    /// Internal method to set legs
+    /// Internal method to set legs. Needs pub(crate) for contraction order finding for hierarchies.
     pub(crate) fn set_legs(&mut self, legs: Vec<EdgeIndex>) {
         self.legs = legs;
     }
