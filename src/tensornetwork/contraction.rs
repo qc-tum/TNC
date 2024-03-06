@@ -11,7 +11,6 @@ use super::tensordata::TensorData;
 /// # Arguments
 ///
 /// * `tn` - [`Tensor`] to be contracted
-/// * `d_tn` - [`Vector`] of [DataTensor] objects containing data of [Tensor]
 /// * `contract_path` - [`Vector`] of [(usize, usize)], indicating contraction path. See [BranchBound] for details on `contract_path` format.
 ///
 /// # Examples
