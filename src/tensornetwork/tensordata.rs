@@ -1,7 +1,9 @@
+use float_cmp::approx_eq;
+use std::iter::zip;
 use std::path::PathBuf;
 
 use num_complex::Complex64;
-use tetra::{Layout, Tensor as DataTensor};
+use tetra::{all_close, Layout, Tensor as DataTensor};
 
 #[derive(Debug, Clone)]
 pub enum TensorData {
@@ -11,19 +13,8 @@ pub enum TensorData {
     Uncontracted,
 }
 
-#[cfg(test)]
-use float_cmp::approx_eq;
-#[cfg(test)]
-use itertools::Itertools;
-#[cfg(test)]
-use std::iter::zip;
-
-#[cfg(test)]
-impl Eq for TensorData {}
-
-#[cfg(test)]
-impl PartialEq for TensorData {
-    fn eq(&self, other: &Self) -> bool {
+impl TensorData {
+    pub fn approx_eq(&self, other: &TensorData, epsilon: f64) -> bool {
         match (self, other) {
             (Self::File(l0), Self::File(r0)) => l0 == r0,
             (Self::Gate((l0, angles_l)), Self::Gate((r0, angles_r))) => {
@@ -31,25 +22,13 @@ impl PartialEq for TensorData {
                     return false;
                 }
                 for (angle1, angle2) in zip(angles_l.iter(), angles_r.iter()) {
-                    if !approx_eq!(f64, *angle1, *angle2, ulps = 2) {
+                    if !approx_eq!(f64, *angle1, *angle2, epsilon = epsilon) {
                         return false;
                     }
                 }
                 true
             }
-            (Self::Matrix(l0), Self::Matrix(r0)) => {
-                let range = l0.shape().iter().map(|e| 0..*e).multi_cartesian_product();
-
-                for index in range {
-                    if !approx_eq!(f64, l0.get(&index).im, r0.get(&index).im, epsilon = 1e-8) {
-                        return false;
-                    }
-                    if !approx_eq!(f64, l0.get(&index).re, r0.get(&index).re, epsilon = 1e-8) {
-                        return false;
-                    }
-                }
-                true
-            }
+            (Self::Matrix(l0), Self::Matrix(r0)) => all_close(l0, r0, epsilon),
             (Self::Uncontracted, Self::Uncontracted) => true,
             _ => false,
         }

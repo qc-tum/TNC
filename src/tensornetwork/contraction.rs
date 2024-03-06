@@ -400,9 +400,8 @@ mod tests {
         let mut tn = create_tensor_network(vec![t1, t2, t3], &bond_dims, None);
         let contract_path = path![(0, 1), (0, 2)];
         assert_eq!(tn.get_edges(), &edges_before_contraction);
-
         contract_tensor_network(&mut tn, &contract_path);
 
-        assert_eq!(tout, tn);
+        assert!(tout.approx_eq(&tn, 1e-8));
     }
 }

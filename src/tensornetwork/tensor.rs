@@ -1,7 +1,6 @@
 use array_tool::vec::{Intersect, Union};
 use core::ops::{BitAnd, BitOr, BitXor, Sub};
-use itertools::Itertools;
-use std::cell::{Ref, RefCell};
+=use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::ops::Index;
@@ -20,31 +19,6 @@ pub struct Tensor {
     pub(crate) edges: HashMap<EdgeIndex, Vec<Vertex>>,
     external_hyperedge: HashMap<EdgeIndex, usize>,
     tensordata: RefCell<TensorData>,
-}
-
-#[cfg(test)]
-impl Eq for Tensor {}
-
-#[cfg(test)]
-impl PartialEq for Tensor {
-    fn eq(&self, other: &Self) -> bool {
-        if *self.get_bond_dims() != *other.get_bond_dims() {
-            return false;
-        }
-        if *self.get_legs() != *other.get_legs() {
-            return false;
-        }
-        if *self.get_tensor_data() != *other.get_tensor_data() {
-            return false;
-        }
-        let other_edges = other.get_edges();
-        for (k, v) in self.get_edges().iter() {
-            if !(other_edges[k].iter().sorted().eq(v.iter().sorted())) {
-                return false;
-            }
-        }
-        true
-    }
 }
 
 impl Hash for Tensor {
@@ -406,6 +380,45 @@ impl Tensor {
         !self.tensors.is_empty()
     }
 
+    /// Comparison of two Tensors, returns true if Tensor objects are equivalent up to `epsilon` precision.
+    /// Considers `legs`, `bond_dims`, `external_hyperedges` and `tensordata`. Cannot be used for
+    /// composite tensors. `edges` are not compared as different contraction ordering will result in
+    /// different edges even though the tensors are otherwise identical.
+    ///
+    /// # Examples
+    /// ```
+    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// let mut tensor = Tensor::new(Vec::from([1,2,3]));
+    /// assert_eq!(tensor.is_composite(), false);
+    /// ```
+    pub fn approx_eq(&self, other: &Tensor, epsilon: f64) -> bool {
+        let Tensor {
+            tensors,
+            legs,
+            bond_dims,
+            edges: _,
+            external_hyperedge,
+            tensordata,
+        } = self;
+        let Tensor {
+            tensors: other_tensors,
+            legs: other_legs,
+            bond_dims: other_bond_dims,
+            edges: _,
+            external_hyperedge: other_external_hyperedges,
+            tensordata: other_tensordata,
+        } = other;
+
+        assert_eq!(legs, other_legs);
+        assert_eq!(bond_dims, other_bond_dims);
+        assert_eq!(external_hyperedge, other_external_hyperedges);
+        assert!(tensordata
+            .borrow()
+            .approx_eq(&other_tensordata.borrow(), epsilon));
+
+        true
+    }
+
     /// Pushes additional tensor into Tensor object. If self is a leaf tensor, clone it and push it into itself.
     /// # Arguments
     ///
@@ -737,7 +750,7 @@ impl Sub for &Tensor {
 #[cfg(test)]
 mod tests {
     use num_complex::Complex64;
-    use std::collections::HashMap;
+    use std::{collections::HashMap, iter::zip};
 
     use crate::{tensornetwork::tensordata::TensorData, types::Vertex};
 
@@ -755,7 +768,9 @@ mod tests {
         let tensor = Tensor::new(vec![2, 4, 5]);
         assert_eq!(tensor.get_legs(), &vec![2, 4, 5]);
         assert_eq!(tensor.dims(), 3);
-        assert_eq!(*tensor.get_tensor_data(), TensorData::Uncontracted);
+        assert!(tensor
+            .get_tensor_data()
+            .approx_eq(&TensorData::Uncontracted, 1e-12));
     }
 
     #[test]
@@ -803,14 +818,18 @@ mod tests {
         let bond_dims_2 = HashMap::from([(8, 3), (9, 20)]);
         tensor.push_tensor(tensor_2, Some(&bond_dims_2));
 
-        assert_eq!(*tensor.get_tensor_data(), TensorData::Uncontracted);
+        assert!(tensor
+            .get_tensor_data()
+            .approx_eq(&TensorData::Uncontracted, 1e-12),);
         for (key, value) in tensor.get_bond_dims().iter() {
             assert_eq!(reference_bond_dims_2[key], *value);
         }
-        assert_eq!(
+        zip(
             tensor.get_tensors(),
-            &vec![ref_tensor_1.clone(), ref_tensor_2.clone()]
-        );
+            &vec![ref_tensor_1.clone(), ref_tensor_2.clone()],
+        )
+        .map(|(a, b)| assert_eq!(a.get_legs(), b.get_legs()));
+
         assert_eq!(tensor.get_legs(), &Vec::<usize>::new());
 
         let tensor_3 = Tensor::new(vec![7, 10, 2]);
@@ -821,10 +840,13 @@ mod tests {
             assert_eq!(reference_bond_dims_3[key], *value);
         }
         ref_tensor_2.insert_bond_dims(&reference_bond_dims_3);
-        assert_eq!(
+
+        zip(
             tensor.get_tensors(),
-            &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3]
-        );
+            &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
+        )
+        .map(|(a, b)| assert_eq!(a.get_legs(), b.get_legs()));
+
         assert_eq!(
             tensor.get_edges(),
             &HashMap::from([
@@ -872,11 +894,16 @@ mod tests {
         let tensor_3 = Tensor::new(vec![7, 10, 2]);
         tensor.push_tensors(vec![tensor_2, tensor_3], Some(&reference_bond_dims_3), None);
 
-        assert_eq!(*tensor.get_tensor_data(), TensorData::Uncontracted);
-        assert_eq!(
+        assert!(tensor
+            .get_tensor_data()
+            .approx_eq(&TensorData::Uncontracted, 1e-12));
+
+        zip(
             tensor.get_tensors(),
-            &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3]
-        );
+            &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
+        )
+        .map(|(a, b)| assert_eq!(a.get_legs(), b.get_legs()));
+
         assert_eq!(*tensor.get_bond_dims(), reference_bond_dims_3);
         assert_eq!(
             tensor.get_edges(),

@@ -203,6 +203,6 @@ mod tests {
         ref_tn.push_tensor(ref_tensor, Some(&HashMap::from([(0, 2), (1, 2)])));
         ref_tn.set_legs(vec![0, 1]);
         let tensor = load_tensor(&PathBuf::from(TENSOR_TEST_FILE)).unwrap();
-        assert_eq!(tensor, ref_tn);
+        assert!(tensor.approx_eq(&ref_tn, 1e-12));
     }
 }
