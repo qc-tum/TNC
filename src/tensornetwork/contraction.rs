@@ -34,12 +34,10 @@ use super::tensordata::TensorData;
 /// contract_tensor_network(&mut r_tn, &opt_path);
 /// ```
 pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionIndex]) {
-    let mut last_index = 0;
     for contract_index in contract_path.iter() {
         match contract_index {
             ContractionIndex::Pair(i, j) => {
                 tn.contract_tensors(*i, *j);
-                last_index = *i;
             }
             ContractionIndex::Path(i, inner_contract_path) => {
                 contract_tensor_network(tn.get_mut_tensor(*i), inner_contract_path);
@@ -48,10 +46,16 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
         }
     }
 
-    tn.set_legs(tn.get_tensor(last_index).get_legs().to_owned());
-    let tmp_data = tn.get_tensor(last_index).get_tensor_data().clone();
-    tn.drain(0..);
-    tn.set_tensor_data(tmp_data);
+    tn.tensors.retain(|x| {
+        !x.get_tensor_data()
+            .approx_eq(&TensorData::Uncontracted, 1e-12)
+    });
+    if tn.tensors.len() == 1 {
+        tn.set_legs(tn.tensors[0].get_legs().clone());
+        let tmp_data = tn.get_tensor(0).get_tensor_data().to_owned();
+        tn.tensors.drain(0..);
+        tn.set_tensor_data(tmp_data);
+    }
 }
 
 pub(crate) trait TensorContraction {
