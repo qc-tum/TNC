@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn test_ssa_replace_ordering() {
         let path = path![(0, 3), (1, 2), (6, 4), (5, 7), (9, 8), (11, 10)];
-        let new_path = ssa_replace_ordering(&path, 7);
+        let new_path = ssa_replace_ordering(path, 7);
 
         assert_eq!(
             new_path,

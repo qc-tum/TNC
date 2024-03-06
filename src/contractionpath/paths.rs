@@ -24,7 +24,7 @@ pub enum CostType {
     Size,
 }
 
-pub(crate) fn validate_path(path: &Vec<ContractionIndex>) {
+pub(crate) fn validate_path(path: &[ContractionIndex]) {
     let mut contracted = Vec::<usize>::new();
     for index in path {
         match index {
@@ -73,6 +73,6 @@ mod tests {
     #[should_panic]
     fn test_validate_paths() {
         let invalid_path = path![(0, 1), (1, 2)];
-        validate_path(&invalid_path);
+        validate_path(invalid_path);
     }
 }

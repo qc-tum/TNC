@@ -52,7 +52,7 @@ mod tests {
         let root_process = world.process_at_rank(0);
 
         let contraction_indices = if rank == 0 {
-            let mut contraction_indices = path![(0, 4), (1, 5), (2, 6)];
+            let mut contraction_indices = path![(0, 4), (1, 5), (2, 6)].to_vec();
             root_process.broadcast_into(&mut contraction_indices);
             contraction_indices
         } else {

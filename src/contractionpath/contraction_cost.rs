@@ -158,10 +158,10 @@ mod tests {
     #[test]
     fn test_contract_path_cost() {
         let tn = setup_simple();
-        let (op_cost, mem_cost) = contract_path_cost(tn.get_tensors(), &path![(0, 1), (0, 2)]);
+        let (op_cost, mem_cost) = contract_path_cost(tn.get_tensors(), path![(0, 1), (0, 2)]);
         assert_eq!(op_cost, 600);
         assert_eq!(mem_cost, 538);
-        let (op_cost, mem_cost) = contract_path_cost(tn.get_tensors(), &path![(0, 2), (0, 1)]);
+        let (op_cost, mem_cost) = contract_path_cost(tn.get_tensors(), path![(0, 2), (0, 1)]);
         assert_eq!(op_cost, 6336);
         assert_eq!(mem_cost, 1176);
     }

@@ -32,7 +32,7 @@ macro_rules! path {
         $crate::types::ContractionIndex::Path($index, vec![$(pair![$l, $r]),*])
     };
     ($(($index:expr, $($tokens:tt),*)),*) => {
-        vec![$(path![$index, $($tokens),*]),*]
+        &[$(path![$index, $($tokens),*]),*]
     };
     ($e:expr, $p:expr) => {
         $crate::types::ContractionIndex::Pair($e, $p)
@@ -66,7 +66,7 @@ mod tests {
                 (3, [(4, 1), (3, 4), (3, 5)]),
                 (0, 3)
             ],
-            vec![
+            &[
                 ContractionIndex::Pair(0, 1),
                 ContractionIndex::Path(
                     2,
