@@ -772,7 +772,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_update_bond_dims() {
+    fn test_add_bond_dims() {
         let mut tensor = Tensor::new(vec![2, 4, 5]);
         tensor.insert_bond_dim(2, 5);
 
