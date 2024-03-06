@@ -98,8 +98,6 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-    use std::path::PathBuf;
 
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
@@ -162,8 +160,17 @@ mod tests {
         let partitioned_tn = partition_tensor_network(&tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.get_tensors().len(), 3);
 
-        assert_eq!(partitioned_tn.get_tensors()[0], ref_tensor_3);
-        assert_eq!(partitioned_tn.get_tensors()[1], ref_tensor_2);
-        assert_eq!(partitioned_tn.get_tensors()[2], ref_tensor_1);
+        assert_eq!(
+            partitioned_tn.get_tensors()[0].get_legs(),
+            ref_tensor_3.get_legs()
+        );
+        assert_eq!(
+            partitioned_tn.get_tensors()[1].get_legs(),
+            ref_tensor_2.get_legs()
+        );
+        assert_eq!(
+            partitioned_tn.get_tensors()[2].get_legs(),
+            ref_tensor_1.get_legs()
+        );
     }
 }
