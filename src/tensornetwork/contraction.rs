@@ -153,18 +153,6 @@ impl TensorContraction for Tensor {
     }
 }
 
-fn count_edges<I>(it: I) -> HashMap<I::Item, usize>
-where
-    I: IntoIterator,
-    I::Item: Eq + core::hash::Hash,
-{
-    let mut result = HashMap::new();
-
-    for item in it {
-        *result.entry(item).or_insert(0) += 1;
-    }
-    result
-}
 #[cfg(test)]
 mod tests {
     use super::contract_tensor_network;
