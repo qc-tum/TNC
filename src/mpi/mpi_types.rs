@@ -1,6 +1,6 @@
 use mpi::{
     datatype::{UncommittedUserDatatype, UserDatatype},
-    traits::*,
+    traits::Equivalence,
     Address,
 };
 
