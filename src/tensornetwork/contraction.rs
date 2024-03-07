@@ -128,6 +128,7 @@ impl TensorContraction for Tensor {
                     }
                 }
             });
+            edges.retain(|_, edge| edge != &vec![Vertex::Closed(tensor_a_loc)]);
         }
 
         let out_indices = tensor_symmetric_difference
@@ -142,6 +143,7 @@ impl TensorContraction for Tensor {
             .iter()
             .map(|e| *e as u32)
             .collect::<Vec<u32>>();
+
         tensor_symmetric_difference.set_tensor_data(TensorData::Matrix(contract(
             &out_indices,
             &a_indices,
@@ -434,15 +436,10 @@ mod tests {
         ]);
 
         let edges_after_contraction = HashMap::<_, _>::from_iter([
-            (0, vec![Vertex::Closed(0)]),
             (1, vec![Vertex::Closed(0), Vertex::Open]),
-            (2, vec![Vertex::Closed(0)]),
-            (3, vec![Vertex::Closed(0)]),
             (4, vec![Vertex::Closed(0), Vertex::Open]),
             (5, vec![Vertex::Closed(0), Vertex::Open]),
         ]);
-
-        tout.get_mut_edges().extend(edges_after_contraction);
 
         let (d1, d2, d3, dout) = setup();
 
@@ -472,7 +469,7 @@ mod tests {
         let contract_path = path![(0, 1), (0, 2)];
         assert_eq!(tn.edges(), &edges_before_contraction);
         contract_tensor_network(&mut tn, contract_path);
-
         assert!(tout.approx_eq(&tn, 1e-8));
+        assert_eq!(tn.edges(), &edges_after_contraction);
     }
 }
