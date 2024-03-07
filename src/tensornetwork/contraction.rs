@@ -41,18 +41,17 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
             }
             ContractionIndex::Path(i, inner_contract_path) => {
                 contract_tensor_network(tn.get_mut_tensor(*i), inner_contract_path);
-                tn.update_tensor_edges(&mut tn.get_tensor(*i).clone());
+                tn.update_tensor_edges(&mut tn.tensor(*i).clone());
             }
         }
     }
 
     tn.tensors.retain(|x| {
-        !x.get_tensor_data()
-            .approx_eq(&TensorData::Uncontracted, 1e-12)
+        !x.tensor_data().approx_eq(&TensorData::Uncontracted, 1e-12) || x.is_composite()
     });
     if tn.tensors.len() == 1 {
-        tn.set_legs(tn.tensors[0].get_legs().clone());
-        let tmp_data = tn.get_tensor(0).get_tensor_data().to_owned();
+        tn.set_legs(tn.tensors[0].legs().clone());
+        let tmp_data = tn.tensor(0).tensor_data().to_owned();
         tn.tensors.drain(0..);
         tn.set_tensor_data(tmp_data);
     }
@@ -82,7 +81,7 @@ impl TensorContraction for Tensor {
 
     /// Getter for underlying raw data
     fn get_data(&self) -> DataTensor {
-        match &*self.get_tensor_data() {
+        match &*self.tensor_data() {
             TensorData::File(filename) => load_data(filename).unwrap(),
             TensorData::Gate((gatename, angles)) => load_gate(gatename, Some(angles)), // load_gate[gatename.to_lowercase()],
             TensorData::Matrix(rawdata) => rawdata.clone(),
@@ -107,8 +106,8 @@ impl TensorContraction for Tensor {
         let tensor_a = std::mem::take(&mut self.tensors[tensor_a_loc]);
         let tensor_b = std::mem::take(&mut self.tensors[tensor_b_loc]);
 
-        let tensor_a_legs = tensor_a.get_legs();
-        let tensor_b_legs = tensor_b.get_legs();
+        let tensor_a_legs = tensor_a.legs();
+        let tensor_b_legs = tensor_b.legs();
         let mut tensor_symmetric_difference = &tensor_b ^ &tensor_a;
 
         let edges = self.get_mut_edges();
@@ -400,7 +399,7 @@ mod tests {
 
         let mut tn = create_tensor_network(vec![t1, t2, t3], &bond_dims, None);
         let contract_path = path![(0, 1), (0, 2)];
-        assert_eq!(tn.get_edges(), &edges_before_contraction);
+        assert_eq!(tn.edges(), &edges_before_contraction);
         contract_tensor_network(&mut tn, contract_path);
 
         assert!(tout.approx_eq(&tn, 1e-8));

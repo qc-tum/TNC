@@ -29,9 +29,9 @@ pub fn scatter_tensor_network(
     let root_process = world.process_at_rank(0);
     // Distribute bond_dims
     let mut bond_vec = if rank == 0 {
-        bond_num = r_tn.get_bond_dims().len();
+        bond_num = r_tn.bond_dims().len();
         root_process.broadcast_into(&mut bond_num);
-        r_tn.get_bond_dims()
+        r_tn.bond_dims()
             .iter()
             .map(|(bond_id, bond_size)| BondDim {
                 bond_id: *bond_id,
@@ -48,7 +48,7 @@ pub fn scatter_tensor_network(
 
     let (local_tn, local_path) = if rank == 0 {
         let local_path = path[0].clone().get_data();
-        let local_tn = r_tn.get_tensor(0).clone();
+        let local_tn = r_tn.tensor(0).clone();
         for (i, contraction_path) in zip(1..size, path[1..size as usize].iter()) {
             match contraction_path {
                 ContractionIndex::Path(_, local) => {
@@ -58,14 +58,14 @@ pub fn scatter_tensor_network(
             }
         }
 
-        for (i, tensor) in zip(1..size, r_tn.get_tensors()[1..size as usize].iter()) {
-            let num_tensors = tensor.get_tensors().len();
+        for (i, tensor) in zip(1..size, r_tn.tensors()[1..size as usize].iter()) {
+            let num_tensors = tensor.tensors().len();
             world.process_at_rank(i).send(&num_tensors);
-            for inner_tensor in tensor.get_tensors() {
-                let legs = inner_tensor.get_legs().clone();
+            for inner_tensor in tensor.tensors() {
+                let legs = inner_tensor.legs().clone();
                 world.process_at_rank(i).send(&legs);
 
-                let tensor_data = inner_tensor.get_tensor_data().clone();
+                let tensor_data = inner_tensor.tensor_data().clone();
                 match tensor_data {
                     TensorData::Uncontracted => {
                         world.process_at_rank(i).send(&0_i32);
@@ -164,7 +164,7 @@ pub fn intermediate_reduce_tensor_network(
                 contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
             }
             if sender == rank {
-                let legs = local_tn.get_legs().clone();
+                let legs = local_tn.legs().clone();
                 world.process_at_rank(receiver).send(&legs);
                 let local_tensor = local_tn.get_data();
                 world
@@ -193,7 +193,7 @@ pub fn intermediate_reduce_tensor_network(
             *local_tn = returned_tensor;
         }
         if rank == final_rank {
-            let legs = local_tn.get_legs().clone();
+            let legs = local_tn.legs().clone();
             world.process_at_rank(0).send(&legs);
             let local_tensor = local_tn.get_data();
             world.process_at_rank(0).send(&(*local_tensor.shape()));
@@ -224,7 +224,7 @@ pub fn naive_reduce_tensor_network(
             local_tn.push_tensor(returned_tensor, None);
         }
     } else {
-        let legs = local_tn.get_legs().clone();
+        let legs = local_tn.legs().clone();
         world.process_at_rank(0).send(&legs);
         let local_tensor = local_tn.get_data();
         world.process_at_rank(0).send(&(*local_tensor.shape()));

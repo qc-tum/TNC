@@ -161,7 +161,7 @@ impl<'a> Greedy<'a> {
         dim_tensor_counts: &mut HashMap<usize, HashSet<usize>>,
         dims: &Tensor,
     ) {
-        for &dim in dims.get_legs().iter() {
+        for &dim in dims.legs().iter() {
             let count = dim_to_tensors[&dim].len();
             if count <= 1 {
                 dim_tensor_counts.entry(2).and_modify(|e| {
@@ -227,7 +227,7 @@ impl<'a> Greedy<'a> {
         let mut queue = BinaryHeap::new();
         // Fill queue with all possible contraction combinations of contractions
         for (_edge, connected_tensors) in edge_to_tensors.iter_mut() {
-            connected_tensors.sort_unstable_by_key(|a| a.get_legs().len());
+            connected_tensors.sort_unstable_by_key(|a| a.legs().len());
             // Loop over all but the last entry
             for (i, k1) in connected_tensors[0..connected_tensors.len() - 1]
                 .iter()
@@ -311,18 +311,18 @@ impl<'a> Greedy<'a> {
             let k12_hash = calculate_hash(&k12);
 
             // Removing k1 from edge_to_tensors
-            for &dim in (&k1 - output_dims).get_legs().iter() {
+            for &dim in (&k1 - output_dims).legs().iter() {
                 edge_to_tensors.entry(dim).and_modify(|e| {
-                    if let Some(index) = e.iter().position(|x| x.get_legs() == k1.get_legs()) {
+                    if let Some(index) = e.iter().position(|x| x.legs() == k1.legs()) {
                         e.remove(index);
                     }
                 });
             }
 
             // Removing k2 from edge_to_tensors
-            for &dim in (&k2 - output_dims).get_legs().iter() {
+            for &dim in (&k2 - output_dims).legs().iter() {
                 edge_to_tensors.entry(dim).and_modify(|e| {
-                    if let Some(index) = e.iter().position(|x| x.get_legs() == k2.get_legs()) {
+                    if let Some(index) = e.iter().position(|x| x.legs() == k2.legs()) {
                         e.remove(index);
                     }
                 });
@@ -342,7 +342,7 @@ impl<'a> Greedy<'a> {
                 next_ssa_id += 1;
                 continue;
             } else {
-                for &dim in (&k12 - output_dims).get_legs().iter() {
+                for &dim in (&k12 - output_dims).legs().iter() {
                     edge_to_tensors
                         .entry(dim)
                         .and_modify(|e| e.push(k12.clone()));
@@ -371,7 +371,7 @@ impl<'a> Greedy<'a> {
             let mut k2s = Vec::new();
 
             // for each dimension in output tensor that will be contracted in the future, find respective contracted tensors.
-            for dim in (&k1 - output_dims).get_legs().iter() {
+            for dim in (&k1 - output_dims).legs().iter() {
                 for k2 in edge_to_tensors[dim].iter() {
                     // do not consider contracting with self. Inner products already removed
                     if calculate_hash(&k2) != calculate_hash(&k1) {
@@ -544,7 +544,7 @@ fn populate_edge_to_tensors(
         .collect::<Vec<_>>();
     let mut bond_dim_to_tensors = HashMap::<usize, Vec<Tensor>>::new();
     for key in remaining_inputs.into_iter() {
-        for dim in (key - output_dims).get_legs().iter() {
+        for dim in (key - output_dims).legs().iter() {
             bond_dim_to_tensors
                 .entry(*dim)
                 .or_default()
@@ -575,27 +575,27 @@ fn populate_edge_tensor_counts(
 // Assume one-level of parallelism
 impl<'a> OptimizePath for Greedy<'a> {
     fn optimize_path(&mut self) {
-        if self.tn.get_tensors().len() == 1 {
+        if self.tn.tensors().len() == 1 {
             // Perform a single contraction to match output shape.
             self.best_flops = 0;
             self.best_size = 0;
             self.best_path = vec![];
             return;
         }
-        let mut inputs: Vec<Tensor> = self.tn.get_tensors().clone();
+        let mut inputs: Vec<Tensor> = self.tn.tensors().clone();
         let mut rng: StdRng = StdRng::seed_from_u64(24);
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.is_composite() {
-                let external_legs = input_tensor.get_external_edges();
+                let external_legs = input_tensor.external_edges();
                 let path = self.ssa_greedy_optimize(
-                    input_tensor.get_tensors(),
+                    input_tensor.tensors(),
                     &Tensor::new(external_legs.clone()),
                     SimpleChooser,
                     Box::new(&Greedy::_cost_memory_removed),
                     &mut rng,
                 );
                 if !path.is_empty() {
-                    let ssa_path = ssa_replace_ordering(&path, input_tensor.get_tensors().len());
+                    let ssa_path = ssa_replace_ordering(&path, input_tensor.tensors().len());
                     self.best_path.push(ContractionIndex::Path(index, ssa_path));
                 }
                 input_tensor.set_legs(external_legs);
@@ -603,7 +603,7 @@ impl<'a> OptimizePath for Greedy<'a> {
         }
 
         // Vector of output leg ids
-        let output_dims = Tensor::new(self.tn.get_external_edges().clone());
+        let output_dims = Tensor::new(self.tn.external_edges().clone());
         // Start considering communication here!
         self.best_path.append(&mut self.ssa_greedy_optimize(
             &inputs,
@@ -613,7 +613,7 @@ impl<'a> OptimizePath for Greedy<'a> {
             &mut rng,
         ));
         let (op_cost, mem_cost) =
-            contract_path_cost(self.tn.get_tensors(), &self.get_best_replace_path());
+            contract_path_cost(self.tn.tensors(), &self.get_best_replace_path());
         self.best_size = mem_cost;
         self.best_flops = op_cost;
     }
@@ -631,7 +631,7 @@ impl<'a> OptimizePath for Greedy<'a> {
     }
 
     fn get_best_replace_path(&self) -> Vec<ContractionIndex> {
-        ssa_replace_ordering(&self.best_path, self.tn.get_tensors().len())
+        ssa_replace_ordering(&self.best_path, self.tn.tensors().len())
     }
 }
 

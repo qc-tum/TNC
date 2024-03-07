@@ -24,7 +24,7 @@ use tetra::Tensor as DataTensor;
 /// # use tensorcontraction::random::tensorgeneration::random_tensor_with_rng;
 /// let legs = 4;
 /// let (tensor, hs) = random_tensor_with_rng(legs, &mut rand::thread_rng());
-/// assert_eq!(tensor.get_legs().len(), legs);
+/// assert_eq!(tensor.legs().len(), legs);
 /// ```
 pub fn random_tensor_with_rng<R>(n: usize, rng: &mut R) -> (Tensor, HashMap<usize, u64>)
 where
@@ -54,7 +54,7 @@ where
 /// # use tensorcontraction::random::tensorgeneration::random_tensor;
 /// let legs = 4;
 /// let (tensor, hs) = random_tensor(legs);
-/// assert_eq!(tensor.get_legs().len(), legs);
+/// assert_eq!(tensor.legs().len(), legs);
 /// ```
 pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
     random_tensor_with_rng(n, &mut rand::thread_rng())

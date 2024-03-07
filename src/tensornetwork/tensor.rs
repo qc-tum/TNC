@@ -80,9 +80,9 @@ impl Tensor {
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let vec = Vec::from([1,2,3]);
     /// let tensor = Tensor::new(vec.clone()) ;
-    /// assert_eq!(tensor.get_legs(), &vec);
+    /// assert_eq!(tensor.legs(), &vec);
     /// ```
-    pub fn get_legs(&self) -> &Vec<EdgeIndex> {
+    pub fn legs(&self) -> &Vec<EdgeIndex> {
         &self.legs
     }
 
@@ -93,7 +93,7 @@ impl Tensor {
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let vec = Vec::from([1,2,3]);
     /// let tensor = Tensor::new(vec.clone()) ;
-    /// assert_eq!(tensor.get_legs(), &vec);
+    /// assert_eq!(tensor.legs(), &vec);
     /// ```
     pub fn legs_iter(&self) -> impl Iterator<Item = &EdgeIndex> {
         self.legs.iter()
@@ -121,11 +121,11 @@ impl Tensor {
     /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
     /// v1.insert_bond_dims(&bond_dims);
     /// v2.insert_bond_dims(&bond_dims);
-    /// for (tensor, ref_tensor) in std::iter::zip(tn.get_tensors(), vec![v1, v2]){
-    ///    assert_eq!(tensor.get_legs(), ref_tensor.get_legs());
+    /// for (tensor, ref_tensor) in std::iter::zip(tn.tensors(), vec![v1, v2]){
+    ///    assert_eq!(tensor.legs(), ref_tensor.legs());
     /// }
     /// ```
-    pub fn get_tensors(&self) -> &Vec<Tensor> {
+    pub fn tensors(&self) -> &Vec<Tensor> {
         &self.tensors
     }
 
@@ -147,9 +147,9 @@ impl Tensor {
     /// tn.insert_bond_dims(&bond_dims);
     /// let mut ref_tensor = Tensor::new(vec![0,1]);
     /// ref_tensor.insert_bond_dims(&bond_dims);
-    /// assert_eq!(tn.get_tensor(0).get_legs(), ref_tensor.get_legs());
+    /// assert_eq!(tn.tensor(0).legs(), ref_tensor.legs());
     /// ```
-    pub fn get_tensor(&self, i: usize) -> &Tensor {
+    pub fn tensor(&self, i: usize) -> &Tensor {
         &self.tensors[i]
     }
 
@@ -171,11 +171,11 @@ impl Tensor {
     /// v1.insert_bond_dims(&bond_dims);
     /// v2.insert_bond_dims(&bond_dims);
     /// for (t1, ref_t1) in std::iter::zip(tn.tensor_iter(), vec![v1, v2].iter()) {
-    ///    assert_eq!(t1.get_legs(), ref_t1.get_legs());
+    ///    assert_eq!(t1.legs(), ref_t1.legs());
     ///}
     /// ```
     pub fn tensor_iter(&self) -> impl Iterator<Item = &Tensor> {
-        self.get_tensors().iter()
+        self.tensors().iter()
     }
 
     /// Getter for bond dimensions.
@@ -192,9 +192,9 @@ impl Tensor {
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
     /// let tn = create_tensor_network(vec![v1,v2], &bond_dims, None);
-    /// assert_eq!(*tn.get_bond_dims(), bond_dims);
+    /// assert_eq!(*tn.bond_dims(), bond_dims);
     /// ```
-    pub fn get_bond_dims(&self) -> std::cell::Ref<HashMap<EdgeIndex, u64>> {
+    pub fn bond_dims(&self) -> std::cell::Ref<HashMap<EdgeIndex, u64>> {
         self.bond_dims.borrow()
     }
 
@@ -213,9 +213,9 @@ impl Tensor {
     /// ]);
     /// let mut tn = Tensor::default();
     /// tn.push_tensors(vec![v1,v2], Some(&bond_dims), None);
-    /// assert_eq!(*tn.get_bond_dims(), bond_dims);
+    /// assert_eq!(*tn.bond_dims(), bond_dims);
     /// tn.insert_bond_dim(1, 12);
-    /// assert_ne!(*tn.get_bond_dims(), bond_dims);
+    /// assert_ne!(*tn.bond_dims(), bond_dims);
     /// ```
     pub fn insert_bond_dim(&mut self, k: EdgeIndex, v: u64) {
         self.bond_dims
@@ -242,7 +242,7 @@ impl Tensor {
     /// ]);
     /// let mut tn = create_tensor_network(vec![v1,v2], &bond_dims, None);
     /// tn.insert_bond_dims(&HashMap::from([(1, 12), (0, 5)]));
-    /// assert_eq!(*tn.get_bond_dims(), HashMap::from([(0, 5), (1, 12), (2, 8)]) );
+    /// assert_eq!(*tn.bond_dims(), HashMap::from([(0, 5), (1, 12), (2, 8)]) );
     /// ```
     pub fn insert_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
         for (k, v) in bond_dims {
@@ -272,14 +272,14 @@ impl Tensor {
     /// ]);
     /// let mut tn = Tensor::default();
     /// tn.push_tensors(vec![v1, v2], Some(&bond_dims), None);
-    /// assert_eq!(tn.get_edges(), &HashMap::from(
+    /// assert_eq!(tn.edges(), &HashMap::from(
     /// [
     /// (0, vec![Vertex::Closed(0), Vertex::Open]),
     /// (1, vec![Vertex::Closed(0), Vertex::Closed(1)]),
     /// (2, vec![Vertex::Closed(1), Vertex::Open])
     /// ]));
     /// ```
-    pub fn get_edges(&self) -> &HashMap<EdgeIndex, Vec<Vertex>> {
+    pub fn edges(&self) -> &HashMap<EdgeIndex, Vec<Vertex>> {
         &self.edges
     }
 
@@ -337,7 +337,7 @@ impl Tensor {
     /// assert_eq!(tensor.size(), 600);
     /// ```
     pub fn size(&self) -> u64 {
-        self.legs.iter().map(|e| self.get_bond_dims()[e]).product()
+        self.legs.iter().map(|e| self.bond_dims()[e]).product()
     }
 
     /// Returns true if Tensor contains leg_id
@@ -424,7 +424,7 @@ impl Tensor {
     /// ```
     pub fn push_tensor(&mut self, mut tensor: Tensor, bond_dims: Option<&HashMap<usize, u64>>) {
         // In the case of pushing to an empty tensor, avoid unnecessary heirarchies
-        if self.get_tensors().is_empty() && self.get_legs().is_empty() {
+        if self.tensors().is_empty() && self.legs().is_empty() {
             let Tensor {
                 legs,
                 tensors: _,
@@ -450,7 +450,7 @@ impl Tensor {
             return;
         }
 
-        if self.get_tensors().is_empty() && !self.get_legs().is_empty() {
+        if self.tensors().is_empty() && !self.legs().is_empty() {
             let mut new_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
@@ -484,7 +484,7 @@ impl Tensor {
         external_hyperedge: Option<&HashMap<EdgeIndex, usize>>,
     ) {
         // Case that tensor is not empty but has no subtensors.
-        if self.get_tensors().is_empty() && !self.get_legs().is_empty() {
+        if self.tensors().is_empty() && !self.legs().is_empty() {
             let mut new_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
@@ -539,8 +539,8 @@ impl Tensor {
         let shared_bond_dims = self.bond_dims.borrow();
 
         // Index is current length as tensor is pushed after.
-        let index = self.get_tensors().len();
-        for &leg in tensor.get_legs() {
+        let index = self.tensors().len();
+        for &leg in tensor.legs() {
             if !shared_bond_dims.contains_key(&leg) {
                 panic!("Leg {leg} bond dimension is not defined");
             }
@@ -564,7 +564,7 @@ impl Tensor {
     //TODO: Implement docstring once comparison of data tensors done
     /// Getter for tensor data.
     ///
-    pub fn get_tensor_data(&self) -> Ref<'_, TensorData> {
+    pub fn tensor_data(&self) -> Ref<'_, TensorData> {
         self.tensordata.borrow()
     }
 
@@ -582,7 +582,7 @@ impl Tensor {
     /// ```
     pub fn set_tensor_data(&mut self, tensordata: TensorData) {
         assert_eq!(
-            self.get_tensors().len(),
+            self.tensors().len(),
             0,
             "Cannot add data to Tensor object with multiple child Tensors"
         );
@@ -603,7 +603,7 @@ impl Tensor {
     /// let tensor1 = Tensor::new(vec![1,2,3]);
     /// let tensor2 = Tensor::new(vec![4,2,5]);
     /// let diff_tensor = &tensor1 - &tensor2;
-    /// assert_eq!(diff_tensor.get_legs(), &vec![1,3]);
+    /// assert_eq!(diff_tensor.legs(), &vec![1,3]);
     /// ```
     pub fn difference(&self, other: &Tensor) -> Tensor {
         let mut new_legs = Vec::new();
@@ -628,11 +628,11 @@ impl Tensor {
     /// let tensor1 = Tensor::new(vec![1,2,3]);
     /// let tensor2 = Tensor::new(vec![4,2,5]);
     /// let union_tensor = &tensor1 | &tensor2;
-    /// assert_eq!(union_tensor.get_legs(), &vec![1,2,3,4,5]);
+    /// assert_eq!(union_tensor.legs(), &vec![1,2,3,4,5]);
     /// ```
     pub fn union(&self, other: &Tensor) -> Tensor {
-        let mut new_tn = Tensor::new(self.get_legs().union(other.get_legs().clone()));
-        new_tn.insert_bond_dims(&self.get_bond_dims());
+        let mut new_tn = Tensor::new(self.legs().union(other.legs().clone()));
+        new_tn.insert_bond_dims(&self.bond_dims());
         new_tn
     }
 
@@ -649,11 +649,11 @@ impl Tensor {
     /// let tensor1 = Tensor::new(vec![1,2,3]);
     /// let tensor2 = Tensor::new(vec![4,2,5]);
     /// let intersection_tensor = &tensor1 & &tensor2;
-    /// assert_eq!(intersection_tensor.get_legs(), &vec![2]);
+    /// assert_eq!(intersection_tensor.legs(), &vec![2]);
     /// ```
     pub fn intersection(&self, other: &Tensor) -> Tensor {
-        let mut new_tn = Tensor::new(self.get_legs().intersect(other.get_legs().clone()));
-        new_tn.insert_bond_dims(&self.get_bond_dims());
+        let mut new_tn = Tensor::new(self.legs().intersect(other.legs().clone()));
+        new_tn.insert_bond_dims(&self.bond_dims());
         new_tn
     }
 
@@ -670,7 +670,7 @@ impl Tensor {
     /// let tensor1 = Tensor::new(vec![1,2,3]);
     /// let tensor2 = Tensor::new(vec![4,2,5]);
     /// let sym_dif_tensor = &tensor1 ^ &tensor2;
-    /// assert_eq!(sym_dif_tensor.get_legs(), &vec![1,3,4,5]);
+    /// assert_eq!(sym_dif_tensor.legs(), &vec![1,3,4,5]);
     /// ```
     pub fn symmetric_difference(&self, other: &Tensor) -> Tensor {
         let mut new_legs = Vec::new();
@@ -679,20 +679,20 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        for &i in other.get_legs().iter() {
+        for &i in other.legs().iter() {
             if !self.contains_leg(i) {
                 new_legs.push(i);
             }
         }
         let mut new_tn = Tensor::new(new_legs);
-        new_tn.insert_bond_dims(&self.get_bond_dims());
+        new_tn.insert_bond_dims(&self.bond_dims());
         new_tn
     }
 
     /// Get output legs after tensor contraction
-    pub fn get_external_edges(&self) -> Vec<usize> {
+    pub fn external_edges(&self) -> Vec<usize> {
         if self.is_single_tensor() {
-            return self.get_legs().clone();
+            return self.legs().clone();
         }
 
         let mut ext_edges = Tensor::default();
@@ -757,16 +757,16 @@ mod tests {
     fn test_empty_tensor() {
         let tensor = Tensor::default();
         assert!(tensor.tensors.is_empty());
-        assert!(tensor.get_bond_dims().is_empty());
+        assert!(tensor.bond_dims().is_empty());
     }
 
     #[test]
     fn test_new() {
         let tensor = Tensor::new(vec![2, 4, 5]);
-        assert_eq!(tensor.get_legs(), &vec![2, 4, 5]);
+        assert_eq!(tensor.legs(), &vec![2, 4, 5]);
         assert_eq!(tensor.dims(), 3);
         assert!(tensor
-            .get_tensor_data()
+            .tensor_data()
             .approx_eq(&TensorData::Uncontracted, 1e-12));
     }
 
@@ -811,39 +811,39 @@ mod tests {
         tensor.push_tensor(tensor_2, Some(&bond_dims_2));
 
         assert!(tensor
-            .get_tensor_data()
+            .tensor_data()
             .approx_eq(&TensorData::Uncontracted, 1e-12),);
-        for (key, value) in tensor.get_bond_dims().iter() {
+        for (key, value) in tensor.bond_dims().iter() {
             assert_eq!(reference_bond_dims_2[key], *value);
         }
 
         for (tensor_legs, other_tensor_legs) in zip(
-            tensor.get_tensors(),
+            tensor.tensors(),
             &vec![ref_tensor_1.clone(), ref_tensor_2.clone()],
         ) {
-            assert_eq!(tensor_legs.get_legs(), other_tensor_legs.get_legs())
+            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs())
         }
 
-        assert_eq!(tensor.get_legs(), &Vec::<usize>::new());
+        assert_eq!(tensor.legs(), &Vec::<usize>::new());
 
         let tensor_3 = Tensor::new(vec![7, 10, 2]);
         let bond_dims_3 = HashMap::from([(7, 7), (10, 14)]);
 
         tensor.push_tensor(tensor_3, Some(&bond_dims_3));
-        for (key, value) in tensor.get_bond_dims().iter() {
+        for (key, value) in tensor.bond_dims().iter() {
             assert_eq!(reference_bond_dims_3[key], *value);
         }
         ref_tensor_2.insert_bond_dims(&reference_bond_dims_3);
 
         for (tensor_legs, other_tensor_legs) in zip(
-            tensor.get_tensors(),
+            tensor.tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
         ) {
-            assert_eq!(tensor_legs.get_legs(), other_tensor_legs.get_legs())
+            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs())
         }
 
         assert_eq!(
-            tensor.get_edges(),
+            tensor.edges(),
             &HashMap::from([
                 (2, vec![Vertex::Closed(0), Vertex::Closed(2)]),
                 (3, vec![Vertex::Closed(0), Vertex::Open]),
@@ -885,19 +885,19 @@ mod tests {
         tensor.push_tensors(vec![tensor_2, tensor_3], Some(&reference_bond_dims_3), None);
 
         assert!(tensor
-            .get_tensor_data()
+            .tensor_data()
             .approx_eq(&TensorData::Uncontracted, 1e-12));
 
         for (tensor, other_tensor) in zip(
-            tensor.get_tensors(),
+            tensor.tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
         ) {
-            assert_eq!(tensor.get_legs(), other_tensor.get_legs())
+            assert_eq!(tensor.legs(), other_tensor.legs())
         }
 
-        assert_eq!(*tensor.get_bond_dims(), reference_bond_dims_3);
+        assert_eq!(*tensor.bond_dims(), reference_bond_dims_3);
         assert_eq!(
-            tensor.get_edges(),
+            tensor.edges(),
             &HashMap::from([
                 (2, vec![Vertex::Closed(0), Vertex::Closed(2)]),
                 (3, vec![Vertex::Closed(0), Vertex::Open]),
@@ -939,28 +939,28 @@ mod tests {
         let bond_dims_1 = HashMap::from([(9, 20)]);
         tensor.push_tensor(tensor_1, Some(&bond_dims_1));
 
-        assert_eq!(reference_bond_dims_1, *tensor.get_bond_dims());
-        assert_eq!(tensor.get_legs(), &Vec::<usize>::new());
+        assert_eq!(reference_bond_dims_1, *tensor.bond_dims());
+        assert_eq!(tensor.legs(), &Vec::<usize>::new());
 
         let tensor_2 = Tensor::new(vec![4, 9, 2]);
 
         tensor.push_tensor(tensor_2, None);
-        assert_eq!(reference_bond_dims_2, *tensor.get_bond_dims());
+        assert_eq!(reference_bond_dims_2, *tensor.bond_dims());
 
         let tensor_3 = Tensor::new(vec![5, 6, 6]);
         let bond_dims_3 = HashMap::from([(5, 2), (6, 6)]);
         tensor.push_tensor(tensor_3, Some(&bond_dims_3));
-        assert_eq!(reference_bond_dims_3, *tensor.get_bond_dims());
+        assert_eq!(reference_bond_dims_3, *tensor.bond_dims());
 
         for (tensor_legs, other_tensor_legs) in zip(
-            tensor.get_tensors(),
+            tensor.tensors(),
             &vec![ref_tensor_0, ref_tensor_1, ref_tensor_2, ref_tensor_3],
         ) {
-            assert_eq!(tensor_legs.get_legs(), other_tensor_legs.get_legs())
+            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs())
         }
 
         assert_eq!(
-            tensor.get_edges(),
+            tensor.edges(),
             &HashMap::from([
                 (2, vec![Vertex::Closed(0), Vertex::Closed(2)]),
                 (3, vec![Vertex::Closed(0), Vertex::Closed(1)]),
