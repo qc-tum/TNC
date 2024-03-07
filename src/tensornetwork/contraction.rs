@@ -130,23 +130,23 @@ impl TensorContraction for Tensor {
             });
         }
 
+        let out_indices = tensor_symmetric_difference
+            .legs_iter()
+            .map(|e| *e as u32)
+            .collect::<Vec<_>>();
+        let a_indices = tensor_a_legs
+            .iter()
+            .map(|e| *e as u32)
+            .collect::<Vec<u32>>();
+        let b_indices = tensor_b_legs
+            .iter()
+            .map(|e| *e as u32)
+            .collect::<Vec<u32>>();
         tensor_symmetric_difference.set_tensor_data(TensorData::Matrix(contract(
-            tensor_symmetric_difference
-                .legs_iter()
-                .map(|e| *e as u32)
-                .collect::<Vec<_>>()
-                .as_slice(),
-            tensor_a_legs
-                .iter()
-                .map(|e| *e as u32)
-                .collect::<Vec<u32>>()
-                .as_slice(),
+            &out_indices,
+            &a_indices,
             &tensor_a.get_data(),
-            tensor_b_legs
-                .iter()
-                .map(|e| *e as u32)
-                .collect::<Vec<u32>>()
-                .as_slice(),
+            &b_indices,
             &tensor_b.get_data(),
         )));
         self.tensors[tensor_a_loc] = tensor_symmetric_difference;
@@ -332,6 +332,77 @@ mod tests {
         .collect();
 
         (d1, d2, d3, dout)
+    }
+
+    #[test]
+    fn test_tensor_contraction() {
+        // t1 is of shape [3, 2, 7]
+        let mut t1 = Tensor::new(vec![0, 1, 2]);
+
+        // t2 is of shape [7, 8, 6]
+        let mut t2 = Tensor::new(vec![2, 3, 4]);
+        // t3 is of shape [3, 5, 8]
+        let mut t3 = Tensor::new(vec![0, 5, 3]);
+        // tout is of shape [5, 6, 2]
+        let mut tout = Tensor::new(vec![5, 4, 1]);
+        let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
+
+        t1.insert_bond_dims(&bond_dims);
+        t2.insert_bond_dims(&bond_dims);
+        t3.insert_bond_dims(&bond_dims);
+
+        tout.insert_bond_dims(&bond_dims);
+
+        let edges_before_contraction = HashMap::<_, _>::from_iter([
+            (0, vec![Vertex::Closed(0), Vertex::Closed(2)]),
+            (1, vec![Vertex::Closed(0), Vertex::Open]),
+            (2, vec![Vertex::Closed(0), Vertex::Closed(1)]),
+            (3, vec![Vertex::Closed(1), Vertex::Closed(2)]),
+            (4, vec![Vertex::Closed(1), Vertex::Open]),
+            (5, vec![Vertex::Closed(2), Vertex::Open]),
+        ]);
+
+        let edges_after_contraction = HashMap::<_, _>::from_iter([
+            (0, vec![Vertex::Closed(0)]),
+            (1, vec![Vertex::Closed(0), Vertex::Open]),
+            (2, vec![Vertex::Closed(0)]),
+            (3, vec![Vertex::Closed(0)]),
+            (4, vec![Vertex::Closed(0), Vertex::Open]),
+            (5, vec![Vertex::Closed(0), Vertex::Open]),
+        ]);
+
+        tout.get_mut_edges().extend(edges_after_contraction);
+
+        let (d1, d2, d3, dout) = setup();
+
+        t1.set_tensor_data(TensorData::new_from_data(
+            t1.shape(),
+            d1,
+            Some(Layout::RowMajor),
+        ));
+
+        t2.set_tensor_data(TensorData::new_from_data(
+            t2.shape(),
+            d2,
+            Some(Layout::RowMajor),
+        ));
+        t3.set_tensor_data(TensorData::new_from_data(
+            t3.shape(),
+            d3,
+            Some(Layout::RowMajor),
+        ));
+        tout.set_tensor_data(TensorData::new_from_data(
+            tout.shape(),
+            dout,
+            Some(Layout::RowMajor),
+        ));
+
+        let mut tn = create_tensor_network(vec![t1, t2, t3], &bond_dims, None);
+        let contract_path = path![(0, 1), (0, 2)];
+        assert_eq!(tn.edges(), &edges_before_contraction);
+        contract_tensor_network(&mut tn, contract_path);
+
+        assert!(tout.approx_eq(&tn, 1e-8));
     }
 
     #[test]
