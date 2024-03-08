@@ -133,7 +133,7 @@ mpi_test!(
             ref_opt.optimize_path();
             let ref_path = ref_opt.get_best_replace_path();
             contract_tensor_network(&mut ref_tn, &ref_path);
-            assert_eq!(*local_tn.get_tensor_data(), *ref_tn.get_tensor_data());
+            assert!(local_tn.approx_eq(&ref_tn, 1e-8));
         }
     }
 );
