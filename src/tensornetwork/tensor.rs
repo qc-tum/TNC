@@ -746,7 +746,6 @@ impl Sub for &Tensor {
 
 #[cfg(test)]
 mod tests {
-    use num_complex::Complex64;
     use std::{collections::HashMap, iter::zip};
 
     use crate::{tensornetwork::tensordata::TensorData, types::Vertex};
