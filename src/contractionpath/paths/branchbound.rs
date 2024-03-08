@@ -74,7 +74,6 @@ impl<'a> BranchBound<'a> {
             k12 = self.result_cache[&(i, j)];
             flops_12 = self.flop_cache[&k12];
             size_12 = self.size_cache[&k12];
-            k12_tensor = self.tensor_cache[&k12].clone();
         } else {
             k12 = self.tensor_cache.len();
             flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
@@ -111,9 +110,7 @@ impl<'a> BranchBound<'a> {
             flop_cost: current_flops as i64,
             size_cost: current_size as i64,
             parent_ids: (i, j),
-            parent_tensors: None,
             child_id: k12,
-            child_tensor: Some(k12_tensor),
         })
     }
 
@@ -134,14 +131,14 @@ impl<'a> BranchBound<'a> {
                     if self.best_flops > flops {
                         self.best_flops = flops;
                         self.best_size = size;
-                        self.best_path = ssa_ordering(&path, self.tn.get_tensors().len());
+                        self.best_path = ssa_ordering(&path, self.tn.tensors().len());
                     }
                 }
                 CostType::Size => {
                     if self.best_size > size {
                         self.best_flops = flops;
                         self.best_size = size;
-                        self.best_path = ssa_ordering(&path, self.tn.get_tensors().len());
+                        self.best_path = ssa_ordering(&path, self.tn.tensors().len());
                     }
                 }
             }
@@ -164,9 +161,7 @@ impl<'a> BranchBound<'a> {
                 flop_cost,
                 size_cost,
                 parent_ids,
-                parent_tensors: _parent_tensor,
                 child_id,
-                child_tensor: _child_tensor,
             }) = candidates.pop()
             else {
                 break;
@@ -189,10 +184,10 @@ impl<'a> BranchBound<'a> {
 
 impl<'a> OptimizePath for BranchBound<'a> {
     fn optimize_path(&mut self) {
-        if self.tn.is_empty() {
+        if self.tn.is_single_tensor() {
             return;
         }
-        let tensors = self.tn.get_tensors().clone();
+        let tensors = self.tn.tensors().clone();
         self.flop_cache.clear();
         self.size_cache.clear();
         self.result_cache.clear();
@@ -201,7 +196,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
         // Get the initial space requirements for uncontracted tensors
         for (index, mut tensor) in tensors.into_iter().enumerate() {
             // Check that tensor has sub-tensors and doesn't have external legs set
-            if !tensor.get_tensors().is_empty() && tensor.get_legs().is_empty() {
+            if !tensor.tensors().is_empty() && tensor.legs().is_empty() {
                 let mut bb = BranchBound::new(
                     &tensor,
                     self.nbranch,
@@ -211,7 +206,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
                 bb.optimize_path();
                 sub_tensor_contraction
                     .push(ContractionIndex::Path(index, bb.get_best_path().clone()));
-                tensor.set_legs(tensor.get_external_edges());
+                tensor.set_legs(tensor.external_edges());
             }
             self.size_cache
                 .entry(index)
@@ -219,7 +214,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
 
             self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
-        let remaining = (0u32..self.tn.get_tensors().len() as u32).collect();
+        let remaining = (0u32..self.tn.tensors().len() as u32).collect();
         BranchBound::branch_iterate(self, vec![], remaining, 0, 0);
         sub_tensor_contraction.extend_from_slice(&self.best_path);
         self.best_path = sub_tensor_contraction;
@@ -238,7 +233,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
     }
 
     fn get_best_replace_path(&self) -> Vec<ContractionIndex> {
-        ssa_replace_ordering(&self.best_path, self.tn.get_tensors().len())
+        ssa_replace_ordering(&self.best_path, self.tn.tensors().len())
     }
 }
 

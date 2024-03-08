@@ -30,8 +30,7 @@ fn test_partitioned_contraction() {
     opt.optimize_path();
     let path = opt.get_best_replace_path();
     contract_tensor_network(&mut partitioned_tn, &path);
-
-    assert_eq!(*ref_tn.get_tensor_data(), *partitioned_tn.get_tensor_data());
+    assert!(&ref_tn.approx_eq(&partitioned_tn, 1e-12));
 }
 
 /// Given the module path and name of a test function, returns the name as it is

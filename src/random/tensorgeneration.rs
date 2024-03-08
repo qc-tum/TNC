@@ -24,7 +24,7 @@ use tetra::Tensor as DataTensor;
 /// # use tensorcontraction::random::tensorgeneration::random_tensor_with_rng;
 /// let legs = 4;
 /// let (tensor, hs) = random_tensor_with_rng(legs, &mut rand::thread_rng());
-/// assert_eq!(tensor.get_legs().len(), legs);
+/// assert_eq!(tensor.legs().len(), legs);
 /// ```
 pub fn random_tensor_with_rng<R>(n: usize, rng: &mut R) -> (Tensor, HashMap<usize, u64>)
 where
@@ -54,7 +54,7 @@ where
 /// # use tensorcontraction::random::tensorgeneration::random_tensor;
 /// let legs = 4;
 /// let (tensor, hs) = random_tensor(legs);
-/// assert_eq!(tensor.get_legs().len(), legs);
+/// assert_eq!(tensor.legs().len(), legs);
 /// ```
 pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
     random_tensor_with_rng(n, &mut rand::thread_rng())
@@ -241,19 +241,18 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> Tensor {
 }
 
 pub fn create_filled_tensor_network<R>(
-    tensors: Vec<Tensor>,
+    mut tensors: Vec<Tensor>,
     bond_dims: &HashMap<usize, u64>,
-    external_legs: Option<&Vec<usize>>,
+    external_legs: Option<&HashMap<usize, usize>>,
     rng: &mut R,
 ) -> Tensor
 where
     R: Rng + ?Sized,
 {
-    let mut tensor = Tensor::default();
-    tensor.push_tensors(tensors, Some(bond_dims), external_legs);
-    for tensor in tensor.get_tensors().iter() {
-        tensor.set_tensor_data(random_sparse_tensor_data_with_rng(
-            &tensor
+    // tensor.push_tensors(tensors, Some(bond_dims), external_legs);
+    for child_tensor in tensors.iter_mut() {
+        child_tensor.set_tensor_data(random_sparse_tensor_data_with_rng(
+            &child_tensor
                 .shape()
                 .iter()
                 .map(|&e| e.try_into().unwrap())
@@ -262,5 +261,5 @@ where
             rng,
         ));
     }
-    tensor
+    create_tensor_network(tensors, bond_dims, external_legs)
 }

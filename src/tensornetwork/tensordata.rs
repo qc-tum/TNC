@@ -1,56 +1,42 @@
-use std::iter::zip;
-
 use float_cmp::approx_eq;
-use itertools::Itertools;
+use std::iter::zip;
+use std::path::PathBuf;
+
 use num_complex::Complex64;
-use tetra::{Layout, Tensor as DataTensor};
+use tetra::{all_close, Layout, Tensor as DataTensor};
 
 #[derive(Debug, Clone)]
 pub enum TensorData {
-    File(String),
+    File(PathBuf),
     Gate((&'static str, Vec<f64>)),
     Matrix(DataTensor),
-    Empty,
+    Uncontracted,
 }
 
-impl Eq for TensorData {}
-
-impl PartialEq for TensorData {
-    fn eq(&self, other: &Self) -> bool {
+impl TensorData {
+    pub fn approx_eq(&self, other: &TensorData, epsilon: f64) -> bool {
         match (self, other) {
-            (Self::File(l0), Self::File(r0)) => l0.to_lowercase() == r0.to_lowercase(),
+            (Self::File(l0), Self::File(r0)) => l0 == r0,
             (Self::Gate((l0, angles_l)), Self::Gate((r0, angles_r))) => {
                 if l0.to_lowercase() != r0.to_lowercase() {
                     return false;
                 }
                 for (angle1, angle2) in zip(angles_l.iter(), angles_r.iter()) {
-                    if angle1 != angle2 {
+                    if !approx_eq!(f64, *angle1, *angle2, epsilon = epsilon) {
                         return false;
                     }
                 }
                 true
             }
-            (Self::Matrix(l0), Self::Matrix(r0)) => {
-                let range = l0.shape().iter().map(|e| 0..*e).multi_cartesian_product();
-
-                for index in range {
-                    if !approx_eq!(f64, l0.get(&index).im, r0.get(&index).im, epsilon = 1e-8) {
-                        return false;
-                    }
-                    if !approx_eq!(f64, l0.get(&index).re, r0.get(&index).re, epsilon = 1e-8) {
-                        return false;
-                    }
-                }
-                true
-            }
-            (Self::Empty, Self::Empty) => true,
+            (Self::Matrix(l0), Self::Matrix(r0)) => all_close(l0, r0, epsilon),
+            (Self::Uncontracted, Self::Uncontracted) => true,
             _ => false,
         }
     }
 }
 
 impl TensorData {
-    pub fn new_from_flat(
+    pub fn new_from_data(
         dimensions: Vec<u64>,
         data: Vec<Complex64>,
         layout: Option<Layout>,

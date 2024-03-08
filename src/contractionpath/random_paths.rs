@@ -4,7 +4,7 @@ use std::{
     collections::{BinaryHeap, HashMap},
 };
 
-use crate::{tensornetwork::tensor::Tensor, types::calculate_hash};
+use crate::tensornetwork::tensor::Tensor;
 
 use super::{
     candidates::Candidate, contraction_cost::contract_path_cost, paths::RNGChooser,
@@ -39,26 +39,20 @@ impl RNGChooser for ThermalChooser {
             if let Some(Candidate {
                 flop_cost,
                 size_cost,
-                parent_ids,
-                parent_tensors: Some((k1, k2)),
+                parent_ids: (k1, k2),
                 child_id,
-                child_tensor,
             }) = candidate
             {
-                let k1_hash = calculate_hash(&k1);
-                let k2_hash = calculate_hash(&k2);
-                if !remaining_tensors.contains_key(&k1_hash)
-                    || !remaining_tensors.contains_key(&k2_hash)
+                if !remaining_tensors.values().any(|&x| x == k1)
+                    && !remaining_tensors.values().any(|&x| x == k2)
                 {
                     continue;
                 }
                 choices.push(Candidate {
                     flop_cost,
                     size_cost,
-                    parent_ids,
-                    parent_tensors: Some((k1, k2)),
+                    parent_ids: (k1, k2),
                     child_id,
-                    child_tensor,
                 });
             }
         }
@@ -105,9 +99,9 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
     where
         R: ?Sized + Rng,
     {
-        let inputs = self.tn.get_tensors();
+        let inputs = self.tn.tensors();
 
-        let output_dims = Tensor::new(self.tn.get_external_edges());
+        let output_dims = Tensor::new(self.tn.external_edges());
 
         // Dictionary that maps leg id to bond dimension
         for _ in 0..trials {
@@ -187,7 +181,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
         let mut opt = Greedy::new(&tn, CostType::Flops);
@@ -199,7 +192,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_contract_order_greedy_complex() {
         let tn = setup_complex();
         let mut opt = Greedy::new(&tn, CostType::Flops);

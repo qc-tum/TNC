@@ -24,7 +24,7 @@ use std::cmp::max;
 /// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 45045);
 /// ```
 pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> u64 {
-    contract_cost_tensors(tn.get_tensor(i), tn.get_tensor(j))
+    contract_cost_tensors(tn.tensor(i), tn.tensor(j))
 }
 
 /// Returns Schroedinger contraction time complexity of contracting two [Tensor] objects
@@ -45,11 +45,11 @@ pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> u64 {
 /// let vec2 = Vec::from([2,3,4]);
 /// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_cost_tensors(&tn.get_tensor(0), &tn.get_tensor(1)), 45045);
+/// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 45045);
 /// ```
 pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> u64 {
     let shared_dims = t_1 | t_2;
-    let bond_dims = t_1.get_bond_dims();
+    let bond_dims = t_1.bond_dims();
     shared_dims.legs_iter().map(|e| bond_dims[e]).product()
 }
 
@@ -74,7 +74,7 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> u64 {
 /// assert_eq!(contract_size_in_tn(&tn, 0, 1), 6607);
 /// ```
 pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> u64 {
-    contract_size_tensors(tn.get_tensor(i), tn.get_tensor(j))
+    contract_size_tensors(tn.tensor(i), tn.tensor(j))
 }
 
 /// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
@@ -95,7 +95,7 @@ pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> u64 {
 /// let vec2 = Vec::from([2,3,4]);
 /// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_size_tensors(&tn.get_tensor(0), &tn.get_tensor(1)), 6607);
+/// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1)), 6607);
 /// ```
 pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> u64 {
     let diff = t_1 ^ t_2;
@@ -125,7 +125,7 @@ pub fn contract_path_cost(inputs: &[Tensor], ssa_path: &[ContractionIndex]) -> (
                 inputs[i] = k12;
             }
             ContractionIndex::Path(i, ref path) => {
-                let costs = contract_path_cost(inputs[i].get_tensors(), &path);
+                let costs = contract_path_cost(inputs[i].tensors(), path);
                 op_cost += costs.0;
                 mem_cost += costs.1;
                 inputs[i] = std::mem::take(&mut inputs[i].tensors[0]);
@@ -158,10 +158,10 @@ mod tests {
     #[test]
     fn test_contract_path_cost() {
         let tn = setup_simple();
-        let (op_cost, mem_cost) = contract_path_cost(tn.get_tensors(), &path![(0, 1), (0, 2)]);
+        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 1), (0, 2)]);
         assert_eq!(op_cost, 600);
         assert_eq!(mem_cost, 538);
-        let (op_cost, mem_cost) = contract_path_cost(tn.get_tensors(), &path![(0, 2), (0, 1)]);
+        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 2), (0, 1)]);
         assert_eq!(op_cost, 6336);
         assert_eq!(mem_cost, 1176);
     }

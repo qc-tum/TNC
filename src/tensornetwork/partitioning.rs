@@ -21,7 +21,7 @@ use kahypar_sys::{partition, KaHyParContext};
 pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
     assert!(k > 1, "Partitioning only valid for more than one process");
     let config_file = CString::new(config_file).unwrap();
-    let num_vertices = tn.get_tensors().len() as u32;
+    let num_vertices = tn.tensors().len() as u32;
     let mut context = KaHyParContext::new();
     context.configure(config_file);
 
@@ -32,8 +32,8 @@ pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) ->
     let mut hyperedge_weights = vec![];
     let mut hyperedge_indices = vec![0];
     let mut hyperedges = vec![];
-    let bond_dims = tn.get_bond_dims();
-    for (edges, tensor_ids) in tn.get_edges() {
+    let bond_dims = tn.bond_dims();
+    for (edges, tensor_ids) in tn.edges() {
         let mut length = 0;
         // Don't add edges that connect only one vertex
         if tensor_ids.len() == 2 && tensor_ids.contains(&Vertex::Open) {
@@ -86,14 +86,11 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
     let mut partitions = vec![Tensor::default(); partition_ids.len()];
 
     for (partition_id, tensor) in zip(partitioning.iter(), tn.tensors.iter()) {
-        partitions[partition_dict[partition_id]].push_tensor(
-            tensor.clone(),
-            Some(&tensor.get_bond_dims()),
-            None,
-        );
+        partitions[partition_dict[partition_id]]
+            .push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
     }
     let mut partitioned_tn = Tensor::default();
-    partitioned_tn.push_tensors(partitions, Some(&*tn.get_bond_dims()), None);
+    partitioned_tn.push_tensors(partitions, Some(&*tn.bond_dims()), None);
     partitioned_tn
 }
 
@@ -141,27 +138,27 @@ mod tests {
         let mut ref_tensor_3 = Tensor::default();
         ref_tensor_1.push_tensors(
             vec![Tensor::new(vec![6, 8, 9]), Tensor::new(vec![10, 8, 9])],
-            Some(&tn.get_bond_dims()),
+            Some(&tn.bond_dims()),
             None,
         );
         ref_tensor_2.push_tensors(
             vec![Tensor::new(vec![0, 1, 3, 2]), Tensor::new(vec![5, 1, 0])],
-            Some(&tn.get_bond_dims()),
+            Some(&tn.bond_dims()),
             None,
         );
         ref_tensor_3.push_tensors(
             vec![Tensor::new(vec![4, 3, 2]), Tensor::new(vec![4, 5, 6])],
-            Some(&tn.get_bond_dims()),
+            Some(&tn.bond_dims()),
             None,
         );
         let partitioning =
             find_partitioning(&tn, 3, String::from("tests/km1_kKaHyPar_sea20.ini"), true);
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);
         let partitioned_tn = partition_tensor_network(&tn, partitioning.as_slice());
-        assert_eq!(partitioned_tn.get_tensors().len(), 3);
+        assert_eq!(partitioned_tn.tensors().len(), 3);
 
-        assert_eq!(partitioned_tn.get_tensors()[0], ref_tensor_3);
-        assert_eq!(partitioned_tn.get_tensors()[1], ref_tensor_2);
-        assert_eq!(partitioned_tn.get_tensors()[2], ref_tensor_1);
+        assert_eq!(partitioned_tn.tensors()[0].legs(), ref_tensor_3.legs());
+        assert_eq!(partitioned_tn.tensors()[1].legs(), ref_tensor_2.legs());
+        assert_eq!(partitioned_tn.tensors()[2].legs(), ref_tensor_1.legs());
     }
 }

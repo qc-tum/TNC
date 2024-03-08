@@ -7,9 +7,9 @@ use mpi::{
 use crate::types::ContractionIndex;
 
 #[derive(Default, Debug, Clone, Equivalence, PartialEq)]
-pub(crate) struct BondDim {
-    pub(crate) bond_id: usize,
-    pub(crate) bond_size: u64,
+pub(super) struct BondDim {
+    pub(super) bond_id: usize,
+    pub(super) bond_size: u64,
 }
 
 impl BondDim {
@@ -23,19 +23,19 @@ unsafe impl Equivalence for ContractionIndex {
 
     fn equivalent_datatype() -> Self::Out {
         UserDatatype::structured(
-            &[2],
-            &[0 as Address],
-            &[UncommittedUserDatatype::structured(
-                &[2],
-                &[0 as Address],
-                &[usize::equivalent_datatype()],
-            )],
+            &[1, 1],
+            &[0 as Address, 24 as Address],
+            &[
+                UncommittedUserDatatype::contiguous(3, &usize::equivalent_datatype()).as_ref(),
+                usize::equivalent_datatype().into(),
+            ],
         )
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::iter::zip;
 
     use crate::mpi::mpi_types::BondDim;
     use crate::types::ContractionIndex;
@@ -44,25 +44,66 @@ mod tests {
 
     mpi_test!(
         2,
-        fn test_sendrecv_contraction_index_need_mpi() {
+        fn test_sendrecv_contraction_index() {
             let universe = mpi::initialize().unwrap();
             let world = universe.world();
             // let size = world.size();
             let rank = world.rank();
             let root_process = world.process_at_rank(0);
+            let max = usize::MAX;
 
             let contraction_indices = if rank == 0 {
-                let mut contraction_indices = path![(0, 4), (1, 5), (2, 6)];
+                let mut contraction_indices = path![
+                    (0, 4),
+                    (1, 5),
+                    (2, 16),
+                    (7, max),
+                    (max, 5),
+                    (64, 2),
+                    (4, 55),
+                    (81, 21),
+                    (2, 72),
+                    (23, 3),
+                    (40, 5),
+                    (2, 26)
+                ]
+                .to_vec();
                 root_process.broadcast_into(&mut contraction_indices);
                 contraction_indices
             } else {
-                let mut contraction_indices = vec![ContractionIndex::Pair(0, 0); 3];
+                let mut contraction_indices = vec![ContractionIndex::Pair(0, 0); 12];
                 root_process.broadcast_into(&mut contraction_indices);
                 contraction_indices
             };
-            assert_eq!(contraction_indices, path![(0, 4), (1, 5), (2, 6)]);
+            let ref_contraction_indices = path![
+                (0, 4),
+                (1, 5),
+                (2, 16),
+                (7, max),
+                (max, 5),
+                (64, 2),
+                (4, 55),
+                (81, 21),
+                (2, 72),
+                (23, 3),
+                (40, 5),
+                (2, 26)
+            ]
+            .to_vec();
+            assert_eq!(contraction_indices, ref_contraction_indices);
+            // Note that rust fills empty space in enum instance with garbage
+            for (ref_data, data) in zip(ref_contraction_indices, contraction_indices) {
+                assert_eq!(get_memory(&ref_data)[0..24], get_memory(&data)[0..24]);
+            }
         }
     );
+    fn get_memory<'a, T>(input: &'a T) -> &'a [u8] {
+        unsafe {
+            std::slice::from_raw_parts(input as *const _ as *const u8, std::mem::size_of::<T>())
+        }
+    }
+
+    #[test]
 
     mpi_test!(
         2,

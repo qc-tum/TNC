@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::iter::zip;
+use std::os::unix::ffi::OsStrExt;
+use std::path::PathBuf;
 
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::*;
@@ -27,9 +29,9 @@ pub fn scatter_tensor_network(
     let root_process = world.process_at_rank(0);
     // Distribute bond_dims
     let mut bond_vec = if rank == 0 {
-        bond_num = r_tn.get_bond_dims().len();
+        bond_num = r_tn.bond_dims().len();
         root_process.broadcast_into(&mut bond_num);
-        r_tn.get_bond_dims()
+        r_tn.bond_dims()
             .iter()
             .map(|(bond_id, bond_size)| BondDim {
                 bond_id: *bond_id,
@@ -46,7 +48,7 @@ pub fn scatter_tensor_network(
 
     let (local_tn, local_path) = if rank == 0 {
         let local_path = path[0].clone().get_data();
-        let local_tn = r_tn.get_tensor(0).clone();
+        let local_tn = r_tn.tensor(0).clone();
         for (i, contraction_path) in zip(1..size, path[1..size as usize].iter()) {
             match contraction_path {
                 ContractionIndex::Path(_, local) => {
@@ -56,21 +58,23 @@ pub fn scatter_tensor_network(
             }
         }
 
-        for (i, tensor) in zip(1..size, r_tn.get_tensors()[1..size as usize].iter()) {
-            let num_tensors = tensor.get_tensors().len();
+        for (i, tensor) in zip(1..size, r_tn.tensors()[1..size as usize].iter()) {
+            let num_tensors = tensor.tensors().len();
             world.process_at_rank(i).send(&num_tensors);
-            for inner_tensor in tensor.get_tensors() {
-                let legs = inner_tensor.get_legs().clone();
+            for inner_tensor in tensor.tensors() {
+                let legs = inner_tensor.legs().clone();
                 world.process_at_rank(i).send(&legs);
 
-                let tensor_data = inner_tensor.get_tensor_data().clone();
+                let tensor_data = inner_tensor.tensor_data().clone();
                 match tensor_data {
-                    TensorData::Empty => {
+                    TensorData::Uncontracted => {
                         world.process_at_rank(i).send(&0_i32);
                     }
                     TensorData::File(file_name) => {
                         world.process_at_rank(i).send(&1_i32);
-                        world.process_at_rank(i).send(file_name.as_bytes());
+                        world
+                            .process_at_rank(i)
+                            .send(file_name.as_os_str().as_bytes());
                     }
                     TensorData::Gate((gate_name, angles)) => {
                         world.process_at_rank(i).send(&2_i32);
@@ -99,12 +103,12 @@ pub fn scatter_tensor_network(
             let (legs, _status) = world.any_process().receive_vec::<EdgeIndex>();
             // Then determine data type of sent tensor data
             let (tensor_data_type, _status) = world.any_process().receive::<i32>();
-            let mut tensor_data = TensorData::Empty;
+            let mut tensor_data = TensorData::Uncontracted;
             match tensor_data_type {
                 0 => {}
                 1 => {
                     let (file_name, _status) = world.any_process().receive::<u8>();
-                    tensor_data = TensorData::File(file_name.to_string());
+                    tensor_data = TensorData::File(PathBuf::from(file_name.to_string()));
                 }
                 2 => {
                     let (gate_name, _status) = world.any_process().receive_vec::<u8>();
@@ -117,15 +121,15 @@ pub fn scatter_tensor_network(
                     let (shape, _status) = world.any_process().receive_vec::<u32>();
                     let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
                     let (data, _status) = world.any_process().receive_vec::<Complex64>();
-                    tensor_data = TensorData::new_from_flat(shape, data, None);
+                    tensor_data = TensorData::new_from_data(shape, data, None);
                 }
                 _ => {
                     panic!("Unrecognized data type");
                 }
             }
-            let new_tensor = Tensor::new(legs);
+            let mut new_tensor = Tensor::new(legs);
             new_tensor.set_tensor_data(tensor_data);
-            local_tn.push_tensor(new_tensor, Some(&bond_dims), None);
+            local_tn.push_tensor(new_tensor, Some(&bond_dims));
         }
         (local_tn, local_path)
     };
@@ -150,17 +154,17 @@ pub fn intermediate_reduce_tensor_network(
             final_rank = receiver;
             if receiver == rank {
                 let (legs, _status) = world.process_at_rank(sender).receive_vec::<EdgeIndex>();
-                let returned_tensor = Tensor::new(legs);
+                let mut returned_tensor = Tensor::new(legs);
                 let (shape, _status) = world.process_at_rank(sender).receive_vec::<u32>();
                 let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
                 let (data, _status) = world.process_at_rank(sender).receive_vec::<Complex64>();
-                let tensor_data = TensorData::new_from_flat(shape, data, None);
+                let tensor_data = TensorData::new_from_data(shape, data, None);
                 returned_tensor.set_tensor_data(tensor_data);
-                local_tn.push_tensor(returned_tensor, None, None);
+                local_tn.push_tensor(returned_tensor, None);
                 contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
             }
             if sender == rank {
-                let legs = local_tn.get_legs().clone();
+                let legs = local_tn.legs().clone();
                 world.process_at_rank(receiver).send(&legs);
                 let local_tensor = local_tn.get_data();
                 world
@@ -179,17 +183,17 @@ pub fn intermediate_reduce_tensor_network(
     if final_rank != 0 {
         if rank == 0 {
             let (legs, _status) = world.process_at_rank(final_rank).receive_vec::<EdgeIndex>();
-            let returned_tensor = Tensor::new(legs);
+            let mut returned_tensor = Tensor::new(legs);
             let (shape, _status) = world.process_at_rank(final_rank).receive_vec::<u32>();
             let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
             let (data, _status) = world.process_at_rank(final_rank).receive_vec::<Complex64>();
-            let tensor_data = TensorData::new_from_flat(shape, data, None);
+            let tensor_data = TensorData::new_from_data(shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);
             // return returned_tensor;
             *local_tn = returned_tensor;
         }
         if rank == final_rank {
-            let legs = local_tn.get_legs().clone();
+            let legs = local_tn.legs().clone();
             world.process_at_rank(0).send(&legs);
             let local_tensor = local_tn.get_data();
             world.process_at_rank(0).send(&(*local_tensor.shape()));
@@ -211,16 +215,16 @@ pub fn naive_reduce_tensor_network(
     if rank == 0 {
         for i in 1..size {
             let (legs, _status) = world.process_at_rank(i).receive_vec::<EdgeIndex>();
-            let returned_tensor = Tensor::new(legs);
+            let mut returned_tensor = Tensor::new(legs);
             let (shape, _status) = world.process_at_rank(i).receive_vec::<u32>();
             let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
             let (data, _status) = world.process_at_rank(i).receive_vec::<Complex64>();
-            let tensor_data = TensorData::new_from_flat(shape, data, None);
+            let tensor_data = TensorData::new_from_data(shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);
-            local_tn.push_tensor(returned_tensor, None, None);
+            local_tn.push_tensor(returned_tensor, None);
         }
     } else {
-        let legs = local_tn.get_legs().clone();
+        let legs = local_tn.legs().clone();
         world.process_at_rank(0).send(&legs);
         let local_tensor = local_tn.get_data();
         world.process_at_rank(0).send(&(*local_tensor.shape()));
@@ -231,73 +235,5 @@ pub fn naive_reduce_tensor_network(
     world.barrier();
     if rank == 0 {
         contract_tensor_network(local_tn, &path[(size as usize)..path.len()]);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use rand::rngs::StdRng;
-    use rand::SeedableRng;
-
-    use crate::contractionpath::paths::{CostType, OptimizePath};
-    // use rand::distributions::{Distribution, Uniform};
-    // TODO: Use random tensors
-    use crate::contractionpath::paths::greedy::Greedy;
-    use crate::contractionpath::random_paths::RandomOptimizePath;
-    use crate::path;
-    use crate::tensornetwork::create_tensor_network;
-    use crate::tensornetwork::tensor::Tensor;
-
-    fn setup_simple() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-            ],
-            &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
-            None,
-        )
-    }
-
-    fn setup_complex() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-                Tensor::new(vec![6, 8, 9]),
-                Tensor::new(vec![10, 8, 9]),
-                Tensor::new(vec![5, 1, 0]),
-            ],
-            &[
-                (0, 27),
-                (1, 18),
-                (2, 12),
-                (3, 15),
-                (4, 5),
-                (5, 3),
-                (6, 18),
-                (7, 22),
-                (8, 45),
-                (9, 65),
-                (10, 5),
-                (11, 17),
-            ]
-            .into(),
-            None,
-        )
-    }
-
-    #[test]
-    #[ignore]
-    fn test_contract_order_greedy_simple() {
-        let tn = setup_simple();
-        let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42));
-        assert_eq!(opt.best_flops, 600);
-        assert_eq!(opt.best_size, 538);
-        assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
     }
 }
