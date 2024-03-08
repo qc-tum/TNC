@@ -3,10 +3,14 @@
 #![allow(dead_code)]
 #![feature(slice_pattern)]
 #![feature(map_many_mut)]
+#![feature(const_trait_impl)]
 
 pub mod circuits;
 pub mod contractionpath;
+pub mod gates;
 pub mod io;
+pub mod mpi;
 pub mod qasm;
 pub mod random;
 pub mod tensornetwork;
+pub mod types;

@@ -1,25 +1,92 @@
 extern crate tensorcontraction;
+
+use mpi::topology::SimpleCommunicator;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-use tensorcontraction::{
-    circuits::sycamore::{sycamore_circuit, sycamore_contract},
-    contractionpath::paths::{BranchBound, CostType, OptimizePath},
-    random::tensorgeneration::{random_sparse_tensor, random_tensor_network},
-    tensornetwork::TensorNetwork,
-};
+use tensorcontraction::circuits::connectivity::ConnectivityLayout;
+use tensorcontraction::circuits::sycamore::sycamore_circuit;
+use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
+use tensorcontraction::mpi::scatter::{intermediate_reduce_tensor_network, scatter_tensor_network};
+use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
+use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 
-fn main() {
-    let r_tn = random_tensor_network(4, 3);
-    let mut d_tn = Vec::new();
-    for r_t in r_tn.get_tensors() {
-        d_tn.push(random_sparse_tensor(r_t, r_tn.get_bond_dims(), None));
+use mpi::traits::*;
+use tensorcontraction::tensornetwork::tensor::Tensor;
+use tensorcontraction::types::ContractionIndex;
+
+pub fn broadcast_path(
+    local_path: &[ContractionIndex],
+    world: &SimpleCommunicator,
+) -> Vec<ContractionIndex> {
+    let root_rank = 0;
+    let root_process = world.process_at_rank(root_rank);
+    let mut path_length = if world.rank() == root_rank {
+        local_path.len()
+    } else {
+        0
+    };
+    root_process.broadcast_into(&mut path_length);
+    if world.rank() != root_rank {
+        let mut buffer = vec![ContractionIndex::Pair(0, 0); path_length];
+        root_process.broadcast_into(&mut buffer);
+        buffer
+    } else {
+        root_process.broadcast_into(&mut local_path.to_vec());
+        local_path.to_vec()
     }
-    let mut opt = BranchBound::new(&r_tn, None, 20, CostType::Flops);
-    opt.optimize_path();
+}
 
-    let mut rng = StdRng::seed_from_u64(52);
+// Run with at least 2 processes
+fn main() {
+    let mut rng = StdRng::seed_from_u64(23);
 
-    let k = 5;
-    let tn = sycamore_circuit(5, k, None, None, &mut rng);
-    sycamore_contract(tn);
+    let universe = mpi::initialize().unwrap();
+    let world = universe.world();
+    let size = world.size();
+    let rank = world.rank();
+    println!("Size: {:?}", size);
+    let k = 20;
+    // Do we need to know communication beforehand?
+    let mut partitioned_tn = Tensor::default();
+    let mut path = Vec::new();
+    if rank == 0 {
+        let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+        if size > 1 {
+            let partitioning = find_partitioning(
+                &r_tn,
+                size,
+                String::from("tests/km1_kKaHyPar_sea20.ini"),
+                true,
+            );
+            partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+        } else {
+            partitioned_tn = r_tn;
+        }
+        let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+
+        opt.optimize_path();
+        path = opt.get_best_replace_path();
+    }
+    world.barrier();
+    let local_tn = if size > 1 {
+        let (mut local_tn, local_path) =
+            scatter_tensor_network(partitioned_tn.clone(), &path, rank, size, &world);
+        contract_tensor_network(&mut local_tn, &local_path);
+
+        let path = if rank == 0 {
+            broadcast_path(&path[(size as usize)..path.len()], &world)
+        } else {
+            broadcast_path(&[], &world)
+        };
+        world.barrier();
+        intermediate_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
+        local_tn
+    } else {
+        contract_tensor_network(&mut partitioned_tn, &path);
+        partitioned_tn
+    };
+
+    if rank == 0 {
+        println!("{:?}", local_tn);
+    }
 }

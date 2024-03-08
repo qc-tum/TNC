@@ -7,9 +7,10 @@ use std::{
 use crate::tensornetwork::tensor::Tensor;
 
 use super::{
-    candidates::Candidate, contraction_cost::contract_path_cost, paths::Greedy,
+    candidates::Candidate, contraction_cost::contract_path_cost, paths::RNGChooser,
     ssa_replace_ordering,
 };
+use crate::contractionpath::paths::greedy::Greedy;
 
 pub trait RandomOptimizePath {
     fn random_optimize_path<R>(&mut self, trials: usize, rng: &mut R)
@@ -17,49 +18,50 @@ pub trait RandomOptimizePath {
         R: ?Sized + Rng;
 }
 
-// __all__ = ["RandomGreedy", "random_greedy", "random_greedy_128"]
-impl<'a> Greedy<'a> {
-    pub(crate) fn _thermal_chooser<R: Rng + ?Sized>(
+struct ThermalChooser;
+
+impl RNGChooser for ThermalChooser {
+    fn choose<R>(
+        &self,
         queue: &mut BinaryHeap<Candidate>,
-        remaining_tensors: &HashMap<Tensor, usize>,
+        remaining_tensors: &HashMap<u64, usize>,
         nbranch: usize,
         mut temperature: f64,
         rel_temperature: bool,
-        mut rng: &mut R,
-    ) -> Option<Candidate> {
-        let mut n = 0;
+        rng: &mut R,
+    ) -> Option<Candidate>
+    where
+        R: ?Sized + Rng,
+    {
         let mut choices = Vec::new();
-        while !queue.is_empty() && n <= nbranch {
+        while !queue.is_empty() && choices.len() <= nbranch {
             let candidate = queue.pop();
             if let Some(Candidate {
                 flop_cost,
                 size_cost,
-                parent_ids,
-                parent_tensors: Some((k1, k2)),
+                parent_ids: (k1, k2),
                 child_id,
-                child_tensor,
             }) = candidate
             {
-                if !remaining_tensors.contains_key(&k1) || !remaining_tensors.contains_key(&k2) {
+                if !remaining_tensors.values().any(|&x| x == k1)
+                    && !remaining_tensors.values().any(|&x| x == k2)
+                {
                     continue;
                 }
                 choices.push(Candidate {
                     flop_cost,
                     size_cost,
-                    parent_ids,
-                    parent_tensors: Some((k1, k2)),
+                    parent_ids: (k1, k2),
                     child_id,
-                    child_tensor,
                 });
-                n += 1;
             }
         }
-
+        let n = choices.len();
         if n == 0 {
             return None;
         }
         if n == 1 {
-            return Some(choices[0].clone());
+            return choices.pop();
         }
 
         let costs = choices.iter().map(|e| e.size_cost).collect::<Vec<i64>>();
@@ -77,11 +79,11 @@ impl<'a> Greedy<'a> {
             weights[0] = 1.0;
         } else {
             for c in costs {
-                weights.push((-(-c - cmin) as f64).exp());
+                weights.push((-(c - cmin) as f64 / temperature).exp());
             }
         }
         let dist = WeightedIndex::new(&weights).unwrap();
-        let chosen = dist.sample(&mut rng);
+        let chosen = dist.sample(rng);
         let candidate = choices.get(chosen);
         for (index, other) in choices.iter().enumerate() {
             if index != chosen {
@@ -97,25 +99,21 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
     where
         R: ?Sized + Rng,
     {
-        let inputs = self.tn.get_tensors().clone();
+        let inputs = self.tn.tensors();
 
-        let output_dims = Tensor::new(self.tn.get_ext_edges().clone());
+        let output_dims = Tensor::new(self.tn.external_edges());
 
         // Dictionary that maps leg id to bond dimension
-        let bond_dims = self.tn.get_bond_dims();
         for _ in 0..trials {
-            let ssa_path = self._ssa_greedy_optimize(
-                &inputs,
+            let ssa_path = self.ssa_greedy_optimize(
+                inputs,
                 &output_dims,
-                bond_dims,
-                Box::new(&Greedy::_thermal_chooser),
+                ThermalChooser,
                 Box::new(&Greedy::_cost_memory_removed),
+                rng,
             );
-            let (cost, size) = contract_path_cost(
-                &inputs,
-                &ssa_replace_ordering(&ssa_path, inputs.len()),
-                bond_dims,
-            );
+            let (cost, size) =
+                contract_path_cost(inputs, &ssa_replace_ordering(&ssa_path, inputs.len()));
 
             if cost < self.best_flops {
                 self.best_flops = cost;
@@ -129,32 +127,32 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
 #[cfg(test)]
 mod tests {
     use rand::rngs::StdRng;
-    use rand::thread_rng;
     use rand::SeedableRng;
 
     use crate::contractionpath::paths::CostType;
     // use rand::distributions::{Distribution, Uniform};
     // TODO: Use random tensors
-    use crate::contractionpath::paths::Greedy;
     use crate::contractionpath::paths::OptimizePath;
+    use crate::contractionpath::random_paths::Greedy;
     use crate::contractionpath::random_paths::RandomOptimizePath;
+    use crate::path;
+    use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
-    use crate::tensornetwork::TensorNetwork;
 
-    fn setup_simple() -> TensorNetwork {
-        TensorNetwork::from_vector(
+    fn setup_simple() -> Tensor {
+        create_tensor_network(
             vec![
                 Tensor::new(vec![4, 3, 2]),
                 Tensor::new(vec![0, 1, 3, 2]),
                 Tensor::new(vec![4, 5, 6]),
             ],
-            vec![5, 2, 6, 8, 1, 3, 4],
+            &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
             None,
         )
     }
 
-    fn setup_complex() -> TensorNetwork {
-        TensorNetwork::from_vector(
+    fn setup_complex() -> Tensor {
+        create_tensor_network(
             vec![
                 Tensor::new(vec![4, 3, 2]),
                 Tensor::new(vec![0, 1, 3, 2]),
@@ -163,36 +161,48 @@ mod tests {
                 Tensor::new(vec![10, 8, 9]),
                 Tensor::new(vec![5, 1, 0]),
             ],
-            vec![27, 18, 12, 15, 5, 3, 18, 22, 45, 65, 5, 17],
+            &[
+                (0, 27),
+                (1, 18),
+                (2, 12),
+                (3, 15),
+                (4, 5),
+                (5, 3),
+                (6, 18),
+                (7, 22),
+                (8, 45),
+                (9, 65),
+                (10, 5),
+                (11, 17),
+            ]
+            .into(),
             None,
         )
     }
 
     #[test]
-    #[ignore]
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
         let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.random_optimize_path(32, &mut thread_rng());
+        opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42));
         assert_eq!(opt.best_flops, 600);
         assert_eq!(opt.best_size, 538);
-        assert_eq!(opt.best_path, vec![(0, 1), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), vec![(0, 1), (2, 0)]);
+        assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
+        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
     }
+
     #[test]
-    #[ignore]
     fn test_contract_order_greedy_complex() {
-        let mut r = StdRng::seed_from_u64(42);
         let tn = setup_complex();
         let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.random_optimize_path(32, &mut r);
+        opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42));
 
         assert_eq!(opt.best_flops, 528750);
         assert_eq!(opt.best_size, 89478);
-        assert_eq!(opt.best_path, vec![(1, 5), (3, 4), (0, 6), (2, 8), (7, 9)]);
+        assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 8), (7, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),
-            vec![(1, 5), (3, 4), (0, 1), (2, 0), (3, 2)]
+            path![(1, 5), (3, 4), (0, 1), (2, 0), (3, 2)]
         );
     }
 }

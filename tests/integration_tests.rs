@@ -1,0 +1,78 @@
+use mpi::traits::{Communicator, CommunicatorCollectives};
+use rand::{rngs::StdRng, SeedableRng};
+use tensorcontraction::{
+    circuits::{connectivity::ConnectivityLayout, sycamore::sycamore_circuit},
+    contractionpath::paths::{greedy::Greedy, CostType, OptimizePath},
+    mpi::scatter::{naive_reduce_tensor_network, scatter_tensor_network},
+    tensornetwork::{
+        contraction::contract_tensor_network,
+        partitioning::{find_partitioning, partition_tensor_network},
+        tensor::Tensor,
+    },
+};
+
+#[test]
+fn test_partitioned_contraction() {
+    let mut rng = StdRng::seed_from_u64(52);
+    let k = 10;
+
+    let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+    let mut ref_tn = r_tn.clone();
+    let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
+    ref_opt.optimize_path();
+    let ref_path = ref_opt.get_best_replace_path();
+    contract_tensor_network(&mut ref_tn, &ref_path);
+
+    let partitioning =
+        find_partitioning(&r_tn, 3, String::from("tests/km1_kKaHyPar_sea20.ini"), true);
+    let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+    let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+    opt.optimize_path();
+    let path = opt.get_best_replace_path();
+    contract_tensor_network(&mut partitioned_tn, &path);
+    assert!(&ref_tn.approx_eq(&partitioned_tn, 1e-12));
+}
+
+// Ignored as requires MPI to run
+#[ignore]
+#[test]
+fn test_mpi_partitioned_contraction() {
+    let mut rng = StdRng::seed_from_u64(23);
+
+    let universe = mpi::initialize().unwrap();
+    let world = universe.world();
+    let size = world.size();
+    let rank = world.rank();
+
+    // let status;
+    let mut partitioned_tn = Tensor::default();
+    let mut path = Vec::new();
+    let mut ref_tn = Tensor::default();
+    if rank == 0 {
+        let k = 5;
+        let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+        ref_tn = r_tn.clone();
+        let partitioning = find_partitioning(&r_tn, size, String::from("tests/km1"), true);
+        partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+        let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+
+        opt.optimize_path();
+        path = opt.get_best_replace_path();
+    }
+    world.barrier();
+    let (mut local_tn, local_path) =
+        scatter_tensor_network(partitioned_tn, &path, rank, size, &world);
+    contract_tensor_network(&mut local_tn, &local_path);
+
+    naive_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
+    world.barrier();
+
+    if rank == 0 {
+        let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
+
+        ref_opt.optimize_path();
+        let ref_path = ref_opt.get_best_replace_path();
+        contract_tensor_network(&mut ref_tn, &ref_path);
+        assert!(local_tn.approx_eq(&ref_tn, 1e-12));
+    }
+}

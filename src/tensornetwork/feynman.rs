@@ -4,7 +4,7 @@ use itertools::Itertools;
 use super::contraction::tn_output_tensor;
 use super::DataTensor;
 use super::{contraction::tn_contract, tensor::Tensor, TensorNetwork};
-use permutation::{self, Permutation};
+use permutation::Permutation;
 
 /// Stores feynman contraction data specific to a given feynman scattering.
 pub struct FeynmanContractionData {

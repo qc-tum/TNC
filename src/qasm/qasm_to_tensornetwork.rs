@@ -1,4 +1,4 @@
-use crate::tensornetwork::TensorNetwork;
+use crate::tensornetwork::tensor::Tensor;
 
 use super::{
     ast::Visitor, expression_folder::ExpressionFolder, gate_inliner::GateInliner,
@@ -9,7 +9,7 @@ use super::{
 /// and CX gates remain. Since all qubits are initialized to zero, this method adds a
 /// tensor for all initial states. The tensor network is not closed, i.e. for each
 /// wire in the circuit there is an unbounded leg.
-pub fn create_tensornetwork<S>(code: S) -> (TensorNetwork, Vec<tetra::Tensor>)
+pub fn create_tensornetwork<S>(code: S) -> Tensor
 where
     S: Into<String>,
 {
@@ -43,14 +43,20 @@ mod tests {
     use float_cmp::assert_approx_eq;
     use itertools::Itertools;
 
-    use crate::tensornetwork::{contraction::tn_contract, tensor::Tensor, TensorNetwork};
+    use crate::{
+        tensornetwork::{
+            contraction::{contract_tensor_network, TensorContraction},
+            tensor::Tensor,
+        },
+        types::{ContractionIndex, Vertex},
+    };
 
     use super::create_tensornetwork;
 
     /// Returns whether the edge connects the two tensors.
-    fn edge_connects(edge_id: usize, t1_id: usize, t2_id: usize, tn: &TensorNetwork) -> bool {
-        let edge = tn.get_edges().get(&edge_id).unwrap();
-        if let [Some(from), Some(to)] = edge[..] {
+    fn edge_connects(edge_id: usize, t1_id: usize, t2_id: usize, tn: &Tensor) -> bool {
+        let edge = tn.edges().get(&edge_id).unwrap();
+        if let [Vertex::Closed(from), Vertex::Closed(to)] = edge[..] {
             t1_id == from && t2_id == to || t1_id == to && t2_id == from
         } else {
             false
@@ -58,9 +64,9 @@ mod tests {
     }
 
     /// Returns whether the edge is an open edge of the tensor.
-    fn is_open_edge_of(edge_id: usize, t1_id: usize, tn: &TensorNetwork) -> bool {
-        let edge = tn.get_edges().get(&edge_id).unwrap();
-        if let [Some(from), None] = edge[..] {
+    fn is_open_edge_of(edge_id: usize, t1_id: usize, tn: &Tensor) -> bool {
+        let edge = tn.edges().get(&edge_id).unwrap();
+        if let [Vertex::Closed(from), Vertex::Open] = edge[..] {
             t1_id == from
         } else {
             false
@@ -72,13 +78,13 @@ mod tests {
         tensor: &'a Tensor,
     }
 
-    fn get_quantum_tensors(tn: &TensorNetwork) -> (Vec<IdTensor>, Vec<IdTensor>, Vec<IdTensor>) {
+    fn get_quantum_tensors(tn: &Tensor) -> (Vec<IdTensor>, Vec<IdTensor>, Vec<IdTensor>) {
         let mut kets = Vec::new();
         let mut single_qubit_gates = Vec::new();
         let mut two_qubit_gates = Vec::new();
-        for (tid, tensor) in tn.get_tensors().iter().enumerate() {
+        for (tid, tensor) in tn.tensors().iter().enumerate() {
             let id: usize = tid;
-            let legs = tensor.get_legs().len();
+            let legs = tensor.legs().len();
             match legs {
                 1 => kets.push(IdTensor { id, tensor }),
                 2 => single_qubit_gates.push(IdTensor { id, tensor }),
@@ -97,7 +103,7 @@ mod tests {
         h q[0];
         cx q[0], q[1];
         ";
-        let (tn, _tensors) = create_tensornetwork(code);
+        let tn = create_tensornetwork(code);
 
         let (kets, single_qubit_gates, two_qubit_gates) = get_quantum_tensors(&tn);
         let [k0, k1] = kets.as_slice() else { panic!() };
@@ -110,7 +116,7 @@ mod tests {
 
         // Find out which tensor is the first/top qubit (the one connected to the H gate tensor)
         // and which is the second/bottom qubit
-        let first_qubit_id = h.tensor.get_legs()[1];
+        let first_qubit_id = h.tensor.legs()[1];
         let (first_qubit, second_qubit) = if first_qubit_id == k0.id {
             (k0, k1)
         } else if first_qubit_id == k1.id {
@@ -120,22 +126,22 @@ mod tests {
         };
 
         // Check edges
-        let fq_to_h_id = first_qubit.tensor.get_legs()[0];
-        assert_eq!(h.tensor.get_legs()[1], fq_to_h_id);
+        let fq_to_h_id = first_qubit.tensor.legs()[0];
+        assert_eq!(h.tensor.legs()[1], fq_to_h_id);
         assert!(edge_connects(fq_to_h_id, first_qubit_id, h.id, &tn));
 
-        let h_to_cx_c_id = h.tensor.get_legs()[0];
-        assert_eq!(cx.tensor.get_legs()[2], h_to_cx_c_id);
+        let h_to_cx_c_id = h.tensor.legs()[0];
+        assert_eq!(cx.tensor.legs()[2], h_to_cx_c_id);
         assert!(edge_connects(h_to_cx_c_id, h.id, cx.id, &tn));
 
-        let sq_to_cx_t_id = second_qubit.tensor.get_legs()[0];
-        assert_eq!(cx.tensor.get_legs()[3], sq_to_cx_t_id);
+        let sq_to_cx_t_id = second_qubit.tensor.legs()[0];
+        assert_eq!(cx.tensor.legs()[3], sq_to_cx_t_id);
         assert!(edge_connects(sq_to_cx_t_id, second_qubit.id, cx.id, &tn));
 
-        let cx_c_to_open_id = cx.tensor.get_legs()[0];
+        let cx_c_to_open_id = cx.tensor.legs()[0];
         assert!(is_open_edge_of(cx_c_to_open_id, cx.id, &tn));
 
-        let cx_t_to_open_id = cx.tensor.get_legs()[1];
+        let cx_t_to_open_id = cx.tensor.legs()[1];
         assert!(is_open_edge_of(cx_t_to_open_id, cx.id, &tn));
     }
 
@@ -147,15 +153,13 @@ mod tests {
         h q[0];
         cx q[0], q[1];
         ";
-        let (tn, tensors) = create_tensornetwork(code);
-        let opt_path = (1..tn.get_tensors().len())
-            .map(|tid| (0, tid))
+        let mut tn = create_tensornetwork(code);
+        let opt_path = (1..tn.tensors().len())
+            .map(|tid| ContractionIndex::Pair(0, tid))
             .collect_vec();
-        let (_tn, tensors) = tn_contract(tn, tensors, &opt_path);
+        contract_tensor_network(&mut tn, &opt_path);
 
-        let [resulting_state] = &tensors[..] else {
-            panic!("Expected a single tensor after contraction")
-        };
+        let resulting_state = tn.get_data();
         assert_eq!(resulting_state.shape(), &[2, 2]);
         assert_approx_eq!(f64, resulting_state.get(&[0, 0]).re, 1.0 / 2.0f64.sqrt());
         assert_approx_eq!(f64, resulting_state.get(&[0, 0]).im, 0.0);

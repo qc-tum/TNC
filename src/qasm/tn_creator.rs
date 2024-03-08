@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use itertools::Itertools;
 use num_complex::Complex64;
 
-use crate::tensornetwork::{tensor::Tensor, TensorNetwork};
+use crate::tensornetwork::{create_tensor_network, tensor::Tensor};
 
 use super::ast::{Argument, Program, Statement};
+use crate::tensornetwork::tensordata::TensorData;
 
 type EdgeId = usize;
 
@@ -96,15 +97,11 @@ impl TensorNetworkCreator {
 
     /// Creates a tensor network from the AST. Assumes that all gate calls
     /// have been inlined and all expressions have been simplified to literals.
-    pub fn create_tensornetwork(
-        &mut self,
-        program: &Program,
-    ) -> (TensorNetwork, Vec<tetra::Tensor>) {
+    pub fn create_tensornetwork(&mut self, program: &Program) -> Tensor {
         // Map qubits to the last open edge on the corresponding wire
         let mut wires = HashMap::new();
         let mut register_sizes = HashMap::new();
         let mut tensors = Vec::new();
-        let mut data_tensors = Vec::new();
 
         for statement in &program.statements {
             match statement {
@@ -117,12 +114,12 @@ impl TensorNetworkCreator {
                         // New wires are initialized with |0>
                         // Thus, create new tensors with a single edge for each qubit
                         tensors.reserve(*count as usize);
-                        data_tensors.reserve(*count as usize);
                         for i in 0..*count {
                             let edge = self.new_edge();
-                            let tensor = Tensor::new(vec![edge]);
+                            let mut tensor = Tensor::new(vec![edge]);
+                            tensor
+                                .set_tensor_data(TensorData::Matrix(TensorNetworkCreator::ket0()));
                             tensors.push(tensor);
-                            data_tensors.push(TensorNetworkCreator::ket0());
                             wires.insert(Argument(name.clone(), Some(i)), edge);
                         }
                         register_sizes.insert(name.clone(), *count);
@@ -133,15 +130,17 @@ impl TensorNetworkCreator {
                         for single_call in Self::broadcast(&call.qargs, &register_sizes) {
                             let open_edge = wires.get_mut(&single_call[0]).unwrap();
                             let out_edge = self.new_edge();
-                            let tensor = Tensor::new(vec![out_edge, *open_edge]);
+                            let mut tensor = Tensor::new(vec![out_edge, *open_edge]);
                             let [theta, phi, lambda] = &call.args[..] else {
                                 panic!("Expected 3 classical arguments for U gate")
                             };
                             let theta: f64 = theta.try_into().unwrap();
                             let phi: f64 = phi.try_into().unwrap();
                             let lambda: f64 = lambda.try_into().unwrap();
+                            tensor.set_tensor_data(TensorData::Matrix(
+                                TensorNetworkCreator::u_gate(theta, phi, lambda),
+                            ));
                             tensors.push(tensor);
-                            data_tensors.push(TensorNetworkCreator::u_gate(theta, phi, lambda));
                             *open_edge = out_edge;
                         }
                     } else if call.name == "CX" {
@@ -151,10 +150,12 @@ impl TensorNetworkCreator {
                                 .unwrap();
                             let out_edge1 = self.new_edge();
                             let out_edge2 = self.new_edge();
-                            let tensor =
+                            let mut tensor =
                                 Tensor::new(vec![out_edge1, out_edge2, *open_edge1, *open_edge2]);
+                            tensor.set_tensor_data(TensorData::Matrix(
+                                TensorNetworkCreator::cx_gate(),
+                            ));
                             tensors.push(tensor);
-                            data_tensors.push(TensorNetworkCreator::cx_gate());
                             *open_edge1 = out_edge1;
                             *open_edge2 = out_edge2;
                         }
@@ -166,11 +167,11 @@ impl TensorNetworkCreator {
             }
         }
 
-        let bond_dims = vec![2u64; self.edge_counter];
-        (
-            TensorNetwork::from_vector(tensors, bond_dims, None),
-            data_tensors,
-        )
+        let bond_dims = (0..self.edge_counter)
+            .map(|e| (e, 2u64))
+            .collect::<HashMap<usize, u64>>();
+
+        create_tensor_network(tensors, &bond_dims, None)
     }
 }
 
