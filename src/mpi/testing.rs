@@ -17,7 +17,7 @@ pub(crate) fn make_full_test_name(module_path: &str, test_name: &str) -> String 
     }
 }
 
-/// Runs a test using `mpirun` with 4 processes. The test must be passed with as full
+/// Runs a test using `mpirun` with `processes` processes. The test must be passed with as full
 /// name, e.g., `foo::bar::my_test`.
 pub(crate) fn run_mpi_test(test_full_name: &str, processes: usize) {
     let mut command = std::process::Command::new("mpirun");
