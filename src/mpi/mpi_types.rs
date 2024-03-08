@@ -103,8 +103,6 @@ mod tests {
         }
     }
 
-    #[test]
-
     mpi_test!(
         2,
         fn test_sendrecv_bond_dims_need_mpi() {
