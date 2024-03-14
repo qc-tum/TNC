@@ -11,7 +11,6 @@ pub fn load_tensor(filename: &PathBuf) -> Result<Tensor> {
     let file = File::open(PathBuf::from(filename))?;
     let gr = file.group("/tensors")?;
     let tensor_names = gr.member_names()?;
-    // let mut bond_dims = HashMap::<usize, u64>::new();
 
     // Outuput tensor is always labelled as -1
     let out_tensor = gr.dataset("-1")?;

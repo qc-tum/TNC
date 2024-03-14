@@ -102,13 +102,6 @@ pub fn load_gate(gate: &str, angles: Option<&Vec<f64>>) -> DataTensor {
     }
 }
 
-// fn capture_gate(gate: &str) {
-//     let input_re = Regex::new(r#"([a-zA-Z]*)\(((([0-9]*[.])?[0-9]+[\s,]*)+)\)"#).unwrap();
-//     let captures = input_re.captures(gate).unwrap();
-//     let gate_name = &captures[1];
-//     let gate_variables = '[' + &captures[2] + ']';
-// }
-
 pub const PAULIX: TensorData = TensorData::Gate(("X", Vec::new()));
 pub const PAULIY: TensorData = TensorData::Gate(("Y", Vec::new()));
 pub const PAULIZ: TensorData = TensorData::Gate(("Z", Vec::new()));
