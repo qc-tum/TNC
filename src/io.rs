@@ -8,7 +8,7 @@ use tetra::Tensor as DataTensor;
 use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
 
 pub fn load_tensor(filename: &PathBuf) -> Result<Tensor> {
-    let file = File::open(PathBuf::from(filename))?;
+    let file = File::open(filename)?;
     let gr = file.group("/tensors")?;
     let tensor_names = gr.member_names()?;
 
