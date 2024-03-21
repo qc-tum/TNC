@@ -38,9 +38,10 @@ mod tests {
     use std::iter::zip;
 
     use crate::mpi::mpi_types::BondDim;
+    use crate::path;
     use crate::types::ContractionIndex;
-    use crate::{mpi_test, path};
     use mpi::traits::*;
+    use mpi_test::mpi_test;
 
     mpi_test!(
         2,
