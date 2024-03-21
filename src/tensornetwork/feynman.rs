@@ -10,8 +10,10 @@ use permutation::Permutation;
 pub struct FeynmanContractionData {
     /// Vector of usize indicating the edge ids of feynman indices
     pub feynman_indices: Vec<usize>,
+
     /// Stores the permutation required to ensure each Tensor has feynman indices as slowest running index
     pub permutation_vector: Vec<Permutation>,
+
     /// Stores the index identifying which feynman index is iterated over for each Tensor object
     pub feynman_tensor_indexes: Vec<Vec<usize>>,
 }

@@ -1,10 +1,12 @@
 #[derive(Debug, PartialEq, Eq)]
+/// Struct that defines connectivity of IBM device.
 pub struct Connectivity {
     pub connectivity: Vec<(usize, usize)>,
     name: ConnectivityLayout,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+/// Different types of connectivity layouts of IBM devices.
 pub enum ConnectivityLayout {
     Condor,
     Eagle,
@@ -13,7 +15,7 @@ pub enum ConnectivityLayout {
 }
 
 impl Connectivity {
-    /// Struct that defines connectivity of IBM device
+    /// Create a new connectivity layout instance.
     ///
     /// # Arguments
     ///

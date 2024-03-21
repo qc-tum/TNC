@@ -14,6 +14,23 @@ pub enum TensorData {
 }
 
 impl TensorData {
+    /// Creates a new tensor from raw (flat) data.
+    pub fn new_from_data(
+        dimensions: Vec<u64>,
+        data: Vec<Complex64>,
+        layout: Option<Layout>,
+    ) -> Self {
+        Self::Matrix(DataTensor::new_from_flat(
+            dimensions
+                .iter()
+                .map(|e| *e as u32)
+                .collect::<Vec<u32>>()
+                .as_slice(),
+            data,
+            layout,
+        ))
+    }
+
     pub fn approx_eq(&self, other: &TensorData, epsilon: f64) -> bool {
         match (self, other) {
             (Self::File(l0), Self::File(r0)) => l0 == r0,
@@ -32,23 +49,5 @@ impl TensorData {
             (Self::Uncontracted, Self::Uncontracted) => true,
             _ => false,
         }
-    }
-}
-
-impl TensorData {
-    pub fn new_from_data(
-        dimensions: Vec<u64>,
-        data: Vec<Complex64>,
-        layout: Option<Layout>,
-    ) -> Self {
-        Self::Matrix(DataTensor::new_from_flat(
-            dimensions
-                .iter()
-                .map(|e| *e as u32)
-                .collect::<Vec<u32>>()
-                .as_slice(),
-            data,
-            layout,
-        ))
     }
 }

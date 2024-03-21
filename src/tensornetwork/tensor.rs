@@ -746,7 +746,6 @@ impl Sub for &Tensor {
 
 #[cfg(test)]
 mod tests {
-    use num_complex::Complex64;
     use std::{collections::HashMap, iter::zip};
 
     use crate::{tensornetwork::tensordata::TensorData, types::Vertex};
@@ -821,7 +820,7 @@ mod tests {
             tensor.tensors(),
             &vec![ref_tensor_1.clone(), ref_tensor_2.clone()],
         ) {
-            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs())
+            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs());
         }
 
         assert_eq!(tensor.legs(), &Vec::<usize>::new());
@@ -839,7 +838,7 @@ mod tests {
             tensor.tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
         ) {
-            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs())
+            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs());
         }
 
         assert_eq!(
@@ -853,7 +852,7 @@ mod tests {
                 (9, vec![Vertex::Closed(1), Vertex::Open]),
                 (10, vec![Vertex::Closed(2), Vertex::Open]),
             ])
-        )
+        );
     }
 
     #[test]
@@ -892,7 +891,7 @@ mod tests {
             tensor.tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
         ) {
-            assert_eq!(tensor.legs(), other_tensor.legs())
+            assert_eq!(tensor.legs(), other_tensor.legs());
         }
 
         assert_eq!(*tensor.bond_dims(), reference_bond_dims_3);
@@ -907,7 +906,7 @@ mod tests {
                 (9, vec![Vertex::Closed(1), Vertex::Open]),
                 (10, vec![Vertex::Closed(2), Vertex::Open]),
             ])
-        )
+        );
     }
 
     #[test]
@@ -956,7 +955,7 @@ mod tests {
             tensor.tensors(),
             &vec![ref_tensor_0, ref_tensor_1, ref_tensor_2, ref_tensor_3],
         ) {
-            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs())
+            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs());
         }
 
         assert_eq!(
@@ -972,6 +971,6 @@ mod tests {
                 (6, vec![Vertex::Closed(3), Vertex::Closed(3)]),
                 (9, vec![Vertex::Closed(1), Vertex::Closed(2)]),
             ])
-        )
+        );
     }
 }

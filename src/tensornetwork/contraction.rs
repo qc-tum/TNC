@@ -531,7 +531,7 @@ mod tests {
             (5, vec![Vertex::Closed(1), Vertex::Open]),
         ]);
 
-        let (d1, d2, d3, dout) = setup();
+        let (d1, d2, d3, _) = setup();
 
         t1.set_tensor_data(TensorData::new_from_data(
             t1.shape(),
