@@ -98,7 +98,7 @@ mod tests {
         }
     }
 
-    fn get_memory<'a, T>(input: &'a T) -> &'a [u8] {
+    fn get_memory<T>(input: &T) -> &[u8] {
         unsafe {
             std::slice::from_raw_parts(input as *const _ as *const u8, std::mem::size_of::<T>())
         }
