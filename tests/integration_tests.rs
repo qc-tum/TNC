@@ -34,51 +34,49 @@ fn test_partitioned_contraction() {
     assert!(&ref_tn.approx_eq(&partitioned_tn, 1e-12));
 }
 
-mpi_test!(
-    4,
-    fn test_partitioned_contraction_need_mpi() {
-        let mut rng = StdRng::seed_from_u64(23);
+#[mpi_test(4)]
+fn test_partitioned_contraction_need_mpi() {
+    let mut rng = StdRng::seed_from_u64(23);
 
-        let universe = mpi::initialize().unwrap();
-        let world = universe.world();
-        let size = world.size();
-        let rank = world.rank();
+    let universe = mpi::initialize().unwrap();
+    let world = universe.world();
+    let size = world.size();
+    let rank = world.rank();
 
-        // let status;
-        let mut partitioned_tn = Tensor::default();
-        let mut path = Vec::new();
-        let mut ref_tn = Tensor::default();
-        if rank == 0 {
-            let k = 5;
-            let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
-            ref_tn = r_tn.clone();
-            let partitioning = find_partitioning(
-                &r_tn,
-                size,
-                String::from("tests/km1_kKaHyPar_sea20.ini"),
-                true,
-            );
-            partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
-            let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+    // let status;
+    let mut partitioned_tn = Tensor::default();
+    let mut path = Vec::new();
+    let mut ref_tn = Tensor::default();
+    if rank == 0 {
+        let k = 5;
+        let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+        ref_tn = r_tn.clone();
+        let partitioning = find_partitioning(
+            &r_tn,
+            size,
+            String::from("tests/km1_kKaHyPar_sea20.ini"),
+            true,
+        );
+        partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+        let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
-            opt.optimize_path();
-            path = opt.get_best_replace_path();
-        }
-        world.barrier();
-        let (mut local_tn, local_path) =
-            scatter_tensor_network(partitioned_tn, &path, rank, size, &world);
-        contract_tensor_network(&mut local_tn, &local_path);
-
-        naive_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
-        world.barrier();
-
-        if rank == 0 {
-            let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
-
-            ref_opt.optimize_path();
-            let ref_path = ref_opt.get_best_replace_path();
-            contract_tensor_network(&mut ref_tn, &ref_path);
-            assert!(local_tn.approx_eq(&ref_tn, 1e-8));
-        }
+        opt.optimize_path();
+        path = opt.get_best_replace_path();
     }
-);
+    world.barrier();
+    let (mut local_tn, local_path) =
+        scatter_tensor_network(partitioned_tn, &path, rank, size, &world);
+    contract_tensor_network(&mut local_tn, &local_path);
+
+    naive_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
+    world.barrier();
+
+    if rank == 0 {
+        let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
+
+        ref_opt.optimize_path();
+        let ref_path = ref_opt.get_best_replace_path();
+        contract_tensor_network(&mut ref_tn, &ref_path);
+        assert!(local_tn.approx_eq(&ref_tn, 1e-8));
+    }
+}

@@ -43,40 +43,18 @@ mod tests {
     use mpi::traits::*;
     use mpi_test::mpi_test;
 
-    mpi_test!(
-        2,
-        fn test_sendrecv_contraction_index() {
-            let universe = mpi::initialize().unwrap();
-            let world = universe.world();
-            // let size = world.size();
-            let rank = world.rank();
-            let root_process = world.process_at_rank(0);
-            let max = usize::MAX;
+    #[mpi_test(2)]
 
-            let contraction_indices = if rank == 0 {
-                let mut contraction_indices = path![
-                    (0, 4),
-                    (1, 5),
-                    (2, 16),
-                    (7, max),
-                    (max, 5),
-                    (64, 2),
-                    (4, 55),
-                    (81, 21),
-                    (2, 72),
-                    (23, 3),
-                    (40, 5),
-                    (2, 26)
-                ]
-                .to_vec();
-                root_process.broadcast_into(&mut contraction_indices);
-                contraction_indices
-            } else {
-                let mut contraction_indices = vec![ContractionIndex::Pair(0, 0); 12];
-                root_process.broadcast_into(&mut contraction_indices);
-                contraction_indices
-            };
-            let ref_contraction_indices = path![
+    fn test_sendrecv_contraction_index() {
+        let universe = mpi::initialize().unwrap();
+        let world = universe.world();
+        // let size = world.size();
+        let rank = world.rank();
+        let root_process = world.process_at_rank(0);
+        let max = usize::MAX;
+
+        let contraction_indices = if rank == 0 {
+            let mut contraction_indices = path![
                 (0, 4),
                 (1, 5),
                 (2, 16),
@@ -91,48 +69,68 @@ mod tests {
                 (2, 26)
             ]
             .to_vec();
-            assert_eq!(contraction_indices, ref_contraction_indices);
-            // Note that rust fills empty space in enum instance with garbage
-            for (ref_data, data) in zip(ref_contraction_indices, contraction_indices) {
-                assert_eq!(get_memory(&ref_data)[0..24], get_memory(&data)[0..24]);
-            }
+            root_process.broadcast_into(&mut contraction_indices);
+            contraction_indices
+        } else {
+            let mut contraction_indices = vec![ContractionIndex::Pair(0, 0); 12];
+            root_process.broadcast_into(&mut contraction_indices);
+            contraction_indices
+        };
+        let ref_contraction_indices = path![
+            (0, 4),
+            (1, 5),
+            (2, 16),
+            (7, max),
+            (max, 5),
+            (64, 2),
+            (4, 55),
+            (81, 21),
+            (2, 72),
+            (23, 3),
+            (40, 5),
+            (2, 26)
+        ]
+        .to_vec();
+        assert_eq!(contraction_indices, ref_contraction_indices);
+        // Note that rust fills empty space in enum instance with garbage
+        for (ref_data, data) in zip(ref_contraction_indices, contraction_indices) {
+            assert_eq!(get_memory(&ref_data)[0..24], get_memory(&data)[0..24]);
         }
-    );
+    }
+
     fn get_memory<'a, T>(input: &'a T) -> &'a [u8] {
         unsafe {
             std::slice::from_raw_parts(input as *const _ as *const u8, std::mem::size_of::<T>())
         }
     }
 
-    mpi_test!(
-        2,
-        fn test_sendrecv_bond_dims_need_mpi() {
-            let universe = mpi::initialize().unwrap();
-            let world = universe.world();
-            // let size = world.size();
-            let rank = world.rank();
-            let root_process = world.process_at_rank(0);
+    #[mpi_test(2)]
+    fn test_sendrecv_bond_dims_need_mpi() {
+        let universe = mpi::initialize().unwrap();
+        let world = universe.world();
+        // let size = world.size();
+        let rank = world.rank();
+        let root_process = world.process_at_rank(0);
 
-            let bond_dims = if rank == 0 {
-                let mut bond_dims = vec![
-                    BondDim::new(10, 24),
-                    BondDim::new(31, 55),
-                    BondDim::new(27, 126),
-                ];
-                root_process.broadcast_into(&mut bond_dims);
-                bond_dims
-            } else {
-                let mut bond_dims = vec![BondDim::default(); 3];
-                root_process.broadcast_into(&mut bond_dims);
-                bond_dims
-            };
-            let bond_dims_ref = vec![
+        let bond_dims = if rank == 0 {
+            let mut bond_dims = vec![
                 BondDim::new(10, 24),
                 BondDim::new(31, 55),
                 BondDim::new(27, 126),
             ];
+            root_process.broadcast_into(&mut bond_dims);
+            bond_dims
+        } else {
+            let mut bond_dims = vec![BondDim::default(); 3];
+            root_process.broadcast_into(&mut bond_dims);
+            bond_dims
+        };
+        let bond_dims_ref = vec![
+            BondDim::new(10, 24),
+            BondDim::new(31, 55),
+            BondDim::new(27, 126),
+        ];
 
-            assert_eq!(bond_dims, bond_dims_ref);
-        }
-    );
+        assert_eq!(bond_dims, bond_dims_ref);
+    }
 }
