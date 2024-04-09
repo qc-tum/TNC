@@ -44,7 +44,6 @@ mod tests {
     use mpi_test::mpi_test;
 
     #[mpi_test(2)]
-
     fn test_sendrecv_contraction_index() {
         let universe = mpi::initialize().unwrap();
         let world = universe.world();
