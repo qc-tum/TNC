@@ -4,7 +4,6 @@ use std::collections::{BinaryHeap, HashMap};
 use crate::contractionpath::candidates::Candidate;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
-
 pub mod branchbound;
 pub mod greedy;
 //pub mod parallel_greedy;

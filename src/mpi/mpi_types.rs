@@ -41,14 +41,9 @@ mod tests {
     use crate::path;
     use crate::types::ContractionIndex;
     use mpi::traits::*;
+    use mpi_test::mpi_test;
 
-    fn get_memory<T>(input: &T) -> &[u8] {
-        unsafe {
-            std::slice::from_raw_parts(input as *const _ as *const u8, std::mem::size_of::<T>())
-        }
-    }
-
-    #[test]
+    #[mpi_test(2)]
     fn test_sendrecv_contraction_index() {
         let universe = mpi::initialize().unwrap();
         let world = universe.world();
@@ -102,9 +97,14 @@ mod tests {
         }
     }
 
-    #[test]
-    #[ignore]
-    fn test_sendrecv_bond_dims() {
+    fn get_memory<T>(input: &T) -> &[u8] {
+        unsafe {
+            std::slice::from_raw_parts(input as *const _ as *const u8, std::mem::size_of::<T>())
+        }
+    }
+
+    #[mpi_test(2)]
+    fn test_sendrecv_bond_dims_need_mpi() {
         let universe = mpi::initialize().unwrap();
         let world = universe.world();
         // let size = world.size();

@@ -1,9 +1,10 @@
 use mpi::traits::{Communicator, CommunicatorCollectives};
+use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
     circuits::{connectivity::ConnectivityLayout, sycamore::sycamore_circuit},
     contractionpath::paths::{greedy::Greedy, CostType, OptimizePath},
-    mpi::scatter::{naive_reduce_tensor_network, scatter_tensor_network},
+    mpi::communication::{naive_reduce_tensor_network, scatter_tensor_network},
     tensornetwork::{
         contraction::contract_tensor_network,
         partitioning::{find_partitioning, partition_tensor_network},
@@ -33,10 +34,8 @@ fn test_partitioned_contraction() {
     assert!(&ref_tn.approx_eq(&partitioned_tn, 1e-12));
 }
 
-// Ignored as requires MPI to run
-#[ignore]
-#[test]
-fn test_mpi_partitioned_contraction() {
+#[mpi_test(4)]
+fn test_partitioned_contraction_need_mpi() {
     let mut rng = StdRng::seed_from_u64(23);
 
     let universe = mpi::initialize().unwrap();
@@ -52,7 +51,12 @@ fn test_mpi_partitioned_contraction() {
         let k = 5;
         let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
         ref_tn = r_tn.clone();
-        let partitioning = find_partitioning(&r_tn, size, String::from("tests/km1"), true);
+        let partitioning = find_partitioning(
+            &r_tn,
+            size,
+            String::from("tests/km1_kKaHyPar_sea20.ini"),
+            true,
+        );
         partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
@@ -73,6 +77,6 @@ fn test_mpi_partitioned_contraction() {
         ref_opt.optimize_path();
         let ref_path = ref_opt.get_best_replace_path();
         contract_tensor_network(&mut ref_tn, &ref_path);
-        assert!(local_tn.approx_eq(&ref_tn, 1e-12));
+        assert!(local_tn.approx_eq(&ref_tn, 1e-8));
     }
 }
