@@ -7,8 +7,19 @@ use tetra::Tensor as DataTensor;
 
 use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
 
+/// Loads a tensor network from a HDF5 file.
 pub fn load_tensor(filename: &PathBuf) -> Result<Tensor> {
     let file = File::open(filename)?;
+    read_tensor(file)
+}
+
+/// Loads a single tensor from a HDF5 file.
+pub fn load_data(filename: &PathBuf) -> Result<DataTensor> {
+    let file = File::open(filename)?;
+    read_data(file)
+}
+
+fn read_tensor(file: File) -> Result<Tensor> {
     let gr = file.group("/tensors")?;
     let tensor_names = gr.member_names()?;
 
@@ -50,8 +61,7 @@ pub fn load_tensor(filename: &PathBuf) -> Result<Tensor> {
     Ok(new_tensor_network)
 }
 
-pub fn load_data(filename: &PathBuf) -> Result<DataTensor> {
-    let file = File::open(filename)?;
+fn read_data(file: File) -> Result<DataTensor> {
     let gr = file.group("/tensors")?;
     let tensor_name = gr.member_names()?;
 
@@ -74,28 +84,33 @@ pub fn load_data(filename: &PathBuf) -> Result<DataTensor> {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::HashMap,
-        fs,
-        iter::zip,
-        panic,
-        path::{Path, PathBuf},
-    };
+    use std::{collections::HashMap, iter::zip};
 
     use float_cmp::assert_approx_eq;
-    use hdf5::{AttributeBuilder, Error, File};
+    use hdf5::{AttributeBuilder, File, Result};
     use ndarray::array;
     use num_complex::Complex64;
-
-    use crate::{
-        io::{load_data, load_tensor},
-        tensornetwork::{tensor::Tensor, tensordata::TensorData},
+    use rand::{
+        distributions::{Alphanumeric, DistString},
+        thread_rng,
     };
-    static TENSOR_TEST_FILE: &str = "./tests/tensor_test.hdf5";
-    static DATA_TEST_FILE: &str = "./tests/data_test.hdf5";
 
-    fn write_hdf5_tensor() -> Result<File, Error> {
-        let new_file = File::create(TENSOR_TEST_FILE)?;
+    use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
+
+    use super::{read_data, read_tensor};
+
+    /// Creates a new HDF5 file in memory.
+    /// This method is taken from the hdf5 crate integration tests:
+    /// https://github.com/aldanor/hdf5-rust/blob/694e900972fbf5ffbdd1a2294f57a2cc3a91c994/hdf5/tests/common/util.rs#L7.
+    fn new_in_memory_file() -> Result<File> {
+        let random_filename = Alphanumeric.sample_string(&mut thread_rng(), 8);
+        File::with_options()
+            .with_access_plist(|p| p.core_filebacked(false))
+            .create(random_filename)
+    }
+
+    fn create_hdf5_tensor() -> Result<File> {
+        let new_file = new_in_memory_file()?;
         let tensor_group = new_file.create_group("./tensors")?;
         let dataset_builder = tensor_group.new_dataset_builder();
         let dataset = dataset_builder.empty::<Complex64>().create("-1")?;
@@ -123,8 +138,8 @@ mod tests {
         Ok(new_file)
     }
 
-    fn write_hdf5_data() -> Result<File, Error> {
-        let new_file = File::create(DATA_TEST_FILE)?;
+    fn create_hdf5_data() -> Result<File> {
+        let new_file = new_in_memory_file()?;
         let tensor_group = new_file.create_group("./tensors")?;
         let dataset_builder = tensor_group.new_dataset_builder();
         let data = array![
@@ -140,38 +155,11 @@ mod tests {
         Ok(new_file)
     }
 
-    fn run_test<T>(test: T)
-    where
-        T: FnOnce() + panic::UnwindSafe,
-    {
-        let result = panic::catch_unwind(test);
-
-        assert!(result.is_ok())
-    }
-
     #[test]
     fn test_load_data() {
-        run_test(|| {
-            load_data_test();
-        });
-        if Path::new(DATA_TEST_FILE).exists() {
-            fs::remove_file(DATA_TEST_FILE).expect("could not remove file");
-        }
-    }
+        let file = create_hdf5_data().unwrap();
+        let tensor_data = read_data(file).unwrap();
 
-    #[test]
-    fn test_load_tensor() {
-        run_test(|| {
-            load_tensor_test();
-        });
-        if Path::new(TENSOR_TEST_FILE).exists() {
-            fs::remove_file(TENSOR_TEST_FILE).expect("could not remove file");
-        }
-    }
-
-    fn load_data_test() {
-        let _ = write_hdf5_data();
-        let tensor_data = load_data(&PathBuf::from(DATA_TEST_FILE)).unwrap();
         let ref_data = array![
             Complex64::new(1.0, 0.0),
             Complex64::new(0.0, 2.0),
@@ -184,11 +172,13 @@ mod tests {
         }
     }
 
-    fn load_tensor_test() {
-        let _ = write_hdf5_tensor();
+    #[test]
+    fn test_load_tensor() {
+        let file = create_hdf5_tensor().unwrap();
+        let tensor = read_tensor(file).unwrap();
+
         let mut ref_tn = Tensor::default();
         let mut ref_tensor = Tensor::new(vec![0, 1]);
-
         ref_tensor.set_tensor_data(TensorData::new_from_data(
             vec![2, 2],
             vec![
@@ -201,7 +191,6 @@ mod tests {
         ));
         ref_tn.push_tensor(ref_tensor, Some(&HashMap::from([(0, 2), (1, 2)])));
         ref_tn.set_legs(vec![0, 1]);
-        let tensor = load_tensor(&PathBuf::from(TENSOR_TEST_FILE)).unwrap();
         assert!(tensor.approx_eq(&ref_tn, 1e-12));
     }
 }
