@@ -18,10 +18,12 @@ rand = "0.8.5"
 random = "0.14.0"
 antlr-rust = "0.3.0-beta"
 float-cmp = "0.9.0"
-tetra = { git = "ssh://gitlab.lrz.de/quantum-research/tetra", branch = "main" }
+tetra = { git = "ssh://gitlab.lrz.de/quantum-research/tetra", branch = "main", features = ["serde"] }
 kahypar-sys = { git = "ssh://gitlab.lrz.de/quantum-research/kahypar-sys", branch = "main" }
 permutation = "0.4.1"
 memoffset = "0.9.0"
+serde = "1.0.197"
+bincode = "1.3.3"
 
 [dev-dependencies]
 mpi_test = { git = "ssh://gitlab.lrz.de/quantum-research/mpi_test", branch = "main" }

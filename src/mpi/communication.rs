@@ -1,8 +1,5 @@
 use std::collections::HashMap;
-use std::ffi::OsStr;
 use std::iter::zip;
-use std::os::unix::ffi::OsStrExt;
-use std::path::PathBuf;
 
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::*;
@@ -59,33 +56,15 @@ pub fn scatter_tensor_network(
             let num_tensors = tensor.tensors().len();
             world.process_at_rank(i).send(&num_tensors);
             for inner_tensor in tensor.tensors() {
+                // Send legs
                 let legs = inner_tensor.legs().clone();
                 world.process_at_rank(i).send(&legs);
 
+                // Send data
                 let tensor_data = inner_tensor.tensor_data().clone();
-                match tensor_data {
-                    TensorData::Uncontracted => {
-                        world.process_at_rank(i).send(&0_i32);
-                    }
-                    TensorData::File(file_name) => {
-                        world.process_at_rank(i).send(&1_i32);
-                        world
-                            .process_at_rank(i)
-                            .send(file_name.as_os_str().as_bytes());
-                    }
-                    TensorData::Gate((gate_name, angles)) => {
-                        world.process_at_rank(i).send(&2_i32);
-                        world.process_at_rank(i).send(gate_name.as_bytes());
-                        world.process_at_rank(i).send(&angles);
-                    }
-                    TensorData::Matrix(matrix_data) => {
-                        world.process_at_rank(i).send(&3_i32);
-                        world.process_at_rank(i).send(&(*matrix_data.shape()));
-                        world
-                            .process_at_rank(i)
-                            .send(&(*matrix_data.get_raw_data()));
-                    }
-                }
+                world
+                    .process_at_rank(i)
+                    .send(&bincode::serialize(&tensor_data).unwrap());
             }
         }
         (local_tn, local_path)
@@ -96,33 +75,13 @@ pub fn scatter_tensor_network(
         let (num_tensors, _status) = world.any_process().receive::<usize>();
 
         for _ in 0..num_tensors {
-            // First send tensor legs
+            // Receive legs
             let (legs, _status) = world.any_process().receive_vec::<EdgeIndex>();
-            // Then determine data type of sent tensor data
-            let (tensor_data_type, _status) = world.any_process().receive::<i32>();
-            let mut tensor_data = TensorData::Uncontracted;
-            match tensor_data_type {
-                0 => {}
-                1 => {
-                    let (file_name, _status) = world.any_process().receive_vec::<u8>();
-                    tensor_data = TensorData::File(PathBuf::from(OsStr::from_bytes(&file_name)));
-                }
-                2 => {
-                    let (gate_name, _status) = world.any_process().receive_vec::<u8>();
-                    let gate_name = String::from_utf8(gate_name).unwrap();
-                    let (gate_angles, _status) = world.any_process().receive_vec::<f64>();
-                    tensor_data = TensorData::Gate((gate_name, gate_angles));
-                }
-                3 => {
-                    let (shape, _status) = world.any_process().receive_vec::<u32>();
-                    let shape = shape.iter().map(|e| *e as u64).collect::<Vec<u64>>();
-                    let (data, _status) = world.any_process().receive_vec::<Complex64>();
-                    tensor_data = TensorData::new_from_data(shape, data, None);
-                }
-                _ => {
-                    panic!("Unrecognized data type");
-                }
-            }
+
+            // Receive data
+            let (raw_data, _status) = world.any_process().receive_vec::<u8>();
+            let tensor_data: TensorData = bincode::deserialize(&raw_data).unwrap();
+
             let mut new_tensor = Tensor::new(legs);
             new_tensor.set_tensor_data(tensor_data);
             local_tn.push_tensor(new_tensor, Some(&bond_dims));
