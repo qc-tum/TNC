@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::iter::zip;
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
@@ -107,8 +108,8 @@ pub fn scatter_tensor_network(
             match tensor_data_type {
                 0 => {}
                 1 => {
-                    let (file_name, _status) = world.any_process().receive::<u8>();
-                    tensor_data = TensorData::File(PathBuf::from(file_name.to_string()));
+                    let (file_name, _status) = world.any_process().receive_vec::<u8>();
+                    tensor_data = TensorData::File(PathBuf::from(OsStr::from_bytes(&file_name)));
                 }
                 2 => {
                     let (gate_name, _status) = world.any_process().receive_vec::<u8>();
