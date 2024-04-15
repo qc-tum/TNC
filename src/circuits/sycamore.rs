@@ -7,11 +7,16 @@ use std::collections::HashMap;
 use crate::contractionpath::paths::OptimizePath;
 use crate::contractionpath::paths::{greedy::Greedy, CostType};
 use crate::contractionpath::random_paths::RandomOptimizePath;
-use crate::fsim;
-use crate::gates::{SQRX, SQRY, SQRZ};
 use crate::random::tensorgeneration::random_sparse_tensor_data;
 use crate::tensornetwork::contraction::contract_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
+use crate::tensornetwork::tensordata::TensorData;
+
+macro_rules! fsim {
+    ($a:expr, $b:expr) => {
+        $crate::tensornetwork::tensordata::TensorData::Gate((String::from("FSIM"), vec![$a, $b]))
+    };
+}
 
 pub fn sycamore_circuit<R>(
     size: usize,
@@ -32,7 +37,11 @@ where
         (0.0..=1.0).contains(&two_qubit_probability),
         "Probabilities should range from 0.0 to 1.0"
     );
-    let single_qubit_gate = HashMap::from([(0, SQRX), (1, SQRY), (2, SQRZ)]);
+    let single_qubit_gate = HashMap::from([
+        (0, TensorData::Gate((String::from("SQRX"), Vec::new()))),
+        (1, TensorData::Gate((String::from("SQRY"), Vec::new()))),
+        (2, TensorData::Gate((String::from("SQRZ"), Vec::new()))),
+    ]);
 
     let mut open_edges = HashMap::new();
 

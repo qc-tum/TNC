@@ -1,8 +1,6 @@
 use num_complex::Complex64;
 use tetra::Tensor as DataTensor;
 
-use crate::tensornetwork::tensordata::TensorData;
-
 pub fn load_gate(gate: &str, angles: Option<&Vec<f64>>) -> DataTensor {
     const X: [Complex64; 4] = [
         Complex64::new(0.0, 0.0),
@@ -100,19 +98,4 @@ pub fn load_gate(gate: &str, angles: Option<&Vec<f64>>) -> DataTensor {
         }
         _ => todo!(), // _ => capture_gate(&gate),
     }
-}
-
-pub const PAULIX: TensorData = TensorData::Gate(("X", Vec::new()));
-pub const PAULIY: TensorData = TensorData::Gate(("Y", Vec::new()));
-pub const PAULIZ: TensorData = TensorData::Gate(("Z", Vec::new()));
-pub const SQRX: TensorData = TensorData::Gate(("SQRX", Vec::new()));
-pub const SQRY: TensorData = TensorData::Gate(("SQRY", Vec::new()));
-pub const SQRZ: TensorData = TensorData::Gate(("SQRZ", Vec::new()));
-pub const CNOT: TensorData = TensorData::Gate(("CNOT", Vec::new()));
-
-#[macro_export]
-macro_rules! fsim {
-    ($a:expr, $b:expr) => {
-        $crate::tensornetwork::tensordata::TensorData::Gate(("FSIM", vec![$a, $b]))
-    };
 }

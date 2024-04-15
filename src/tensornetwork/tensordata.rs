@@ -8,7 +8,7 @@ use tetra::{all_close, Layout, Tensor as DataTensor};
 #[derive(Debug, Clone)]
 pub enum TensorData {
     File(PathBuf),
-    Gate((&'static str, Vec<f64>)),
+    Gate((String, Vec<f64>)),
     Matrix(DataTensor),
     Uncontracted,
 }

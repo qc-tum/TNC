@@ -575,9 +575,8 @@ impl Tensor {
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
-    /// # use tensorcontraction::gates::PAULIX;
     /// let mut tensor = Tensor::new(vec![0,1]);
-    /// let tensordata = TensorData::Gate(("X", vec![]));
+    /// let tensordata = TensorData::Gate((String::from("X"), vec![]));
     /// tensor.set_tensor_data(tensordata);
     /// ```
     pub fn set_tensor_data(&mut self, tensordata: TensorData) {
