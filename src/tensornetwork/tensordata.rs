@@ -1,14 +1,15 @@
 use float_cmp::approx_eq;
+use serde::{Deserialize, Serialize};
 use std::iter::zip;
 use std::path::PathBuf;
 
 use num_complex::Complex64;
 use tetra::{all_close, Layout, Tensor as DataTensor};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TensorData {
     File(PathBuf),
-    Gate((&'static str, Vec<f64>)),
+    Gate((String, Vec<f64>)),
     Matrix(DataTensor),
     Uncontracted,
 }
