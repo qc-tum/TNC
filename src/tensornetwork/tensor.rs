@@ -414,7 +414,6 @@ impl Tensor {
     ///
     /// * `tensor` - new `Tensor` to be added
     /// * `bond_dims` - `HashMap<usize, u64>` mapping edge id to bond dimension
-    /// ```
     pub fn push_tensor(&mut self, mut tensor: Tensor, bond_dims: Option<&HashMap<usize, u64>>) {
         // In the case of pushing to an empty tensor, avoid unnecessary heirarchies
         if self.tensors().is_empty() && self.legs().is_empty() {
@@ -469,7 +468,6 @@ impl Tensor {
     /// * `tensors` - `Vec<Tensor>` to be added
     /// * `bond_dims` - `HashMap<usize, u64>` mapping edge id to bond dimension
     /// * 'external_hyperedge' - Optional `HashMap<EdgeIndex, usize>` of external hyperedges, mapping the edge index to count of external hyperedges.
-    /// ```
     pub fn push_tensors(
         &mut self,
         tensors: Vec<Tensor>,
