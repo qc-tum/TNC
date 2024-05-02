@@ -162,7 +162,7 @@ where
 {
     let mut tensors = Vec::new();
     // counter for indices in tensor network
-    let mut index = 3;
+    let mut index = n - 1;
     // keeps track of which edge is one a specific wire
 
     let wires: Vec<usize> = (0..n).collect();
