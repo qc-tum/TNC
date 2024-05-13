@@ -161,34 +161,37 @@ where
     R: Rng + ?Sized,
 {
     let mut tensors = Vec::new();
+    // println!("Tensors: {tensors:?}");
     // counter for indices in tensor network
     let mut index = n - 1;
     // keeps track of which edge is one a specific wire
-
     let wires: Vec<usize> = (0..n).collect();
     let mut wire_indices = wires.clone();
-    let die = Uniform::from(0..n);
+    // Allow a 10% chance to not place any gates and continue to next layer early.
+    let die = Uniform::from(0..10);
 
     // Will generate gates for multiple cycles
     for _i in 0..cycles {
         let mut w = wires.clone();
         while die.sample(rng) != 0 {
-            if w.len() < 2 {
+            if w.is_empty() {
                 break;
             }
             if rng.gen() {
-                w.shuffle(rng);
-                let l1 = w.pop().unwrap();
-                let l2 = w.pop().unwrap();
-                tensors.push(vec![
-                    wire_indices[l1],
-                    wire_indices[l2],
-                    index + 1,
-                    index + 2,
-                ]);
-                wire_indices[l1] = index + 1;
-                wire_indices[l2] = index + 2;
-                index += 2;
+                if w.len() > 2 {
+                    w.shuffle(rng);
+                    let l1 = w.pop().unwrap();
+                    let l2 = w.pop().unwrap();
+                    tensors.push(vec![
+                        wire_indices[l1],
+                        wire_indices[l2],
+                        index + 1,
+                        index + 2,
+                    ]);
+                    wire_indices[l1] = index + 1;
+                    wire_indices[l2] = index + 2;
+                    index += 2;
+                }
             } else {
                 w.shuffle(rng);
                 let l1 = w.pop().unwrap();
@@ -217,6 +220,7 @@ where
         random_sparse_tensor_data(&tensor.shape(), None);
     }
     t
+    // Tensor::default()
 }
 
 /// Generates random [Tensor] objects based on a quantum circuit with `n` qubits and `cycles` layers of
