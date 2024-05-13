@@ -130,7 +130,7 @@ impl<'a> Greedy<'a> {
     //
     // }
 
-    #[allow(clippy::too_many_arguments)]
+    /// Returns Tensor obtained after contracting k1 and k2.
     fn get_candidate(
         output: &Tensor,
         edge_tensor_counts: &HashMap<usize, HashSet<usize>>,
