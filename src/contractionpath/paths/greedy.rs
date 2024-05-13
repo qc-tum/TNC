@@ -518,6 +518,8 @@ fn populate_remaining_tensors(
         if let Some(x) = remaining_tensors.remove(&tensor_hash) {
             ssa_path.push((x, ssa_id, *next_ssa_id));
             scalar_tensors.push(*next_ssa_id);
+            ssa_id_to_tensor.remove(&x);
+            ssa_id_to_tensor.remove(&ssa_id);
             *next_ssa_id += 1;
         } else {
             remaining_tensors.insert(tensor_hash, ssa_id);
