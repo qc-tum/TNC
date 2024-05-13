@@ -639,12 +639,22 @@ impl<'a> OptimizePath for Greedy<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+    use std::iter::zip;
+
+    use rand::rngs::StdRng;
+    use rand::SeedableRng;
+
+    use crate::circuits::sycamore::sycamore_circuit;
     use crate::contractionpath::paths::greedy::Greedy;
     use crate::contractionpath::paths::CostType;
     use crate::contractionpath::paths::OptimizePath;
     use crate::path;
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
+
+    use super::populate_edge_to_tensors;
+    use super::populate_remaining_tensors;
 
     // use rand::rngs::StdRng;
     // use rand::SeedableRng;
@@ -733,6 +743,68 @@ mod tests {
     }
 
     #[test]
+    fn test_populate_remaining_tensors() {
+        let tn = setup_simple_inner_product();
+        let tensors = tn.tensors();
+        let mut next_ssa_id = tensors.len();
+        let (remaining_tensors, ssa_id_to_tensor, scalar_tensors, ssa_path, next_ssa_id) =
+            populate_remaining_tensors(tensors, &mut next_ssa_id);
+        let bond_dims = HashMap::from([(0, 5), (6, 4), (3, 8), (2, 6), (1, 2), (5, 3), (4, 1)]);
+        let ref_remaining_tensors =
+            HashMap::from([(8653979201402620513, 3), (13850888498708788536, 2)]);
+        let mut t1 = Tensor::new(vec![0, 1, 5]);
+        let mut t2 = Tensor::new(vec![1, 6]);
+        t1.insert_bond_dims(&bond_dims);
+        t2.insert_bond_dims(&bond_dims);
+        let ref_ssa_id_to_tensor = HashMap::from([(2, t1), (3, t2)]);
+        let ref_scalar_tensors = vec![4];
+        let ref_ssa_path = vec![(0, 1, 4)];
+        let ref_next_ssa_id = 5;
+
+        assert_eq!(remaining_tensors, ref_remaining_tensors);
+        for (k1, t1) in ssa_id_to_tensor.iter() {
+            assert!(ref_ssa_id_to_tensor.contains_key(&k1));
+            assert_eq!(t1.legs(), ref_ssa_id_to_tensor[k1].legs());
+        }
+        assert_eq!(scalar_tensors, ref_scalar_tensors);
+        assert_eq!(ssa_path, ref_ssa_path);
+        assert_eq!(next_ssa_id, ref_next_ssa_id);
+    }
+
+    #[test]
+    fn test_populate_edge_to_tensors() {
+        let tn = setup_simple_inner_product();
+        let tensors = tn.tensors();
+
+        let remaining_tensors =
+            HashMap::from([(8653979201402620513, 3), (13850888498708788536, 2)]);
+        let output_dims = Tensor::default();
+        let edge_to_tensors = populate_edge_to_tensors(tensors, &remaining_tensors, &output_dims);
+
+        let bond_dims = HashMap::from([(0, 5), (6, 4), (3, 8), (2, 6), (1, 2), (5, 3), (4, 1)]);
+        let mut t1 = Tensor::new(vec![0, 1, 5]);
+        let mut t2 = Tensor::new(vec![1, 6]);
+        t1.insert_bond_dims(&bond_dims);
+        t2.insert_bond_dims(&bond_dims);
+
+        let ref_edge_to_tensors = HashMap::from([
+            (0, vec![&t1]),
+            (1, vec![&t1, &t2]),
+            (5, vec![&t1]),
+            (6, vec![&t2]),
+        ]);
+        for (key, _) in edge_to_tensors.iter() {
+            let mut t1 = edge_to_tensors[key].clone();
+            let mut t2 = ref_edge_to_tensors[key].clone();
+            t1.sort_by_key(|a| a.legs().len());
+            t2.sort_by_key(|a| a.legs().len());
+            for (legs1, legs2) in zip(t1.iter(), t2.iter()) {
+                assert!(legs1.legs() == legs2.legs());
+            }
+        }
+    }
+
+    #[test]
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
         let mut opt = Greedy::new(&tn, CostType::Flops);
@@ -769,5 +841,28 @@ mod tests {
             opt.get_best_replace_path(),
             path![(1, 5), (3, 4), (0, 1), (2, 3), (0, 2)]
         );
+    }
+
+    #[test]
+    fn test_contract_order() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let tn = sycamore_circuit(
+            15,
+            40,
+            0.8,
+            0.8,
+            &mut rng,
+            crate::circuits::connectivity::ConnectivityLayout::Condor,
+        );
+        let mut opt = Greedy::new(&tn, CostType::Flops);
+        opt.optimize_path();
+
+        // assert_eq!(opt.best_flops, 529815);
+        // assert_eq!(opt.best_size, 89478);
+        // assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 7), (8, 9)]);
+        // assert_eq!(
+        //     opt.get_best_replace_path(),
+        //     path![(1, 5), (3, 4), (0, 1), (2, 3), (0, 2)]
+        // );
     }
 }
