@@ -75,7 +75,7 @@ impl<'a> Greedy<'a> {
 
     /// The default heuristic cost, corresponding to the total reduction in
     /// memory of performing a contraction.
-    pub(crate) fn _cost_memory_removed(
+    pub(crate) fn cost_memory_removed(
         size12: i64,
         size1: i64,
         size2: i64,
@@ -591,7 +591,7 @@ impl<'a> OptimizePath for Greedy<'a> {
                     input_tensor.tensors(),
                     &Tensor::new(external_legs.clone()),
                     SimpleChooser,
-                    Box::new(&Greedy::_cost_memory_removed),
+                    Box::new(&Greedy::cost_memory_removed),
                     &mut rng,
                 );
                 if !path.is_empty() {
@@ -609,7 +609,7 @@ impl<'a> OptimizePath for Greedy<'a> {
             &inputs,
             &output_dims,
             SimpleChooser,
-            Box::new(&Greedy::_cost_memory_removed),
+            Box::new(&Greedy::cost_memory_removed),
             &mut rng,
         ));
         let (op_cost, mem_cost) =
