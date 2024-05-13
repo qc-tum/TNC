@@ -217,10 +217,9 @@ where
     );
 
     for tensor in t.tensors.iter_mut() {
-        random_sparse_tensor_data(&tensor.shape(), None);
+        tensor.set_tensor_data(random_sparse_tensor_data(&tensor.shape(), None));
     }
     t
-    // Tensor::default()
 }
 
 /// Generates random [Tensor] objects based on a quantum circuit with `n` qubits and `cycles` layers of
