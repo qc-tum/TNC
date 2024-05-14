@@ -192,7 +192,6 @@ where
                     index += 2;
                 }
             } else {
-                w.shuffle(rng);
                 let l1 = w.pop().unwrap();
                 tensors.push(vec![wire_indices[l1], index + 1]);
                 wire_indices[l1] = index + 1;
