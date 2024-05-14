@@ -454,7 +454,6 @@ impl<'a> Greedy<'a> {
             let k2 = ssa_id_to_tensor.remove(&ssa_id2).unwrap();
             ssa_path.push((min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2), next_ssa_id));
             let k12 = &(&k1 | &k2) & output_dims;
-
             let cost = k12.size() as i64;
             queue.push(Candidate {
                 flop_cost: 0,
@@ -462,6 +461,7 @@ impl<'a> Greedy<'a> {
                 parent_ids: (next_ssa_id, 0),
                 child_id: 0,
             });
+            ssa_id_to_tensor.entry(next_ssa_id).or_insert_with(|| k12);
             next_ssa_id += 1;
         }
         if !scalar_tensors.is_empty() {
