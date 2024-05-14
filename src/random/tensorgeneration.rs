@@ -161,7 +161,6 @@ where
     R: Rng + ?Sized,
 {
     let mut tensors = Vec::new();
-    // println!("Tensors: {tensors:?}");
     // counter for indices in tensor network
     let mut index = n - 1;
     // keeps track of which edge is one a specific wire
