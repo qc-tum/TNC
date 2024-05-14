@@ -455,6 +455,10 @@ impl<'a> Greedy<'a> {
             ssa_path.push((min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2), next_ssa_id));
             let k12 = &(&k1 | &k2) & output_dims;
             let cost = k12.size() as i64;
+
+            if queue.is_empty() {
+                break;
+            }
             queue.push(Candidate {
                 flop_cost: 0,
                 size_cost: cost,
@@ -477,9 +481,9 @@ impl<'a> Greedy<'a> {
                 latest_scalar = next_ssa_id;
                 next_ssa_id += 1;
             }
-            // Perform final scalar mult with final tensor
+            // Perform final scalar multiplication with final tensor
             if let Some((_, _, last_tensor)) = ssa_path.get(last_tensor_position) {
-                if *last_tensor != latest_scalar {
+                if !scalar_tensors.contains(last_tensor) {
                     ssa_path.push((
                         min(*last_tensor, latest_scalar),
                         max(*last_tensor, latest_scalar),
@@ -754,6 +758,19 @@ mod tests {
         )
     }
 
+    fn setup_complex_outer_product() -> Tensor {
+        create_tensor_network(
+            vec![
+                Tensor::new(vec![0]),
+                Tensor::new(vec![0]),
+                Tensor::new(vec![1]),
+                Tensor::new(vec![1]),
+            ],
+            &[(0, 5), (1, 4)].into(),
+            None,
+        )
+    }
+
     #[test]
     fn test_populate_remaining_tensors() {
         let tn = setup_simple_inner_product();
@@ -850,6 +867,18 @@ mod tests {
         assert_eq!(opt.best_size, 19);
         assert_eq!(opt.best_path, path![(1, 2), (0, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 2), (0, 1)]);
+    }
+
+    #[test]
+    fn test_contract_order_greedy_complex_outer() {
+        let tn = setup_complex_outer_product();
+        let mut opt = Greedy::new(&tn, CostType::Flops);
+        opt.optimize_path();
+
+        assert_eq!(opt.best_flops, 10);
+        assert_eq!(opt.best_size, 11);
+        assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
+        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
     }
 
     #[test]
