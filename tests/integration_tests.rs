@@ -20,7 +20,7 @@ fn test_partitioned_contraction_random() {
     let mut rng = StdRng::seed_from_u64(52);
     let k = 15;
 
-    let r_tn = sycamore_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Osprey);
+    let r_tn = sycamore_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Eagle);
     let mut ref_tn = r_tn.clone();
     let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
     ref_opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42));
@@ -72,7 +72,7 @@ fn test_partitioned_contraction_mixed() {
     let mut rng = StdRng::seed_from_u64(52);
     let k = 15;
 
-    let r_tn = sycamore_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Osprey);
+    let r_tn = sycamore_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Condor);
     let mut ref_tn = r_tn.clone();
     let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
     ref_opt.optimize_path();
