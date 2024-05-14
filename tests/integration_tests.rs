@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use mpi_test::mpi_test;
-use num_complex::Complex64;
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
     circuits::{connectivity::ConnectivityLayout, sycamore::sycamore_circuit},
@@ -15,7 +12,6 @@ use tensorcontraction::{
         contraction::contract_tensor_network,
         partitioning::{find_partitioning, partition_tensor_network},
         tensor::Tensor,
-        tensordata::TensorData,
     },
 };
 

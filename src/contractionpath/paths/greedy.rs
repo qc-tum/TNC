@@ -646,10 +646,6 @@ mod tests {
     use std::collections::HashMap;
     use std::iter::zip;
 
-    use rand::rngs::StdRng;
-    use rand::SeedableRng;
-
-    use crate::circuits::sycamore::sycamore_circuit;
     use crate::contractionpath::paths::greedy::Greedy;
     use crate::contractionpath::paths::CostType;
     use crate::contractionpath::paths::OptimizePath;
@@ -659,9 +655,6 @@ mod tests {
 
     use super::populate_edge_to_tensors;
     use super::populate_remaining_tensors;
-
-    // use rand::rngs::StdRng;
-    // use rand::SeedableRng;
 
     fn setup_simple() -> Tensor {
         create_tensor_network(
