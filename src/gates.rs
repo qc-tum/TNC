@@ -103,7 +103,7 @@ pub fn load_gate(gate: &str, angles: Option<&Vec<f64>>) -> DataTensor {
             fsim[6] = Complex64::new(0.0, -angles[0].sin());
             fsim[10] = Complex64::new(angles[0].cos(), 0.0);
             fsim[9] = Complex64::new(0.0, -angles[0].sin());
-            fsim[15] = Complex64::new(0.0, (-angles[1]).exp());
+            fsim[15] = Complex64::new(0.0, -angles[1]).exp();
             DataTensor::new_from_flat(&[2, 2, 2, 2], fsim.to_vec(), None)
         }
         _ => todo!(), // _ => capture_gate(&gate),
