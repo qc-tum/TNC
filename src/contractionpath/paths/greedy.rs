@@ -742,6 +742,18 @@ mod tests {
         )
     }
 
+    fn setup_simple_outer_product() -> Tensor {
+        create_tensor_network(
+            vec![
+                Tensor::new(vec![0]),
+                Tensor::new(vec![1]),
+                Tensor::new(vec![2]),
+            ],
+            &[(0, 3), (1, 2), (2, 2)].into(),
+            None,
+        )
+    }
+
     #[test]
     fn test_populate_remaining_tensors() {
         let tn = setup_simple_inner_product();
@@ -826,6 +838,18 @@ mod tests {
         assert_eq!(opt.best_size, 121);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
+    }
+
+    #[test]
+    fn test_contract_order_greedy_simple_outer() {
+        let tn = setup_simple_outer_product();
+        let mut opt = Greedy::new(&tn, CostType::Flops);
+        opt.optimize_path();
+
+        assert_eq!(opt.best_flops, 16);
+        assert_eq!(opt.best_size, 19);
+        assert_eq!(opt.best_path, path![(1, 2), (0, 3)]);
+        assert_eq!(opt.get_best_replace_path(), path![(1, 2), (0, 1)]);
     }
 
     #[test]
