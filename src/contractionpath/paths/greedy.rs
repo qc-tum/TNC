@@ -866,27 +866,4 @@ mod tests {
             path![(1, 5), (3, 4), (0, 1), (2, 3), (0, 2)]
         );
     }
-
-    #[test]
-    fn test_contract_order() {
-        let mut rng = StdRng::seed_from_u64(42);
-        let tn = sycamore_circuit(
-            15,
-            40,
-            0.8,
-            0.8,
-            &mut rng,
-            crate::circuits::connectivity::ConnectivityLayout::Condor,
-        );
-        let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.optimize_path();
-
-        // assert_eq!(opt.best_flops, 529815);
-        // assert_eq!(opt.best_size, 89478);
-        // assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 7), (8, 9)]);
-        // assert_eq!(
-        //     opt.get_best_replace_path(),
-        //     path![(1, 5), (3, 4), (0, 1), (2, 3), (0, 2)]
-        // );
-    }
 }
