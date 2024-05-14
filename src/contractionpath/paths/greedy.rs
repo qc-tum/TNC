@@ -644,6 +644,7 @@ impl<'a> OptimizePath for Greedy<'a> {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::hash::Hash;
     use std::iter::zip;
 
     use crate::contractionpath::paths::greedy::Greedy;
@@ -764,6 +765,17 @@ mod tests {
         )
     }
 
+    fn map_zip<'a, K, V, T>(
+        a: &'a HashMap<K, V>,
+        b: &'a HashMap<K, T>,
+    ) -> impl Iterator<Item = (&'a K, (&'a V, &'a T))>
+    where
+        K: Eq + Hash,
+    {
+        assert_eq!(a.len(), b.len());
+        a.iter().map(|(k, v)| (k, (v, &b[k])))
+    }
+
     #[test]
     fn test_populate_remaining_tensors() {
         let tn = setup_simple_inner_product();
@@ -784,9 +796,8 @@ mod tests {
         let ref_next_ssa_id = 5;
 
         assert_eq!(remaining_tensors, ref_remaining_tensors);
-        for (k1, t1) in ssa_id_to_tensor.iter() {
-            assert!(ref_ssa_id_to_tensor.contains_key(&k1));
-            assert_eq!(t1.legs(), ref_ssa_id_to_tensor[k1].legs());
+        for (_, (t1, t2)) in map_zip(&ssa_id_to_tensor, &ref_ssa_id_to_tensor) {
+            assert_eq!(t1.legs(), t2.legs());
         }
         assert_eq!(scalar_tensors, ref_scalar_tensors);
         assert_eq!(ssa_path, ref_ssa_path);
@@ -815,13 +826,13 @@ mod tests {
             (5, vec![&t1]),
             (6, vec![&t2]),
         ]);
-        for (key, _) in edge_to_tensors.iter() {
-            let mut t1 = edge_to_tensors[key].clone();
-            let mut t2 = ref_edge_to_tensors[key].clone();
+        for (_, (t1, t2)) in map_zip(&edge_to_tensors, &ref_edge_to_tensors) {
+            let mut t1 = t1.clone();
+            let mut t2 = t2.clone();
             t1.sort_by_key(|a| a.legs().len());
             t2.sort_by_key(|a| a.legs().len());
-            for (legs1, legs2) in zip(t1.iter(), t2.iter()) {
-                assert!(legs1.legs() == legs2.legs());
+            for (legs1, legs2) in zip(&t1, t2) {
+                assert_eq!(legs1.legs(), legs2.legs());
             }
         }
     }
