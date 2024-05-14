@@ -161,7 +161,6 @@ where
     R: Rng + ?Sized,
 {
     let mut tensors = Vec::new();
-    // println!("Tensors: {tensors:?}");
     // counter for indices in tensor network
     let mut index = n - 1;
     // keeps track of which edge is one a specific wire
@@ -173,13 +172,13 @@ where
     // Will generate gates for multiple cycles
     for _i in 0..cycles {
         let mut w = wires.clone();
+        w.shuffle(rng);
         while die.sample(rng) != 0 {
             if w.is_empty() {
                 break;
             }
             if rng.gen() {
                 if w.len() > 2 {
-                    w.shuffle(rng);
                     let l1 = w.pop().unwrap();
                     let l2 = w.pop().unwrap();
                     tensors.push(vec![
