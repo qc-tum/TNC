@@ -465,7 +465,7 @@ impl<'a> Greedy<'a> {
                 parent_ids: (next_ssa_id, 0),
                 child_id: 0,
             });
-            ssa_id_to_tensor.entry(next_ssa_id).or_insert_with(|| k12);
+            ssa_id_to_tensor.try_insert(next_ssa_id, k12).unwrap();
             next_ssa_id += 1;
         }
         if !scalar_tensors.is_empty() {
