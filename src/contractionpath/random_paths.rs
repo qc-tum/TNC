@@ -4,10 +4,12 @@ use std::{
     collections::{BinaryHeap, HashMap},
 };
 
-use crate::tensornetwork::tensor::Tensor;
+use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
 use super::{
-    candidates::Candidate, contraction_cost::contract_path_cost, paths::RNGChooser,
+    candidates::Candidate,
+    contraction_cost::contract_path_cost,
+    paths::{CostType, OptimizePath, RNGChooser},
     ssa_replace_ordering,
 };
 use crate::contractionpath::paths::greedy::Greedy;
@@ -99,28 +101,85 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
     where
         R: ?Sized + Rng,
     {
-        let inputs = self.tn.tensors();
-
-        let output_dims = Tensor::new(self.tn.external_edges());
-
+        let mut inputs: Vec<Tensor> = self.tn.tensors().clone();
+        for (index, input_tensor) in inputs.iter_mut().enumerate() {
+            if input_tensor.is_composite() {
+                let mut best_path = vec![];
+                let mut best_cost = std::u64::MAX;
+                let mut best_size = std::u64::MAX;
+                let external_legs = input_tensor.external_edges();
+                for _ in 0..trials {
+                    let ssa_path = self.ssa_greedy_optimize(
+                        input_tensor.tensors(),
+                        &Tensor::new(external_legs.clone()),
+                        ThermalChooser,
+                        Box::new(&Greedy::cost_memory_removed),
+                        rng,
+                    );
+                    let (cost, size) = contract_path_cost(
+                        input_tensor.tensors(),
+                        &ssa_replace_ordering(&ssa_path, input_tensor.tensors().len()),
+                    );
+                    match self.minimize {
+                        CostType::Size => {
+                            if size < best_size {
+                                best_size = size;
+                                best_path = ssa_path;
+                            }
+                        }
+                        CostType::Flops => {
+                            if cost < best_cost {
+                                best_cost = cost;
+                                best_path = ssa_path;
+                            }
+                        }
+                    }
+                }
+                if !best_path.is_empty() {
+                    let best_path = ssa_replace_ordering(&best_path, input_tensor.tensors().len());
+                    self.best_path
+                        .push(ContractionIndex::Path(index, best_path));
+                }
+                input_tensor.set_legs(external_legs);
+            }
+        }
+        // Vector of output leg ids
+        let output_dims = Tensor::new(self.tn.external_edges().clone());
         // Dictionary that maps leg id to bond dimension
+        let mut best_path = vec![];
+        let mut best_cost = std::u64::MAX;
+        let mut best_size = std::u64::MAX;
         for _ in 0..trials {
             let ssa_path = self.ssa_greedy_optimize(
-                inputs,
+                &inputs,
                 &output_dims,
                 ThermalChooser,
-                Box::new(&Greedy::_cost_memory_removed),
+                Box::new(&Greedy::cost_memory_removed),
                 rng,
             );
             let (cost, size) =
-                contract_path_cost(inputs, &ssa_replace_ordering(&ssa_path, inputs.len()));
+                contract_path_cost(&inputs, &ssa_replace_ordering(&ssa_path, inputs.len()));
 
-            if cost < self.best_flops {
-                self.best_flops = cost;
-                self.best_size = size;
-                self.best_path = ssa_path;
+            match self.minimize {
+                CostType::Size => {
+                    if size < best_size {
+                        best_size = size;
+                        best_path = ssa_path;
+                    }
+                }
+                CostType::Flops => {
+                    if cost < best_cost {
+                        best_cost = cost;
+                        best_path = ssa_path;
+                    }
+                }
             }
         }
+        self.best_path.append(&mut best_path);
+        let (op_cost, mem_cost) =
+            contract_path_cost(self.tn.tensors(), &self.get_best_replace_path());
+        self.best_size = mem_cost;
+        self.best_flops = op_cost;
     }
 }
 

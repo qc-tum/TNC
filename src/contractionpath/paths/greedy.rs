@@ -19,7 +19,7 @@ use super::{validate_path, CostFnType, CostType, OptimizePath};
 
 pub struct Greedy<'a> {
     pub(crate) tn: &'a Tensor,
-    minimize: CostType,
+    pub(crate) minimize: CostType,
     pub(crate) best_flops: u64,
     pub(crate) best_size: u64,
     pub(crate) best_path: Vec<ContractionIndex>,
@@ -75,7 +75,7 @@ impl<'a> Greedy<'a> {
 
     /// The default heuristic cost, corresponding to the total reduction in
     /// memory of performing a contraction.
-    pub(crate) fn _cost_memory_removed(
+    pub(crate) fn cost_memory_removed(
         size12: i64,
         size1: i64,
         size2: i64,
@@ -99,38 +99,7 @@ impl<'a> Greedy<'a> {
         size1
     }
 
-    // #[allow(clippy::too_many_arguments)]
-    // fn push_candidate(
-    //     output: &Tensor,
-    //     remaining_tensors: &HashMap<u64, usize>,
-    //     tensor_mem_size: &HashMap<u64, u64>,
-    //     dim_tensor_counts: &HashMap<usize, HashSet<usize>>,
-    //     k1: &Tensor,
-    //     k2s: Vec<&Tensor>,
-    //     queue: &mut BinaryHeap<Candidate>,
-    //     cost_function: &CostFnType,
-    // ) {
-    //     // Currently accepts all possible candidates.
-    //     // Commented code from when only most optimal candidate chosen.
-    //     // Should this be implemented?
-    //     // let mut candidates = Vec::new();
-    //     for k2 in k2s {
-    //         queue.push(Greedy::get_candidate(
-    //             output,
-    //             remaining_tensors,
-    //             tensor_mem_size,
-    //             dim_tensor_counts,
-    //             k1,
-    //             k2,
-    //             cost_function,
-    //         ));
-    //     }
-    //
-    //     queue.push(candidate.iter().min().unwrap());
-    //
-    // }
-
-    #[allow(clippy::too_many_arguments)]
+    /// Returns Tensor obtained after contracting k1 and k2.
     fn get_candidate(
         output: &Tensor,
         edge_tensor_counts: &HashMap<usize, HashSet<usize>>,
@@ -454,14 +423,18 @@ impl<'a> Greedy<'a> {
             let k2 = ssa_id_to_tensor.remove(&ssa_id2).unwrap();
             ssa_path.push((min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2), next_ssa_id));
             let k12 = &(&k1 | &k2) & output_dims;
-
             let cost = k12.size() as i64;
+
+            if queue.is_empty() {
+                break;
+            }
             queue.push(Candidate {
                 flop_cost: 0,
                 size_cost: cost,
                 parent_ids: (next_ssa_id, 0),
                 child_id: 0,
             });
+            ssa_id_to_tensor.try_insert(next_ssa_id, k12).unwrap();
             next_ssa_id += 1;
         }
         if !scalar_tensors.is_empty() {
@@ -477,9 +450,9 @@ impl<'a> Greedy<'a> {
                 latest_scalar = next_ssa_id;
                 next_ssa_id += 1;
             }
-            // Perform final scalar mult with final tensor
+            // Perform final scalar multiplication with final tensor
             if let Some((_, _, last_tensor)) = ssa_path.get(last_tensor_position) {
-                if *last_tensor != latest_scalar {
+                if !scalar_tensors.contains(last_tensor) {
                     ssa_path.push((
                         min(*last_tensor, latest_scalar),
                         max(*last_tensor, latest_scalar),
@@ -518,6 +491,8 @@ fn populate_remaining_tensors(
         if let Some(x) = remaining_tensors.remove(&tensor_hash) {
             ssa_path.push((x, ssa_id, *next_ssa_id));
             scalar_tensors.push(*next_ssa_id);
+            ssa_id_to_tensor.remove(&x);
+            ssa_id_to_tensor.remove(&ssa_id);
             *next_ssa_id += 1;
         } else {
             remaining_tensors.insert(tensor_hash, ssa_id);
@@ -591,7 +566,7 @@ impl<'a> OptimizePath for Greedy<'a> {
                     input_tensor.tensors(),
                     &Tensor::new(external_legs.clone()),
                     SimpleChooser,
-                    Box::new(&Greedy::_cost_memory_removed),
+                    Box::new(&Greedy::cost_memory_removed),
                     &mut rng,
                 );
                 if !path.is_empty() {
@@ -609,7 +584,7 @@ impl<'a> OptimizePath for Greedy<'a> {
             &inputs,
             &output_dims,
             SimpleChooser,
-            Box::new(&Greedy::_cost_memory_removed),
+            Box::new(&Greedy::cost_memory_removed),
             &mut rng,
         ));
         let (op_cost, mem_cost) =
@@ -637,6 +612,10 @@ impl<'a> OptimizePath for Greedy<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+    use std::hash::Hash;
+    use std::iter::zip;
+
     use crate::contractionpath::paths::greedy::Greedy;
     use crate::contractionpath::paths::CostType;
     use crate::contractionpath::paths::OptimizePath;
@@ -644,8 +623,8 @@ mod tests {
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
 
-    // use rand::rngs::StdRng;
-    // use rand::SeedableRng;
+    use super::populate_edge_to_tensors;
+    use super::populate_remaining_tensors;
 
     fn setup_simple() -> Tensor {
         create_tensor_network(
@@ -730,6 +709,103 @@ mod tests {
         )
     }
 
+    fn setup_simple_outer_product() -> Tensor {
+        create_tensor_network(
+            vec![
+                Tensor::new(vec![0]),
+                Tensor::new(vec![1]),
+                Tensor::new(vec![2]),
+            ],
+            &[(0, 3), (1, 2), (2, 2)].into(),
+            None,
+        )
+    }
+
+    fn setup_complex_outer_product() -> Tensor {
+        create_tensor_network(
+            vec![
+                Tensor::new(vec![0]),
+                Tensor::new(vec![0]),
+                Tensor::new(vec![1]),
+                Tensor::new(vec![1]),
+            ],
+            &[(0, 5), (1, 4)].into(),
+            None,
+        )
+    }
+
+    fn map_zip<'a, K, V, T>(
+        a: &'a HashMap<K, V>,
+        b: &'a HashMap<K, T>,
+    ) -> impl Iterator<Item = (&'a K, (&'a V, &'a T))>
+    where
+        K: Eq + Hash,
+    {
+        assert_eq!(a.len(), b.len());
+        a.iter().map(|(k, v)| (k, (v, &b[k])))
+    }
+
+    #[test]
+    fn test_populate_remaining_tensors() {
+        let tn = setup_simple_inner_product();
+        let tensors = tn.tensors();
+        let mut next_ssa_id = tensors.len();
+        let (remaining_tensors, ssa_id_to_tensor, scalar_tensors, ssa_path, next_ssa_id) =
+            populate_remaining_tensors(tensors, &mut next_ssa_id);
+        let bond_dims = HashMap::from([(0, 5), (6, 4), (3, 8), (2, 6), (1, 2), (5, 3), (4, 1)]);
+        let ref_remaining_tensors =
+            HashMap::from([(8653979201402620513, 3), (13850888498708788536, 2)]);
+        let mut t1 = Tensor::new(vec![0, 1, 5]);
+        let mut t2 = Tensor::new(vec![1, 6]);
+        t1.insert_bond_dims(&bond_dims);
+        t2.insert_bond_dims(&bond_dims);
+        let ref_ssa_id_to_tensor = HashMap::from([(2, t1), (3, t2)]);
+        let ref_scalar_tensors = vec![4];
+        let ref_ssa_path = vec![(0, 1, 4)];
+        let ref_next_ssa_id = 5;
+
+        assert_eq!(remaining_tensors, ref_remaining_tensors);
+        for (_, (t1, t2)) in map_zip(&ssa_id_to_tensor, &ref_ssa_id_to_tensor) {
+            assert_eq!(t1.legs(), t2.legs());
+        }
+        assert_eq!(scalar_tensors, ref_scalar_tensors);
+        assert_eq!(ssa_path, ref_ssa_path);
+        assert_eq!(next_ssa_id, ref_next_ssa_id);
+    }
+
+    #[test]
+    fn test_populate_edge_to_tensors() {
+        let tn = setup_simple_inner_product();
+        let tensors = tn.tensors();
+
+        let remaining_tensors =
+            HashMap::from([(8653979201402620513, 3), (13850888498708788536, 2)]);
+        let output_dims = Tensor::default();
+        let edge_to_tensors = populate_edge_to_tensors(tensors, &remaining_tensors, &output_dims);
+
+        let bond_dims = HashMap::from([(0, 5), (6, 4), (3, 8), (2, 6), (1, 2), (5, 3), (4, 1)]);
+        let mut t1 = Tensor::new(vec![0, 1, 5]);
+        let mut t2 = Tensor::new(vec![1, 6]);
+        t1.insert_bond_dims(&bond_dims);
+        t2.insert_bond_dims(&bond_dims);
+
+        let ref_edge_to_tensors = HashMap::from([
+            (0, vec![&t1]),
+            (1, vec![&t1, &t2]),
+            (5, vec![&t1]),
+            (6, vec![&t2]),
+        ]);
+        for (_, (t1, t2)) in map_zip(&edge_to_tensors, &ref_edge_to_tensors) {
+            let mut t1 = t1.clone();
+            let mut t2 = t2.clone();
+            t1.sort_by_key(|a| a.legs().len());
+            t2.sort_by_key(|a| a.legs().len());
+            for (legs1, legs2) in zip(&t1, t2) {
+                assert_eq!(legs1.legs(), legs2.legs());
+            }
+        }
+    }
+
     #[test]
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
@@ -750,6 +826,30 @@ mod tests {
 
         assert_eq!(opt.best_flops, 228);
         assert_eq!(opt.best_size, 121);
+        assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
+        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
+    }
+
+    #[test]
+    fn test_contract_order_greedy_simple_outer() {
+        let tn = setup_simple_outer_product();
+        let mut opt = Greedy::new(&tn, CostType::Flops);
+        opt.optimize_path();
+
+        assert_eq!(opt.best_flops, 16);
+        assert_eq!(opt.best_size, 19);
+        assert_eq!(opt.best_path, path![(1, 2), (0, 3)]);
+        assert_eq!(opt.get_best_replace_path(), path![(1, 2), (0, 1)]);
+    }
+
+    #[test]
+    fn test_contract_order_greedy_complex_outer() {
+        let tn = setup_complex_outer_product();
+        let mut opt = Greedy::new(&tn, CostType::Flops);
+        opt.optimize_path();
+
+        assert_eq!(opt.best_flops, 10);
+        assert_eq!(opt.best_size, 11);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
     }
