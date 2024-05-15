@@ -2,7 +2,6 @@ use mpi::traits::{Communicator, CommunicatorCollectives};
 use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
-    circuits::{connectivity::ConnectivityLayout, sycamore::sycamore_circuit},
     contractionpath::{
         paths::{greedy::Greedy, CostType, OptimizePath},
         random_paths::RandomOptimizePath,
