@@ -9,7 +9,7 @@ use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 use super::{
     candidates::Candidate,
     contraction_cost::contract_path_cost,
-    paths::{OptimizePath, RNGChooser},
+    paths::{CostType, OptimizePath, RNGChooser},
     ssa_replace_ordering,
 };
 use crate::contractionpath::paths::greedy::Greedy;
@@ -106,6 +106,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
             if input_tensor.is_composite() {
                 let mut best_path = vec![];
                 let mut best_cost = std::u64::MAX;
+                let mut best_size = std::u64::MAX;
                 let external_legs = input_tensor.external_edges();
                 for _ in 0..trials {
                     let ssa_path = self.ssa_greedy_optimize(
@@ -115,13 +116,23 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
                         Box::new(&Greedy::cost_memory_removed),
                         rng,
                     );
-                    let (cost, _) = contract_path_cost(
+                    let (cost, size) = contract_path_cost(
                         input_tensor.tensors(),
                         &ssa_replace_ordering(&ssa_path, input_tensor.tensors().len()),
                     );
-                    if cost < best_cost {
-                        best_cost = cost;
-                        best_path = ssa_path;
+                    match self.minimize {
+                        CostType::Size => {
+                            if size < best_size {
+                                best_size = size;
+                                best_path = ssa_path;
+                            }
+                        }
+                        CostType::Flops => {
+                            if cost < best_cost {
+                                best_cost = cost;
+                                best_path = ssa_path;
+                            }
+                        }
                     }
                 }
                 if !best_path.is_empty() {
@@ -137,6 +148,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
         // Dictionary that maps leg id to bond dimension
         let mut best_path = vec![];
         let mut best_cost = std::u64::MAX;
+        let mut best_size = std::u64::MAX;
         for _ in 0..trials {
             let ssa_path = self.ssa_greedy_optimize(
                 &inputs,
@@ -145,12 +157,22 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
                 Box::new(&Greedy::cost_memory_removed),
                 rng,
             );
-            let (cost, _) =
+            let (cost, size) =
                 contract_path_cost(&inputs, &ssa_replace_ordering(&ssa_path, inputs.len()));
 
-            if cost < best_cost {
-                best_cost = cost;
-                best_path = ssa_path;
+            match self.minimize {
+                CostType::Size => {
+                    if size < best_size {
+                        best_size = size;
+                        best_path = ssa_path;
+                    }
+                }
+                CostType::Flops => {
+                    if cost < best_cost {
+                        best_cost = cost;
+                        best_path = ssa_path;
+                    }
+                }
             }
         }
         self.best_path.append(&mut best_path);
