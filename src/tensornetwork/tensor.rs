@@ -383,37 +383,30 @@ impl Tensor {
 
     /// Comparison of two Tensors, returns true if Tensor objects are equivalent up to `epsilon` precision.
     /// Considers `legs`, `bond_dims`, `external_hyperedges` and `tensordata`.
-    /// edges` are not compared as different contraction ordering will result in
+    /// `edges` are not compared as different contraction ordering will result in
     /// different edges even though the tensors are otherwise identical.
     pub fn approx_eq(&self, other: &Tensor, epsilon: f64) -> bool {
-        let Tensor {
-            tensors,
-            legs,
-            bond_dims,
-            edges: _,
-            external_hyperedge,
-            tensordata,
-        } = self;
-        let Tensor {
-            tensors: other_tensors,
-            legs: other_legs,
-            bond_dims: other_bond_dims,
-            edges: _,
-            external_hyperedge: other_external_hyperedges,
-            tensordata: other_tensordata,
-        } = other;
-        assert_eq!(tensors.len(), other_tensors.len());
-        for (tensor, other_tensor) in zip(tensors, other_tensors) {
-            assert!(tensor.approx_eq(other_tensor, epsilon));
+        if self.tensors.len() != other.tensors.len() {
+            return false;
         }
-        assert_eq!(legs, other_legs);
-        assert_eq!(bond_dims, other_bond_dims);
-        assert_eq!(external_hyperedge, other_external_hyperedges);
-        assert!(tensordata
-            .borrow()
-            .approx_eq(&other_tensordata.borrow(), epsilon));
+        if self.legs != other.legs {
+            return false;
+        }
+        if self.bond_dims != other.bond_dims {
+            return false;
+        }
+        if self.external_hyperedge != other.external_hyperedge {
+            return false;
+        }
+        for (tensor, other_tensor) in zip(&self.tensors, &other.tensors) {
+            if !tensor.approx_eq(other_tensor, epsilon) {
+                return false;
+            }
+        }
 
-        true
+        self.tensordata
+            .borrow()
+            .approx_eq(&other.tensordata.borrow(), epsilon)
     }
 
     /// Pushes additional tensor into Tensor object. If self is a leaf tensor, clone it and push it into itself.
