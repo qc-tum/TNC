@@ -19,7 +19,7 @@ use super::{validate_path, CostFnType, CostType, OptimizePath};
 
 pub struct Greedy<'a> {
     pub(crate) tn: &'a Tensor,
-    minimize: CostType,
+    pub(crate) minimize: CostType,
     pub(crate) best_flops: u64,
     pub(crate) best_size: u64,
     pub(crate) best_path: Vec<ContractionIndex>,
