@@ -157,8 +157,8 @@ impl<'a> Greedy<'a> {
         }
     }
 
-    /// Greedily finds cheapest contractions based on input choice_fn and cost_fn.
-    /// This function relies on the fact that 'Tensor' hash depends only on leg ids
+    /// Greedily finds cheapest contractions based on input `choice_fn` and `cost_fn`.
+    /// This function relies on the fact that [`Tensor`] hash depends only on leg ids
     pub(crate) fn ssa_greedy_optimize<R>(
         &self,
         inputs: &[Tensor],

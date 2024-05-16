@@ -40,7 +40,7 @@ fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<Contract
 ///
 /// * `path` - Output path as Vec<(usize, usize)> that is in ssa format.
 /// * `n` - Number of initial input tensors.
-
+///
 /// # Returns
 ///
 /// Identical path that replaces the left input tensor upon contraction

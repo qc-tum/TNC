@@ -101,7 +101,7 @@ mod tests {
 
     /// Creates a new HDF5 file in memory.
     /// This method is taken from the hdf5 crate integration tests:
-    /// https://github.com/aldanor/hdf5-rust/blob/694e900972fbf5ffbdd1a2294f57a2cc3a91c994/hdf5/tests/common/util.rs#L7.
+    /// <https://github.com/aldanor/hdf5-rust/blob/694e900972fbf5ffbdd1a2294f57a2cc3a91c994/hdf5/tests/common/util.rs#L7>.
     fn new_in_memory_file() -> Result<File> {
         let random_filename = Alphanumeric.sample_string(&mut thread_rng(), 8);
         File::with_options()

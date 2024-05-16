@@ -35,8 +35,8 @@ impl Default for ReturnVal {
     }
 }
 
-#[derive(Debug, Default)]
 /// A visitor to build an AST from QASM2 code.
+#[derive(Debug, Default)]
 struct AstBuilderVisitor {
     tmp: ReturnVal,
 }
