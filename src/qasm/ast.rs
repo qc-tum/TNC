@@ -6,8 +6,8 @@ use std::{
 use float_cmp::approx_eq;
 use itertools::join;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// A unary operator type.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnOp {
     Neg,
 }
@@ -21,8 +21,8 @@ impl Display for UnOp {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// A binary operator type.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BinOp {
     Add,
     Sub,
@@ -55,8 +55,8 @@ impl BinOp {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// A function type.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum FuncType {
     Sin,
     Cos,
@@ -80,8 +80,8 @@ impl Display for FuncType {
     }
 }
 
-#[derive(Debug, Clone)]
 /// A mathematical expression.
+#[derive(Debug, Clone)]
 pub enum Expr {
     Int(i32),
     Float(f64),
@@ -246,8 +246,8 @@ impl ops::BitXor<&Expr> for &Expr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 /// A name with optionally a designator, e.g. `a` or `q[5]`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Argument(pub String, pub Option<u32>);
 
 impl Display for Argument {
@@ -260,8 +260,8 @@ impl Display for Argument {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
 /// Declaration of a gate. The body can be None in case of opaque gates.
+#[derive(Debug, Default, PartialEq)]
 pub struct GateDeclarationData {
     pub name: String,
     pub params: Vec<String>,
@@ -299,8 +299,8 @@ impl Display for GateDeclarationData {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
 /// Call of a gate.
+#[derive(Debug, Default, PartialEq)]
 pub struct GateCallData {
     pub name: String,
     pub args: Vec<Expr>,
@@ -328,8 +328,8 @@ impl GateCallData {
     }
 }
 
-#[derive(Debug, PartialEq)]
 /// A QASM2 statement.
+#[derive(Debug, PartialEq)]
 pub enum Statement {
     Declaration {
         is_quantum: bool,
@@ -412,8 +412,8 @@ impl Statement {
     }
 }
 
-#[derive(Debug, PartialEq)]
 /// A QASM2 program.
+#[derive(Debug, PartialEq)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }

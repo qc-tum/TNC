@@ -11,8 +11,8 @@ use crate::types::{EdgeIndex, Vertex};
 
 use super::tensordata::TensorData;
 
-#[derive(Debug, Clone)]
 /// Abstract representation of a tensor.
+#[derive(Debug, Clone)]
 pub struct Tensor {
     pub(crate) tensors: Vec<Tensor>,
     pub(crate) legs: Vec<EdgeIndex>,

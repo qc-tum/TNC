@@ -5,8 +5,8 @@ use super::{
     utils::cast,
 };
 
-#[derive(Debug, Default)]
 /// Struct to inline gate calls with previous gate declarations.
+#[derive(Debug, Default)]
 pub struct GateInliner {
     definitions: HashMap<String, GateDeclarationData>,
 }
