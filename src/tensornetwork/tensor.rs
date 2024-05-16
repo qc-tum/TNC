@@ -340,7 +340,7 @@ impl Tensor {
         self.legs.iter().map(|e| self.bond_dims()[e]).product()
     }
 
-    /// Returns true if Tensor contains leg_id
+    /// Returns true if Tensor contains `leg_id`.
     ///
     /// # Arguments
     ///
@@ -467,7 +467,7 @@ impl Tensor {
     ///
     /// * `tensors` - `Vec<Tensor>` to be added
     /// * `bond_dims` - `HashMap<usize, u64>` mapping edge id to bond dimension
-    /// * 'external_hyperedge' - Optional `HashMap<EdgeIndex, usize>` of external hyperedges, mapping the edge index to count of external hyperedges.
+    /// * `external_hyperedge` - Optional `HashMap<EdgeIndex, usize>` of external hyperedges, mapping the edge index to count of external hyperedges.
     pub fn push_tensors(
         &mut self,
         tensors: Vec<Tensor>,

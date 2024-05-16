@@ -17,7 +17,7 @@ use crate::{
 
 use super::{CostType, OptimizePath};
 
-/// A struct with an OptimizePath implementation that explores possible pair contractions in a depth-first manner.
+/// A struct with an [`OptimizePath`] implementation that explores possible pair contractions in a depth-first manner.
 pub struct BranchBound<'a> {
     tn: &'a Tensor,
     nbranch: Option<u32>,
@@ -117,7 +117,7 @@ impl<'a> BranchBound<'a> {
     /// Explores possible pair contractions in a depth-first
     /// recursive manner like the `optimal` approach, but with extra heuristic early pruning of branches
     /// as well sieving by `memory_limit` and the best path found so far. A rust implementation of
-    /// the Python based `opt_einsum` implementation. Found at github.com/dgasmith/opt_einsum.
+    /// the Python based `opt_einsum` implementation. Found at <https://github.com/dgasmith/opt_einsum>.
     fn branch_iterate(
         &mut self,
         path: Vec<(usize, usize, usize)>,

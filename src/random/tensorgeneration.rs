@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::ops::RangeInclusive;
 use tetra::Tensor as DataTensor;
 
-/// Generates random Tensor object with `n` dimensions and corresponding `bond_dims` HashMap,
+/// Generates random [`Tensor`] object with `n` dimensions and corresponding `bond_dims` HashMap,
 /// bond dimensions are uniformly distributed between 1 and 20.
 ///
 /// # Arguments
@@ -41,7 +41,7 @@ where
     (Tensor::new((0..n).collect()), bond_dims)
 }
 
-/// Generates random Tensor object with `n` dimensions and corresponding `bond_dims` HashMap,
+/// Generates random [`Tensor`] object with `n` dimensions and corresponding `bond_dims` HashMap,
 /// bond dimensions are uniformly distributed between 1 and 20. Uses the thread-local random number generator.
 ///
 /// # Arguments
@@ -60,7 +60,7 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
     random_tensor_with_rng(n, &mut rand::thread_rng())
 }
 
-/// Generates random sparse DataTensor object with same dimenions as Tensor object `t`
+/// Generates random sparse [`DataTensor`] object with same dimenions as [`Tensor`] object `t`
 /// Fills in sparse tensor based on `sparsity` value.
 ///
 /// # Arguments
@@ -113,7 +113,7 @@ where
     TensorData::Matrix(tensor)
 }
 
-/// Generates random sparse DataTensor object with same dimenions as Tensor object `t`
+/// Generates random sparse [`DataTensor`] object with same dimenions as [`Tensor`] object `t`
 /// Fills in sparse tensor based on `sparsity` value. Uses the thread-local random number generator.
 ///
 /// # Arguments
@@ -138,7 +138,7 @@ pub fn random_sparse_tensor_data(shape: &[u64], sparsity: Option<f32>) -> Tensor
     random_sparse_tensor_data_with_rng(&shape, sparsity, &mut rand::thread_rng())
 }
 
-/// Generates random [Tensor] objects based on a quantum circuit with `n` qubits and `cycles` layers of
+/// Generates random [`Tensor`] objects based on a quantum circuit with `n` qubits and `cycles` layers of
 /// randomly generated 1- or 2-qubit gates.
 ///
 ///
@@ -220,7 +220,7 @@ where
     t
 }
 
-/// Generates random [Tensor] objects based on a quantum circuit with `n` qubits and `cycles` layers of
+/// Generates random [`Tensor`] objects based on a quantum circuit with `n` qubits and `cycles` layers of
 /// randomly generated 1- or 2-qubit gates. Uses the thread-local random number generator.
 ///
 ///

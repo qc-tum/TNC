@@ -16,7 +16,7 @@ use kahypar_sys::{partition, KaHyParContext};
 /// * `tn` - [`Tensor`] to be partitionined
 /// * `k` - imbalance parameter for KaHyPar
 /// * `config_file` - KaHyPar config file name
-/// * `min` - if `true` performs min_cut to partition tensor network, if false, uses max_cut
+/// * `min` - if `true` performs min_cut to partition tensor network, if `false`, uses max_cut
 ///
 pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
     assert!(k > 1, "Partitioning only valid for more than one process");
