@@ -824,7 +824,7 @@ mod tests {
         assert_eq!(opt.best_flops, 600);
         assert_eq!(opt.best_size, 538);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
+        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
     }
 
     #[test]
