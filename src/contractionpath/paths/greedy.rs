@@ -449,10 +449,8 @@ impl<'a> Greedy<'a> {
             }
             // Perform final scalar multiplication with final tensor
             let Some(Candidate {
-                flop_cost: _flop_cost,
-                size_cost: _cost,
                 parent_ids: (last_tensor, _id1),
-                child_id: _child_id,
+                ..
             }) = queue.pop()
             else {
                 let ssa_path = ssa_ordering(&ssa_path, inputs.len());
