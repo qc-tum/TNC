@@ -33,39 +33,37 @@ fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<Contract
     ssa_path
 }
 
-/// Accepts a contraction path that is in ssa format and returns a contraction path
-/// assuming that all contracted tensors replace the left input tensor.
-///
-/// # Arguments
-///
-/// * `path` - Output path as Vec<(usize, usize)> that is in ssa format.
-/// * `n` - Number of initial input tensors.
-///
-/// # Returns
-///
-/// Identical path that replaces the left input tensor upon contraction
+/// Accepts a contraction `path` that is in SSA format (with `n` being the number of
+/// initial input tensors) and returns a contraction path assuming that all
+/// contracted tensors replace the left input tensor and no tensor is popped.
 pub(super) fn ssa_replace_ordering(
     path: &[ContractionIndex],
     mut n: usize,
 ) -> Vec<ContractionIndex> {
-    let mut ssa_path = Vec::with_capacity(path.len());
+    let mut replace_path = Vec::with_capacity(path.len());
     let mut hs = HashMap::new();
-    for tup in path.iter() {
+    for tup in path {
         match tup {
-            ContractionIndex::Pair(tup0, tup1) => {
-                let new_tup0 = *hs.get(tup0).unwrap_or(tup0);
-                let new_tup1 = *hs.get(tup1).unwrap_or(tup1);
+            ContractionIndex::Pair(t0, t1) => {
+                let mut new_t0 = *hs.get(t0).unwrap_or(t0);
+                let mut new_t1 = *hs.get(t1).unwrap_or(t1);
 
-                hs.entry(n).or_insert(new_tup0);
-                ssa_path.push(pair!(new_tup0, new_tup1));
+                // We always want to replace the tensor with lower index, so put that
+                // in left position
+                if new_t0 > new_t1 {
+                    (new_t1, new_t0) = (new_t0, new_t1);
+                }
+
+                hs.try_insert(n, new_t0).unwrap();
+                replace_path.push(pair!(new_t0, new_t1));
                 n += 1;
             }
             ContractionIndex::Path(index, path) => {
-                ssa_path.push(ContractionIndex::Path(*index, path.clone()));
+                replace_path.push(ContractionIndex::Path(*index, path.clone()));
             }
         }
     }
-    ssa_path
+    replace_path
 }
 
 #[cfg(test)]
@@ -101,7 +99,7 @@ mod tests {
 
         assert_eq!(
             new_path,
-            path![(0, 3), (1, 2), (6, 4), (5, 0), (6, 1), (6, 5)]
+            path![(0, 3), (1, 2), (4, 6), (0, 5), (1, 4), (0, 1)]
         )
     }
 }

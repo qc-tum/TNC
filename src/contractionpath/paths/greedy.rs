@@ -400,7 +400,7 @@ impl<'a> Greedy<'a> {
             }
         }
 
-        while !queue.is_empty() {
+        while queue.len() >= 2 {
             let Some(Candidate {
                 flop_cost: _flop_cost,
                 size_cost: _cost,
@@ -425,9 +425,6 @@ impl<'a> Greedy<'a> {
             let k12 = &(&k1 | &k2) & output_dims;
             let cost = k12.size() as i64;
 
-            if queue.is_empty() {
-                break;
-            }
             queue.push(Candidate {
                 flop_cost: 0,
                 size_cost: cost,
@@ -439,8 +436,8 @@ impl<'a> Greedy<'a> {
         }
         if !scalar_tensors.is_empty() {
             let mut latest_scalar = scalar_tensors[0];
-            let last_tensor_position = ssa_path.len() - 1;
-            // Mutiply the various scalar results together
+            // let last_tensor_position = ssa_path.len() - 1;
+            // Multiply the various scalar results together
             for &scalar_id in scalar_tensors[1..].iter() {
                 ssa_path.push((
                     min(latest_scalar, scalar_id),
@@ -451,14 +448,21 @@ impl<'a> Greedy<'a> {
                 next_ssa_id += 1;
             }
             // Perform final scalar multiplication with final tensor
-            if let Some((_, _, last_tensor)) = ssa_path.get(last_tensor_position) {
-                if !scalar_tensors.contains(last_tensor) {
-                    ssa_path.push((
-                        min(*last_tensor, latest_scalar),
-                        max(*last_tensor, latest_scalar),
-                        next_ssa_id,
-                    ));
-                }
+            let Some(Candidate {
+                parent_ids: (last_tensor, _id1),
+                ..
+            }) = queue.pop()
+            else {
+                let ssa_path = ssa_ordering(&ssa_path, inputs.len());
+                validate_path(&ssa_path);
+                return ssa_path;
+            };
+            if !scalar_tensors.contains(&last_tensor) {
+                ssa_path.push((
+                    min(last_tensor, latest_scalar),
+                    max(last_tensor, latest_scalar),
+                    next_ssa_id,
+                ));
             }
         }
         let ssa_path = ssa_ordering(&ssa_path, inputs.len());
@@ -815,7 +819,7 @@ mod tests {
         assert_eq!(opt.best_flops, 600);
         assert_eq!(opt.best_size, 538);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
+        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
     }
 
     #[test]
