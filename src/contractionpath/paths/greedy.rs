@@ -400,10 +400,7 @@ impl<'a> Greedy<'a> {
             }
         }
 
-        while !queue.is_empty() {
-            if queue.len() == 1 {
-                break;
-            }
+        while queue.len() >= 2 {
             let Some(Candidate {
                 flop_cost: _flop_cost,
                 size_cost: _cost,
