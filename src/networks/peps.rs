@@ -320,12 +320,9 @@ pub fn peps(
 mod tests {
     use std::{collections::HashMap, iter::zip};
 
-    use crate::{
-        networks::peps::{peps, peps_final},
-        tensornetwork::tensor::Tensor,
-    };
+    use crate::tensornetwork::tensor::Tensor;
 
-    use super::{pepo, peps_init};
+    use super::{pepo, peps, peps_final, peps_init};
 
     #[test]
     fn test_pep_init() {
