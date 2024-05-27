@@ -1,4 +1,4 @@
 include:
-- project: 'quantum-research/rust-ci'
+- project: 'quantum-research/tensornetworksimulation/rust-ci'
   ref: 20e5f679ebe1c3623a1419bb21323aec47df92a4
   file: 'template.yml'
