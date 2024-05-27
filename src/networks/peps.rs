@@ -10,7 +10,7 @@ use crate::tensornetwork::tensor::Tensor;
 // }
 
 /// Generate an n x n PEPs with shared bond dimension of `dimension`
-pub fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -> Tensor {
+fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -> Tensor {
     let mut pep = Tensor::default();
 
     let physical_up = length * depth;
@@ -99,7 +99,7 @@ pub fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u6
     pep
 }
 
-pub fn pepo(
+fn pepo(
     mut peps: Tensor,
     length: usize,
     depth: usize,
@@ -208,7 +208,7 @@ pub fn pepo(
     peps
 }
 
-pub fn peps_final(
+fn peps_final(
     mut peps: Tensor,
     length: usize,
     depth: usize,
@@ -298,4 +298,168 @@ pub fn peps_final(
     }
     peps.push_tensors(tensors, Some(&bond_dims), None);
     peps
+}
+
+pub fn peps(
+    length: usize,
+    depth: usize,
+    physical_dim: u64,
+    virtual_dim: u64,
+    layers: usize,
+) -> Tensor {
+    let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
+    for layer in 0..layers {
+        new_peps = pepo(new_peps, length, depth, layer, physical_dim, virtual_dim);
+    }
+    peps_final(new_peps, length, depth, virtual_dim, layers)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap, iter::zip};
+
+    use crate::{networks::peps::peps_final, tensornetwork::tensor::Tensor};
+
+    use super::{pepo, peps_init};
+
+    #[test]
+    fn test_pep_init() {
+        let length = 2;
+        let depth = 2;
+        let physical_dim = 4;
+        let virtual_dim = 10;
+
+        let mut ref_tensor = Tensor::default();
+        let tensors = vec![
+            Tensor::new(vec![0, 4, 6]),
+            Tensor::new(vec![1, 4, 7]),
+            Tensor::new(vec![2, 5, 6]),
+            Tensor::new(vec![3, 5, 7]),
+        ];
+        let bond_dims = HashMap::from([
+            (3, 4),
+            (4, 10),
+            (1, 4),
+            (5, 10),
+            (7, 10),
+            (2, 4),
+            (0, 4),
+            (6, 10),
+        ]);
+        ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
+
+        let new_peps = peps_init(length, depth, physical_dim, virtual_dim);
+        for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
+            assert_eq!(t1.legs(), t2.legs());
+        }
+        assert_eq!(*new_peps.bond_dims(), *ref_tensor.bond_dims());
+    }
+
+    #[test]
+    fn test_pepo() {
+        let length = 2;
+        let depth = 2;
+        let physical_dim = 4;
+        let virtual_dim = 10;
+        let layers = 1;
+
+        let mut ref_tensor = Tensor::default();
+        let tensors = vec![
+            Tensor::new(vec![0, 4, 6]),
+            Tensor::new(vec![1, 4, 7]),
+            Tensor::new(vec![2, 5, 6]),
+            Tensor::new(vec![3, 5, 7]),
+            Tensor::new(vec![0, 8, 12, 14]),
+            Tensor::new(vec![1, 9, 12, 15]),
+            Tensor::new(vec![2, 10, 13, 14]),
+            Tensor::new(vec![3, 11, 13, 15]),
+        ];
+        let bond_dims = HashMap::from([
+            (0, 4),
+            (1, 4),
+            (2, 4),
+            (3, 4),
+            (4, 10),
+            (5, 10),
+            (6, 10),
+            (7, 10),
+            (8, 4),
+            (9, 4),
+            (10, 4),
+            (11, 4),
+            (12, 10),
+            (13, 10),
+            (14, 10),
+            (15, 10),
+        ]);
+        ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
+
+        let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
+        for layer in 0..layers {
+            new_peps = pepo(new_peps, length, depth, layer, physical_dim, virtual_dim);
+        }
+
+        for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
+            assert_eq!(t1.legs(), t2.legs());
+        }
+        assert_eq!(*new_peps.bond_dims(), *ref_tensor.bond_dims());
+    }
+
+    #[test]
+    fn test_peps_final() {
+        let length = 2;
+        let depth = 2;
+        let physical_dim = 4;
+        let virtual_dim = 10;
+        let layers = 1;
+
+        let mut ref_tensor = Tensor::default();
+        let tensors = vec![
+            Tensor::new(vec![0, 4, 6]),
+            Tensor::new(vec![1, 4, 7]),
+            Tensor::new(vec![2, 5, 6]),
+            Tensor::new(vec![3, 5, 7]),
+            Tensor::new(vec![0, 8, 12, 14]),
+            Tensor::new(vec![1, 9, 12, 15]),
+            Tensor::new(vec![2, 10, 13, 14]),
+            Tensor::new(vec![3, 11, 13, 15]),
+            Tensor::new(vec![8, 16, 18]),
+            Tensor::new(vec![9, 16, 19]),
+            Tensor::new(vec![10, 17, 18]),
+            Tensor::new(vec![11, 17, 19]),
+        ];
+        let bond_dims = HashMap::from([
+            (0, 4),
+            (1, 4),
+            (2, 4),
+            (3, 4),
+            (4, 10),
+            (5, 10),
+            (6, 10),
+            (7, 10),
+            (8, 4),
+            (9, 4),
+            (10, 4),
+            (11, 4),
+            (12, 10),
+            (13, 10),
+            (14, 10),
+            (15, 10),
+            (16, 10),
+            (17, 10),
+            (18, 10),
+            (19, 10),
+        ]);
+        ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
+
+        let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
+        for layer in 0..layers {
+            new_peps = pepo(new_peps, length, depth, layer, physical_dim, virtual_dim);
+        }
+        let new_peps = peps_final(new_peps, length, depth, virtual_dim, layers);
+        for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
+            assert_eq!(t1.legs(), t2.legs());
+        }
+        assert_eq!(*new_peps.bond_dims(), *ref_tensor.bond_dims());
+    }
 }
