@@ -512,7 +512,7 @@ mod tests {
         ]);
         ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
 
-        let mut new_peps = peps(length, depth, physical_dim, virtual_dim, layers);
+        let new_peps = peps(length, depth, physical_dim, virtual_dim, layers);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
             assert_eq!(t1.legs(), t2.legs());
         }
