@@ -67,8 +67,6 @@ pub fn fold_expr(expr: &mut Expr) {
 
 #[cfg(test)]
 mod tests {
-    use tux::assert_panic;
-
     use crate::qasm::{
         ast::{BinOp, Expr, FuncType, UnOp},
         expression_simplification::fold_expr,
@@ -279,6 +277,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Cannot apply bitxor on non-int types")]
     fn xor_float_fail() {
         // 1.0 ^ 2 fails
         let mut a = Expr::Binary(
@@ -286,7 +285,7 @@ mod tests {
             Box::new(Expr::Float(1.0)),
             Box::new(Expr::Int(2)),
         );
-        assert_panic!("Cannot apply bitxor on non-int types" in fold_expr(&mut a));
+        fold_expr(&mut a);
     }
 
     #[test]
