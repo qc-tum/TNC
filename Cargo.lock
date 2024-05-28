@@ -122,29 +122,6 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-version = "0.68.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "726e4313eb6ec35d2730258ad4e15b547ee75d6afaa1361a922e78e59b7d8078"
-dependencies = [
- "bitflags 2.5.0",
- "cexpr",
- "clang-sys",
- "lazy_static",
- "lazycell",
- "log",
- "peeking_take_while",
- "prettyplease",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash",
- "shlex",
- "syn",
- "which",
-]
-
-[[package]]
-name = "bindgen"
 version = "0.69.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a00dc851838a2120612785d195287475a3ac45514741da670b735818822129a0"
@@ -195,9 +172,9 @@ checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
 
 [[package]]
 name = "build-probe-mpi"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6606c78346df2f2e1f39ac51d0a7752060a08a5de7805f0ad1b3bbefa93be8cc"
+checksum = "3234fa6de2f6e0e338c7183ba09ae68c8f2bd6919d8763362597627362b7f8fe"
 dependencies = [
  "pkg-config",
  "shell-words",
@@ -566,7 +543,7 @@ dependencies = [
 [[package]]
 name = "hdf5"
 version = "0.8.1"
-source = "git+https://github.com/keefehuang/hdf5-rust.git?branch=feature/complex#70e62ad777ee23b9a1d6ba7cfba4be3b1cb5fabd"
+source = "git+https://github.com/aldanor/hdf5-rust.git#33c7a18155bf0ccf11dfe8412f59376619e292bc"
 dependencies = [
  "bitflags 2.5.0",
  "cfg-if",
@@ -583,7 +560,7 @@ dependencies = [
 [[package]]
 name = "hdf5-derive"
 version = "0.8.1"
-source = "git+https://github.com/keefehuang/hdf5-rust.git?branch=feature/complex#70e62ad777ee23b9a1d6ba7cfba4be3b1cb5fabd"
+source = "git+https://github.com/aldanor/hdf5-rust.git#33c7a18155bf0ccf11dfe8412f59376619e292bc"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -594,7 +571,7 @@ dependencies = [
 [[package]]
 name = "hdf5-sys"
 version = "0.8.1"
-source = "git+https://github.com/keefehuang/hdf5-rust.git?branch=feature/complex#70e62ad777ee23b9a1d6ba7cfba4be3b1cb5fabd"
+source = "git+https://github.com/aldanor/hdf5-rust.git#33c7a18155bf0ccf11dfe8412f59376619e292bc"
 dependencies = [
  "libc",
  "libloading",
@@ -608,7 +585,7 @@ dependencies = [
 [[package]]
 name = "hdf5-types"
 version = "0.8.1"
-source = "git+https://github.com/keefehuang/hdf5-rust.git?branch=feature/complex#70e62ad777ee23b9a1d6ba7cfba4be3b1cb5fabd"
+source = "git+https://github.com/aldanor/hdf5-rust.git#33c7a18155bf0ccf11dfe8412f59376619e292bc"
 dependencies = [
  "ascii",
  "cfg-if",
@@ -898,9 +875,9 @@ dependencies = [
 
 [[package]]
 name = "mpi-derive"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afac052fc749ada64568058c82fcb835bcba21a10453cdc5357c8385f055e657"
+checksum = "3f7967597c11448dd3cbd58ef9075360363416971da38153d2246b4180180ff3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -909,11 +886,11 @@ dependencies = [
 
 [[package]]
 name = "mpi-sys"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cb5d935a63f2c1c7b4f41dcf897869efb1b5ce8e48019b982a43fff2c34b916"
+checksum = "0f35fdd7bdb38959515f008d12598065631de9624f6d42c11caef19e8e0d10de"
 dependencies = [
- "bindgen 0.68.1",
+ "bindgen 0.69.4",
  "build-probe-mpi",
  "cc",
 ]
@@ -2042,9 +2019,9 @@ checksum = "32b752e52a2da0ddfbdbcc6fceadfeede4c939ed16d13e648833a61dfb611ed8"
 
 [[package]]
 name = "winreg"
-version = "0.50.0"
+version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
+checksum = "a277a57398d4bfa075df44f501a17cfdf8542d224f0d36095a2adc7aee4ef0a5"
 dependencies = [
  "cfg-if",
  "serde",
