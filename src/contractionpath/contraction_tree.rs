@@ -1,100 +1,158 @@
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::thread_rng;
-use serde::{Deserialize, Serialize};
 
+use crate::contractionpath::paths::{
+    greedy::Greedy,
+    {CostType, OptimizePath},
+};
 use crate::contractionpath::ssa_replace_ordering;
-use crate::tensornetwork::tensor::Tensor;
-use crate::types::{calculate_hash, ContractionIndex};
-use std::cmp::{self, max, min_by_key, minmax};
+use crate::pair;
+use crate::tensornetwork::{create_tensor_network, tensor::Tensor};
+use crate::types::ContractionIndex;
+use std::cell::{Ref, RefCell, RefMut};
+use std::cmp::{self, max, min_by_key};
 use std::collections::HashMap;
+use std::ptr;
+use std::rc::Rc;
 
 use super::contraction_cost::contract_path_cost;
 use super::paths::validate_path;
 
+type NodeRef = Rc<RefCell<Node>>;
+
 /// Node in ContractionTree, represents a contraction of Tensor with position `left_child` and position `right_child` to obtain Tensor at position `parent`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 struct Node {
-    id: String,
-    left_child: Option<usize>,
-    right_child: Option<usize>,
-    parent: Option<usize>,
+    id: usize,
+    left_child: *mut Node,
+    right_child: *mut Node,
+    parent: *mut Node,
     tensor_index: Option<usize>,
 }
 
 impl Node {
     fn new(
-        id: String,
-        left_child: Option<usize>,
-        right_child: Option<usize>,
-        parent: Option<usize>,
-        tensor_idx: Option<usize>,
+        id: usize,
+        left_child: *mut Node,
+        right_child: *mut Node,
+        parent: *mut Node,
+        tensor_index: Option<usize>,
     ) -> Self {
         Self {
             id,
             left_child,
             right_child,
             parent,
-            tensor_index: tensor_idx,
+            tensor_index,
         }
     }
-    fn left_child(&self) -> Option<usize> {
+    fn left_child(&self) -> *mut Node {
         self.left_child
     }
 
-    fn right_child(&self) -> Option<usize> {
+    fn right_child(&self) -> *mut Node {
         self.right_child
     }
 
-    fn set_left_child(&mut self, child_index: usize) {
-        self.left_child = Some(child_index);
+    fn set_left_child(&mut self, child: *mut Node) {
+        self.left_child = child;
     }
 
-    fn set_right_child(&mut self, child_index: usize) {
-        self.right_child = Some(child_index);
+    fn set_right_child(&mut self, child: *mut Node) {
+        self.right_child = child;
     }
 
-    fn parent(&self) -> Option<usize> {
+    fn parent(&self) -> *mut Node {
         self.parent
     }
 
-    fn set_parent(&mut self, parent_index: usize) {
-        self.parent = Some(parent_index);
+    fn set_parent(&mut self, parent: *mut Node) {
+        self.parent = parent;
     }
 
     fn remove_parent(&mut self) {
-        self.parent = None;
+        self.parent = ptr::null_mut();
     }
 
     fn is_leaf(&self) -> bool {
-        self.left_child.is_none() && self.right_child.is_none()
+        self.left_child.is_null() && self.right_child.is_null()
     }
 
-    fn get_other_child(&self, child_index: usize) -> usize {
-        if self.left_child.unwrap() == child_index {
-            self.right_child.unwrap()
-        } else if self.right_child.unwrap() == child_index {
-            self.left_child.unwrap()
+    fn add_child(&mut self, child: *mut Node) {
+        if self.left_child.is_null() {
+            self.left_child = child;
+        }
+        if self.right_child.is_null() {
+            self.right_child = child;
+        }
+
+        panic!("Unable to add child, Node already has two children");
+    }
+
+    fn remove_child(&mut self, child: *mut Node) {
+        let left_child_id;
+        let right_child_id;
+        let child_id;
+
+        unsafe {
+            left_child_id = (*self.left_child).id;
+            right_child_id = (*self.right_child).id;
+            child_id = (*child).id;
+        }
+
+        if left_child_id == child_id {
+            self.left_child = ptr::null_mut();
+        } else if right_child_id == child_id {
+            self.right_child = ptr::null_mut();
         } else {
-            panic!("Child {:?} not found in Node", child_index);
+            panic!("Child {:?} not found in Node", child);
         }
     }
 
-    fn replace_child(&mut self, child_index: usize, repl_node: Option<usize>) {
-        if self.left_child.unwrap() == child_index {
-            self.left_child = repl_node;
-        } else if self.right_child.unwrap() == child_index {
-            self.right_child = repl_node;
+    fn get_other_child(&self, child: *mut Node) -> *mut Node {
+        let left_child_id;
+        let right_child_id;
+        let child_id;
+
+        unsafe {
+            left_child_id = (*self.left_child).id;
+            right_child_id = (*self.right_child).id;
+            child_id = (*child).id;
+        }
+
+        if left_child_id == child_id {
+            self.right_child
+        } else if right_child_id == child_id {
+            self.left_child
         } else {
-            panic!("Child {:?} not found in Node", child_index);
+            panic!("Child {:?} not found in Node", child);
+        }
+    }
+
+    fn replace_child(&mut self, child: *mut Node, repl_node: *mut Node) {
+        let left_child_id;
+        let right_child_id;
+        let child_id;
+
+        unsafe {
+            left_child_id = (*self.left_child).id;
+            right_child_id = (*self.right_child).id;
+            child_id = (*child).id;
+        }
+
+        if left_child_id == child_id {
+            self.right_child = repl_node;
+        } else if right_child_id == child_id {
+            self.left_child = repl_node;
+        } else {
+            panic!("Child {:?} not found in Node", child);
         }
     }
 
     fn deprecate(&mut self) {
-        self.id = "REMOVED".to_string();
-        self.left_child = None;
-        self.right_child = None;
-        self.parent = None;
-        self.tensor_index = None;
+        self.left_child = ptr::null_mut();
+        self.right_child = ptr::null_mut();
+        self.parent = ptr::null_mut();
     }
 }
 
