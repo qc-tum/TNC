@@ -472,6 +472,7 @@ impl<'a> Greedy<'a> {
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn populate_remaining_tensors(
     inputs: &[Tensor],
     next_ssa_id: &mut usize,
