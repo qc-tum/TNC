@@ -793,8 +793,6 @@ fn find_minmax_subtree(
 
 #[cfg(test)]
 mod tests {
-
-    use std::iter::zip;
     use std::ptr;
 
     use crate::contractionpath::contraction_tree::{ContractionTree, Node};
