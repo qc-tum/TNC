@@ -581,6 +581,15 @@ fn populate_subtree_tensor_map(
     }
 }
 
+/// Returns contraction cost of subtree in [`ContractionTree`] object.
+///
+/// # Arguments
+/// * `contraction_tree` - [`ContractionTree`] object
+/// * `node_id` - root of subtree to examine
+/// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
+///
+/// # Returns
+/// Total op cost and maximum memory required of fully contracting subtree rooted at `node_id`
 fn tree_contraction_cost(
     contraction_tree: &ContractionTree,
     node_index: usize,
