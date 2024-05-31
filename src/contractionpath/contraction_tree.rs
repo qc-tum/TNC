@@ -445,9 +445,75 @@ impl ContractionTree {
         }
     }
 
-    /// Identifies node in subtree that maximizes `cost_function` with a specific node at `node_index`.
-    fn max_match_by(
-        &mut self,
+    fn tree_weights_recurse(
+        &self,
+        node: *mut Node,
+        tn: &Tensor,
+        weights: &mut HashMap<usize, u64>,
+        scratch: &mut HashMap<usize, Tensor>,
+        cost_function: fn(&Tensor, &Tensor) -> u64,
+    ) {
+        unsafe {
+            if (*node).is_leaf() {
+                weights.entry((*node).id).or_insert(0u64);
+                let Some(tensor_index) = (*node).tensor_index else {
+                    panic!("All leaf nodes should have a tensor index")
+                };
+                scratch
+                    .entry((*node).id)
+                    .or_insert(tn.tensor(tensor_index).clone());
+                return;
+            }
+        }
+
+        let left_child;
+        let right_child;
+        let left_child_id;
+        let right_child_id;
+        unsafe {
+            left_child = (*node).left_child;
+            right_child = (*node).right_child;
+            left_child_id = (*left_child).id;
+            right_child_id = (*right_child).id;
+        }
+        self.tree_weights_recurse(left_child, tn, weights, scratch, cost_function);
+        self.tree_weights_recurse(right_child, tn, weights, scratch, cost_function);
+        let t1 = scratch.get(&left_child_id).unwrap();
+        let t2 = scratch.get(&right_child_id).unwrap();
+
+        let cost = weights.get(&left_child_id).unwrap()
+            + weights.get(&right_child_id).unwrap()
+            + cost_function(t1, t2);
+
+        unsafe {
+            weights.insert((*node).id, cost);
+            scratch.insert((*node).id, t1 ^ t2);
+        }
+    }
+
+    /// Returns HashMap storing resultant tensor and its respective contraction costs calculated via `cost_function`.
+    ///
+    /// # Arguments
+    /// * `node_id` - root of Node to start calculating contraction costs
+    /// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
+    /// * `cost_function` - cost function taking two [`Tensor`] objects and returning contraction cost as u64
+    fn tree_weights(
+        &self,
+        node_id: usize,
+        tn: &Tensor,
+        cost_function: fn(&Tensor, &Tensor) -> u64,
+    ) -> HashMap<usize, u64> {
+        let mut weights = HashMap::new();
+        let mut scratch = HashMap::new();
+        self.tree_weights_recurse(
+            self.node_ptr(node_id),
+            tn,
+            &mut weights,
+            &mut scratch,
+            cost_function,
+        );
+        weights
+    }
         node_index: usize,
         subtree_root: usize,
         tn: &Tensor,
