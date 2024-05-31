@@ -182,19 +182,16 @@ impl ContractionTree {
         index
     }
 
-    fn remove_node(&mut self, node_id: usize) {
-        self.nodes.remove(&node_id);
-    }
-
-    fn mut_node(&mut self, tensor_id: usize) -> RefMut<Node> {
+    ///
+    pub fn mut_node(&mut self, tensor_id: usize) -> RefMut<Node> {
         self.nodes.get_mut(&tensor_id).unwrap().borrow_mut()
     }
 
-    fn node(&self, tensor_id: usize) -> Ref<Node> {
+    pub fn node(&self, tensor_id: usize) -> Ref<Node> {
         self.nodes.get(&tensor_id).unwrap().borrow()
     }
 
-    fn node_ptr(&self, tensor_id: usize) -> *mut Node {
+    pub fn node_ptr(&self, tensor_id: usize) -> *mut Node {
         self.nodes.get(&tensor_id).unwrap().as_ptr()
     }
 
