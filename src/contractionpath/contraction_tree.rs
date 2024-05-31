@@ -201,7 +201,14 @@ impl ContractionTree {
     }
 
     #[must_use]
-    /// Constructor from Replace path
+    /// Creates a [`ContractionTree`] object from a [`Tensor`] and a [`Vec<ContractionIndex>`].
+    ///
+    /// # Arguments
+    ///
+    /// * `tn` - [`Tensor`] providing topographic and geometric information.
+    /// * `contract_path` - slice of [`ContractionIndex`], indicating contraction path.
+    /// # Returns
+    /// Constructed [`ContractionTree`] that represents all intermediate tensors and costs of given contraction path and tensor network.
     pub fn from_contraction_path(tn: &Tensor, path: &[ContractionIndex]) -> Self {
         validate_path(path);
         // let mut tree = ContractionTree::default();
