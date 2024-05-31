@@ -254,7 +254,11 @@ impl ContractionTree {
     }
 
     fn tree_depth_recurse(node: *mut Node) -> usize {
-        if node.is_null() {
+        let is_leaf;
+        unsafe {
+            is_leaf = (*node).is_leaf();
+        }
+        if is_leaf {
             0
         } else {
             1 + max(
