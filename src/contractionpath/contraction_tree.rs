@@ -1178,7 +1178,6 @@ mod tests {
         ];
 
         for (key, ref_node) in ref_nodes.iter().enumerate() {
-            println!("Key: {:?}", key);
             let node = nodes.get(&key).unwrap().borrow();
             let Node {
                 id: ref_id,
