@@ -489,14 +489,24 @@ impl ContractionTree {
         Some(node_index)
     }
 
+    /// Populates given vector with contractions path of contraction tree starting at `node`.
+    ///
+    /// # Arguments
+    /// * `node` - pointer to [`Node`] object
+    /// * `path` - empty Vec<ContractionIndex> to store contraction path
     fn to_contraction_path_recurse(node: *mut Node, path: &mut Vec<ContractionIndex>) -> usize {
+        unsafe {
+            if (*node).is_leaf() {
+                return (*node).id;
+            }
+        }
         let left_child;
         let right_child;
         unsafe {
             left_child = (*node).left_child;
             right_child = (*node).right_child;
         }
-        if !left_child.is_null() && right_child.is_null() {
+        if !left_child.is_null() && !right_child.is_null() {
             let mut t1_id = ContractionTree::to_contraction_path_recurse(left_child, path);
             let mut t2_id = ContractionTree::to_contraction_path_recurse(right_child, path);
             if t2_id < t1_id {
@@ -509,6 +519,11 @@ impl ContractionTree {
         }
     }
 
+    /// Populates given vector with contractions path of contraction tree starting at `node`.
+    ///
+    /// # Arguments
+    /// * `node_id` - id of root of tree
+    /// * `path` - empty Vec<ContractionIndex> to store contraction path
     pub fn to_contraction_path(&self, node_index: usize, path: &mut Vec<ContractionIndex>) {
         ContractionTree::to_contraction_path_recurse(self.node_ptr(node_index), path);
     }
