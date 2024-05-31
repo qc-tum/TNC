@@ -318,12 +318,23 @@ impl ContractionTree {
         }
     }
 
-    fn leaf_ids(&self, node_index: usize, leaf_indices: &mut Vec<usize>) {
+    /// Populates `leaf_indices` with `id`` attribute of all leaf nodes in subtree with root at `node_index`.
+    ///
+    /// # Arguments
+    /// * `node_index` - `id` attribute of starting [`Node`]
+    /// * `leaf_indices` - mutable Vec that stores `id` attributes
+    pub fn leaf_ids(&self, node_index: usize, leaf_indices: &mut Vec<usize>) {
         let node = self.node_ptr(node_index);
         ContractionTree::leaf_ids_recurse(node, leaf_indices);
     }
 
-    fn nodes_at_depth(node: *mut Node, depth: usize, children: &mut Vec<*mut Node>) {
+    /// Populates `children` with pointer to [`Node`] objects at depth  attribute of all leaf nodes in subtree with root at `node_index`.
+    ///
+    /// # Arguments
+    /// * `node` - mutable pointer to [`Node`] object
+    /// * `depth` - depth to find children of `node`
+    /// * `children` - mutable vector storing found children
+    pub fn nodes_at_depth(node: *mut Node, depth: usize, children: &mut Vec<*mut Node>) {
         if node.is_null() {
         } else if depth == 0 {
             children.push(node);
@@ -456,21 +467,25 @@ impl ContractionTree {
         Some(*node)
     }
 
-    fn max_leaf_node_by(
+    /// Given a list of leaf nodes ids `leaf_node_indices`, identifies leaf node id that maximizes `cost_function.
+    ///
+    /// # Arguments
+    /// * `leaf_node_indices` - vector of lead node ids
+    /// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
+    /// * `cost_function` - cost function taking one [`Tensor`] objects and returning a value as i64
+    ///
+    /// # Return
+    /// * option of leaf node id that maximizes cost function
+    pub fn max_leaf_node_by(
         &self,
         leaf_node_indices: &[usize],
         tn: &Tensor,
-        cost: fn(u64) -> u64,
+        cost_function: fn(&Tensor) -> u64,
     ) -> Option<usize> {
         let (node_index, _) = leaf_node_indices
             .iter()
-            .map(|&node| {
-                (
-                    node,
-                    tn.tensor(self.node(node).tensor_index.unwrap()).size(),
-                )
-            })
-            .reduce(|node1, node2| cmp::max_by_key(node1, node2, |a| cost(a.1)))?;
+            .map(|&node| (node, tn.tensor(self.node(node).tensor_index.unwrap())))
+            .reduce(|node1, node2| cmp::max_by_key(node1, node2, |a| cost_function(a.1)))?;
         Some(node_index)
     }
 
