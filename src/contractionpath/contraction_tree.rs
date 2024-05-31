@@ -195,6 +195,11 @@ impl ContractionTree {
         self.nodes.get(&tensor_id).unwrap().as_ptr()
     }
 
+    /// Removes node from HashMap. Warning! As HashMap stores Node data, removing a Node here can result in invalid references.
+    unsafe fn remove_node(&mut self, node_id: usize) {
+        self.nodes.remove(&node_id);
+    }
+
     #[must_use]
     /// Constructor from Replace path
     pub fn from_contraction_path(tn: &Tensor, path: &[ContractionIndex]) -> Self {
@@ -354,7 +359,9 @@ impl ContractionTree {
             }
             (*leaf).deprecate();
         }
-        self.remove_node(leaf_id);
+        unsafe {
+            self.remove_node(leaf_id);
+        }
     }
 
     fn replace_node(&mut self, node_index: usize, node: Node) {
