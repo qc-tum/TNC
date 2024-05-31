@@ -1032,7 +1032,7 @@ mod tests {
     }
 
     #[test]
-    fn test_simple() {
+    fn test_constructor_simple() {
         let (tensor, path) = setup_simple();
         let ContractionTree { nodes, root } =
             ContractionTree::from_contraction_path(&tensor, &path);
@@ -1069,8 +1069,6 @@ mod tests {
         let ref_nodes = vec![node0, node1, node2, node3, node4];
 
         for (key, ref_node) in ref_nodes.iter().enumerate().rev() {
-            println!("Ref_node id: {:?}", ref_node.id);
-
             let node = nodes.get(&key).unwrap().borrow();
 
             let Node {
@@ -1109,7 +1107,7 @@ mod tests {
     }
 
     #[test]
-    fn test_complex() {
+    fn test_constructor_complex() {
         let (tensor, path) = setup_complex();
         let ContractionTree { nodes, root } =
             ContractionTree::from_contraction_path(&tensor, &path);
