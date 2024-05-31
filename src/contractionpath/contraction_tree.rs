@@ -945,13 +945,17 @@ fn find_min_max_subtree(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::ptr;
 
+    use crate::contractionpath::contraction_cost::contract_cost_tensors;
     use crate::contractionpath::contraction_tree::{ContractionTree, Node};
     use crate::path;
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
     use crate::types::ContractionIndex;
+
+    use super::populate_subtree_tensor_map;
 
     fn setup_simple() -> (Tensor, Vec<ContractionIndex>) {
         (
@@ -1211,6 +1215,335 @@ mod tests {
         }
         unsafe {
             assert_eq!((*root).id, ref_root.id);
+        }
+    }
+
+    #[test]
+    fn test_tree_depth_simple() {
+        let (tn, path) = setup_simple();
+        let tree = ContractionTree::from_contraction_path(&tn, &path);
+        assert_eq!(tree.tree_depth(4), 3);
+        assert_eq!(tree.tree_depth(3), 2);
+        assert_eq!(tree.tree_depth(2), 1);
+        assert_eq!(tree.tree_depth(1), 1);
+        assert_eq!(tree.tree_depth(0), 1);
+    }
+
+    #[test]
+    fn test_tree_depth_complex() {
+        let (tn, path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tn, &path);
+        assert_eq!(tree.tree_depth(10), 4);
+        assert_eq!(tree.tree_depth(9), 3);
+        assert_eq!(tree.tree_depth(8), 3);
+        assert_eq!(tree.tree_depth(7), 2);
+        assert_eq!(tree.tree_depth(6), 2);
+        assert_eq!(tree.tree_depth(5), 1);
+        assert_eq!(tree.tree_depth(4), 1);
+        assert_eq!(tree.tree_depth(3), 1);
+        assert_eq!(tree.tree_depth(2), 1);
+        assert_eq!(tree.tree_depth(1), 1);
+        assert_eq!(tree.tree_depth(0), 1);
+    }
+
+    #[test]
+    fn test_leaf_count_simple() {
+        let (tn, path) = setup_simple();
+        let tree = ContractionTree::from_contraction_path(&tn, &path);
+        assert_eq!(tree.leaf_count(4), 3);
+        assert_eq!(tree.leaf_count(3), 2);
+        assert_eq!(tree.leaf_count(2), 1);
+        assert_eq!(tree.leaf_count(1), 1);
+        assert_eq!(tree.leaf_count(0), 1);
+    }
+
+    #[test]
+    fn test_leaf_count_complex() {
+        let (tn, path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tn, &path);
+        assert_eq!(tree.leaf_count(10), 6);
+        assert_eq!(tree.leaf_count(9), 3);
+        assert_eq!(tree.leaf_count(8), 3);
+        assert_eq!(tree.leaf_count(7), 2);
+        assert_eq!(tree.leaf_count(6), 2);
+        assert_eq!(tree.leaf_count(5), 1);
+        assert_eq!(tree.leaf_count(4), 1);
+        assert_eq!(tree.leaf_count(3), 1);
+        assert_eq!(tree.leaf_count(2), 1);
+        assert_eq!(tree.leaf_count(1), 1);
+        assert_eq!(tree.leaf_count(0), 1);
+    }
+
+    #[test]
+    fn test_leaf_ids_simple() {
+        let (tn, path) = setup_simple();
+        let tree = ContractionTree::from_contraction_path(&tn, &path);
+        let mut leaf_ids = Vec::new();
+        tree.leaf_ids(4, &mut leaf_ids);
+        assert_eq!(leaf_ids, vec![0, 1, 2]);
+
+        leaf_ids = Vec::new();
+        tree.leaf_ids(3, &mut leaf_ids);
+        assert_eq!(leaf_ids, vec![0, 1]);
+
+        leaf_ids = Vec::new();
+        tree.leaf_ids(2, &mut leaf_ids);
+        assert_eq!(leaf_ids, vec![2]);
+    }
+
+    #[test]
+    fn test_leaf_ids_complex() {
+        let (tn, path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tn, &path);
+        let mut leaf_ids = Vec::new();
+        tree.leaf_ids(10, &mut leaf_ids);
+        leaf_ids.sort();
+        assert_eq!(leaf_ids, vec![0, 1, 2, 3, 4, 5]);
+
+        leaf_ids = Vec::new();
+        tree.leaf_ids(9, &mut leaf_ids);
+        assert_eq!(leaf_ids, vec![2, 3, 4]);
+
+        leaf_ids = Vec::new();
+        tree.leaf_ids(8, &mut leaf_ids);
+        assert_eq!(leaf_ids, vec![0, 1, 5]);
+
+        leaf_ids = Vec::new();
+        tree.leaf_ids(7, &mut leaf_ids);
+        assert_eq!(leaf_ids, vec![3, 4]);
+
+        leaf_ids = Vec::new();
+        tree.leaf_ids(6, &mut leaf_ids);
+        assert_eq!(leaf_ids, vec![1, 5]);
+
+        leaf_ids = Vec::new();
+        tree.leaf_ids(3, &mut leaf_ids);
+        assert_eq!(leaf_ids, vec![3]);
+    }
+
+    #[test]
+    fn test_nodes_at_depth() {
+        let (tensor, path) = setup_simple();
+        let tree = ContractionTree::from_contraction_path(&tensor, &path);
+
+        let mut leaves = vec![];
+        ContractionTree::nodes_at_depth(tree.node_ptr(4), 0, &mut leaves);
+
+        unsafe {
+            assert_eq!((*leaves[0]).id, 4);
+        }
+
+        leaves = vec![];
+        ContractionTree::nodes_at_depth(tree.node_ptr(4), 1, &mut leaves);
+
+        unsafe {
+            assert_eq!((*leaves[0]).id, 3);
+            assert_eq!((*leaves[1]).id, 2);
+        }
+
+        leaves = vec![];
+        ContractionTree::nodes_at_depth(tree.node_ptr(4), 2, &mut leaves);
+        unsafe {
+            assert_eq!((*leaves[0]).id, 0);
+            assert_eq!((*leaves[1]).id, 1);
+        }
+    }
+
+    #[test]
+    fn test_nodes_at_depth_complex() {
+        let (tensor, path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &path);
+
+        let mut leaves = vec![];
+        ContractionTree::nodes_at_depth(tree.node_ptr(10), 0, &mut leaves);
+        println!("leaves: {:?}", leaves);
+        unsafe {
+            assert_eq!((*leaves[0]).id, 10);
+        }
+
+        leaves = vec![];
+        ContractionTree::nodes_at_depth(tree.node_ptr(10), 1, &mut leaves);
+        unsafe {
+            assert_eq!((*leaves[0]).id, 8);
+            assert_eq!((*leaves[1]).id, 9);
+        }
+
+        leaves = vec![];
+        ContractionTree::nodes_at_depth(tree.node_ptr(10), 2, &mut leaves);
+        unsafe {
+            assert_eq!((*leaves[0]).id, 0);
+            assert_eq!((*leaves[1]).id, 6);
+            assert_eq!((*leaves[2]).id, 2);
+            assert_eq!((*leaves[3]).id, 7);
+        }
+
+        leaves = vec![];
+        ContractionTree::nodes_at_depth(tree.node_ptr(10), 3, &mut leaves);
+        unsafe {
+            assert_eq!((*leaves[0]).id, 1);
+            assert_eq!((*leaves[1]).id, 5);
+            assert_eq!((*leaves[2]).id, 3);
+            assert_eq!((*leaves[3]).id, 4);
+        }
+    }
+
+    #[test]
+    fn test_tree_weights_simple() {
+        let (tensor, path) = setup_simple();
+        let tree = ContractionTree::from_contraction_path(&tensor, &path);
+        let ref_weights = HashMap::from([(1, 0), (0, 0), (2, 0), (3, 480), (4, 600)]);
+        let weights = tree.tree_weights(4, &tensor, contract_cost_tensors);
+
+        assert_eq!(weights, ref_weights);
+        let ref_weights = HashMap::from([(1, 0), (0, 0), (3, 480)]);
+        let weights = tree.tree_weights(3, &tensor, contract_cost_tensors);
+        assert_eq!(weights, ref_weights);
+
+        assert_eq!(weights, ref_weights);
+        let ref_weights = HashMap::from([(2, 0)]);
+        let weights = tree.tree_weights(2, &tensor, contract_cost_tensors);
+        assert_eq!(weights, ref_weights);
+    }
+
+    #[test]
+    fn test_tree_weights_complex() {
+        let (tensor, path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &path);
+        let ref_weights = HashMap::from([
+            (0, 0),
+            (1, 0),
+            (2, 0),
+            (3, 0),
+            (4, 0),
+            (5, 0),
+            (6, 262440),
+            (7, 263250),
+            (8, 265140),
+            (9, 264600),
+            (10, 529815),
+        ]);
+        let weights = tree.tree_weights(10, &tensor, contract_cost_tensors);
+
+        assert_eq!(weights, ref_weights);
+    }
+
+    #[test]
+    fn test_max_match_by_complex() {
+        let (tensor, path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &path);
+
+        fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
+            (t1.size() as i64) + (t2.size() as i64) - ((t1 ^ t2).size() as i64)
+        }
+        let max_match = tree.max_match_by(2, 8, &tensor, greedy_cost_fn).unwrap();
+
+        assert_eq!(max_match, 8);
+
+        fn max_memory_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
+            (t1 ^ t2).size() as i64
+        }
+
+        let max_match = tree
+            .max_match_by(2, 8, &tensor, max_memory_cost_fn)
+            .unwrap();
+        assert_eq!(max_match, 1);
+    }
+
+    #[test]
+    fn test_match_leaf_by_complex() {
+        let (tensor, path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &path);
+        let leaf_node_indices = vec![0, 1, 2, 3, 4, 5];
+
+        fn greedy_cost_fn(t1: &Tensor) -> u64 {
+            t1.size()
+        }
+        let max_match = tree
+            .max_leaf_node_by(&leaf_node_indices, &tensor, greedy_cost_fn)
+            .unwrap();
+
+        assert_eq!(max_match, 1);
+
+        fn min_greedy_cost_fn(t1: &Tensor) -> u64 {
+            std::u64::MAX - t1.size()
+        }
+
+        let max_match = tree
+            .max_leaf_node_by(&leaf_node_indices, &tensor, min_greedy_cost_fn)
+            .unwrap();
+        assert_eq!(max_match, 2);
+    }
+
+    #[test]
+    fn test_to_contraction_path_simple() {
+        let (tensor, ref_path) = setup_simple();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let mut path = Vec::new();
+        tree.to_contraction_path(4, &mut path);
+        assert_eq!(path, ref_path);
+    }
+
+    #[test]
+    fn test_to_contraction_path_complex() {
+        let (tensor, ref_path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let mut path = Vec::new();
+        tree.to_contraction_path(10, &mut path);
+        assert_eq!(path, ref_path);
+    }
+
+    #[test]
+    fn test_to_contraction_path_unbalanced() {
+        let (tensor, ref_path) = setup_unbalanced();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let mut path = Vec::new();
+        tree.to_contraction_path(10, &mut path);
+        assert_eq!(path, ref_path);
+    }
+
+    #[test]
+    fn test_populate_subtree_tensor_map_simple() {
+        let (tensor, ref_path) = setup_simple();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let mut node_tensor_map = HashMap::new();
+        populate_subtree_tensor_map(&tree, 4, &mut node_tensor_map, &tensor);
+
+        let ref_node_tensor_map = HashMap::from([
+            (0, Tensor::new(vec![4, 3, 2])),
+            (1, Tensor::new(vec![0, 1, 3, 2])),
+            (2, Tensor::new(vec![4, 5, 6])),
+            (3, Tensor::new(vec![4, 0, 1])),
+            (4, Tensor::new(vec![0, 1, 5, 6])),
+        ]);
+
+        for (key, value) in ref_node_tensor_map.iter() {
+            assert_eq!(node_tensor_map[key].legs(), value.legs());
+        }
+    }
+
+    #[test]
+    fn test_populate_subtree_tensor_map_complex() {
+        let (tensor, ref_path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let mut node_tensor_map = HashMap::new();
+        populate_subtree_tensor_map(&tree, 10, &mut node_tensor_map, &tensor);
+
+        let ref_node_tensor_map = HashMap::from([
+            (0, Tensor::new(vec![4, 3, 2])),
+            (1, Tensor::new(vec![0, 1, 3, 2])),
+            (2, Tensor::new(vec![4, 5, 6])),
+            (3, Tensor::new(vec![6, 8, 9])),
+            (4, Tensor::new(vec![10, 8, 9])),
+            (5, Tensor::new(vec![5, 1, 0])),
+            (6, Tensor::new(vec![3, 2, 5])),
+            (7, Tensor::new(vec![4, 5])),
+            (8, Tensor::new(vec![6, 10])),
+            (9, Tensor::new(vec![4, 5, 10])),
+            (10, Tensor::new(vec![10])),
+        ]);
+
+        for (key, value) in ref_node_tensor_map.iter() {
+            assert_eq!(node_tensor_map[key].legs(), value.legs());
         }
     }
 }
