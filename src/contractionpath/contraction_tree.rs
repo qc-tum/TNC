@@ -268,13 +268,17 @@ impl ContractionTree {
         }
     }
 
-    fn tree_depth(&self, node_index: usize) -> usize {
+    /// Returns the depth of subtree in [`ContractionTree`] object starting from a given `node_index`. The depth of a [`Node`] object with no children is 0.
+    ///
+    /// # Arguments
+    /// * `node_index` - `id` attribute of starting [`Node`]
+    pub fn tree_depth(&self, node_index: usize) -> usize {
         ContractionTree::tree_depth_recurse(self.node_ptr(node_index))
     }
 
     fn leaf_count_recurse(node: *mut Node) -> usize {
         if node.is_null() {
-            return 0;
+            panic!("All non-leaf nodes should have two children in a contraction tree")
         }
         unsafe {
             if (*node).is_leaf() {
