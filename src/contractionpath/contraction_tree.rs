@@ -514,18 +514,32 @@ impl ContractionTree {
         );
         weights
     }
+
+    /// Given a specific tensor at leaf node "n1" with id `node_index`, identifies tensor at node "n2" in ContractionTree subtree rooted at `subtree_root`, such that (n1, n2) maximizes provided cost function `cost_function`.
+    ///
+    /// # Arguments
+    /// * `node_id` - leaf node used to calculation cost function, must be disjoint from subtree rooted at `subtree_root`
+    /// * `subtree_root` - identifies root of subtree to be considered
+    /// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
+    /// * `cost_function` - cost function taking two [`Tensor`] objects and returning a value as i64
+    ///
+    /// #Returns
+    /// * option of node id (not necessarily a leaf node) in subtree that maximizes `cost_function`.
+    pub fn max_match_by(
+        &self,
         node_index: usize,
         subtree_root: usize,
         tn: &Tensor,
         cost_function: fn(&Tensor, &Tensor) -> i64,
     ) -> Option<usize> {
-        // Get a map that maps nodes to their tensors.
+        assert!(self.nodes[&node_index].borrow().is_leaf());
+        // Get a map that maps leaf nodes to corresponding [`Tensor`] objects.
         let mut node_tensor_map: HashMap<usize, Tensor> = HashMap::new();
         populate_subtree_tensor_map(self, subtree_root, &mut node_tensor_map, tn);
 
-        // Find the tensor that removes the most memory when contracting.
         let t1 = tn.tensor(self.nodes[&node_index].borrow().tensor_index.unwrap());
 
+        // Find the tensor that maximizes cost function.
         let (node, _) = node_tensor_map
             .iter()
             .map(|(id, tensor)| (id, cost_function(tensor, t1)))
