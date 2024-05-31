@@ -772,7 +772,7 @@ pub fn rebalance_path(
 
     // 2. Select the bigger subtree. Based on maximum contraction op cost.
     // let (l_op_cost, _r_op_cost) = tree_contraction_cost(&tree, tree.root.unwrap(), tn);
-    let (smaller_subtree, larger_subtree) = find_minmax_subtree(children, &tree, tn);
+    let (smaller_subtree, larger_subtree) = find_min_max_subtree(children, &tree, tn);
 
     // 3. Find the tensor to be rebalanced to the bigger subtree.
     // Get smaller subtree leaf nodes
@@ -916,7 +916,7 @@ pub fn rebalance_path(
     rebal_path
 }
 
-fn find_minmax_subtree(
+fn find_min_max_subtree(
     children: Vec<*mut Node>,
     tree: &ContractionTree,
     tn: &Tensor,
