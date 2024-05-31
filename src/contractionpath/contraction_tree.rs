@@ -290,7 +290,11 @@ impl ContractionTree {
         }
     }
 
-    fn leaf_count(&self, node_index: usize) -> usize {
+    /// Returns the number of leaf nodes in subtree of [`ContractionTree`] object starting from a given `node_index`. Returns 1 if `node_index` points to a leaf node.
+    ///
+    /// # Arguments
+    /// * `node_index` - `id` attribute of starting [`Node`]
+    pub fn leaf_count(&self, node_index: usize) -> usize {
         ContractionTree::leaf_count_recurse(self.node_ptr(node_index))
     }
 
