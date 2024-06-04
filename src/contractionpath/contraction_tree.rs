@@ -182,13 +182,13 @@ impl ContractionTree {
         index
     }
 
-    ///
-    pub fn mut_node(&mut self, tensor_id: usize) -> RefMut<Node> {
-        self.nodes.get_mut(&tensor_id).unwrap().borrow_mut()
+    pub fn node(&self, tensor_id: usize) -> Ref<Node> {
+        let borrow = self.nodes.get(&tensor_id).unwrap();
+        borrow.as_ref().borrow()
     }
 
-    pub fn node(&self, tensor_id: usize) -> Ref<Node> {
-        self.nodes.get(&tensor_id).unwrap().borrow()
+    pub fn mut_node(&mut self, tensor_id: usize) -> RefMut<Node> {
+        self.nodes.get_mut(&tensor_id).unwrap().borrow_mut()
     }
 
     pub fn node_ptr(&self, tensor_id: usize) -> *mut Node {
