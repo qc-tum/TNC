@@ -48,29 +48,21 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
     ]);
 
     // Consider the horizontal edges
-    for (j, tensor) in tensors.iter_mut().enumerate().take(length - 1).skip(1) {
-        *tensor = Tensor::new(vec![
+    (1..(length - 1)).for_each(|j| {
+        tensors[j] = Tensor::new(vec![
             j,
             physical_up + j - 1,
             physical_up + j,
             physical_up + virtual_vertical + j,
         ]);
-    }
-    for (j, tensor) in tensors
-        .iter_mut()
-        .rev()
-        .enumerate()
-        .take(length - 1)
-        .skip(1)
-    {
-        *tensor = Tensor::new(vec![
+
+        tensors[physical_up - j] = Tensor::new(vec![
             physical_up - j - 1,
             physical_up + virtual_vertical - j - 1,
             physical_up + virtual_vertical - j,
             total_edges - j - 1,
         ]);
-    }
-
+    });
     // Consider the vertical edges
     for i in 1..(depth - 1) {
         tensors[i * length] = Tensor::new(vec![
@@ -166,30 +158,23 @@ fn pepo(
     ]);
 
     // Consider the horizontal edges
-    for (j, tensor) in tensors.iter_mut().enumerate().take(length - 1).skip(1) {
-        *tensor = Tensor::new(vec![
+    (1..(length - 1)).for_each(|j| {
+        tensors[j] = Tensor::new(vec![
             last + j,
             start + j,
             start + physical_up + j - 1,
             start + physical_up + j,
             start + physical_up + virtual_vertical + j,
         ]);
-    }
-    for (j, tensor) in tensors
-        .iter_mut()
-        .rev()
-        .enumerate()
-        .take(length - 1)
-        .skip(1)
-    {
-        *tensor = Tensor::new(vec![
+
+        tensors[physical_up - j] = Tensor::new(vec![
             last + physical_up - j - 1,
             start + physical_up - j - 1,
             start + physical_up + virtual_vertical - j - 1,
             start + physical_up + virtual_vertical - j,
             start + total_edges - j - 1,
         ]);
-    }
+    });
 
     // Consider the vertical edges
     for i in 1..(depth - 1) {
@@ -277,28 +262,21 @@ fn peps_final(
     ]);
 
     // Consider the horizontal edges
-    for (j, tensor) in tensors.iter_mut().enumerate().take(length - 1).skip(1) {
-        *tensor = Tensor::new(vec![
+    (1..(length - 1)).for_each(|j| {
+        tensors[j] = Tensor::new(vec![
             last + j,
             start + j - 1,
             start + j,
             start + virtual_vertical + j,
         ]);
-    }
-    for (j, tensor) in tensors
-        .iter_mut()
-        .rev()
-        .enumerate()
-        .take(length - 1)
-        .skip(1)
-    {
-        *tensor = Tensor::new(vec![
+
+        tensors[physical_up - j] = Tensor::new(vec![
             last + physical_up - j - 1,
             start + virtual_vertical - j - 1,
             start + virtual_vertical - j,
             start + total_edges - j - 1,
         ]);
-    }
+    });
 
     // Consider the vertical edges
     for i in 1..(depth - 1) {
