@@ -805,9 +805,9 @@ pub fn rebalance_path(
         let mut keys = rebal_nodes_weight.keys().cloned().collect::<Vec<usize>>();
         keys.sort_by_key(|&key| rebal_nodes_weight[&key]);
         if keys.len() < top_n {
-            println!("Error rebalance_path: Not enough nodes in the bigger subtree to select the top {} from!", top_n);
-            tree.max_match_by(larger_subtree_id, smaller_subtree_id, tn, greedy_cost_fn)
-                .unwrap()
+            panic!("Error rebalance_path: Not enough nodes in the bigger subtree to select the top {} from!", top_n);
+            // tree.max_match_by(larger_subtree_id, smaller_subtree_id, tn, greedy_cost_fn)
+            //     .unwrap()
         } else {
             // Sample randomly from the top n nodes. Use softmax probabilities.
             let top_n_nodes = keys.iter().take(top_n).cloned().collect::<Vec<usize>>();
@@ -832,9 +832,9 @@ pub fn rebalance_path(
             let top_n_prob: Vec<f64> = top_n_exp.iter().map(|&exp| (exp / sum_exp)).collect();
 
             // Debug
-            println!("top_n_nodes: {:?}", top_n_nodes);
-            println!("top_n_weights: {:?}", top_n_weights);
-            println!("top_n_prob: {:?}", top_n_prob);
+            // println!("top_n_nodes: {:?}", top_n_nodes);
+            // println!("top_n_weights: {:?}", top_n_weights);
+            // println!("top_n_prob: {:?}", top_n_prob);
 
             // Sample index based on its probability
             let dist = WeightedIndex::new(&top_n_prob).unwrap();
