@@ -950,6 +950,7 @@ mod tests {
 
     use crate::contractionpath::contraction_cost::contract_cost_tensors;
     use crate::contractionpath::contraction_tree::{ContractionTree, Node};
+    use crate::contractionpath::ssa_replace_ordering;
     use crate::path;
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
