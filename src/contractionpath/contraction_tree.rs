@@ -593,7 +593,7 @@ impl ContractionTree {
                 (t1_id, t2_id) = (t2_id, t1_id);
             }
             path.push(pair!(t1_id, t2_id));
-            t1_id
+            unsafe { (*node).id }
         } else {
             panic!("All parents should have two children")
         }
