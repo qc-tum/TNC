@@ -758,8 +758,8 @@ pub fn rebalance_path(
 ) -> Vec<ContractionIndex> {
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
     if tn.tensors().len() < 3 {
-        println!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
-        return path.to_vec();
+        panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
+        // return path.to_vec();
     }
 
     // 1. Create binary contraction tree. It details how tensors are contracted via the given path.
