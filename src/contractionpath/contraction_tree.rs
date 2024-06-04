@@ -268,7 +268,7 @@ impl ContractionTree {
         }
     }
 
-    /// Returns the depth of subtree in [`ContractionTree`] object starting from a given `node_index`. The depth of a [`Node`] object with no children is 0.
+    /// Returns the depth of subtree in [`ContractionTree`] object starting from a given `node_index`. The depth of a [`Node`] object that is a leaf node is 0.
     ///
     /// # Arguments
     /// * `node_index` - `id` attribute of starting [`Node`]
