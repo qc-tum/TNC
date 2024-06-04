@@ -4,16 +4,16 @@ use itertools::iproduct;
 
 use crate::tensornetwork::tensor::Tensor;
 
-/// Generate the initial state for an `length` x `depth` PEPS
-/// # Arguments
+/// Generate the initial state for an `length` x `depth` PEPS.
 ///
-/// * `length` - length of the PEPS as usize
-/// * `depth` - depth of the PEPS as usize
+/// # Arguments
+/// * `length` - length of the PEPS
+/// * `depth` - depth of the PEPS
 /// * `physical_dim` - physical dimension of the PEPs
 /// * `virtual_dim` - virtual bond dimension between lattice sites in the PEPs
 ///
 /// # Returns
-/// [`Tensor`] object of initial state of PEPS
+/// [`Tensor`] of initial state of PEPS
 fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -> Tensor {
     let mut pep = Tensor::default();
 
@@ -104,18 +104,18 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
     pep
 }
 
-/// Generate an intermediate PEP-operator an n x n PEPs with shared bond dimension of `dimension`
-/// # Arguments
+/// Generate an intermediate PEP-operator an n x n PEPs with shared bond dimension of `dimension`.
 ///
-/// * `peps` - mutable ['Tensor'] object representing initial PEPS and successive PEPOs.
-/// * `length` - length of the PEPS as usize
-/// * `depth` - depth of the PEPS as usize
+/// # Arguments
+/// * `peps` - mutable [`Tensor`] representing initial PEPS and successive PEPOs
+/// * `length` - length of the PEPS
+/// * `depth` - depth of the PEPS
 /// * `layer` - layer of PEPO to be applied
 /// * `physical_dim` - physical dimension of the PEPs
 /// * `virtual_dim` - virtual bond dimension between lattice sites in the PEPs
 ///
 /// # Returns
-/// Updated `peps` object with 'layer'th PEPO applied.
+/// Updated PEPS [`Tensor`] with `layer`th PEPO applied.
 fn pepo(
     mut peps: Tensor,
     length: usize,
@@ -227,17 +227,17 @@ fn pepo(
     peps
 }
 
-/// Applies the final state in a PEPS object.
-/// # Arguments
+/// Applies the final state in a PEPS.
 ///
-/// * `peps` - mutable ['Tensor'] object representing initial PEPS and successive PEPOs.
-/// * `length` - length of the PEPS as usize
-/// * `depth` - depth of the PEPS as usize
+/// # Arguments
+/// * `peps` - mutable [`Tensor`] representing initial PEPS and successive PEPOs
+/// * `length` - length of the PEPS
+/// * `depth` - depth of the PEPS
 /// * `physical_dim` - physical dimension of the PEPs
 /// * `virtual_dim` - virtual bond dimension between lattice sites in the PEPs
 ///
 /// # Returns
-/// Updated `peps` object with final PEPS applied
+/// Updated PEPS [`Tensor`] with final PEPS applied
 fn peps_final(
     mut peps: Tensor,
     length: usize,
@@ -332,26 +332,31 @@ fn peps_final(
     peps
 }
 
-/// Generates the structure for a PEPS with `length` x `depth` dimensions and with `layers` layers.The EdgeIndex in the PEPS `bond_dims` for each layer is ordered as [physical bonds to previous layer, physical bonds to next layer, vertical virtual bonds, horizontal virtual bonds].
+/// Generates the structure for a PEPS with `length` x `depth` dimensions and with `layers` layers.
+/// The `EdgeIndex` in the PEPS `bond_dims` for each layer is ordered as `physical bonds to previous layer,
+/// physical bonds to next layer, vertical virtual bonds, horizontal virtual bonds`.
+///
 /// Each new layer other than the final layer adds:
-/// p = length * depth physical bonds
-/// vv = (length - 1) * depth vertical virtual bonds
-/// vh = (depth - 1) * length horizontal virtual bonds
+/// * p = length * depth physical bonds
+/// * vv = (length - 1) * depth vertical virtual bonds
+/// * vh = (depth - 1) * length horizontal virtual bonds
 ///
 /// Bonds for the `k`th layer, where k is not the initial or final layer, then run from:
-/// physical bonds to previous layer: (k-1) * (p+vv+vh): (kp) + (k-1) * (vv+vh)
-/// physical bonds to next layer: k * (p+vv+vh)
+/// * physical bonds to previous layer: (k-1) * (p+vv+vh): (kp) + (k-1) * (vv+vh)
+/// * physical bonds to next layer: k * (p+vv+vh)
 ///
 /// # Arguments
-///
-/// * `length` - length of the PEPS as usize. panics if `length` is 1.
-/// * `depth` - depth of the PEPS as usize. panics if `depth` is 1.
+/// * `length` - length of the PEPS
+/// * `depth` - depth of the PEPS
 /// * `physical_dim` - physical dimension of the PEPs
 /// * `virtual_dim` - virtual bond dimension between lattice sites in the PEPs
-/// * `layers` - number of operator layers in PEPS object, 0 layers returns an inner product of two states.
+/// * `layers` - number of operator layers in PEPS, 0 layers returns an inner product of two states.
 ///
 /// # Returns
-/// ['Tensor'] object representing a PEPS.
+/// [`Tensor`] representing a PEPS.
+///
+/// # Panics
+/// Panics if `length < 2` or `depth < 2`.
 pub fn peps(
     length: usize,
     depth: usize,
