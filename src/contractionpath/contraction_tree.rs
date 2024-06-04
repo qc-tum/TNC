@@ -837,11 +837,11 @@ pub fn rebalance_path(
             // println!("top_n_prob: {:?}", top_n_prob);
 
             // Sample index based on its probability
-            let dist = WeightedIndex::new(&top_n_prob).unwrap();
+            let dist = WeightedIndex::new(top_n_prob).unwrap();
             let mut rng = thread_rng();
             let rand_idx = dist.sample(&mut rng);
             // Debug
-            println!("rand_idx: {:?}", rand_idx);
+            // println!("rand_idx: {:?}", rand_idx);
             top_n_nodes[rand_idx]
         }
     } else {
