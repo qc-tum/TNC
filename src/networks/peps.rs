@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::iter::repeat;
 
-use itertools::iproduct;
+use itertools::{chain, iproduct};
 
 use crate::tensornetwork::tensor::Tensor;
 
@@ -21,11 +21,11 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
     let virtual_vertical = (length - 1) * depth;
     let virtual_horizontal = (depth - 1) * length;
     let total_edges = physical_up + virtual_vertical + virtual_horizontal;
-    let new_iter = iproduct!(0..physical_up, physical_dim..=physical_dim).chain(iproduct!(
-        physical_up..total_edges,
-        virtual_dim..=virtual_dim
-    ));
-    let bond_dims: HashMap<usize, u64> = HashMap::from_iter(new_iter);
+    let bond_dims = chain(
+        (0..physical_up).zip(repeat(physical_dim)),
+        (physical_up..total_edges).zip(repeat(virtual_dim)),
+    )
+    .collect();
 
     let mut tensors = vec![Tensor::default(); length * depth];
 
@@ -54,7 +54,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
             physical_up + j - 1,
             physical_up + j,
             physical_up + virtual_vertical + j,
-        ])
+        ]);
     }
     for (j, tensor) in tensors
         .iter_mut()
@@ -68,7 +68,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
             physical_up + virtual_vertical - j - 1,
             physical_up + virtual_vertical - j,
             total_edges - j - 1,
-        ])
+        ]);
     }
 
     // Consider the vertical edges
@@ -97,7 +97,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
             physical_up + i * (length - 1) + j,
             physical_up + virtual_vertical + (i - 1) * length + j,
             physical_up + virtual_vertical + i * length + j,
-        ])
+        ]);
     }
 
     pep.push_tensors(tensors, Some(&bond_dims), None);
@@ -131,12 +131,11 @@ fn pepo(
     let last = total_edges * layer;
     let start = total_edges * (layer + 1);
 
-    let new_iter =
-        iproduct!(start..(start + physical_up), physical_dim..=physical_dim).chain(iproduct!(
-            (start + physical_up)..(start + total_edges),
-            virtual_dim..=virtual_dim
-        ));
-    let bond_dims: HashMap<usize, u64> = HashMap::from_iter(new_iter);
+    let bond_dims = chain(
+        (start..(start + physical_up)).zip(repeat(physical_dim)),
+        ((start + physical_up)..(start + total_edges)).zip(repeat(virtual_dim)),
+    )
+    .collect();
 
     let mut tensors = vec![Tensor::default(); length * depth];
 
@@ -174,7 +173,7 @@ fn pepo(
             start + physical_up + j - 1,
             start + physical_up + j,
             start + physical_up + virtual_vertical + j,
-        ])
+        ]);
     }
     for (j, tensor) in tensors
         .iter_mut()
@@ -189,7 +188,7 @@ fn pepo(
             start + physical_up + virtual_vertical - j - 1,
             start + physical_up + virtual_vertical - j,
             start + total_edges - j - 1,
-        ])
+        ]);
     }
 
     // Consider the vertical edges
@@ -221,7 +220,7 @@ fn pepo(
             start + physical_up + i * (length - 1) + j,
             start + physical_up + virtual_vertical + (i - 1) * length + j,
             start + physical_up + virtual_vertical + i * length + j,
-        ])
+        ]);
     }
     peps.push_tensors(tensors, Some(&bond_dims), None);
     peps
@@ -253,8 +252,9 @@ fn peps_final(
     let start = total_edges * (layers + 1);
     total_edges -= physical_up;
 
-    let new_iter = iproduct!(start..(start + total_edges), virtual_dim..=virtual_dim);
-    let bond_dims: HashMap<usize, u64> = HashMap::from_iter(new_iter);
+    let bond_dims = (start..(start + total_edges))
+        .zip(repeat(virtual_dim))
+        .collect();
 
     let mut tensors = vec![Tensor::default(); length * depth];
 
@@ -283,7 +283,7 @@ fn peps_final(
             start + j - 1,
             start + j,
             start + virtual_vertical + j,
-        ])
+        ]);
     }
     for (j, tensor) in tensors
         .iter_mut()
@@ -297,7 +297,7 @@ fn peps_final(
             start + virtual_vertical - j - 1,
             start + virtual_vertical - j,
             start + total_edges - j - 1,
-        ])
+        ]);
     }
 
     // Consider the vertical edges
@@ -326,7 +326,7 @@ fn peps_final(
             start + i * (length - 1) + j,
             start + virtual_vertical + (i - 1) * length + j,
             start + virtual_vertical + i * length + j,
-        ])
+        ]);
     }
     peps.push_tensors(tensors, Some(&bond_dims), None);
     peps
@@ -357,6 +357,7 @@ fn peps_final(
 ///
 /// # Panics
 /// Panics if `length < 2` or `depth < 2`.
+#[must_use]
 pub fn peps(
     length: usize,
     depth: usize,
