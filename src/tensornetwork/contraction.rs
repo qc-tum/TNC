@@ -6,12 +6,12 @@ use crate::{gates::load_gate, io::load_data, tensornetwork::Tensor, types::*};
 
 use super::tensordata::TensorData;
 
-/// Fully contracts a series of [Tensor] objects based on a given contraction path using repeated SSA format.
+/// Fully contracts a series of [`Tensor`] objects based on a given contraction path using repeated SSA format.
 ///
 /// # Arguments
 ///
 /// * `tn` - [`Tensor`] to be contracted
-/// * `contract_path` - [`Vector`] of [ContractionIndex], indicating contraction path. See [BranchBound] for details on `contract_path` format.
+/// * `contract_path` - slice of [`ContractionIndex`], indicating contraction path. See `BranchBound` for details on `contract_path` format.
 ///
 /// # Examples
 ///

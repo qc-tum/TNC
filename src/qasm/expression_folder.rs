@@ -1,7 +1,7 @@
 use super::{ast::Visitor, expression_simplification::fold_expr};
 
-#[derive(Debug)]
 /// Struct to fold constant subexpressions in an expression.
+#[derive(Debug)]
 pub struct ExpressionFolder;
 
 impl Visitor for ExpressionFolder {

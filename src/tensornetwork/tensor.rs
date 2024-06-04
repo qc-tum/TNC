@@ -5,18 +5,18 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::iter::zip;
 use std::ops::Index;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use crate::types::{EdgeIndex, Vertex};
 
 use super::tensordata::TensorData;
 
-#[derive(Debug, Clone)]
 /// Abstract representation of a tensor.
+#[derive(Debug, Clone)]
 pub struct Tensor {
     pub(crate) tensors: Vec<Tensor>,
     pub(crate) legs: Vec<EdgeIndex>,
-    pub(crate) bond_dims: Arc<RefCell<HashMap<EdgeIndex, u64>>>,
+    pub(crate) bond_dims: Arc<RwLock<HashMap<EdgeIndex, u64>>>,
     pub(crate) edges: HashMap<EdgeIndex, Vec<Vertex>>,
     external_hyperedge: HashMap<EdgeIndex, usize>,
     tensordata: RefCell<TensorData>,
@@ -41,7 +41,7 @@ impl Default for Tensor {
         Self {
             tensors: Vec::new(),
             legs: Vec::new(),
-            bond_dims: Arc::new(RefCell::new(HashMap::new())),
+            bond_dims: Arc::default(),
             edges: HashMap::new(),
             external_hyperedge: HashMap::new(),
             tensordata: RefCell::new(TensorData::Uncontracted),
@@ -66,7 +66,7 @@ impl Tensor {
         Self {
             tensors: Vec::new(),
             legs,
-            bond_dims: Arc::new(RefCell::new(HashMap::new())),
+            bond_dims: Arc::default(),
             edges: HashMap::new(),
             external_hyperedge: HashMap::new(),
             tensordata: RefCell::new(TensorData::Uncontracted),
@@ -194,8 +194,8 @@ impl Tensor {
     /// let tn = create_tensor_network(vec![v1,v2], &bond_dims, None);
     /// assert_eq!(*tn.bond_dims(), bond_dims);
     /// ```
-    pub fn bond_dims(&self) -> std::cell::Ref<HashMap<EdgeIndex, u64>> {
-        self.bond_dims.borrow()
+    pub fn bond_dims(&self) -> RwLockReadGuard<HashMap<EdgeIndex, u64>> {
+        self.bond_dims.read().unwrap()
     }
 
     /// Setter for single bond dimension.
@@ -219,7 +219,8 @@ impl Tensor {
     /// ```
     pub fn insert_bond_dim(&mut self, k: EdgeIndex, v: u64) {
         self.bond_dims
-            .borrow_mut()
+            .write()
+            .unwrap()
             .entry(k)
             .and_modify(|e| {
                 *e = v;
@@ -247,7 +248,8 @@ impl Tensor {
     pub fn insert_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
         for (k, v) in bond_dims {
             self.bond_dims
-                .borrow_mut()
+                .write()
+                .unwrap()
                 .entry(*k)
                 .and_modify(|e| {
                     *e = *v;
@@ -299,10 +301,8 @@ impl Tensor {
     /// assert_eq!(tensor.shape(), vec![17, 19, 8]);
     /// ```
     pub fn shape(&self) -> Vec<u64> {
-        self.legs
-            .iter()
-            .map(|e| self.bond_dims.borrow()[e])
-            .collect::<Vec<u64>>()
+        let bond_dims = self.bond_dims();
+        self.legs_iter().map(|e| bond_dims[e]).collect()
     }
 
     /// Returns number of dimensions of Tensor object
@@ -340,7 +340,7 @@ impl Tensor {
         self.legs.iter().map(|e| self.bond_dims()[e]).product()
     }
 
-    /// Returns true if Tensor contains leg_id
+    /// Returns true if Tensor contains `leg_id`.
     ///
     /// # Arguments
     ///
@@ -392,7 +392,7 @@ impl Tensor {
         if self.legs != other.legs {
             return false;
         }
-        if self.bond_dims != other.bond_dims {
+        if *self.bond_dims() != *other.bond_dims() {
             return false;
         }
         if self.external_hyperedge != other.external_hyperedge {
@@ -414,7 +414,6 @@ impl Tensor {
     ///
     /// * `tensor` - new `Tensor` to be added
     /// * `bond_dims` - `HashMap<usize, u64>` mapping edge id to bond dimension
-    /// ```
     pub fn push_tensor(&mut self, mut tensor: Tensor, bond_dims: Option<&HashMap<usize, u64>>) {
         // In the case of pushing to an empty tensor, avoid unnecessary heirarchies
         if self.tensors().is_empty() && self.legs().is_empty() {
@@ -468,8 +467,7 @@ impl Tensor {
     ///
     /// * `tensors` - `Vec<Tensor>` to be added
     /// * `bond_dims` - `HashMap<usize, u64>` mapping edge id to bond dimension
-    /// * 'external_hyperedge' - Optional `HashMap<EdgeIndex, usize>` of external hyperedges, mapping the edge index to count of external hyperedges.
-    /// ```
+    /// * `external_hyperedge` - Optional `HashMap<EdgeIndex, usize>` of external hyperedges, mapping the edge index to count of external hyperedges.
     pub fn push_tensors(
         &mut self,
         tensors: Vec<Tensor>,
@@ -504,7 +502,7 @@ impl Tensor {
     /// Internal method to update bond dimensions based on `bond_dims`. Only incorporates missing dimensions,
     /// existing keys are not changed.
     fn add_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
-        let mut shared_bond_dims = self.bond_dims.borrow_mut();
+        let mut shared_bond_dims = self.bond_dims.write().unwrap();
         for (key, value) in bond_dims.iter() {
             shared_bond_dims
                 .entry(*key)
@@ -529,14 +527,16 @@ impl Tensor {
     /// Otherwise, introduce a new open vertex in edges
     pub(super) fn update_tensor_edges(&mut self, tensor: &mut Tensor) {
         tensor.bond_dims = Arc::clone(&self.bond_dims);
-        let shared_bond_dims = self.bond_dims.borrow();
+        let shared_bond_dims = self.bond_dims.read().unwrap();
 
         // Index is current length as tensor is pushed after.
         let index = self.tensors().len();
         for &leg in tensor.legs() {
-            if !shared_bond_dims.contains_key(&leg) {
-                panic!("Leg {leg} bond dimension is not defined");
-            }
+            assert!(
+                shared_bond_dims.contains_key(&leg),
+                "Leg {leg} bond dimension is not defined"
+            );
+
             // Never introduces a Vertex::Open as this is handled in `[update_external_hyperedge]`
             self.edges
                 .entry(leg)

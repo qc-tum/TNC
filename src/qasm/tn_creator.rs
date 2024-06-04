@@ -10,8 +10,8 @@ use crate::tensornetwork::tensordata::TensorData;
 
 type EdgeId = usize;
 
-#[derive(Debug, Default)]
 /// Struct to create a tensor network from an QASM2 AST.
+#[derive(Debug, Default)]
 pub struct TensorNetworkCreator {
     edge_counter: EdgeId,
 }
