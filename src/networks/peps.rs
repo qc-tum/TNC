@@ -4,12 +4,16 @@ use itertools::iproduct;
 
 use crate::tensornetwork::tensor::Tensor;
 
-// fn generate_row(length: usize, depth: usize, start: usize, operator: bool) {
-//     let mut tensors: Vec<usize> = (start..n + start).collect();
-//     tensors.iter().map(|a| )
-// }
-
-/// Generate an n x n PEPs with shared bond dimension of `dimension`
+/// Generate the initial state for an `length` x `depth` PEPS
+/// # Arguments
+///
+/// * `length` - length of the PEPS as usize
+/// * `depth` - depth of the PEPS as usize
+/// * `physical_dim` - physical dimension of the PEPs
+/// * `virtual_dim` - virtual bond dimension between lattice sites in the PEPs
+///
+/// # Returns
+/// [`Tensor`] object of initial state of PEPS
 fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -> Tensor {
     let mut pep = Tensor::default();
 
@@ -84,6 +88,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
         ]);
     }
 
+    // Consider the remaining bulk not on the edges
     for (i, j) in iproduct!(1..(depth - 1), 1..(length - 1)) {
         let index = i * length + j;
         tensors[index] = Tensor::new(vec![
@@ -99,6 +104,18 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
     pep
 }
 
+/// Generate an intermediate PEP-operator an n x n PEPs with shared bond dimension of `dimension`
+/// # Arguments
+///
+/// * `peps` - mutable ['Tensor'] object representing initial PEPS and successive PEPOs.
+/// * `length` - length of the PEPS as usize
+/// * `depth` - depth of the PEPS as usize
+/// * `layer` - layer of PEPO to be applied
+/// * `physical_dim` - physical dimension of the PEPs
+/// * `virtual_dim` - virtual bond dimension between lattice sites in the PEPs
+///
+/// # Returns
+/// Updated `peps` object with 'layer'th PEPO applied.
 fn pepo(
     mut peps: Tensor,
     length: usize,
@@ -149,7 +166,7 @@ fn pepo(
         start + physical_up + virtual_vertical + length * (depth - 1) - 1,
     ]);
 
-    // Consider the edges
+    // Consider the horizontal edges
     for (j, tensor) in tensors.iter_mut().enumerate().take(length - 1).skip(1) {
         *tensor = Tensor::new(vec![
             last + j,
@@ -175,6 +192,7 @@ fn pepo(
         ])
     }
 
+    // Consider the vertical edges
     for i in 1..(depth - 1) {
         tensors[i * length] = Tensor::new(vec![
             last + i * length,
@@ -193,6 +211,7 @@ fn pepo(
         ]);
     }
 
+    // Consider the remaining bulk not on the edges
     for (i, j) in iproduct!(1..(depth - 1), 1..(length - 1)) {
         let index = i * length + j;
         tensors[index] = Tensor::new(vec![
@@ -208,6 +227,17 @@ fn pepo(
     peps
 }
 
+/// Applies the final state in a PEPS object.
+/// # Arguments
+///
+/// * `peps` - mutable ['Tensor'] object representing initial PEPS and successive PEPOs.
+/// * `length` - length of the PEPS as usize
+/// * `depth` - depth of the PEPS as usize
+/// * `physical_dim` - physical dimension of the PEPs
+/// * `virtual_dim` - virtual bond dimension between lattice sites in the PEPs
+///
+/// # Returns
+/// Updated `peps` object with final PEPS applied
 fn peps_final(
     mut peps: Tensor,
     length: usize,
@@ -246,7 +276,7 @@ fn peps_final(
         start + virtual_vertical + length * (depth - 1) - 1,
     ]);
 
-    // Consider the edges
+    // Consider the horizontal edges
     for (j, tensor) in tensors.iter_mut().enumerate().take(length - 1).skip(1) {
         *tensor = Tensor::new(vec![
             last + j,
@@ -270,6 +300,7 @@ fn peps_final(
         ])
     }
 
+    // Consider the vertical edges
     for i in 1..(depth - 1) {
         tensors[i * length] = Tensor::new(vec![
             last + i * length,
@@ -286,6 +317,7 @@ fn peps_final(
         ]);
     }
 
+    // Consider the remaining bulk not on the edges
     for (i, j) in iproduct!(1..(depth - 1), 1..(length - 1)) {
         let index = i * length + j;
         tensors[index] = Tensor::new(vec![
@@ -300,6 +332,26 @@ fn peps_final(
     peps
 }
 
+/// Generates the structure for a PEPS with `length` x `depth` dimensions and with `layers` layers.The EdgeIndex in the PEPS `bond_dims` for each layer is ordered as [physical bonds to previous layer, physical bonds to next layer, vertical virtual bonds, horizontal virtual bonds].
+/// Each new layer other than the final layer adds:
+/// p = length * depth physical bonds
+/// vv = (length - 1) * depth vertical virtual bonds
+/// vh = (depth - 1) * length horizontal virtual bonds
+///
+/// Bonds for the `k`th layer, where k is not the initial or final layer, then run from:
+/// physical bonds to previous layer: (k-1) * (p+vv+vh): (kp) + (k-1) * (vv+vh)
+/// physical bonds to next layer: k * (p+vv+vh)
+///
+/// # Arguments
+///
+/// * `length` - length of the PEPS as usize. panics if `length` is 1.
+/// * `depth` - depth of the PEPS as usize. panics if `depth` is 1.
+/// * `physical_dim` - physical dimension of the PEPs
+/// * `virtual_dim` - virtual bond dimension between lattice sites in the PEPs
+/// * `layers` - number of operator layers in PEPS object, 0 layers returns an inner product of two states.
+///
+/// # Returns
+/// ['Tensor'] object representing a PEPS.
 pub fn peps(
     length: usize,
     depth: usize,
