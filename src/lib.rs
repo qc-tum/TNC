@@ -6,11 +6,11 @@
 #![feature(slice_pattern)]
 #![feature(stmt_expr_attributes)]
 
-pub mod circuits;
 pub mod contractionpath;
 pub mod gates;
 pub mod io;
 pub mod mpi;
+pub mod networks;
 pub mod qasm;
 pub mod random;
 pub mod tensornetwork;

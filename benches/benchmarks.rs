@@ -2,13 +2,13 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Samplin
 use mpi::topology::SimpleCommunicator;
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Duration;
-use tensorcontraction::circuits::connectivity::ConnectivityLayout;
-use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
 use tensorcontraction::mpi::communication::{
     intermediate_reduce_tensor_network, naive_reduce_tensor_network, scatter_tensor_network,
 };
+use tensorcontraction::networks::connectivity::ConnectivityLayout;
+use tensorcontraction::networks::sycamore::sycamore_circuit;
 use tensorcontraction::types::ContractionIndex;
 // use tensorcontraction::tensornetwork::parallel_contraction::parallel_contract_tensor_network;
 use mpi::traits::*;

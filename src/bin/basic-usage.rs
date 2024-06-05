@@ -3,12 +3,12 @@ extern crate tensorcontraction;
 use mpi::topology::SimpleCommunicator;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-use tensorcontraction::circuits::connectivity::ConnectivityLayout;
-use tensorcontraction::circuits::sycamore::sycamore_circuit;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
     intermediate_reduce_tensor_network, scatter_tensor_network,
 };
+use tensorcontraction::networks::connectivity::ConnectivityLayout;
+use tensorcontraction::networks::sycamore::sycamore_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 

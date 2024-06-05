@@ -2,12 +2,12 @@ use mpi::traits::{Communicator, CommunicatorCollectives};
 use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
-    circuits::{connectivity::ConnectivityLayout, sycamore::sycamore_circuit},
     contractionpath::{
         paths::{greedy::Greedy, CostType, OptimizePath},
         random_paths::RandomOptimizePath,
     },
     mpi::communication::{naive_reduce_tensor_network, scatter_tensor_network},
+    networks::{connectivity::ConnectivityLayout, sycamore::sycamore_circuit},
     tensornetwork::{
         contraction::contract_tensor_network,
         partitioning::{find_partitioning, partition_tensor_network},

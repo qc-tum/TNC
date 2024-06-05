@@ -23,8 +23,8 @@ impl Connectivity {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::circuits::connectivity::Connectivity;
-    /// # use tensorcontraction::circuits::connectivity::ConnectivityLayout;
+    /// # use tensorcontraction::networks::connectivity::Connectivity;
+    /// # use tensorcontraction::networks::connectivity::ConnectivityLayout;
     /// let cn = Connectivity::new(ConnectivityLayout::Eagle);
     /// ```
     pub fn new(name: ConnectivityLayout) -> Self {
