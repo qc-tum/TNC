@@ -11,7 +11,7 @@ use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::sycamore_circuit;
 use tensorcontraction::types::ContractionIndex;
 // use tensorcontraction::tensornetwork::parallel_contraction::parallel_contract_tensor_network;
-use mpi::traits::*;
+use mpi::traits::{Communicator, CommunicatorCollectives, Root};
 
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::{
@@ -105,7 +105,7 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
         par_part_group.bench_function(BenchmarkId::from_parameter(k), |b| {
             b.iter(|| {
                 let (mut local_tn, local_path) =
-                    scatter_tensor_network(partitioned_tn.clone(), &path, rank, size, &world);
+                    scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
                 contract_tensor_network(&mut local_tn, &local_path);
 
                 naive_reduce_tensor_network(&mut local_tn.clone(), &path, rank, size, &world);
@@ -115,6 +115,7 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
     par_part_group.finish();
 }
 
+#[must_use]
 pub fn broadcast_path(
     local_path: &[ContractionIndex],
     world: &SimpleCommunicator,
@@ -172,7 +173,7 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
         par_part_group.bench_function(BenchmarkId::from_parameter(k), |b| {
             b.iter(|| {
                 let (mut local_tn, local_path) =
-                    scatter_tensor_network(partitioned_tn.clone(), &path, rank, size, &world);
+                    scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
                 contract_tensor_network(&mut local_tn, &local_path);
 
                 let path = if rank == 0 {

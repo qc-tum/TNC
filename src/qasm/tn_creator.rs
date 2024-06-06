@@ -48,9 +48,10 @@ impl TensorNetworkCreator {
                 unreachable!()
             };
 
-            if min != max {
-                panic!("Broadcast of registers with different sizes is not possible");
-            }
+            assert_eq!(
+                min, max,
+                "Broadcast of registers with different sizes is not possible"
+            );
 
             // All registers have the same size
             // -> They are zipped together
@@ -117,8 +118,7 @@ impl TensorNetworkCreator {
                         for i in 0..*count {
                             let edge = self.new_edge();
                             let mut tensor = Tensor::new(vec![edge]);
-                            tensor
-                                .set_tensor_data(TensorData::Matrix(TensorNetworkCreator::ket0()));
+                            tensor.set_tensor_data(TensorData::Matrix(Self::ket0()));
                             tensors.push(tensor);
                             wires.insert(Argument(name.clone(), Some(i)), edge);
                         }
@@ -137,9 +137,9 @@ impl TensorNetworkCreator {
                             let theta: f64 = theta.try_into().unwrap();
                             let phi: f64 = phi.try_into().unwrap();
                             let lambda: f64 = lambda.try_into().unwrap();
-                            tensor.set_tensor_data(TensorData::Matrix(
-                                TensorNetworkCreator::u_gate(theta, phi, lambda),
-                            ));
+                            tensor.set_tensor_data(TensorData::Matrix(Self::u_gate(
+                                theta, phi, lambda,
+                            )));
                             tensors.push(tensor);
                             *open_edge = out_edge;
                         }
@@ -152,9 +152,7 @@ impl TensorNetworkCreator {
                             let out_edge2 = self.new_edge();
                             let mut tensor =
                                 Tensor::new(vec![out_edge1, out_edge2, *open_edge1, *open_edge2]);
-                            tensor.set_tensor_data(TensorData::Matrix(
-                                TensorNetworkCreator::cx_gate(),
-                            ));
+                            tensor.set_tensor_data(TensorData::Matrix(Self::cx_gate()));
                             tensors.push(tensor);
                             *open_edge1 = out_edge1;
                             *open_edge2 = out_edge2;

@@ -18,10 +18,11 @@ pub enum ContractionIndex {
 }
 
 impl ContractionIndex {
-    pub fn get_data(self) -> Vec<ContractionIndex> {
+    #[must_use]
+    pub fn get_data(self) -> Vec<Self> {
         match self {
-            ContractionIndex::Pair(a, b) => vec![ContractionIndex::Pair(a, b)],
-            ContractionIndex::Path(_a, b) => b,
+            Self::Pair(a, b) => vec![Self::Pair(a, b)],
+            Self::Path(_a, b) => b,
         }
     }
 }

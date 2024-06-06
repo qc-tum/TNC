@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::ops::RangeInclusive;
 use tetra::Tensor as DataTensor;
 
-/// Generates random [`Tensor`] object with `n` dimensions and corresponding `bond_dims` HashMap,
+/// Generates random [`Tensor`] object with `n` dimensions and corresponding `bond_dims`,
 /// bond dimensions are uniformly distributed between 1 and 20.
 ///
 /// # Arguments
@@ -41,7 +41,7 @@ where
     (Tensor::new((0..n).collect()), bond_dims)
 }
 
-/// Generates random [`Tensor`] object with `n` dimensions and corresponding `bond_dims` HashMap,
+/// Generates random [`Tensor`] object with `n` dimensions and corresponding `bond_dims`,
 /// bond dimensions are uniformly distributed between 1 and 20. Uses the thread-local random number generator.
 ///
 /// # Arguments
@@ -56,6 +56,7 @@ where
 /// let (tensor, hs) = random_tensor(legs);
 /// assert_eq!(tensor.legs().len(), legs);
 /// ```
+#[must_use]
 pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
     random_tensor_with_rng(n, &mut rand::thread_rng())
 }
@@ -65,9 +66,9 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
 ///
 /// # Arguments
 ///
-/// * `t` - Tensor object, random DataTensor will have same dimensions
-/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output DataTensor.
-///                 used to fill in entries in DataTensor at random. If no value is provided, defaults to 0.50
+/// * `t` - [`Tensor`] object, random [`DataTensor`] will have same dimensions
+/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output [`DataTensor`].
+///                 used to fill in entries in [`DataTensor`] at random. If no value is provided, defaults to 0.50
 /// * `rng` - The random number generator to use.
 ///
 /// # Examples
@@ -101,7 +102,7 @@ where
     let mut nnz = 0;
     let mut loc = Vec::<u32>::new();
     while (nnz as f32 / size as f32) < sparsity {
-        for r in ranges.iter() {
+        for r in &ranges {
             loc.push(rng.sample(r));
         }
         let val = Complex64::new(rng.gen(), rng.gen());
@@ -118,9 +119,9 @@ where
 ///
 /// # Arguments
 ///
-/// * `t` - Tensor object, random DataTensor will have same dimensions
-/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output DataTensor.
-///                 used to fill in entries in DataTensor at random. If no value is provided, defaults to 0.50
+/// * `t` - [`Tensor`] object, random [`DataTensor`] will have same dimensions
+/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output [`DataTensor`].
+///                 used to fill in entries in [`DataTensor`] at random. If no value is provided, defaults to 0.50
 ///
 /// # Examples
 /// ```
@@ -133,6 +134,7 @@ where
 /// let shape = vec![5,4,3];
 /// let r_tensor = random_sparse_tensor_data(&shape, None);
 /// ```
+#[must_use]
 pub fn random_sparse_tensor_data(shape: &[u64], sparsity: Option<f32>) -> TensorData {
     let shape = shape.iter().map(|e| *e as u32).collect::<Vec<u32>>();
     random_sparse_tensor_data_with_rng(&shape, sparsity, &mut rand::thread_rng())
@@ -204,8 +206,8 @@ where
     }
     let bond_die = Uniform::from(2..4);
     let mut bond_dims = HashMap::new();
-    for i in 0..index + 1 {
-        bond_dims.entry(i).or_insert(bond_die.sample(rng));
+    for i in 0..=index {
+        bond_dims.entry(i).or_insert_with(|| bond_die.sample(rng));
     }
 
     let mut t = create_tensor_network(
@@ -214,7 +216,7 @@ where
         None,
     );
 
-    for tensor in t.tensors.iter_mut() {
+    for tensor in &mut t.tensors {
         tensor.set_tensor_data(random_sparse_tensor_data(&tensor.shape(), None));
     }
     t
@@ -237,6 +239,7 @@ where
 /// let r_tn = random_tensor_network(4, 5);
 ///
 /// ```
+#[must_use]
 pub fn random_tensor_network(n: usize, cycles: usize) -> Tensor {
     random_tensor_network_with_rng(n, cycles, &mut rand::thread_rng())
 }
@@ -251,7 +254,7 @@ where
     R: Rng + ?Sized,
 {
     // tensor.push_tensors(tensors, Some(bond_dims), external_legs);
-    for child_tensor in tensors.iter_mut() {
+    for child_tensor in &mut tensors {
         child_tensor.set_tensor_data(random_sparse_tensor_data_with_rng(
             &child_tensor
                 .shape()

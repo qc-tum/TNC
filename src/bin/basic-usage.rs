@@ -12,10 +12,11 @@ use tensorcontraction::networks::sycamore::sycamore_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 
-use mpi::traits::*;
+use mpi::traits::{Communicator, CommunicatorCollectives, Root};
 use tensorcontraction::tensornetwork::tensor::Tensor;
 use tensorcontraction::types::ContractionIndex;
 
+#[must_use]
 pub fn broadcast_path(
     local_path: &[ContractionIndex],
     world: &SimpleCommunicator,
@@ -46,24 +47,24 @@ fn main() {
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
-    println!("Size: {:?}", size);
+    println!("Size: {size:?}");
     let k = 20;
     // Do we need to know communication beforehand?
     let mut partitioned_tn = Tensor::default();
     let mut path = Vec::new();
     if rank == 0 {
         let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
-        if size > 1 {
+        partitioned_tn = if size > 1 {
             let partitioning = find_partitioning(
                 &r_tn,
                 size,
                 String::from("tests/km1_kKaHyPar_sea20.ini"),
                 true,
             );
-            partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+            partition_tensor_network(&r_tn, &partitioning)
         } else {
-            partitioned_tn = r_tn;
-        }
+            r_tn
+        };
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
         opt.optimize_path();
@@ -72,7 +73,7 @@ fn main() {
     world.barrier();
     let local_tn = if size > 1 {
         let (mut local_tn, local_path) =
-            scatter_tensor_network(partitioned_tn.clone(), &path, rank, size, &world);
+            scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
         contract_tensor_network(&mut local_tn, &local_path);
 
         let path = if rank == 0 {
@@ -89,6 +90,6 @@ fn main() {
     };
 
     if rank == 0 {
-        println!("{:?}", local_tn);
+        println!("{local_tn:?}");
     }
 }

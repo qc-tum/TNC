@@ -16,11 +16,8 @@ pub enum TensorData {
 
 impl TensorData {
     /// Creates a new tensor from raw (flat) data.
-    pub fn new_from_data(
-        dimensions: Vec<u64>,
-        data: Vec<Complex64>,
-        layout: Option<Layout>,
-    ) -> Self {
+    #[must_use]
+    pub fn new_from_data(dimensions: &[u64], data: Vec<Complex64>, layout: Option<Layout>) -> Self {
         Self::Matrix(DataTensor::new_from_flat(
             dimensions
                 .iter()
@@ -32,7 +29,7 @@ impl TensorData {
         ))
     }
 
-    pub fn approx_eq(&self, other: &TensorData, epsilon: f64) -> bool {
+    pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
         match (self, other) {
             (Self::File(l0), Self::File(r0)) => l0 == r0,
             (Self::Gate((l0, angles_l)), Self::Gate((r0, angles_r))) => {

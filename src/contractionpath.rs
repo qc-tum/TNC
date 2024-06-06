@@ -14,12 +14,12 @@ pub mod random_paths;
 ///
 /// # Arguments
 ///
-/// * `path` - Output path as Vec<(usize, usize, usize)> after an [optimize_path] call.
+/// * `path` - Output path as `&[(usize, usize, usize)]` after an `optimize_path` call.
 /// * `n` - Number of initial input tensors.
 /// # Returns
 ///
 /// Identical path using ssa format
-fn ssa_ordering(path: &Vec<(usize, usize, usize)>, mut n: usize) -> Vec<ContractionIndex> {
+fn ssa_ordering(path: &[(usize, usize, usize)], mut n: usize) -> Vec<ContractionIndex> {
     let mut ssa_path = Vec::with_capacity(path.len());
     let mut hs = HashMap::new();
     let path_len = n;
@@ -89,7 +89,7 @@ mod tests {
         assert_eq!(
             new_path,
             path![(0, 3), (1, 2), (6, 4), (5, 7), (9, 8), (11, 10)]
-        )
+        );
     }
 
     #[test]
@@ -100,6 +100,6 @@ mod tests {
         assert_eq!(
             new_path,
             path![(0, 3), (1, 2), (4, 6), (0, 5), (1, 4), (0, 1)]
-        )
+        );
     }
 }

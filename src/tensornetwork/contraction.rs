@@ -2,7 +2,12 @@ use std::{collections::HashMap, ops::RangeBounds};
 
 use tetra::{contract, Tensor as DataTensor};
 
-use crate::{gates::load_gate, io::load_data, tensornetwork::Tensor, types::*};
+use crate::{
+    gates::load_gate,
+    io::load_data,
+    tensornetwork::Tensor,
+    types::{ContractionIndex, EdgeIndex, Vertex},
+};
 
 use super::tensordata::TensorData;
 
@@ -34,7 +39,7 @@ use super::tensordata::TensorData;
 /// contract_tensor_network(&mut r_tn, &opt_path);
 /// ```
 pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionIndex]) {
-    for contract_index in contract_path.iter() {
+    for contract_index in contract_path {
         match contract_index {
             ContractionIndex::Pair(i, j) => {
                 tn.contract_tensors(*i, *j);
@@ -111,7 +116,7 @@ impl TensorContraction for Tensor {
         let mut tensor_symmetric_difference = &tensor_b ^ &tensor_a;
 
         let edges = self.get_mut_edges();
-        for leg in tensor_b_legs.iter() {
+        for leg in tensor_b_legs {
             edges.entry(*leg).and_modify(|e| {
                 e.retain(|v| {
                     if let &Vertex::Closed(tensor_loc) = v {
@@ -534,31 +539,31 @@ mod tests {
         let (d1, d2, d3, _) = setup();
 
         t1.set_tensor_data(TensorData::new_from_data(
-            t1.shape(),
+            &t1.shape(),
             d1,
             Some(Layout::RowMajor),
         ));
 
         t2.set_tensor_data(TensorData::new_from_data(
-            t2.shape(),
+            &t2.shape(),
             d2,
             Some(Layout::RowMajor),
         ));
         t3.set_tensor_data(TensorData::new_from_data(
-            t3.shape(),
+            &t3.shape(),
             d3,
             Some(Layout::RowMajor),
         ));
 
         let (ref12, ref23) = intermediate_data();
         t12.set_tensor_data(TensorData::new_from_data(
-            t12.shape(),
+            &t12.shape(),
             ref12,
             Some(Layout::RowMajor),
         ));
 
         t23.set_tensor_data(TensorData::new_from_data(
-            t23.shape(),
+            &t23.shape(),
             ref23,
             Some(Layout::RowMajor),
         ));
@@ -614,23 +619,23 @@ mod tests {
         let (d1, d2, d3, dout) = setup();
 
         t1.set_tensor_data(TensorData::new_from_data(
-            t1.shape(),
+            &t1.shape(),
             d1,
             Some(Layout::RowMajor),
         ));
 
         t2.set_tensor_data(TensorData::new_from_data(
-            t2.shape(),
+            &t2.shape(),
             d2,
             Some(Layout::RowMajor),
         ));
         t3.set_tensor_data(TensorData::new_from_data(
-            t3.shape(),
+            &t3.shape(),
             d3,
             Some(Layout::RowMajor),
         ));
         tout.set_tensor_data(TensorData::new_from_data(
-            tout.shape(),
+            &tout.shape(),
             dout,
             Some(Layout::RowMajor),
         ));

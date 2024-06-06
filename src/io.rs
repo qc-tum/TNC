@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::Path};
 
 use hdf5::{File, Result};
 use num_complex::Complex64;
@@ -8,18 +8,24 @@ use tetra::Tensor as DataTensor;
 use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
 
 /// Loads a tensor network from a HDF5 file.
-pub fn load_tensor(filename: &PathBuf) -> Result<Tensor> {
+pub fn load_tensor<P>(filename: P) -> Result<Tensor>
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
-    read_tensor(file)
+    read_tensor(&file)
 }
 
 /// Loads a single tensor from a HDF5 file.
-pub fn load_data(filename: &PathBuf) -> Result<DataTensor> {
+pub fn load_data<P>(filename: P) -> Result<DataTensor>
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
-    read_data(file)
+    read_data(&file)
 }
 
-fn read_tensor(file: File) -> Result<Tensor> {
+fn read_tensor(file: &File) -> Result<Tensor> {
     let gr = file.group("/tensors")?;
     let tensor_names = gr.member_names()?;
 
@@ -61,7 +67,7 @@ fn read_tensor(file: File) -> Result<Tensor> {
     Ok(new_tensor_network)
 }
 
-fn read_data(file: File) -> Result<DataTensor> {
+fn read_data(file: &File) -> Result<DataTensor> {
     let gr = file.group("/tensors")?;
     let tensor_name = gr.member_names()?;
 
@@ -158,7 +164,7 @@ mod tests {
     #[test]
     fn test_load_data() {
         let file = create_hdf5_data().unwrap();
-        let tensor_data = read_data(file).unwrap();
+        let tensor_data = read_data(&file).unwrap();
 
         let ref_data = array![
             Complex64::new(1.0, 0.0),
@@ -175,12 +181,12 @@ mod tests {
     #[test]
     fn test_load_tensor() {
         let file = create_hdf5_tensor().unwrap();
-        let tensor = read_tensor(file).unwrap();
+        let tensor = read_tensor(&file).unwrap();
 
         let mut ref_tn = Tensor::default();
         let mut ref_tensor = Tensor::new(vec![0, 1]);
         ref_tensor.set_tensor_data(TensorData::new_from_data(
-            vec![2, 2],
+            &[2, 2],
             vec![
                 Complex64::new(1.0, 0.0),
                 Complex64::new(0.0, 2.0),

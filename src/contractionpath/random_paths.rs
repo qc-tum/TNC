@@ -144,7 +144,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
             }
         }
         // Vector of output leg ids
-        let output_dims = Tensor::new(self.tn.external_edges().clone());
+        let output_dims = Tensor::new(self.tn.external_edges());
         // Dictionary that maps leg id to bond dimension
         let mut best_path = vec![];
         let mut best_cost = std::u64::MAX;

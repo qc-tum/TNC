@@ -124,7 +124,7 @@ fn test_partitioned_contraction_need_mpi() {
     }
     world.barrier();
     let (mut local_tn, local_path) =
-        scatter_tensor_network(partitioned_tn, &path, rank, size, &world);
+        scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
     contract_tensor_network(&mut local_tn, &local_path);
 
     naive_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
