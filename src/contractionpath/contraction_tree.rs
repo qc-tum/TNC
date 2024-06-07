@@ -1003,10 +1003,6 @@ pub fn balance_path(
         contraction_tree.remove_subtree(larger_subtree_id);
     }
 
-        parent_id = (*(*larger_subtree).parent).id;
-    }
-    tree.remove_subtree_recurse(larger_subtree);
-    tree.add_subtree(tn, &updated_path, parent_id, Some(index));
     contraction_tree.add_subtree(
         tn,
         &updated_smaller_path,
