@@ -802,61 +802,68 @@ fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
     ((t1 ^ t2).size() as i64) - (t1.size() as i64) - (t2.size() as i64)
 }
 
-pub fn rebalance_path(
+pub fn balance_path(
     tn: &Tensor,
-    path: &[ContractionIndex],
-    _orig_greedy: bool,
-    rebal_random: bool,
-    depth: usize,
+    contraction_tree: &mut ContractionTree,
+    random_balance: bool,
+    rebalance_depth: usize,
 ) -> Vec<ContractionIndex> {
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
     if tn.tensors().len() < 3 {
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
-        // return path.to_vec();
+    }
+
+    fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
+        -((t1 ^ t2).size() as i64) + (t1.size() as i64) + (t2.size() as i64)
     }
 
     // 1. Create binary contraction tree. It details how tensors are contracted via the given path.
-    let mut tree = ContractionTree::from_contraction_path(tn, path);
-    // let json = tree.to_json().unwrap();
-    // write_to_file(&json, "contr-tree-original.json");
-
+    // let mut tree = ContractionTree::from_contraction_path(tn, contraction_tree);
     let mut children = vec![];
-    ContractionTree::nodes_at_depth(tree.root, depth, &mut children);
+    contraction_tree.nodes_at_depth(contraction_tree.root_id(), rebalance_depth, &mut children);
 
     // 2. Select the bigger subtree. Based on maximum contraction op cost.
     // let (l_op_cost, _r_op_cost) = tree_contraction_cost(&tree, tree.root.unwrap(), tn);
-    let (smaller_subtree, larger_subtree) = find_min_max_subtree(children, &tree, tn);
+    let (smaller_subtree_id, min_costs, larger_subtree_id, max_costs) =
+        find_min_max_subtree(children, &contraction_tree, tn);
+
+    let smaller_subtree_parent_id = contraction_tree
+        .node(smaller_subtree_id)
+        .borrow()
+        .parent_id()
+        .unwrap();
+    let larger_subtree_parent_id = contraction_tree
+        .node(larger_subtree_id)
+        .borrow()
+        .parent_id()
+        .unwrap();
 
     // 3. Find the tensor to be rebalanced to the bigger subtree.
     // Get smaller subtree leaf nodes
     let mut smaller_subtree_leaf_nodes = Vec::new();
-    ContractionTree::leaf_ids_recurse(smaller_subtree, &mut smaller_subtree_leaf_nodes);
+    contraction_tree.leaf_ids(smaller_subtree_id, &mut smaller_subtree_leaf_nodes);
 
     // Get bigger subtree leaf nodes
     let mut larger_subtree_leaf_nodes = Vec::new();
-    ContractionTree::leaf_ids_recurse(larger_subtree, &mut larger_subtree_leaf_nodes);
+    contraction_tree.leaf_ids(larger_subtree_id, &mut larger_subtree_leaf_nodes);
 
     // /* 3.3 Select the leaf node in the smaller subtree that causes the biggest memory reduction in the bigger subtree
-    let larger_subtree_id;
-    let smaller_subtree_id;
-    unsafe {
-        larger_subtree_id = (*larger_subtree).id;
-        smaller_subtree_id = (*smaller_subtree).id;
-    }
-    let rebal_node = if rebal_random {
+    let rebalanced_node = if random_balance {
         // Randomly select one of the top n nodes to rebal.
-
         let top_n = 5;
-        let rebal_nodes_weight = find_potential_nodes(
-            &tree,
+        let rebalanced_node_weights = find_potential_nodes(
+            &contraction_tree,
             &larger_subtree_leaf_nodes,
             smaller_subtree_id,
             tn,
             greedy_cost_fn,
         );
 
-        let mut keys = rebal_nodes_weight.keys().cloned().collect::<Vec<usize>>();
-        keys.sort_by_key(|&key| rebal_nodes_weight[&key]);
+        let mut keys = rebalanced_node_weights
+            .keys()
+            .cloned()
+            .collect::<Vec<usize>>();
+        keys.sort_by_key(|&key| rebalanced_node_weights[&key]);
         if keys.len() < top_n {
             panic!("Error rebalance_path: Not enough nodes in the bigger subtree to select the top {} from!", top_n);
             // tree.max_match_by(larger_subtree_id, smaller_subtree_id, tn, greedy_cost_fn)
@@ -866,122 +873,165 @@ pub fn rebalance_path(
             let top_n_nodes = keys.iter().take(top_n).cloned().collect::<Vec<usize>>();
             let top_n_weights: Vec<i64> = top_n_nodes
                 .iter()
-                .map(|idx| rebal_nodes_weight[idx])
+                .map(|idx| rebalanced_node_weights[idx])
                 .collect();
 
             // Subtract max val after inverting for numerical stability.
             let l2_norm: f64 = top_n_nodes
                 .iter()
-                .map(|idx| rebal_nodes_weight[idx] as f64)
+                .map(|idx| rebalanced_node_weights[idx] as f64)
                 .map(|weight| weight * weight)
                 .sum::<f64>()
                 .sqrt();
             let top_n_exp: Vec<f64> = top_n_nodes
                 .iter()
-                .map(|idx| ((-rebal_nodes_weight[idx] as f64) / l2_norm).exp())
+                .map(|idx| ((-rebalanced_node_weights[idx] as f64) / l2_norm).exp())
                 .collect();
 
             let sum_exp: f64 = top_n_exp.iter().sum();
             let top_n_prob: Vec<f64> = top_n_exp.iter().map(|&exp| (exp / sum_exp)).collect();
 
-            // Debug
-            // println!("top_n_nodes: {:?}", top_n_nodes);
-            // println!("top_n_weights: {:?}", top_n_weights);
-            // println!("top_n_prob: {:?}", top_n_prob);
-
             // Sample index based on its probability
             let dist = WeightedIndex::new(top_n_prob).unwrap();
             let mut rng = thread_rng();
             let rand_idx = dist.sample(&mut rng);
-            // Debug
-            // println!("rand_idx: {:?}", rand_idx);
+
             top_n_nodes[rand_idx]
         }
     } else {
-        tree.max_match_by(larger_subtree_id, smaller_subtree_id, tn, greedy_cost_fn)
-            .unwrap()
+        fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
+            -((t1 ^ t2).size() as i64) + (t1.size() as i64) + (t2.size() as i64)
+        }
+        let mut max_cost = i64::MIN;
+        let mut best_node = usize::MAX;
+        for larger_node in larger_subtree_leaf_nodes.iter() {
+            let (_, cost) = contraction_tree
+                .max_match_by(*larger_node, smaller_subtree_id, tn, greedy_cost_fn)
+                .unwrap();
+            if max_cost < cost {
+                best_node = *larger_node;
+                max_cost = cost;
+            }
+        }
+        best_node
     };
-
+    assert!(!smaller_subtree_leaf_nodes.contains(&rebalanced_node));
+    assert!(larger_subtree_leaf_nodes.contains(&rebalanced_node));
     // 4. Remove selected tensor from bigger subtree. Add it to the smaller subtree
-    smaller_subtree_leaf_nodes.push(rebal_node);
-    larger_subtree_leaf_nodes.retain(|&leaf| leaf != rebal_node);
+    smaller_subtree_leaf_nodes.push(rebalanced_node);
+    larger_subtree_leaf_nodes.retain(|&leaf| leaf != rebalanced_node);
 
     // 5. Rerun Greedy algorithm on smaller subtree
-
     // Delete edge between root and smaller subtree. Will use greedy path instead
-    let (index, smaller_tensors): (Vec<usize>, Vec<Tensor>) = smaller_subtree_leaf_nodes
-        .iter()
-        .map(|&e| (e, tn.tensor(tree.node(e).tensor_index.unwrap()).clone()))
-        .unzip();
 
+    let (smaller_indices, smaller_tensors): (Vec<usize>, Vec<Tensor>) = smaller_subtree_leaf_nodes
+        .iter()
+        .map(|&e| {
+            (
+                e,
+                tn.tensor(contraction_tree.node(e).tensor_index.unwrap())
+                    .clone(),
+            )
+        })
+        .unzip();
     let tn_smaller_subtree = create_tensor_network(smaller_tensors, &tn.bond_dims(), None);
 
     let mut opt = Greedy::new(&tn_smaller_subtree, CostType::Flops);
     opt.optimize_path();
     let path_smaller_subtree = opt.get_best_replace_path();
-    let updated_path = path_smaller_subtree
+
+    let updated_smaller_path = path_smaller_subtree
         .iter()
         .map(|e| match e {
-            ContractionIndex::Pair(v1, v2) => pair!(index[*v1], index[*v2]),
+            ContractionIndex::Pair(v1, v2) => pair!(smaller_indices[*v1], smaller_indices[*v2]),
             _ => panic!("Should only produce Pairs!"),
         })
         .collect::<Vec<ContractionIndex>>();
 
-    // Remove smaller subtree from contraction_path
-    let parent_id;
-    unsafe {
-        parent_id = (*(*smaller_subtree).parent).id;
-    }
-    tree.remove_subtree_recurse(smaller_subtree);
-    tree.add_subtree(tn, &updated_path, parent_id, Some(index));
-
-    // 6. Rerun Greedy algorithm on bigger subtree
-    // /*
-    let (index, larger_tensors): (Vec<usize>, Vec<Tensor>) = larger_subtree_leaf_nodes
+    // 6. Rerun Greedy algorithm on larger subtree
+    // Delete edge between root and larger subtree. Will use greedy path instead
+    let (larger_indices, larger_tensors): (Vec<usize>, Vec<Tensor>) = larger_subtree_leaf_nodes
         .iter()
-        .map(|&e| (e, tn.tensor(tree.node(e).tensor_index.unwrap()).clone()))
+        .map(|&e| {
+            (
+                e,
+                tn.tensor(contraction_tree.node(e).tensor_index.unwrap())
+                    .clone(),
+            )
+        })
         .unzip();
-
     let tn_larger_subtree = create_tensor_network(larger_tensors, &tn.bond_dims(), None);
-
     let mut opt = Greedy::new(&tn_larger_subtree, CostType::Flops);
     opt.optimize_path();
     let path_larger_subtree = opt.get_best_replace_path();
-    let updated_path = path_larger_subtree
+
+    let updated_larger_path = path_larger_subtree
         .iter()
         .map(|e| match e {
-            ContractionIndex::Pair(v1, v2) => pair!(index[*v1], index[*v2]),
+            ContractionIndex::Pair(v1, v2) => pair!(larger_indices[*v1], larger_indices[*v2]),
             _ => panic!("Should only produce Pairs!"),
         })
         .collect::<Vec<ContractionIndex>>();
 
-    // Remove smaller subtree from contraction_path
-    let parent_id;
     unsafe {
+        contraction_tree.remove_subtree(smaller_subtree_id);
+        contraction_tree.remove_subtree(larger_subtree_id);
+    }
+
         parent_id = (*(*larger_subtree).parent).id;
     }
     tree.remove_subtree_recurse(larger_subtree);
     tree.add_subtree(tn, &updated_path, parent_id, Some(index));
+    contraction_tree.add_subtree(
+        tn,
+        &updated_smaller_path,
+        smaller_subtree_parent_id,
+        Some(smaller_indices),
+    );
+
+    contraction_tree.add_subtree(
+        tn,
+        &updated_larger_path,
+        larger_subtree_parent_id,
+        Some(larger_indices),
+    );
 
     // 7. Generate new path based on greedy paths
     let mut rebal_path = Vec::new();
-    ContractionTree::to_contraction_path_recurse(tree.root, &mut rebal_path);
+    contraction_tree.to_contraction_path(contraction_tree.root_id(), &mut rebal_path, true);
     rebal_path
 }
 
-fn find_min_max_subtree(
-    children: Vec<*mut Node>,
+pub fn find_min_max_subtree(
+    children: Vec<usize>,
     tree: &ContractionTree,
     tn: &Tensor,
-) -> (*mut Node, *mut Node) {
-    let mut min_cost = std::u64::MAX;
+) -> (usize, u64, usize, u64) {
+    let mut min_cost = u64::MAX;
     let mut max_cost = 0;
 
-    let mut smaller_subtree = children[0];
-    let mut bigger_subtree = children[0];
+    let mut smaller_subtree_id = children[0];
+    let mut larger_subtree_id = children[1];
 
-    for (child_id, (op_cost, _mem_cost)) in children
+    children
         .iter()
+        .map(|&a| (a, tree_contraction_cost(tree, a, tn)))
+        .for_each(|(child_id, (op_cost, _mem_cost))| {
+            if op_cost > max_cost {
+                max_cost = op_cost;
+                larger_subtree_id = child_id;
+            }
+            if op_cost < min_cost {
+                min_cost = op_cost;
+                smaller_subtree_id = child_id;
+            }
+        });
+    if smaller_subtree_id == larger_subtree_id {
+        let mut options = (0..children.len()).collect::<Vec<usize>>();
+        options.shuffle(&mut thread_rng());
+        smaller_subtree_id = children[options[0]];
+        larger_subtree_id = children[options[1]];
+    }
         .map(|&a| unsafe { (a, tree_contraction_cost(tree, (*a).id, tn)) })
     {
         if op_cost > max_cost {
@@ -994,6 +1044,9 @@ fn find_min_max_subtree(
         }
     }
     (smaller_subtree, bigger_subtree)
+    (smaller_subtree_id, min_cost, larger_subtree_id, max_cost)
+}
+
 }
 
 #[cfg(test)]
