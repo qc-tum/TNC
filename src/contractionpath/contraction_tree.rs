@@ -99,9 +99,11 @@ impl Node {
     fn add_child(&mut self, child: *mut Node) {
         if self.left_child.is_null() {
             self.left_child = child;
+            return;
         }
         if self.right_child.is_null() {
             self.right_child = child;
+            return;
         }
 
         panic!("Unable to add child, Node already has two children");
