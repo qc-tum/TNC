@@ -677,7 +677,7 @@ impl ContractionTree {
 /// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
 ///
 /// # Returns
-/// final tensor after fully contracted.
+/// Empty [`Tensor`] object with legs (dimensions) of data after fully contracted.
 fn populate_subtree_tensor_map(
     contraction_tree: &ContractionTree,
     node_id: usize,
