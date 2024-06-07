@@ -417,38 +417,6 @@ impl ContractionTree {
         self.remove_subtree_recurse(self.node_ptr(node_id));
     }
 
-    pub fn remove_leaf_node(&mut self, leaf_id: usize) {
-        assert!(self.node(leaf_id).is_leaf());
-        let leaf = self.node_ptr(leaf_id);
-        if leaf.is_null() {
-            return;
-        }
-        unsafe {
-            let leaf_parent = (*leaf).parent;
-            let leaf_parent_id;
-            if !leaf_parent.is_null() {
-                leaf_parent_id = (*leaf_parent).id;
-            } else {
-                return;
-            };
-
-            let leaf_parent_parent = (*leaf_parent).parent;
-            if leaf_parent_parent.is_null() {
-                (*leaf_parent).remove_child(leaf);
-            } else {
-                let replacement_node = (*leaf_parent).get_other_child(leaf);
-                (*leaf_parent_parent).replace_child(leaf_parent, replacement_node);
-                (*replacement_node).set_parent(leaf_parent_parent);
-                (*leaf_parent).deprecate();
-                self.remove_node(leaf_parent_id);
-            }
-            (*leaf).deprecate();
-        }
-        unsafe {
-            self.remove_node(leaf_id);
-        }
-    }
-
     fn replace_node(&mut self, node_index: usize, node: Node) {
         self.nodes.insert(node_index, Rc::new(RefCell::new(node)));
     }
