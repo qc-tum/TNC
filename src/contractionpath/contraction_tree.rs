@@ -279,8 +279,8 @@ impl ContractionTree {
             0
         } else {
             1 + max(
-                ContractionTree::tree_depth_recurse(left_child),
-                ContractionTree::tree_depth_recurse(right_child),
+                Self::tree_depth_recurse(left_child),
+                Self::tree_depth_recurse(right_child),
             )
         }
     }
@@ -366,8 +366,8 @@ impl ContractionTree {
             }
         } else {
             unsafe {
-                ContractionTree::nodes_at_depth_recurse((*node).left_child, depth - 1, children);
-                ContractionTree::nodes_at_depth_recurse((*node).right_child, depth - 1, children);
+                Self::nodes_at_depth_recurse((*node).left_child, depth - 1, children);
+                Self::nodes_at_depth_recurse((*node).right_child, depth - 1, children);
             }
         }
     }
@@ -499,8 +499,8 @@ impl ContractionTree {
         let (left_child, right_child) = unsafe { ((*node).left_child, (*node).right_child) };
         let (left_child_id, right_child_id) = unsafe { ((*left_child).id, (*right_child).id) };
 
-        ContractionTree::tree_weights_recurse(left_child, tn, weights, scratch, cost_function);
-        ContractionTree::tree_weights_recurse(right_child, tn, weights, scratch, cost_function);
+        Self::tree_weights_recurse(left_child, tn, weights, scratch, cost_function);
+        Self::tree_weights_recurse(right_child, tn, weights, scratch, cost_function);
         let t1 = scratch.get(&left_child_id).unwrap();
         let t2 = scratch.get(&right_child_id).unwrap();
 
