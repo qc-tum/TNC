@@ -465,9 +465,12 @@ impl ContractionTree {
                 }
             }
         }
+
         let new_parent = self.node_ptr(parent_id);
+        let new_child = self.node_ptr(index);
         unsafe {
             (*new_parent).add_child(self.node_ptr(index));
+            (*new_child).set_parent(new_parent);
         }
     }
 
