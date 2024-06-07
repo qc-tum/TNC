@@ -168,7 +168,7 @@ impl Node {
 
 /// Struct representing the full contraction path of a given Tensor object
 #[derive(Debug)]
-struct ContractionTree {
+pub struct ContractionTree {
     nodes: HashMap<usize, NodeRef>,
     root: *mut Node,
 }
@@ -203,6 +203,10 @@ impl ContractionTree {
 
     pub fn node_ptr(&self, tensor_id: usize) -> *mut Node {
         self.nodes.get(&tensor_id).unwrap().as_ptr()
+    }
+
+    pub fn root_id(&self) -> usize {
+        unsafe { (*self.root).id }
     }
 
     /// Removes node from HashMap. Warning! As HashMap stores Node data, removing a Node here can result in invalid references.
