@@ -1,19 +1,23 @@
-use rand::distributions::{Distribution, WeightedIndex};
-use rand::thread_rng;
-
 use crate::contractionpath::paths::{
     greedy::Greedy,
     {CostType, OptimizePath},
 };
 use crate::contractionpath::ssa_replace_ordering;
-use crate::pair;
 use crate::tensornetwork::{create_tensor_network, tensor::Tensor};
 use crate::types::ContractionIndex;
+use crate::{pair, path};
+use itertools::Itertools;
+use rand::distributions::{Distribution, WeightedIndex};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+use std::borrow::Borrow;
 use std::cell::{Ref, RefCell, RefMut};
-use std::cmp::{self, max, min_by_key};
+use std::cmp::{self, max, min, min_by_key};
 use std::collections::HashMap;
-use std::ptr;
+use std::io::Write;
+use std::process::{Command, Stdio};
 use std::rc::Rc;
+use std::{fs, ptr};
 
 use super::contraction_cost::contract_path_cost;
 use super::paths::validate_path;
