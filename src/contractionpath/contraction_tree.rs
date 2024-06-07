@@ -317,23 +317,17 @@ impl ContractionTree {
     /// Returns the number of leaf nodes in subtree of [`ContractionTree`] object starting from a given `node_index`. Returns 1 if `node_index` points to a leaf node.
     ///
     /// # Arguments
+    ///
     /// * `node_index` - `id` attribute of starting [`Node`]
     pub fn leaf_count(&self, node_index: usize) -> usize {
         ContractionTree::leaf_count_recurse(self.node_ptr(node_index))
     }
 
     fn leaf_ids_recurse(node: *mut Node, leaf_indices: &mut Vec<usize>) {
-        let id;
-        let left_child;
-        let right_child;
-        let is_leaf;
+        let is_leaf = unsafe { (*node).is_leaf() };
+        let id = unsafe { (*node).id };
+        let (left_child, right_child) = unsafe { ((*node).left_child, (*node).right_child) };
 
-        unsafe {
-            id = (*node).id;
-            left_child = (*node).left_child;
-            right_child = (*node).right_child;
-            is_leaf = (*node).is_leaf();
-        }
         if is_leaf {
             leaf_indices.push(id);
         } else {
