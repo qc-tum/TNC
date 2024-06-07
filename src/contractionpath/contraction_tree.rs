@@ -288,6 +288,7 @@ impl ContractionTree {
     /// Returns the depth of subtree in [`ContractionTree`] object starting from a given `node_index`. The depth of a [`Node`] object that is a leaf node is 0.
     ///
     /// # Arguments
+    ///
     /// * `node_index` - `id` attribute of starting [`Node`]
     pub fn tree_depth(&self, node_index: usize) -> usize {
         ContractionTree::tree_depth_recurse(self.node_ptr(node_index))
