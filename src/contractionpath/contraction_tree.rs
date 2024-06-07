@@ -267,17 +267,20 @@ impl ContractionTree {
         }
     }
 
+    /// Returns the depth of subtree in [`ContractionTree`] object starting from a given `node_index`. The depth of a [`Node`] object that is a leaf node is 0.
+    /// # Safety
+    ///
+    /// Is always safe if every parent has two children in a contraction tree. Pointer is never written to and `is_leaf` should prevent any dereferencing of null ptr.
     fn tree_depth_recurse(node: *mut Node) -> usize {
-        let is_leaf;
-        unsafe {
-            is_leaf = (*node).is_leaf();
-        }
+        let is_leaf = unsafe { (*node).is_leaf() };
+        let (left_child, right_child) = unsafe { ((*node).left_child, (*node).right_child) };
+
         if is_leaf {
             0
         } else {
             1 + max(
-                unsafe { ContractionTree::tree_depth_recurse((*node).left_child) },
-                unsafe { ContractionTree::tree_depth_recurse((*node).right_child) },
+                ContractionTree::tree_depth_recurse(left_child),
+                ContractionTree::tree_depth_recurse(right_child),
             )
         }
     }
