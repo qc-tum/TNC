@@ -1636,25 +1636,27 @@ mod tests {
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
 
         let mut leaves = vec![];
-        ContractionTree::nodes_at_depth(tree.node_ptr(4), 0, &mut leaves);
+
+        tree.nodes_at_depth(tree.root_id(), 0, &mut leaves);
 
         unsafe {
-            assert_eq!((*leaves[0]).id, 4);
+            assert_eq!(leaves[0], 4);
         }
 
         leaves = vec![];
-        ContractionTree::nodes_at_depth(tree.node_ptr(4), 1, &mut leaves);
+        tree.nodes_at_depth(tree.root_id(), 1, &mut leaves);
 
         unsafe {
-            assert_eq!((*leaves[0]).id, 3);
-            assert_eq!((*leaves[1]).id, 2);
+            assert_eq!(leaves[0], 3);
+            assert_eq!(leaves[1], 2);
         }
 
         leaves = vec![];
-        ContractionTree::nodes_at_depth(tree.node_ptr(4), 2, &mut leaves);
+        tree.nodes_at_depth(tree.root_id(), 2, &mut leaves);
+
         unsafe {
-            assert_eq!((*leaves[0]).id, 0);
-            assert_eq!((*leaves[1]).id, 1);
+            assert_eq!(leaves[0], 0);
+            assert_eq!(leaves[1], 1);
         }
     }
 
@@ -1664,35 +1666,27 @@ mod tests {
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
 
         let mut leaves = vec![];
-        ContractionTree::nodes_at_depth(tree.node_ptr(10), 0, &mut leaves);
-        unsafe {
-            assert_eq!((*leaves[0]).id, 10);
-        }
+        tree.nodes_at_depth(tree.root_id(), 0, &mut leaves);
+        assert_eq!(leaves[0], 10);
 
         leaves = vec![];
-        ContractionTree::nodes_at_depth(tree.node_ptr(10), 1, &mut leaves);
-        unsafe {
-            assert_eq!((*leaves[0]).id, 7);
-            assert_eq!((*leaves[1]).id, 9);
-        }
+        tree.nodes_at_depth(tree.root_id(), 1, &mut leaves);
+        assert_eq!(leaves[0], 7);
+        assert_eq!(leaves[1], 9);
 
         leaves = vec![];
-        ContractionTree::nodes_at_depth(tree.node_ptr(10), 2, &mut leaves);
-        unsafe {
-            assert_eq!((*leaves[0]).id, 0);
-            assert_eq!((*leaves[1]).id, 6);
-            assert_eq!((*leaves[2]).id, 2);
-            assert_eq!((*leaves[3]).id, 8);
-        }
+        tree.nodes_at_depth(tree.root_id(), 2, &mut leaves);
+        assert_eq!(leaves[0], 0);
+        assert_eq!(leaves[1], 6);
+        assert_eq!(leaves[2], 2);
+        assert_eq!(leaves[3], 8);
 
         leaves = vec![];
-        ContractionTree::nodes_at_depth(tree.node_ptr(10), 3, &mut leaves);
-        unsafe {
-            assert_eq!((*leaves[0]).id, 1);
-            assert_eq!((*leaves[1]).id, 5);
-            assert_eq!((*leaves[2]).id, 3);
-            assert_eq!((*leaves[3]).id, 4);
-        }
+        tree.nodes_at_depth(tree.root_id(), 3, &mut leaves);
+        assert_eq!(leaves[0], 1);
+        assert_eq!(leaves[1], 5);
+        assert_eq!(leaves[2], 3);
+        assert_eq!(leaves[3], 4);
     }
 
     #[test]
@@ -1743,7 +1737,7 @@ mod tests {
         fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
             (t1.size() as i64) + (t2.size() as i64) - ((t1 ^ t2).size() as i64)
         }
-        let max_match = tree.max_match_by(2, 7, &tensor, greedy_cost_fn).unwrap();
+        let (max_match, max_cost) = tree.max_match_by(2, 7, &tensor, greedy_cost_fn).unwrap();
 
         assert_eq!(max_match, 7);
 
@@ -1751,7 +1745,7 @@ mod tests {
             (t1 ^ t2).size() as i64
         }
 
-        let max_match = tree
+        let (max_match, max_cost) = tree
             .max_match_by(2, 7, &tensor, max_memory_cost_fn)
             .unwrap();
         assert_eq!(max_match, 1);
@@ -1773,7 +1767,7 @@ mod tests {
         assert_eq!(max_match, 1);
 
         fn min_greedy_cost_fn(t1: &Tensor) -> u64 {
-            std::u64::MAX - t1.size()
+            u64::MAX - t1.size()
         }
 
         let max_match = tree
@@ -1787,7 +1781,7 @@ mod tests {
         let (tensor, ref_path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut path = Vec::new();
-        tree.to_contraction_path(4, &mut path);
+        tree.to_contraction_path(4, &mut path, false);
         let path = ssa_replace_ordering(&path, 3);
         assert_eq!(path, ref_path);
     }
@@ -1797,7 +1791,7 @@ mod tests {
         let (tensor, ref_path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut path = Vec::new();
-        tree.to_contraction_path(10, &mut path);
+        tree.to_contraction_path(10, &mut path, false);
         let path = ssa_replace_ordering(&path, 6);
         assert_eq!(path, ref_path);
     }
@@ -1807,7 +1801,7 @@ mod tests {
         let (tensor, ref_path) = setup_unbalanced();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut path = Vec::new();
-        tree.to_contraction_path(10, &mut path);
+        tree.to_contraction_path(10, &mut path, false);
         let path = ssa_replace_ordering(&path, 6);
         assert_eq!(path, ref_path);
     }
