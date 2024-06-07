@@ -763,43 +763,68 @@ fn find_potential_nodes(
     }))
 }
 
-// fn find_matching_nodes_in_subtrees(
-//     &mut self,
-//     bigger_subtree_leaf_nodes: &Vec<usize>,
-//     smaller_subtree_root: usize,
-//     tn: &Tensor,
-// ) -> (usize, usize) {
-//     // Get a map that maps nodes to their tensors.
-//     let mut node_tensor_map: HashMap<usize, Tensor> = HashMap::new();
-//     self.get_subtree_tensors(smaller_subtree_root, &mut node_tensor_map, &tn);
-//     let mut cur_tensor_mem: i64 = 0;
-//     let mut max_tensor_mem: i64 = std::i64::MAX;
-//     let mut best_leaf: Option<usize> = None;
-//     let mut best_smaller_subtree_node: Option<usize> = None;
-//     for &leaf_idx in bigger_subtree_leaf_nodes {
-//         let t1: Tensor = tn.tensors()[self.nodes[leaf_idx].tensor_idx.unwrap()].clone();
-//         for (&cur_node_idx, t) in &node_tensor_map {
-//             let t2: Tensor = t.clone();
-//             let t12 = &t1 ^ &t2;
-//             // println!("t12.size(): {}", t12.size() as i64);
-//             // println!("t1.size(): {}", t1.size() as i64);
-//             // println!("t2.size(): {}\n", t2.size() as i64);
-//             cur_tensor_mem = (t12.size() as i64) - (t1.size() as i64) - (t2.size() as i64);
-//             // cur_tensor_mem = t12.size() as i64;
-//             // if cur_tensor_mem >= max_tensor_mem {
-//             if cur_tensor_mem <= max_tensor_mem {
-//                 max_tensor_mem = cur_tensor_mem;
-//                 best_leaf = Some(leaf_idx);
-//                 best_smaller_subtree_node = Some(cur_node_idx);
-//             }
-//         }
-//     }
-//     // println!("Tensor memory reduction: {:?}", max_tensor_mem);
-//     (best_leaf.unwrap(), best_smaller_subtree_node.unwrap())
-// }
+pub fn balance_path_iter(
+    tn: &Tensor,
+    path: &[ContractionIndex],
+    random_balance: bool,
+    rebalance_depth: usize,
+    iterations: usize,
+    output_file: String,
+    cost_function: fn(&Tensor, &Tensor) -> u64,
+) -> (usize, Vec<ContractionIndex>) {
+    let mut contraction_tree = ContractionTree::from_contraction_path(tn, path);
+    let mut path = path.to_owned();
 
-fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
-    ((t1 ^ t2).size() as i64) - (t1.size() as i64) - (t2.size() as i64)
+    let mut children = Vec::new();
+    contraction_tree.nodes_at_depth(contraction_tree.root_id(), 1, &mut children);
+    let path_len = path.len();
+    let (min_tree, _, max_tree, max_cost) = find_min_max_subtree(children, &contraction_tree, tn);
+    let t1 = contraction_tree.tensor(max_tree, tn);
+    let t2 = contraction_tree.tensor(min_tree, tn);
+    let var_name = path!(0, 1);
+    let (final_op_cost, _) = contract_path_cost(&[t1, t2], &[var_name]);
+    let mut max_costs = vec![max_cost + final_op_cost];
+
+    to_dendogram(
+        &contraction_tree,
+        tn,
+        cost_function,
+        output_file.clone() + "_0",
+    );
+    let mut best_contraction = 0;
+    let mut best_contraction_path = path.clone();
+    let mut best_cost = max_cost + final_op_cost;
+
+    for i in 1..(iterations + 1) {
+        path = balance_path(tn, &mut contraction_tree, random_balance, rebalance_depth);
+        assert_eq!(path_len, path.len(), "Tensors lost!");
+        validate_path(&path);
+        let mut children = Vec::new();
+        contraction_tree.nodes_at_depth(contraction_tree.root_id(), 1, &mut children);
+        let (min_tree, _, max_tree, max_cost) =
+            find_min_max_subtree(children, &contraction_tree, tn);
+
+        let t1 = contraction_tree.tensor(max_tree, tn);
+        let t2 = contraction_tree.tensor(min_tree, tn);
+        let (final_op_cost, _) = contract_path_cost(&[t1, t2], &[path!(0, 1)]);
+        let new_max_cost = max_cost + final_op_cost;
+        max_costs.push(new_max_cost);
+
+        // break;
+        // tree = ContractionTree::from_contraction_path(tn, &path);
+        to_dendogram(
+            &contraction_tree,
+            tn,
+            cost_function,
+            output_file.clone() + &format!("_{}", i),
+        );
+        if new_max_cost < best_cost {
+            best_cost = new_max_cost;
+            best_contraction = i;
+            best_contraction_path = path.clone();
+        }
+    }
+    (best_contraction, best_contraction_path)
 }
 
 pub fn balance_path(
