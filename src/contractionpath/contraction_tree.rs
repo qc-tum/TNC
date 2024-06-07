@@ -383,12 +383,21 @@ impl ContractionTree {
     pub fn nodes_at_depth(&self, node_index: usize, depth: usize, children: &mut Vec<usize>) {
         ContractionTree::nodes_at_depth_recurse(self.node_ptr(node_index), depth, children);
     }
+
+    /// Removes subtree with root at `node`
+    ///
+    /// # Safety
+    ///
+    /// Removing a subtree from the ['ContractionTree'] object also removes all associated ['Tensor'] objects in the contained HashMap `nodes`. All pointers to the [`Node`] object at `node_id` and its children are invalid after calling this function.
+    unsafe fn remove_subtree_recurse(&mut self, node: *mut Node) {
         if node.is_null() {
         } else {
             unsafe {
                 self.remove_subtree_recurse((*node).left_child);
                 self.remove_subtree_recurse((*node).right_child);
-                self.remove_node((*node).id);
+                if !(*node).is_leaf() {
+                    self.remove_node((*node).id);
+                }
                 (*node).deprecate();
             }
         }
@@ -402,6 +411,9 @@ impl ContractionTree {
     ///
     /// Removing a subtree from the ['ContractionTree'] object also removes all associated ['Tensor'] objects in the contained HashMap `nodes`. All pointers to the [`Node`] object at `node_id` and its children are invalid after calling this function.
     pub unsafe fn remove_subtree(&mut self, node_id: usize) {
+        let this_node = self.node_ptr(node_id);
+        (*self.mut_node(node_id).parent).remove_child(this_node);
+
         self.remove_subtree_recurse(self.node_ptr(node_id));
     }
 
