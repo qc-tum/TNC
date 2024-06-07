@@ -1057,6 +1057,9 @@ pub fn find_min_max_subtree(
         smaller_subtree_id = children[options[0]];
         larger_subtree_id = children[options[1]];
     }
+    (smaller_subtree_id, min_cost, larger_subtree_id, max_cost)
+}
+
 pub fn to_png(
     contraction_tree: ContractionTree,
     tn: &Tensor,
