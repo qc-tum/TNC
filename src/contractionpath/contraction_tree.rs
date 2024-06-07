@@ -294,17 +294,23 @@ impl ContractionTree {
         ContractionTree::tree_depth_recurse(self.node_ptr(node_index))
     }
 
+    /// Returns the number of leaf nodes in subtree of [`ContractionTree`] object starting from a given `node_index`. Returns 1 if `node_index` points to a leaf node.
+    /// # Safety
+    ///
+    /// Is always safe. Pointer is never written to and `is_null` should prevent any dereferencing of null ptr.
     fn leaf_count_recurse(node: *mut Node) -> usize {
         if node.is_null() {
             panic!("All non-leaf nodes should have two children in a contraction tree")
         }
-        unsafe {
-            if (*node).is_leaf() {
-                1
-            } else {
-                ContractionTree::leaf_count_recurse((*node).left_child)
-                    + ContractionTree::leaf_count_recurse((*node).right_child)
-            }
+
+        let is_leaf = unsafe { (*node).is_leaf() };
+        let (left_child, right_child) = unsafe { ((*node).left_child, (*node).right_child) };
+
+        if is_leaf {
+            1
+        } else {
+            ContractionTree::leaf_count_recurse(left_child)
+                + ContractionTree::leaf_count_recurse(right_child)
         }
     }
 
