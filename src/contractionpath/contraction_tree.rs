@@ -722,13 +722,14 @@ fn populate_subtree_tensor_map(
 ///
 /// # Returns
 /// Total op cost and maximum memory required of fully contracting subtree rooted at `node_id`
-fn tree_contraction_cost(
+pub fn tree_contraction_cost(
     contraction_tree: &ContractionTree,
     node_index: usize,
     tn: &Tensor,
 ) -> (u64, u64) {
     let mut contraction_path = vec![];
-    contraction_tree.to_contraction_path(node_index, &mut contraction_path);
+    contraction_tree.to_contraction_path(node_index, &mut contraction_path, true);
+
     let contraction_path = ssa_replace_ordering(&contraction_path, tn.tensors().len());
     contract_path_cost(tn.tensors(), &contraction_path)
 }
