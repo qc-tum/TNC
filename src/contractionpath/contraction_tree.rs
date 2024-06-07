@@ -650,6 +650,22 @@ impl ContractionTree {
         }
         init
     }
+
+    fn tensor_recursive(node: *mut Node, tn: &Tensor) -> Tensor {
+        let is_leaf = unsafe { (*node).is_leaf() };
+
+        if is_leaf {
+            let tensor_index = unsafe { (*node).tensor_index.unwrap() };
+            return tn.tensor(tensor_index).clone();
+        }
+
+        let (left_child, right_child) = unsafe { ((*node).left_child, (*node).right_child) };
+        &ContractionTree::tensor_recursive(left_child, tn)
+            ^ &ContractionTree::tensor_recursive(right_child, tn)
+    }
+    pub fn tensor(&self, node_id: usize, tensor: &Tensor) -> Tensor {
+        ContractionTree::tensor_recursive(self.node_ptr(node_id), tensor)
+    }
 }
 
 /// Populates HashMap<usize, Tensor> `node_tensor_map`  with all intermediate and leaf node ids and corresponding [`Tensor`] object, with root at `node_id`.
