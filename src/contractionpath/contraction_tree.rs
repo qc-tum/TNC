@@ -438,8 +438,11 @@ impl ContractionTree {
             (0..tn.tensors().len()).collect()
         };
 
-        for tensor_idx in tensor_indices {
-            scratch.insert(tensor_idx, Rc::clone(self.nodes.get(&tensor_idx).unwrap()));
+        for tensor_index in tensor_indices {
+            scratch.insert(
+                tensor_index,
+                Rc::clone(self.nodes.get(&tensor_index).unwrap()),
+            );
         }
 
         for contr in path.iter() {
