@@ -26,7 +26,7 @@ type NodeRef = Rc<RefCell<Node>>;
 
 /// Node in ContractionTree, represents a contraction of Tensor with position `left_child` and position `right_child` to obtain Tensor at position `parent`.
 #[derive(Debug, Clone)]
-struct Node {
+pub struct Node {
     id: usize,
     left_child: *mut Node,
     right_child: *mut Node,
@@ -50,12 +50,23 @@ impl Node {
             tensor_index,
         }
     }
-    fn left_child(&self) -> *mut Node {
-        self.left_child
+
+    pub fn left_child_id(&self) -> Option<usize> {
+        if self.left_child.is_null() {
+            return None;
+        }
+        unsafe { Some((*self.left_child).id) }
     }
 
-    fn right_child(&self) -> *mut Node {
-        self.right_child
+    pub fn right_child_id(&self) -> Option<usize> {
+        if self.right_child.is_null() {
+            return None;
+        }
+        unsafe { Some((*self.right_child).id) }
+    }
+
+    pub fn id(&self) -> usize {
+        self.id
     }
 
     fn set_left_child(&mut self, child: *mut Node) {
@@ -66,8 +77,11 @@ impl Node {
         self.right_child = child;
     }
 
-    fn parent(&self) -> *mut Node {
-        self.parent
+    pub fn parent_id(&self) -> Option<usize> {
+        if self.parent.is_null() {
+            return None;
+        }
+        unsafe { Some((*self.parent).id) }
     }
 
     fn set_parent(&mut self, parent: *mut Node) {
@@ -93,36 +107,32 @@ impl Node {
         panic!("Unable to add child, Node already has two children");
     }
 
-    fn remove_child(&mut self, child: *mut Node) {
-        let left_child_id;
-        let right_child_id;
-        let child_id;
+    unsafe fn remove_child(&mut self, child: *mut Node) {
+        let child_id = unsafe { (*child).id };
 
-        unsafe {
-            left_child_id = (*self.left_child).id;
-            right_child_id = (*self.right_child).id;
-            child_id = (*child).id;
+        if !self.left_child.is_null() {
+            let left_child_id = unsafe { (*self.left_child).id };
+            if left_child_id == child_id {
+                self.left_child = ptr::null_mut();
+                return;
+            }
         }
 
-        if left_child_id == child_id {
-            self.left_child = ptr::null_mut();
-        } else if right_child_id == child_id {
-            self.right_child = ptr::null_mut();
-        } else {
-            panic!("Child {:?} not found in Node", child);
+        if !self.right_child.is_null() {
+            let right_child_id = unsafe { (*self.right_child).id };
+            if right_child_id == child_id {
+                self.right_child = ptr::null_mut();
+                return;
+            }
         }
+
+        panic!("Child {:?} not found in Node", child);
     }
 
     fn get_other_child(&self, child: *mut Node) -> *mut Node {
-        let left_child_id;
-        let right_child_id;
-        let child_id;
-
-        unsafe {
-            left_child_id = (*self.left_child).id;
-            right_child_id = (*self.right_child).id;
-            child_id = (*child).id;
-        }
+        let left_child_id = unsafe { (*self.left_child).id };
+        let right_child_id = unsafe { (*self.right_child).id };
+        let child_id = unsafe { (*child).id };
 
         if left_child_id == child_id {
             self.right_child
@@ -134,15 +144,9 @@ impl Node {
     }
 
     fn replace_child(&mut self, child: *mut Node, repl_node: *mut Node) {
-        let left_child_id;
-        let right_child_id;
-        let child_id;
-
-        unsafe {
-            left_child_id = (*self.left_child).id;
-            right_child_id = (*self.right_child).id;
-            child_id = (*child).id;
-        }
+        let left_child_id = unsafe { (*self.left_child).id };
+        let right_child_id = unsafe { (*self.right_child).id };
+        let child_id = unsafe { (*child).id };
 
         if left_child_id == child_id {
             self.right_child = repl_node;
