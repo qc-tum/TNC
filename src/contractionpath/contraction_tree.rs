@@ -578,7 +578,7 @@ impl ContractionTree {
     /// * `cost_function` - cost function taking one [`Tensor`] objects and returning a value as i64
     ///
     /// # Return
-    /// * option of leaf node id that maximizes cost function
+    /// * leaf node id that maximizes cost function as Option<usize>
     pub fn max_leaf_node_by(
         &self,
         leaf_node_indices: &[usize],
