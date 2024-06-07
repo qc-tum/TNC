@@ -339,6 +339,7 @@ impl ContractionTree {
     /// Populates `leaf_indices` with `id`` attribute of all leaf nodes in subtree with root at `node_index`.
     ///
     /// # Arguments
+    ///
     /// * `node_index` - `id` attribute of starting [`Node`]
     /// * `leaf_indices` - mutable Vec that stores `id` attributes
     pub fn leaf_ids(&self, node_index: usize, leaf_indices: &mut Vec<usize>) {
@@ -349,22 +350,39 @@ impl ContractionTree {
     /// Populates `children` with pointer to [`Node`] objects at depth  attribute of all leaf nodes in subtree with root at `node_index`.
     ///
     /// # Arguments
+    ///
     /// * `node` - mutable pointer to [`Node`] object
     /// * `depth` - depth to find children of `node`
     /// * `children` - mutable vector storing found children
-    pub fn nodes_at_depth(node: *mut Node, depth: usize, children: &mut Vec<*mut Node>) {
+    ///
+    /// # Safety
+    ///
+    /// This function only dereferences a raw pointer after checking for null. Referenced data is not changed.
+    fn nodes_at_depth_recurse(node: *mut Node, depth: usize, children: &mut Vec<usize>) {
         if node.is_null() {
         } else if depth == 0 {
-            children.push(node);
+            unsafe {
+                children.push((*node).id);
+            }
         } else {
             unsafe {
-                ContractionTree::nodes_at_depth((*node).left_child, depth - 1, children);
-                ContractionTree::nodes_at_depth((*node).right_child, depth - 1, children);
+                ContractionTree::nodes_at_depth_recurse((*node).left_child, depth - 1, children);
+                ContractionTree::nodes_at_depth_recurse((*node).right_child, depth - 1, children);
             }
         }
     }
 
-    pub fn remove_subtree_recurse(&mut self, node: *mut Node) {
+    /// Populates `children` with pointer to [`Node`] objects at depth  attribute of all leaf nodes in subtree with root at `node_index`.
+    ///
+    /// # Arguments
+    ///
+    /// * `node_index` - id of root of subtree
+    /// * `depth` - depth to find children of `node`
+    /// * `children` - mutable vector storing found children
+    ///
+    pub fn nodes_at_depth(&self, node_index: usize, depth: usize, children: &mut Vec<usize>) {
+        ContractionTree::nodes_at_depth_recurse(self.node_ptr(node_index), depth, children);
+    }
         if node.is_null() {
         } else {
             unsafe {
@@ -376,7 +394,14 @@ impl ContractionTree {
         }
     }
 
-    pub fn remove_subtree(&mut self, node_id: usize) {
+    /// Removes subtree with root at `node_id`
+    /// # Arguments
+    /// * `node_id` - root of subtree to remove
+    ///
+    /// # Safety
+    ///
+    /// Removing a subtree from the ['ContractionTree'] object also removes all associated ['Tensor'] objects in the contained HashMap `nodes`. All pointers to the [`Node`] object at `node_id` and its children are invalid after calling this function.
+    pub unsafe fn remove_subtree(&mut self, node_id: usize) {
         self.remove_subtree_recurse(self.node_ptr(node_id));
     }
 
