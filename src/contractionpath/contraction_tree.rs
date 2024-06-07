@@ -554,7 +554,7 @@ impl ContractionTree {
         subtree_root: usize,
         tn: &Tensor,
         cost_function: fn(&Tensor, &Tensor) -> i64,
-    ) -> Option<usize> {
+    ) -> Option<(usize, i64)> {
         assert!(self.node(node_index).borrow().is_leaf());
         // Get a map that maps leaf nodes to corresponding [`Tensor`] objects.
         let mut node_tensor_map: HashMap<usize, Tensor> = HashMap::new();
@@ -563,11 +563,11 @@ impl ContractionTree {
         let t1 = tn.tensor(self.node(node_index).borrow().tensor_index.unwrap());
 
         // Find the tensor that maximizes cost function.
-        let (node, _) = node_tensor_map
+        let (node, cost) = node_tensor_map
             .iter()
             .map(|(id, tensor)| (id, cost_function(tensor, t1)))
             .reduce(|node1, node2| cmp::max_by_key(node1, node2, |&a| a.1))?;
-        Some(*node)
+        Some((*node, cost))
     }
 
     /// Given a list of leaf nodes ids `leaf_node_indices`, identifies leaf node id that maximizes `cost_function.
