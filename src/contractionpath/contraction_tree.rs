@@ -1032,19 +1032,79 @@ pub fn find_min_max_subtree(
         smaller_subtree_id = children[options[0]];
         larger_subtree_id = children[options[1]];
     }
-        .map(|&a| unsafe { (a, tree_contraction_cost(tree, (*a).id, tn)) })
-    {
-        if op_cost > max_cost {
-            max_cost = op_cost;
-            bigger_subtree = child_id;
-        }
-        if op_cost < min_cost {
-            min_cost = op_cost;
-            smaller_subtree = child_id;
+pub fn to_png(
+    contraction_tree: ContractionTree,
+    tn: &Tensor,
+    cost_function: fn(&Tensor, &Tensor) -> u64,
+    svg_name: String,
+) {
+    let root;
+    unsafe {
+        root = (*contraction_tree.root).id;
+    }
+    let tree_weights = contraction_tree.tree_weights(root, tn, cost_function);
+    let mut contraction_path = Vec::new();
+    contraction_tree.to_contraction_path(root, &mut contraction_path, false);
+
+    let mut edges = String::new();
+    for contraction_index in contraction_path {
+        if let ContractionIndex::Pair(t1, t2) = contraction_index {
+            if !contraction_tree.node(t1).borrow().parent.is_null() {
+                unsafe {
+                    let parent_id = (*contraction_tree.node(t1).borrow().parent).id;
+                    let new_edges = format!(
+                        r#"
+                        {parent} -> {t1}:n [headlabel="[{t1_weight}]"];
+                        {parent} -> {t2}:n [headlabel="[{t2_weight}]"]; "#,
+                        t1 = t1,
+                        t2 = t2,
+                        parent = parent_id,
+                        t1_weight = tree_weights[&t1],
+                        t2_weight = tree_weights[&t2],
+                    );
+                    edges = new_edges + &edges;
+                }
+            }
+        } else {
+            continue;
         }
     }
-    (smaller_subtree, bigger_subtree)
-    (smaller_subtree_id, min_cost, larger_subtree_id, max_cost)
+
+    let graphviz_string = edges;
+
+    let mut final_string = String::from(
+        r#"digraph {
+            node [fixedsize=true width=0.6 height=0.6]
+            edge [labelOverlay=true label2node=true arrowhead=none labelfontsize=12]"#, // node [shape=circle];"#,
+    );
+    final_string.push_str(&graphviz_string);
+    final_string.push('}');
+
+    let mut dot_output = Command::new("dot")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let mut dot_gv = dot_output.stdin.take().expect("Failed to open stdin");
+    std::thread::spawn(move || {
+        dot_gv
+            .write_all(final_string.as_bytes())
+            .expect("Failed to write to stdin");
+    });
+
+    let gvpr_output = Command::new("gvpr")
+        .args(["-c", "-ftree.gv"])
+        .stdin(dot_output.stdout.unwrap())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let _ = Command::new("neato")
+        .args(["-n", "-Tpng", &format!("-o {}", svg_name)])
+        .stdin(gvpr_output.stdout.unwrap())
+        .spawn()
+        .unwrap();
 }
 
 }
