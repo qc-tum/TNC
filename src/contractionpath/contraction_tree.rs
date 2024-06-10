@@ -848,8 +848,8 @@ pub fn balance_path(
 
     // 2. Select the bigger subtree. Based on maximum contraction op cost.
     // let (l_op_cost, _r_op_cost) = tree_contraction_cost(&tree, tree.root.unwrap(), tn);
-    let (smaller_subtree_id, min_costs, larger_subtree_id, max_costs) =
-        find_min_max_subtree(children, &contraction_tree, tn);
+    let (smaller_subtree_id, _min_costs, larger_subtree_id, _max_costs) =
+        find_min_max_subtree(children, contraction_tree, tn);
 
     let smaller_subtree_parent_id = contraction_tree
         .node(smaller_subtree_id)
@@ -876,7 +876,7 @@ pub fn balance_path(
         // Randomly select one of the top n nodes to rebal.
         let top_n = 5;
         let rebalanced_node_weights = find_potential_nodes(
-            &contraction_tree,
+            contraction_tree,
             &larger_subtree_leaf_nodes,
             smaller_subtree_id,
             tn,
@@ -895,10 +895,10 @@ pub fn balance_path(
         } else {
             // Sample randomly from the top n nodes. Use softmax probabilities.
             let top_n_nodes = keys.iter().take(top_n).cloned().collect::<Vec<usize>>();
-            let top_n_weights: Vec<i64> = top_n_nodes
-                .iter()
-                .map(|idx| rebalanced_node_weights[idx])
-                .collect();
+            // let top_n_weights: Vec<i64> = top_n_nodes
+            //     .iter()
+            //     .map(|idx| rebalanced_node_weights[idx])
+            //     .collect();
 
             // Subtract max val after inverting for numerical stability.
             let l2_norm: f64 = top_n_nodes
@@ -1181,8 +1181,8 @@ pub fn to_dendogram(
     };
 
     let mut plot = |&node_1_id, &node_2_id, last: bool| {
-        let (x1, y1) = get_coordinates(node_1_id, &mut node_to_position, &mut tikz_picture);
-        let (x2, y2) = get_coordinates(node_2_id, &mut node_to_position, &mut tikz_picture);
+        let (x1, _) = get_coordinates(node_1_id, &mut node_to_position, &mut tikz_picture);
+        let (x2, _) = get_coordinates(node_2_id, &mut node_to_position, &mut tikz_picture);
 
         let parent_id = contraction_tree.node(node_1_id).parent_id().unwrap();
 
@@ -1239,7 +1239,7 @@ pub fn to_dendogram(
         .stderr(Stdio::null())
         .spawn()
         .unwrap();
-    fs::write("final.txt", tikz_picture.clone());
+    fs::write("final.txt", tikz_picture.clone()).expect("Unable to write out .gv file");
     let mut pdf_run = pdf_output.stdin.take().expect("Failed to open stdin");
     std::thread::spawn(move || {
         pdf_run
