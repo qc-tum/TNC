@@ -873,7 +873,7 @@ pub fn balance_path(
 
     // /* 3.3 Select the leaf node in the smaller subtree that causes the biggest memory reduction in the bigger subtree
     let rebalanced_node = if random_balance {
-        // Randomly select one of the top n nodes to rebal.
+        // Randomly select one of the top n nodes to rebalance.
         let top_n = 5;
         let rebalanced_node_weights = find_potential_nodes(
             contraction_tree,
@@ -1017,9 +1017,9 @@ pub fn balance_path(
     );
 
     // 7. Generate new path based on greedy paths
-    let mut rebal_path = Vec::new();
-    contraction_tree.to_contraction_path(contraction_tree.root_id(), &mut rebal_path, true);
-    rebal_path
+    let mut rebalance_path = Vec::new();
+    contraction_tree.to_contraction_path(contraction_tree.root_id(), &mut rebalance_path, true);
+    rebalance_path
 }
 
 pub fn find_min_max_subtree(
