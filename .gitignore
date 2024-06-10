@@ -1,2 +1,7 @@
 /target
 src/qasm/.antlr
+
+*.pdf
+*.gv
+*.aux
+*.log
