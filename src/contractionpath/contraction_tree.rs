@@ -890,8 +890,6 @@ pub fn balance_path(
         keys.sort_by_key(|&key| rebalanced_node_weights[&key]);
         if keys.len() < top_n {
             panic!("Error rebalance_path: Not enough nodes in the bigger subtree to select the top {} from!", top_n);
-            // tree.max_match_by(larger_subtree_id, smaller_subtree_id, tn, greedy_cost_fn)
-            //     .unwrap()
         } else {
             // Sample randomly from the top n nodes. Use softmax probabilities.
             let top_n_nodes = keys.iter().take(top_n).cloned().collect::<Vec<usize>>();
@@ -923,9 +921,6 @@ pub fn balance_path(
             top_n_nodes[rand_idx]
         }
     } else {
-        fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
-            -((t1 ^ t2).size() as i64) + (t1.size() as i64) + (t2.size() as i64)
-        }
         let mut max_cost = i64::MIN;
         let mut best_node = usize::MAX;
         for larger_node in larger_subtree_leaf_nodes.iter() {
