@@ -290,7 +290,7 @@ impl ContractionTree {
     ///
     /// * `node_index` - `id` attribute of starting [`Node`]
     pub fn tree_depth(&self, node_index: usize) -> usize {
-        ContractionTree::tree_depth_recurse(self.node_ptr(node_index))
+        Self::tree_depth_recurse(self.node_ptr(node_index))
     }
 
     /// Returns the number of leaf nodes in subtree of [`ContractionTree`] object starting from a given `node_index`. Returns 1 if `node_index` points to a leaf node.
@@ -380,7 +380,7 @@ impl ContractionTree {
     /// * `children` - mutable vector storing found children
     ///
     pub fn nodes_at_depth(&self, node_index: usize, depth: usize, children: &mut Vec<usize>) {
-        ContractionTree::nodes_at_depth_recurse(self.node_ptr(node_index), depth, children);
+        Self::nodes_at_depth_recurse(self.node_ptr(node_index), depth, children);
     }
 
     /// Removes subtree with root at `node`
