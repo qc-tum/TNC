@@ -6,7 +6,6 @@ use crate::contractionpath::ssa_replace_ordering;
 use crate::tensornetwork::{create_tensor_network, tensor::Tensor};
 use crate::types::ContractionIndex;
 use crate::{pair, path};
-use itertools::Itertools;
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
