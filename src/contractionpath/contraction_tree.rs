@@ -1730,7 +1730,7 @@ mod tests {
         fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
             (t1.size() as i64) + (t2.size() as i64) - ((t1 ^ t2).size() as i64)
         }
-        let (max_match, max_cost) = tree.max_match_by(2, 7, &tensor, greedy_cost_fn).unwrap();
+        let (max_match, _) = tree.max_match_by(2, 7, &tensor, greedy_cost_fn).unwrap();
 
         assert_eq!(max_match, 7);
 
@@ -1738,7 +1738,7 @@ mod tests {
             (t1 ^ t2).size() as i64
         }
 
-        let (max_match, max_cost) = tree
+        let (max_match, _) = tree
             .max_match_by(2, 7, &tensor, max_memory_cost_fn)
             .unwrap();
         assert_eq!(max_match, 1);
