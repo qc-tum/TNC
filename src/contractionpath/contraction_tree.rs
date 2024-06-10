@@ -1638,25 +1638,19 @@ mod tests {
 
         tree.nodes_at_depth(tree.root_id(), 0, &mut leaves);
 
-        unsafe {
-            assert_eq!(leaves[0], 4);
-        }
+        assert_eq!(leaves[0], 4);
 
         leaves = vec![];
         tree.nodes_at_depth(tree.root_id(), 1, &mut leaves);
 
-        unsafe {
-            assert_eq!(leaves[0], 3);
-            assert_eq!(leaves[1], 2);
-        }
+        assert_eq!(leaves[0], 3);
+        assert_eq!(leaves[1], 2);
 
         leaves = vec![];
         tree.nodes_at_depth(tree.root_id(), 2, &mut leaves);
 
-        unsafe {
-            assert_eq!(leaves[0], 0);
-            assert_eq!(leaves[1], 1);
-        }
+        assert_eq!(leaves[0], 0);
+        assert_eq!(leaves[1], 1);
     }
 
     #[test]
