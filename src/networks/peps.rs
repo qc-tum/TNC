@@ -56,7 +56,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
             physical_up + virtual_vertical + j,
         ]);
 
-        tensors[physical_up - j] = Tensor::new(vec![
+        tensors[physical_up - j - 1] = Tensor::new(vec![
             physical_up - j - 1,
             physical_up + virtual_vertical - j - 1,
             physical_up + virtual_vertical - j,
@@ -168,7 +168,7 @@ fn pepo(
             start + physical_up + virtual_vertical + j,
         ]);
 
-        tensors[physical_up - j] = Tensor::new(vec![
+        tensors[physical_up - j - 1] = Tensor::new(vec![
             last + physical_up - j - 1,
             start + physical_up - j - 1,
             start + physical_up + virtual_vertical - j - 1,
@@ -271,7 +271,7 @@ fn peps_final(
             start + virtual_vertical + j,
         ]);
 
-        tensors[physical_up - j] = Tensor::new(vec![
+        tensors[physical_up - j - 1] = Tensor::new(vec![
             last + physical_up - j - 1,
             start + virtual_vertical - j - 1,
             start + virtual_vertical - j,
