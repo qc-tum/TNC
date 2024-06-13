@@ -2,7 +2,6 @@ use std::iter::zip;
 
 use mpi::topology::{Process, SimpleCommunicator};
 use mpi::traits::{BufferMut, Communicator, CommunicatorCollectives, Destination, Root, Source};
-use num_complex::Complex64;
 
 use super::mpi_types::BondDim;
 use crate::tensornetwork::contraction::{contract_tensor_network, TensorContraction};
@@ -173,28 +172,34 @@ pub fn intermediate_reduce_tensor_network(
             let sender = *y as i32;
             final_rank = receiver;
             if receiver == rank {
+                // Receive legs
                 let (legs, _status) = world.process_at_rank(sender).receive_vec::<EdgeIndex>();
                 let mut returned_tensor = Tensor::new(legs);
-                let (shape, _status) = world.process_at_rank(sender).receive_vec::<u64>();
-                let (data, _status) = world.process_at_rank(sender).receive_vec::<Complex64>();
-                let tensor_data = TensorData::new_from_data(&shape, data, None);
-                returned_tensor.set_tensor_data(tensor_data);
+
+                // Receive data
+                let (raw_data_tensor, _) = world.process_at_rank(sender).receive_vec::<u8>();
+                let data_tensor = bincode::deserialize(&raw_data_tensor).unwrap();
+                returned_tensor.set_tensor_data(TensorData::Matrix(data_tensor));
+
+                // Insert data into local tensor
                 local_tn.push_tensor(returned_tensor, None);
+
+                // Contract tensors
                 contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
             }
             if sender == rank {
+                // Send legs
                 let legs = local_tn.legs().clone();
                 world.process_at_rank(receiver).send(&legs);
+
+                // Send data
                 let local_tensor = local_tn.get_data();
                 world
                     .process_at_rank(receiver)
-                    .send(&(*local_tensor.shape()));
-                world
-                    .process_at_rank(receiver)
-                    .send(&(*local_tensor.get_raw_data()));
+                    .send(&bincode::serialize(&local_tensor).unwrap());
             }
         }
-        ContractionIndex::Path(..) => (),
+        ContractionIndex::Path(..) => panic!("Requires pair"),
     });
 
     // Only runs if the final contracted process is not process 0
@@ -202,21 +207,18 @@ pub fn intermediate_reduce_tensor_network(
         if rank == 0 {
             let (legs, _status) = world.process_at_rank(final_rank).receive_vec::<EdgeIndex>();
             let mut returned_tensor = Tensor::new(legs);
-            let (shape, _status) = world.process_at_rank(final_rank).receive_vec::<u64>();
-            let (data, _status) = world.process_at_rank(final_rank).receive_vec::<Complex64>();
-            let tensor_data = TensorData::new_from_data(&shape, data, None);
-            returned_tensor.set_tensor_data(tensor_data);
-            // return returned_tensor;
+            let (raw_data_tensor, _) = world.process_at_rank(final_rank).receive_vec::<u8>();
+            let data_tensor = bincode::deserialize(&raw_data_tensor).unwrap();
+            returned_tensor.set_tensor_data(TensorData::Matrix(data_tensor));
             *local_tn = returned_tensor;
         }
         if rank == final_rank {
             let legs = local_tn.legs().clone();
             world.process_at_rank(0).send(&legs);
             let local_tensor = local_tn.get_data();
-            world.process_at_rank(0).send(&(*local_tensor.shape()));
             world
                 .process_at_rank(0)
-                .send(&(*local_tensor.get_raw_data()));
+                .send(&bincode::serialize(&local_tensor).unwrap());
         }
     }
 }
@@ -231,25 +233,32 @@ pub fn naive_reduce_tensor_network(
 ) {
     if rank == 0 {
         for i in 1..size {
-            let (legs, _status) = world.process_at_rank(i).receive_vec::<EdgeIndex>();
+            // Receive legs
+            let (legs, _) = world.process_at_rank(i).receive_vec::<EdgeIndex>();
             let mut returned_tensor = Tensor::new(legs);
-            let (shape, _status) = world.process_at_rank(i).receive_vec::<u64>();
-            let (data, _status) = world.process_at_rank(i).receive_vec::<Complex64>();
-            let tensor_data = TensorData::new_from_data(&shape, data, None);
-            returned_tensor.set_tensor_data(tensor_data);
+
+            // Receive data
+            let (raw_data_tensor, _) = world.process_at_rank(i).receive_vec::<u8>();
+            let data_tensor = bincode::deserialize(&raw_data_tensor).unwrap();
+            returned_tensor.set_tensor_data(TensorData::Matrix(data_tensor));
+
+            // Add tensor to final tensor network
             local_tn.push_tensor(returned_tensor, None);
         }
     } else {
+        // Send legs
         let legs = local_tn.legs().clone();
         world.process_at_rank(0).send(&legs);
-        let local_tensor = local_tn.get_data();
-        world.process_at_rank(0).send(&(*local_tensor.shape()));
-        world
-            .process_at_rank(0)
-            .send(&(*local_tensor.get_raw_data()));
+
+        // Send data
+        let data_tensor = local_tn.get_data();
+        let raw_data_tensor = bincode::serialize(&data_tensor).unwrap();
+        world.process_at_rank(0).send(&raw_data_tensor);
     }
     world.barrier();
+
     if rank == 0 {
+        // Contract the final tensor network
         contract_tensor_network(local_tn, &path[(size as usize)..path.len()]);
     }
 }
