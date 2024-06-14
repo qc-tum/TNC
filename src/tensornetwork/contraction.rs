@@ -114,16 +114,16 @@ impl TensorContraction for Tensor {
         for leg in tensor_b_legs.iter() {
             edges.entry(*leg).and_modify(|e| {
                 e.retain(|v| {
-                    if let Vertex::Closed(edge) = v {
-                        *edge != tensor_a_loc
+                    if let &Vertex::Closed(tensor_loc) = v {
+                        tensor_loc != tensor_a_loc
                     } else {
                         true
                     }
                 });
-                for edge in &mut e.iter_mut() {
-                    if let Vertex::Closed(tensor_loc) = edge {
+                for vertex in e.iter_mut() {
+                    if let Vertex::Closed(tensor_loc) = vertex {
                         if *tensor_loc == tensor_b_loc {
-                            *edge = Vertex::Closed(tensor_a_loc);
+                            *vertex = Vertex::Closed(tensor_a_loc);
                         }
                     }
                 }
