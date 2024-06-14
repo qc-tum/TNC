@@ -128,7 +128,6 @@ pub fn intermediate_reduce_tensor_network(
                 world
                     .process_at_rank(receiver)
                     .send(&(*local_tensor.get_raw_data()));
-                std::mem::drop(local_tensor);
             }
         }
         ContractionIndex::Path(..) => (),
