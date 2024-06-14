@@ -85,7 +85,7 @@ impl TensorContraction for Tensor {
             TensorData::File(filename) => load_data(filename).unwrap(),
             TensorData::Gate((gatename, angles)) => load_gate(gatename, Some(angles)), // load_gate[gatename.to_lowercase()],
             TensorData::Matrix(rawdata) => rawdata.clone(),
-            TensorData::Uncontracted => DataTensor::new(&[]),
+            TensorData::Uncontracted => panic!("Cannot get data from uncontracted/empty tensor"),
         }
     }
 
