@@ -192,9 +192,9 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    // multiplication_benchmark,
-    // partition_benchmark,
-    // parallel_naive_benchmark,
+    multiplication_benchmark,
+    partitioned_contraction_benchmark,
+    parallel_naive_benchmark,
     parallel_partition_benchmark
 );
 criterion_main!(benches);
