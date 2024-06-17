@@ -1,5 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use mpi::topology::SimpleCommunicator;
+use mpi::traits::{Communicator, CommunicatorCollectives, Root};
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Duration;
 use tensorcontraction::contractionpath::paths::OptimizePath;
@@ -10,8 +11,6 @@ use tensorcontraction::mpi::communication::{
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::sycamore_circuit;
 use tensorcontraction::types::ContractionIndex;
-// use tensorcontraction::tensornetwork::parallel_contraction::parallel_contract_tensor_network;
-use mpi::traits::{Communicator, CommunicatorCollectives, Root};
 
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::{
@@ -20,6 +19,7 @@ use tensorcontraction::{
     tensornetwork::{contraction::contract_tensor_network, tensor::Tensor},
 };
 
+/// Benchmark for the contraction of two tensors.
 pub fn multiplication_benchmark(c: &mut Criterion) {
     let mut rng = StdRng::seed_from_u64(52);
     let mut mul_group = c.benchmark_group("Multiplication");
@@ -40,8 +40,7 @@ pub fn multiplication_benchmark(c: &mut Criterion) {
     mul_group.finish();
 }
 
-// Run with 4 processes
-// Current assumption is that we have the number of processes equal to intermediate tensors
+/// Benchmark for the contraction of a partitioned tensor network on a single node.
 pub fn partitioned_contraction_benchmark(c: &mut Criterion) {
     let mut rng = StdRng::seed_from_u64(23);
     let mut part_group = c.benchmark_group("Partition");
@@ -53,7 +52,6 @@ pub fn partitioned_contraction_benchmark(c: &mut Criterion) {
         let partitioning =
             find_partitioning(&r_tn, 5, String::from("tests/km1_kKaHyPar_sea20.ini"), true);
         let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
-        // let mut opt = BranchBound::new(&r_tn, None, 20, CostType::Flops);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
         opt.optimize_path();
@@ -68,8 +66,8 @@ pub fn partitioned_contraction_benchmark(c: &mut Criterion) {
     part_group.finish();
 }
 
-// Run with 4 processes
-// Current assumption is that we have the number of processes equal to intermediate tensors
+/// Benchmark for the naive contraction of a partitioned tensor network on multiple
+/// nodes (using MPI).
 pub fn parallel_naive_benchmark(c: &mut Criterion) {
     let mut rng: StdRng = StdRng::seed_from_u64(51);
 
@@ -138,6 +136,9 @@ pub fn broadcast_path(
     }
 }
 
+/// Benchmark for the parallel contraction of a partitioned tensor network on
+/// multiple nodes (using MPI). This benchmark uses
+/// [`intermediate_reduce_tensor_network`].
 pub fn parallel_partition_benchmark(c: &mut Criterion) {
     let mut rng = StdRng::seed_from_u64(52);
 
@@ -191,8 +192,8 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
 
 criterion_group!(
     benches,
+    // multiplication_benchmark,
     // partition_benchmark,
-    // criterion_benchmark,
     // parallel_naive_benchmark,
     parallel_partition_benchmark
 );
