@@ -245,7 +245,7 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> Tensor {
 }
 
 pub fn create_filled_tensor_network<R>(
-    mut tensors: Vec<Tensor>,
+    tensors: Vec<Tensor>,
     bond_dims: &HashMap<usize, u64>,
     external_legs: Option<&HashMap<usize, usize>>,
     rng: &mut R,
@@ -253,8 +253,8 @@ pub fn create_filled_tensor_network<R>(
 where
     R: Rng + ?Sized,
 {
-    // tensor.push_tensors(tensors, Some(bond_dims), external_legs);
-    for child_tensor in &mut tensors {
+    let mut tn = create_tensor_network(tensors, bond_dims, external_legs);
+    for child_tensor in &mut tn.tensors {
         child_tensor.set_tensor_data(random_sparse_tensor_data_with_rng(
             &child_tensor
                 .shape()
@@ -265,5 +265,5 @@ where
             rng,
         ));
     }
-    create_tensor_network(tensors, bond_dims, external_legs)
+    tn
 }
