@@ -18,7 +18,7 @@ macro_rules! fsim {
     };
 }
 
-pub fn sycamore_circuit<R>(
+pub fn random_circuit<R>(
     size: usize,
     round: usize,
     single_qubit_probability: f64,
