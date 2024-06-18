@@ -1088,6 +1088,9 @@ pub fn balance_partitions(
 
     let mut opt = Greedy::new(&tn_smaller_subtree, CostType::Flops);
     opt.optimize_path();
+    if opt.get_best_flops() > new_max {
+        new_max = opt.get_best_flops();
+    }
     let path_smaller_subtree = opt.get_best_replace_path();
 
     let updated_smaller_path = path_smaller_subtree
@@ -1113,6 +1116,9 @@ pub fn balance_partitions(
     let tn_larger_subtree = create_tensor_network(larger_tensors, &tn.bond_dims(), None);
     let mut opt = Greedy::new(&tn_larger_subtree, CostType::Flops);
     opt.optimize_path();
+    if opt.get_best_flops() > new_max {
+        new_max = opt.get_best_flops();
+    }
     let path_larger_subtree = opt.get_best_replace_path();
 
     let updated_larger_path = path_larger_subtree
@@ -1128,24 +1134,41 @@ pub fn balance_partitions(
         contraction_tree.remove_subtree(larger_subtree_id);
     }
 
-    contraction_tree.add_subtree(
+    let smaller_partition_root = contraction_tree.add_subtree(
         tn,
         &updated_smaller_path,
         smaller_subtree_parent_id,
         Some(smaller_indices),
     );
 
-    contraction_tree.add_subtree(
+    let larger_partition_root = contraction_tree.add_subtree(
         tn,
         &updated_larger_path,
         larger_subtree_parent_id,
         Some(larger_indices),
     );
 
-    // 7. Generate new path based on greedy paths
-    let mut rebalance_path = Vec::new();
-    contraction_tree.to_contraction_path(contraction_tree.root_id(), &mut rebalance_path, true);
-    rebalance_path
+    contraction_tree
+        .partitions
+        .entry(rebalance_depth)
+        .and_modify(|e| e.push(larger_partition_root));
+
+    contraction_tree
+        .partitions
+        .entry(rebalance_depth)
+        .and_modify(|e| e.push(smaller_partition_root));
+
+    // 7. Generate new paths based on greedy paths
+    let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
+    let rebalanced_path = children
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            let (_, local_path) = subtensor_network(contraction_tree, *e, tn);
+            ContractionIndex::Path(i, local_path)
+        })
+        .collect::<Vec<ContractionIndex>>();
+    (new_max, rebalanced_path)
 }
 
 pub fn find_min_max_subtree(
