@@ -1354,7 +1354,7 @@ mod tests {
     #[test]
     fn test_constructor_simple() {
         let (tensor, path) = setup_simple();
-        let ContractionTree { nodes, root } =
+        let ContractionTree { nodes, root, .. } =
             ContractionTree::from_contraction_path(&tensor, &path);
 
         let mut node0 = Node::new(
@@ -1362,21 +1362,21 @@ mod tests {
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
-            Some(0),
+            Some(vec![0]),
         );
         let mut node1 = Node::new(
             1,
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
-            Some(1),
+            Some(vec![1]),
         );
         let mut node2 = Node::new(
             2,
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
-            Some(2),
+            Some(vec![2]),
         );
         let mut node3 = Node::new(3, &mut node0, &mut node1, ptr::null_mut(), None);
         let mut node4 = Node::new(4, &mut node3, &mut node2, ptr::null_mut(), None);
@@ -1429,7 +1429,7 @@ mod tests {
     #[test]
     fn test_constructor_complex() {
         let (tensor, path) = setup_complex();
-        let ContractionTree { nodes, root } =
+        let ContractionTree { nodes, root, .. } =
             ContractionTree::from_contraction_path(&tensor, &path);
 
         let mut node0 = Node::new(
@@ -1437,35 +1437,35 @@ mod tests {
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
-            Some(0),
+            Some(vec![0]),
         );
         let mut node1 = Node::new(
             1,
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
-            Some(1),
+            Some(vec![1]),
         );
         let mut node2 = Node::new(
             2,
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
-            Some(2),
+            Some(vec![2]),
         );
         let mut node3 = Node::new(
             3,
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
-            Some(3),
+            Some(vec![3]),
         );
         let mut node4 = Node::new(
             4,
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
-            Some(4),
+            Some(vec![4]),
         );
 
         let mut node5 = Node::new(
@@ -1473,7 +1473,7 @@ mod tests {
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
-            Some(5),
+            Some(vec![5]),
         );
 
         let mut node6 = Node::new(6, &mut node1, &mut node5, ptr::null_mut(), None);
