@@ -1437,6 +1437,30 @@ pub fn to_dendogram(
     // Command::new("pdflatex").arg(svg_name).spawn().unwrap();
 }
 
+pub fn repartition_tn(tn: &Tensor, tree: ContractionTree, partition_depth: usize) -> Tensor {
+    let mut partitioned_tensor = Vec::new();
+    for partition_id in tree
+        .partitions()
+        .get(&partition_depth)
+        .unwrap()
+        .iter()
+        .rev()
+    {
+        let mut leaf_ids = Vec::new();
+        tree.leaf_ids(*partition_id, &mut leaf_ids);
+        println!("leaf_ids: {:?}", leaf_ids);
+        for leaf_id in leaf_ids {
+            partitioned_tensor.push(
+                tn.tensor_recurse(tree.node(leaf_id).tensor_index.as_ref().unwrap())
+                    .clone(),
+            )
+        }
+    }
+    let mut tensor = Tensor::default();
+    tensor.push_tensors(partitioned_tensor, Some(&tn.bond_dims()), None);
+    tensor
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;

@@ -1,3 +1,6 @@
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+
 /// Struct that defines connectivity of IBM device.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Connectivity {
@@ -12,6 +15,7 @@ pub enum ConnectivityLayout {
     Eagle,
     Osprey,
     Sycamore,
+    All(usize),
 }
 
 impl Connectivity {
@@ -34,9 +38,27 @@ impl Connectivity {
             ConnectivityLayout::Eagle => eagle_connect(),
             ConnectivityLayout::Osprey => osprey_connect(),
             ConnectivityLayout::Sycamore => sycamore_connect(),
+            ConnectivityLayout::All(n) => all_connect(n),
         };
         Self { connectivity, name }
     }
+
+    pub fn reset(&mut self) {
+        match &mut self.name {
+            ConnectivityLayout::All(n) => {
+                self.connectivity = all_connect(*n);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn all_connect(n: usize) -> Vec<(usize, usize)> {
+    let mut v = Vec::from_iter(0..n);
+    v.shuffle(&mut thread_rng());
+    v.chunks(2)
+        .map(|x| (x[0], x[1]))
+        .collect::<Vec<(usize, usize)>>()
 }
 
 fn sycamore_connect() -> Vec<(usize, usize)> {

@@ -1,8 +1,13 @@
+use std::collections::HashMap;
+
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
+use tensorcontraction::path;
+use tensorcontraction::tensornetwork::create_tensor_network;
 use tensorcontraction::{
     contractionpath::{
+        contraction_tree::ContractionTree,
         paths::{greedy::Greedy, CostType, OptimizePath},
         random_paths::RandomOptimizePath,
     },
@@ -13,6 +18,7 @@ use tensorcontraction::{
         partitioning::{find_partitioning, partition_tensor_network},
         tensor::Tensor,
     },
+    types::ContractionIndex,
 };
 
 #[test]
@@ -91,6 +97,54 @@ fn test_partitioned_contraction_mixed() {
     let path = opt.get_best_replace_path();
     contract_tensor_network(&mut partitioned_tn, &path);
     assert!(&ref_tn.approx_eq(&partitioned_tn, 1e-12));
+}
+
+fn setup_complex() -> (Tensor, Vec<ContractionIndex>) {
+    (
+        create_tensor_network(
+            vec![
+                Tensor::new(vec![4, 3, 2]),
+                Tensor::new(vec![0, 1, 3, 2]),
+                Tensor::new(vec![4, 5, 6]),
+                Tensor::new(vec![6, 8, 9]),
+                Tensor::new(vec![10, 8, 9]),
+                Tensor::new(vec![5, 1, 0]),
+            ],
+            &[
+                (0, 27),
+                (1, 18),
+                (2, 12),
+                (3, 15),
+                (4, 5),
+                (5, 3),
+                (6, 18),
+                (7, 22),
+                (8, 45),
+                (9, 65),
+                (10, 5),
+            ]
+            .into(),
+            None,
+        ),
+        path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
+    )
+}
+
+#[test]
+fn test_partitioned_tensor() {
+    let (tensor, ref_path) = setup_complex();
+    let partitioning = find_partitioning(
+        &tensor,
+        3,
+        String::from("tests/km1_kKaHyPar_sea20.ini"),
+        true,
+    );
+    let partitioned_tn = partition_tensor_network(&tensor, &partitioning);
+    let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+    opt.optimize_path();
+    let path = opt.get_best_replace_path();
+    let tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
+    println!("tree: {:?}", tree);
 }
 
 #[mpi_test(4)]
