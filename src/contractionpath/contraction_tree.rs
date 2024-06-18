@@ -848,18 +848,38 @@ pub fn balance_path_iter(
     iterations: usize,
     output_file: String,
     cost_function: fn(&Tensor, &Tensor) -> u64,
-) -> (usize, Vec<ContractionIndex>) {
+) -> (usize, ContractionTree) {
     let mut contraction_tree = ContractionTree::from_contraction_path(tn, path);
     let mut path = path.to_owned();
+    let final_contraction = path
+        .iter()
+        .filter(|&e| matches!(e, ContractionIndex::Pair(_, _)))
+        .cloned()
+        .collect::<Vec<ContractionIndex>>();
 
-    let mut children = Vec::new();
-    contraction_tree.nodes_at_depth(contraction_tree.root_id(), 1, &mut children);
-    let path_len = path.len();
-    let (min_tree, _, max_tree, max_cost) = find_min_max_subtree(children, &contraction_tree, tn);
-    let t1 = contraction_tree.tensor(max_tree, tn);
-    let t2 = contraction_tree.tensor(min_tree, tn);
-    let var_name = path!(0, 1);
-    let (final_op_cost, _) = contract_path_cost(&[t1, t2], &[var_name]);
+    let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
+
+    assert!(children.len() > 1);
+    let partition_number = children.len();
+    let children_tensors = children
+        .iter()
+        .map(|e| contraction_tree.tensor(*e, tn))
+        .collect::<Vec<Tensor>>();
+
+    let mut partition_costs = children
+        .iter()
+        .map(|child| {
+            (
+                *child,
+                tree_contraction_cost(&contraction_tree, *child, tn).0,
+            )
+        })
+        .collect::<Vec<(usize, u64)>>();
+    partition_costs.sort_unstable_by_key(|e| e.1);
+
+    let (_, mut max_cost) = partition_costs[partition_costs.len() - 1];
+
+    let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
     let mut max_costs = vec![max_cost + final_op_cost];
 
     to_dendogram(
@@ -869,26 +889,25 @@ pub fn balance_path_iter(
         output_file.clone() + "_0",
     );
     let mut best_contraction = 0;
-    let mut best_contraction_path = path.clone();
+    let mut best_contraction_tree = contraction_tree.clone();
     let mut best_cost = max_cost + final_op_cost;
 
     for i in 1..(iterations + 1) {
-        path = balance_path(tn, &mut contraction_tree, random_balance, rebalance_depth);
-        assert_eq!(path_len, path.len(), "Tensors lost!");
+        (max_cost, path) =
+            balance_partitions(tn, &mut contraction_tree, random_balance, rebalance_depth);
+        assert_eq!(partition_number, path.len(), "Tensors lost!");
         validate_path(&path);
-        let mut children = Vec::new();
-        contraction_tree.nodes_at_depth(contraction_tree.root_id(), 1, &mut children);
-        let (min_tree, _, max_tree, max_cost) =
-            find_min_max_subtree(children, &contraction_tree, tn);
+        let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
+        let children_tensors = children
+            .iter()
+            .map(|e| contraction_tree.tensor(*e, tn))
+            .collect::<Vec<Tensor>>();
 
-        let t1 = contraction_tree.tensor(max_tree, tn);
-        let t2 = contraction_tree.tensor(min_tree, tn);
-        let (final_op_cost, _) = contract_path_cost(&[t1, t2], &[path!(0, 1)]);
+        let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
         let new_max_cost = max_cost + final_op_cost;
+
         max_costs.push(new_max_cost);
 
-        // break;
-        // tree = ContractionTree::from_contraction_path(tn, &path);
         to_dendogram(
             &contraction_tree,
             tn,
@@ -898,18 +917,18 @@ pub fn balance_path_iter(
         if new_max_cost < best_cost {
             best_cost = new_max_cost;
             best_contraction = i;
-            best_contraction_path = path.clone();
+            best_contraction_tree = contraction_tree.clone();
         }
     }
-    (best_contraction, best_contraction_path)
+    (best_contraction, best_contraction_tree)
 }
 
-pub fn balance_path(
+pub fn balance_partitions(
     tn: &Tensor,
     contraction_tree: &mut ContractionTree,
     random_balance: bool,
     rebalance_depth: usize,
-) -> Vec<ContractionIndex> {
+) -> (u64, Vec<ContractionIndex>) {
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
     if tn.tensors().len() < 3 {
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
@@ -921,13 +940,47 @@ pub fn balance_path(
 
     // 1. Create binary contraction tree. It details how tensors are contracted via the given path.
     // let mut tree = ContractionTree::from_contraction_path(tn, contraction_tree);
-    let mut children = vec![];
-    contraction_tree.nodes_at_depth(contraction_tree.root_id(), rebalance_depth, &mut children);
+    let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
+    assert!(children.len() > 1);
 
-    // 2. Select the bigger subtree. Based on maximum contraction op cost.
-    // let (l_op_cost, _r_op_cost) = tree_contraction_cost(&tree, tree.root.unwrap(), tn);
-    let (smaller_subtree_id, _min_costs, larger_subtree_id, _max_costs) =
-        find_min_max_subtree(children, contraction_tree, tn);
+    // let (smaller_subtree_id, _min_costs, larger_subtree_id, _max_costs) =
+    //     find_min_max_subtree(children, contraction_tree, tn);
+
+    let mut partition_costs = children
+        .iter()
+        .map(|child| {
+            (
+                *child,
+                tree_contraction_cost(contraction_tree, *child, tn).0,
+            )
+        })
+        .collect::<Vec<(usize, u64)>>();
+    partition_costs.sort_unstable_by_key(|e| e.1);
+
+    let (larger_subtree_id, _) = partition_costs[partition_costs.len() - 1];
+    let (smaller_subtree_id, _) = partition_costs[0];
+    let mut new_max = if children.len() > 2 {
+        let (_, mut new_max) = partition_costs[partition_costs.len() - 2];
+        new_max
+    } else {
+        u64::MAX
+    };
+
+    contraction_tree
+        .partitions
+        .entry(rebalance_depth)
+        .and_modify(|e| {
+            let index = e.iter().position(|x| *x == smaller_subtree_id).unwrap();
+            e.remove(index);
+        });
+
+    contraction_tree
+        .partitions
+        .entry(rebalance_depth)
+        .and_modify(|e| {
+            let index = e.iter().position(|x| *x == larger_subtree_id).unwrap();
+            e.remove(index);
+        });
 
     let smaller_subtree_parent_id = contraction_tree
         .node(smaller_subtree_id)
