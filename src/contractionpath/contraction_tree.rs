@@ -1065,10 +1065,6 @@ pub fn balance_partitions(
         } else {
             // Sample randomly from the top n nodes. Use softmax probabilities.
             let top_n_nodes = keys.iter().take(top_n).cloned().collect::<Vec<usize>>();
-            // let top_n_weights: Vec<i64> = top_n_nodes
-            //     .iter()
-            //     .map(|idx| rebalanced_node_weights[idx])
-            //     .collect();
 
             // Subtract max val after inverting for numerical stability.
             let l2_norm: f64 = top_n_nodes
