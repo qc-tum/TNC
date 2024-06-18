@@ -1,17 +1,16 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use mpi::environment::Universe;
-use mpi::topology::SimpleCommunicator;
-use mpi::traits::{Communicator, CommunicatorCollectives, Root};
+use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::{rngs::StdRng, SeedableRng};
 use static_init::dynamic;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
 use tensorcontraction::mpi::communication::{
-    intermediate_reduce_tensor_network, naive_reduce_tensor_network, scatter_tensor_network,
+    broadcast_path, intermediate_reduce_tensor_network, naive_reduce_tensor_network,
+    scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::sycamore_circuit;
-use tensorcontraction::types::ContractionIndex;
 
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::{
@@ -120,29 +119,6 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
     par_part_group.finish();
 }
 
-#[must_use]
-pub fn broadcast_path(
-    local_path: &[ContractionIndex],
-    world: &SimpleCommunicator,
-) -> Vec<ContractionIndex> {
-    let root_rank = 0;
-    let root_process = world.process_at_rank(root_rank);
-    let mut path_length = if world.rank() == root_rank {
-        local_path.len()
-    } else {
-        0
-    };
-    root_process.broadcast_into(&mut path_length);
-    if world.rank() != root_rank {
-        let mut buffer = vec![ContractionIndex::Pair(0, 0); path_length];
-        root_process.broadcast_into(&mut buffer);
-        buffer
-    } else {
-        root_process.broadcast_into(&mut local_path.to_vec());
-        local_path.to_vec()
-    }
-}
-
 /// Benchmark for the parallel contraction of a partitioned tensor network on
 /// multiple nodes (using MPI). This benchmark uses
 /// [`intermediate_reduce_tensor_network`].
@@ -155,6 +131,7 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
+    let root = world.process_at_rank(0);
 
     // TODO: Do we need to know communication beforehand?
     for k in [30, 35, 45] {
@@ -184,9 +161,9 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
                 contract_tensor_network(&mut local_tn, &local_path);
 
                 let path = if rank == 0 {
-                    broadcast_path(&path[(size as usize)..path.len()], &world)
+                    broadcast_path(&path[(size as usize)..path.len()], &root, &world)
                 } else {
-                    broadcast_path(&[], &world)
+                    broadcast_path(&[], &root, &world)
                 };
                 world.barrier();
                 intermediate_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);

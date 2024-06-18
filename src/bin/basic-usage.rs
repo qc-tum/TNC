@@ -1,40 +1,14 @@
-use mpi::topology::SimpleCommunicator;
+use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
-    intermediate_reduce_tensor_network, scatter_tensor_network,
+    broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::sycamore_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
-
-use mpi::traits::{Communicator, CommunicatorCollectives, Root};
-use tensorcontraction::types::ContractionIndex;
-
-#[must_use]
-pub fn broadcast_path(
-    local_path: &[ContractionIndex],
-    world: &SimpleCommunicator,
-) -> Vec<ContractionIndex> {
-    let root_rank = 0;
-    let root_process = world.process_at_rank(root_rank);
-    let mut path_length = if world.rank() == root_rank {
-        local_path.len()
-    } else {
-        0
-    };
-    root_process.broadcast_into(&mut path_length);
-    if world.rank() != root_rank {
-        let mut buffer = vec![ContractionIndex::Pair(0, 0); path_length];
-        root_process.broadcast_into(&mut buffer);
-        buffer
-    } else {
-        root_process.broadcast_into(&mut local_path.to_vec());
-        local_path.to_vec()
-    }
-}
 
 // Run with at least 2 processes
 fn main() {
@@ -43,6 +17,7 @@ fn main() {
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
+    let root = world.process_at_rank(0);
 
     if rank == 0 {
         println!("Running with {size} processes");
@@ -82,9 +57,9 @@ fn main() {
         contract_tensor_network(&mut local_tn, &local_path);
 
         let path = if rank == 0 {
-            broadcast_path(&path[(size as usize)..path.len()], &world)
+            broadcast_path(&path[(size as usize)..path.len()], &root, &world)
         } else {
-            broadcast_path(&[], &world)
+            broadcast_path(&[], &root, &world)
         };
         world.barrier();
         intermediate_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
