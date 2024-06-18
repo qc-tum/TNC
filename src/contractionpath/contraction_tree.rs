@@ -1209,7 +1209,7 @@ pub fn balance_partitions(
 }
 
 pub fn find_min_max_subtree(
-    children: Vec<usize>,
+    children: &[usize],
     tree: &ContractionTree,
     tn: &Tensor,
 ) -> (usize, u64, usize, u64) {
@@ -1221,7 +1221,7 @@ pub fn find_min_max_subtree(
 
     children
         .iter()
-        .map(|&a| (a, tree_contraction_cost(tree, a, tn)))
+        .map(|&child| (child, tree_contraction_cost(tree, child, tn)))
         .for_each(|(child_id, (op_cost, _mem_cost))| {
             if op_cost > max_cost {
                 max_cost = op_cost;
