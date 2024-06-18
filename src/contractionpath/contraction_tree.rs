@@ -606,10 +606,16 @@ impl ContractionTree {
         node: *mut Node,
         path: &mut Vec<ContractionIndex>,
         replace: bool,
+        hierarchy: bool,
     ) -> usize {
         unsafe {
             if (*node).is_leaf() {
-                return (*node).id;
+                if hierarchy {
+                    let tn_index = (*node).tensor_index.as_ref().unwrap();
+                    return *tn_index.last().unwrap();
+                } else {
+                    return (*node).id;
+                }
             }
         }
         let left_child;
@@ -619,8 +625,9 @@ impl ContractionTree {
             right_child = (*node).right_child;
         }
         if !left_child.is_null() && !right_child.is_null() {
-            let mut t1_id = Self::to_contraction_path_recurse(left_child, path, replace);
-            let mut t2_id = Self::to_contraction_path_recurse(right_child, path, replace);
+            let mut t1_id = Self::to_contraction_path_recurse(left_child, path, replace, hierarchy);
+            let mut t2_id =
+                Self::to_contraction_path_recurse(right_child, path, replace, hierarchy);
             if t2_id < t1_id {
                 (t1_id, t2_id) = (t2_id, t1_id);
             }
@@ -640,13 +647,37 @@ impl ContractionTree {
     /// # Arguments
     /// * `node_id` - id of root of tree
     /// * `path` - empty Vec<ContractionIndex> to store contraction path
-    pub fn to_contraction_path(
+    pub fn to_flat_contraction_path(
         &self,
         node_index: usize,
         path: &mut Vec<ContractionIndex>,
         replace: bool,
     ) {
-        ContractionTree::to_contraction_path_recurse(self.node_ptr(node_index), path, replace);
+        ContractionTree::to_contraction_path_recurse(
+            self.node_ptr(node_index),
+            path,
+            replace,
+            false,
+        );
+    }
+
+    /// Populates given vector with contractions path of contraction tree starting at `node`.
+    ///
+    /// # Arguments
+    /// * `node_id` - id of root of tree
+    /// * `path` - empty Vec<ContractionIndex> to store contraction path
+    pub fn to_hierarchical_contraction_path(
+        &self,
+        node_index: usize,
+        path: &mut Vec<ContractionIndex>,
+        replace: bool,
+    ) {
+        ContractionTree::to_contraction_path_recurse(
+            self.node_ptr(node_index),
+            path,
+            replace,
+            true,
+        );
     }
 
     fn next_id(&self, mut init: usize) -> usize {
@@ -668,6 +699,7 @@ impl ContractionTree {
         &ContractionTree::tensor_recursive(left_child, tn)
             ^ &ContractionTree::tensor_recursive(right_child, tn)
     }
+
     pub fn tensor(&self, node_id: usize, tensor: &Tensor) -> Tensor {
         ContractionTree::tensor_recursive(self.node_ptr(node_id), tensor)
     }
@@ -1075,7 +1107,7 @@ pub fn to_png(
     }
     let tree_weights = contraction_tree.tree_weights(root, tn, cost_function);
     let mut contraction_path = Vec::new();
-    contraction_tree.to_contraction_path(root, &mut contraction_path, false);
+    contraction_tree.to_flat_contraction_path(root, &mut contraction_path, false);
 
     let mut edges = String::new();
     for contraction_index in contraction_path {
@@ -1145,13 +1177,14 @@ pub fn to_dendogram(
     svg_name: String,
 ) {
     let length = 80f64;
-    let x_spacing = length / tn.tensors().len() as f64;
+    let x_spacing = length / tn.num_tensors() as f64;
     let mut last_leaf_x = x_spacing;
     let height = 60f64;
     let mut node_to_position: HashMap<usize, (f64, f64)> = HashMap::new();
     let root_id = contraction_tree.root_id();
     let mut path = Vec::new();
-    contraction_tree.to_contraction_path(root_id, &mut path, false);
+    contraction_tree.to_flat_contraction_path(root_id, &mut path, false);
+
     let tree_weights = contraction_tree.tree_weights(root_id, tn, cost_function);
     let scaling_factor = tree_weights[&root_id] as f64;
     let mut tikz_picture = String::from(
@@ -1782,7 +1815,7 @@ mod tests {
         let (tensor, ref_path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut path = Vec::new();
-        tree.to_contraction_path(4, &mut path, false);
+        tree.to_flat_contraction_path(4, &mut path, false);
         let path = ssa_replace_ordering(&path, 3);
         assert_eq!(path, ref_path);
     }
@@ -1792,7 +1825,7 @@ mod tests {
         let (tensor, ref_path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut path = Vec::new();
-        tree.to_contraction_path(10, &mut path, false);
+        tree.to_flat_contraction_path(10, &mut path, false);
         let path = ssa_replace_ordering(&path, 6);
         assert_eq!(path, ref_path);
     }
@@ -1802,7 +1835,7 @@ mod tests {
         let (tensor, ref_path) = setup_unbalanced();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut path = Vec::new();
-        tree.to_contraction_path(10, &mut path, false);
+        tree.to_flat_contraction_path(10, &mut path, false);
         let path = ssa_replace_ordering(&path, 6);
         assert_eq!(path, ref_path);
     }
