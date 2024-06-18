@@ -466,7 +466,7 @@ impl ContractionTree {
         path: &[ContractionIndex],
         parent_id: usize,
         tensor_indices: Option<Vec<usize>>,
-    ) {
+    ) -> usize {
         validate_path(path);
         assert!(self.nodes.contains_key(&parent_id));
         let mut index = 0;
@@ -511,6 +511,7 @@ impl ContractionTree {
             (*new_parent).add_child(self.node_ptr(index));
             (*new_child).set_parent(new_parent);
         }
+        index
     }
 
     fn tree_weights_recurse(
