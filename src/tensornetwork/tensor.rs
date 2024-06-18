@@ -129,6 +129,49 @@ impl Tensor {
         &self.tensors
     }
 
+    /// Getter Tensor from a nested or hierarchical Tensor.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
+    /// # use std::collections::HashMap;
+    /// let mut v1 = Tensor::new(vec![0,1]);
+    /// let mut v2 = Tensor::new(vec![1,2]);
+    /// let bond_dims = HashMap::from([
+    /// (0, 17), (1, 19), (2, 8)
+    /// ]);
+    /// let mut tn = Tensor::default();
+    /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
+    /// v1.insert_bond_dims(&bond_dims);
+    /// v2.insert_bond_dims(&bond_dims);
+    /// for (tensor, ref_tensor) in std::iter::zip(tn.tensors(), vec![v1, v2]){
+    ///    assert_eq!(tensor.legs(), ref_tensor.legs());
+    /// }
+    /// ```
+    pub fn tensor_recurse(&self, nested_i: &[usize]) -> &Tensor {
+        assert!(!nested_i.is_empty());
+        let mut tensor = self.tensor(nested_i[0]);
+        for i in nested_i.iter().skip(1) {
+            tensor = tensor.tensor(*i);
+        }
+        tensor
+    }
+
+    pub fn num_tensors(&self) -> usize {
+        if self.is_composite() {
+            return self
+                .tensors
+                .iter()
+                .map(|e| e.num_tensors())
+                .reduce(|a, b| a + b)
+                .unwrap();
+        } else {
+            1
+        }
+    }
+
     /// Get ith Tensor.
     ///
     /// # Examples
