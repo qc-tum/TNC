@@ -765,11 +765,44 @@ pub fn tree_contraction_cost(
     node_index: usize,
     tn: &Tensor,
 ) -> (u64, u64) {
-    let mut contraction_path = vec![];
-    contraction_tree.to_contraction_path(node_index, &mut contraction_path, true);
+    let (local_tensors, local_contraction_path) =
+        subtensor_network(contraction_tree, node_index, tn);
 
-    let contraction_path = ssa_replace_ordering(&contraction_path, tn.tensors().len());
-    contract_path_cost(tn.tensors(), &contraction_path)
+    contract_path_cost(&local_tensors, &local_contraction_path)
+}
+
+fn subtensor_network(
+    contraction_tree: &ContractionTree,
+    node_index: usize,
+    tn: &Tensor,
+) -> (Vec<Tensor>, Vec<ContractionIndex>) {
+    let mut leaf_ids = Vec::new();
+    contraction_tree.leaf_ids(node_index, &mut leaf_ids);
+    let (local_mapping, local_tensors): (HashMap<&usize, usize>, Vec<Tensor>) = leaf_ids
+        .iter()
+        .enumerate()
+        .map(|(a, b)| {
+            let tensor = tn
+                .tensor_recurse(contraction_tree.node(*b).tensor_index.as_ref().unwrap())
+                .clone();
+            ((b, a), tensor)
+        })
+        .collect();
+
+    let mut contraction_path = vec![];
+    contraction_tree.to_flat_contraction_path(node_index, &mut contraction_path, true);
+
+    let local_contraction_path = contraction_path
+        .into_iter()
+        .map(|e| {
+            if let ContractionIndex::Pair(a, b) = e {
+                ContractionIndex::Pair(local_mapping[&a], local_mapping[&b])
+            } else {
+                panic!("No recursive path from flat contraction path!");
+            }
+        })
+        .collect::<Vec<ContractionIndex>>();
+    (local_tensors, local_contraction_path)
 }
 
 fn find_potential_nodes(
