@@ -1,7 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
+use mpi::environment::Universe;
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::{Communicator, CommunicatorCollectives, Root};
 use rand::{rngs::StdRng, SeedableRng};
+use static_init::dynamic;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
 use tensorcontraction::mpi::communication::{
@@ -17,6 +19,10 @@ use tensorcontraction::{
     random::tensorgeneration::create_filled_tensor_network,
     tensornetwork::{contraction::contract_tensor_network, tensor::Tensor},
 };
+
+/// The shared MPI universe.
+#[dynamic(lazy, drop)]
+static mut MPI_UNIVERSE: Universe = mpi::initialize().unwrap();
 
 /// Benchmark for the contraction of two tensors.
 pub fn multiplication_benchmark(c: &mut Criterion) {
@@ -74,7 +80,7 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
 
     let mut par_part_group = c.benchmark_group("MPI Naive");
 
-    let universe = mpi::initialize().unwrap();
+    let universe = MPI_UNIVERSE.read();
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
@@ -145,13 +151,13 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
 
     let mut par_part_group = c.benchmark_group("MPI Partition");
 
-    let universe = mpi::initialize().unwrap();
+    let universe = MPI_UNIVERSE.read();
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
 
     // TODO: Do we need to know communication beforehand?
-    for k in [30, 35, 60, 80] {
+    for k in [30, 35, 45] {
         let (partitioned_tn, path) = if rank == 0 {
             let r_tn = sycamore_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
             let partitioning = find_partitioning(
