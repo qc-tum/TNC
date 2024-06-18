@@ -213,6 +213,71 @@ impl ContractionTree {
         self.nodes.remove(&node_id);
     }
 
+    fn from_contraction_path_recurse(
+        tn: &Tensor,
+        path: &[ContractionIndex],
+        nodes: &mut HashMap<usize, NodeRef>,
+        partitions: &mut HashMap<usize, Vec<usize>>,
+        prefix: &[usize],
+    ) {
+        let mut scratch = HashMap::new();
+        // Obtain tree structure from uncontracted nodes
+        for contr in path.iter() {
+            if let ContractionIndex::Path(path_id, path) = contr {
+                let intermediate_tensor = tn.tensor(*path_id);
+                let mut new_prefix = prefix.to_owned();
+                new_prefix.extend_from_slice(&[*path_id]);
+                Self::from_contraction_path_recurse(
+                    intermediate_tensor,
+                    path,
+                    nodes,
+                    partitions,
+                    &new_prefix,
+                );
+                scratch.insert(*path_id, Rc::clone(nodes.get(&(nodes.len() - 1)).unwrap()));
+            }
+        }
+        // Shift index by number of existing leaf nodes and intermediate nodes (to allow SSA enumeration)
+        let nodes_shift = nodes.len();
+        for (tensor_idx, tensor) in tn.tensors().iter().enumerate() {
+            let mut nested_tensor_idx = prefix.to_owned();
+            nested_tensor_idx.extend_from_slice(&[tensor_idx]);
+            // let tensor_idx = nested_tensor_idx + nodes_shift;
+            if tensor.is_single_tensor() {
+                let new_node = Node::new(
+                    nodes.len(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    Some(nested_tensor_idx),
+                );
+                nodes.insert(tensor_idx + nodes_shift, Rc::new(RefCell::new(new_node)));
+                scratch.insert(
+                    tensor_idx,
+                    Rc::clone(nodes.get(&(tensor_idx + nodes_shift)).unwrap()),
+                );
+            }
+        }
+
+        for contr in path.iter() {
+            if let ContractionIndex::Pair(i_path, j_path) = contr {
+                // Destructure contraction index. Check if contracted tensor already moved there.
+                let i = &scratch[i_path];
+                let j = &scratch[j_path];
+                let parent = Node::new(nodes.len(), i.as_ptr(), j.as_ptr(), ptr::null_mut(), None);
+
+                nodes.insert(nodes.len(), Rc::new(RefCell::new(parent)));
+                i.borrow_mut().parent = nodes.get(&(nodes.len() - 1)).unwrap().as_ptr();
+                j.borrow_mut().parent = nodes.get(&(nodes.len() - 1)).unwrap().as_ptr();
+                scratch.insert(*i_path, Rc::clone(nodes.get(&(nodes.len() - 1)).unwrap()));
+                scratch.remove(j_path);
+            }
+        }
+        partitions
+            .entry(prefix.len())
+            .or_default()
+            .push(nodes.len() - 1);
+    }
     #[must_use]
     /// Creates a [`ContractionTree`] object from a [`Tensor`] and a [`Vec<ContractionIndex>`].
     ///
@@ -224,45 +289,14 @@ impl ContractionTree {
     /// Constructed [`ContractionTree`] that represents all intermediate tensors and costs of given contraction path and tensor network.
     pub fn from_contraction_path(tn: &Tensor, path: &[ContractionIndex]) -> Self {
         validate_path(path);
-        // let mut tree = ContractionTree::default();
         let mut nodes = HashMap::new();
-        let mut scratch = HashMap::new();
-        for (tensor_idx, _) in tn.tensors().iter().enumerate() {
-            let new_node = Node::new(
-                nodes.len(),
-                ptr::null_mut(),
-                ptr::null_mut(),
-                ptr::null_mut(),
-                Some(tensor_idx),
-            );
-            nodes.insert(tensor_idx, Rc::new(RefCell::new(new_node)));
-            scratch.insert(tensor_idx, Rc::clone(nodes.get(&tensor_idx).unwrap()));
-        }
-
-        for contr in path.iter() {
-            match contr {
-                ContractionIndex::Pair(i_path, j_path) => {
-                    // Destructure contraction index. Check if contracted tensor already moved there.
-                    let i = &scratch[i_path];
-                    let j = &scratch[j_path];
-                    let parent =
-                        Node::new(nodes.len(), i.as_ptr(), j.as_ptr(), ptr::null_mut(), None);
-
-                    nodes.insert(nodes.len(), Rc::new(RefCell::new(parent)));
-                    i.borrow_mut().parent = nodes.get(&(nodes.len() - 1)).unwrap().as_ptr();
-                    j.borrow_mut().parent = nodes.get(&(nodes.len() - 1)).unwrap().as_ptr();
-                    scratch.insert(*i_path, Rc::clone(nodes.get(&(nodes.len() - 1)).unwrap()));
-                    scratch.remove(j_path);
-                }
-                _ => {
-                    panic!("Constructor not implemented for nested Tensors")
-                }
-            }
-        }
-        let parent = nodes.get(&(nodes.len() - 1)).unwrap().clone();
+        let mut partitions = HashMap::new();
+        Self::from_contraction_path_recurse(tn, path, &mut nodes, &mut partitions, &Vec::new());
+        let root = nodes.get(&(nodes.len() - 1)).unwrap().as_ptr();
         ContractionTree {
             nodes,
-            root: parent.as_ptr(),
+            partitions,
+            root,
         }
     }
 
