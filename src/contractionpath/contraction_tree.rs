@@ -166,9 +166,10 @@ impl Node {
 }
 
 /// Struct representing the full contraction path of a given Tensor object
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ContractionTree {
     nodes: HashMap<usize, NodeRef>,
+    partitions: HashMap<usize, Vec<usize>>,
     root: *mut Node,
 }
 
@@ -176,6 +177,7 @@ impl Default for ContractionTree {
     fn default() -> Self {
         Self {
             nodes: Default::default(),
+            partitions: HashMap::new(),
             root: ptr::null_mut(),
         }
     }
@@ -206,6 +208,10 @@ impl ContractionTree {
 
     pub fn root_id(&self) -> usize {
         unsafe { (*self.root).id }
+    }
+
+    pub fn partitions(&self) -> &HashMap<usize, Vec<usize>> {
+        &self.partitions
     }
 
     /// Removes node from HashMap. Warning! As HashMap stores Node data, removing a Node here can result in invalid references.
