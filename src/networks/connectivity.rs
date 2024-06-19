@@ -27,6 +27,7 @@ impl Connectivity {
     /// # use tensorcontraction::networks::connectivity::ConnectivityLayout;
     /// let cn = Connectivity::new(ConnectivityLayout::Eagle);
     /// ```
+    #[must_use]
     pub fn new(name: ConnectivityLayout) -> Self {
         let connectivity = match name {
             ConnectivityLayout::Condor => condor_connect(),

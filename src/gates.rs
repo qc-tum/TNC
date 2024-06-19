@@ -3,6 +3,7 @@ use tetra::Tensor as DataTensor;
 
 use std::f64::consts::FRAC_1_SQRT_2;
 
+#[must_use]
 pub fn load_gate(gate: &str, angles: Option<&Vec<f64>>) -> DataTensor {
     const X: [Complex64; 4] = [
         Complex64::new(0.0, 0.0),

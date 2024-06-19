@@ -8,6 +8,7 @@ pub mod tensordata;
 use std::collections::HashMap;
 
 /// Creates a tensor network from a list of tensors and the bond dimensions.
+#[must_use]
 pub fn create_tensor_network(
     tensors: Vec<Tensor>,
     bond_dims: &HashMap<usize, u64>,

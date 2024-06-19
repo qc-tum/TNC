@@ -125,7 +125,7 @@ impl Tensor {
     ///    assert_eq!(tensor.legs(), ref_tensor.legs());
     /// }
     /// ```
-    pub fn tensors(&self) -> &Vec<Tensor> {
+    pub fn tensors(&self) -> &Vec<Self> {
         &self.tensors
     }
 
@@ -149,7 +149,7 @@ impl Tensor {
     /// ref_tensor.insert_bond_dims(&bond_dims);
     /// assert_eq!(tn.tensor(0).legs(), ref_tensor.legs());
     /// ```
-    pub fn tensor(&self, i: usize) -> &Tensor {
+    pub fn tensor(&self, i: usize) -> &Self {
         &self.tensors[i]
     }
 
@@ -174,7 +174,7 @@ impl Tensor {
     ///    assert_eq!(t1.legs(), ref_t1.legs());
     ///}
     /// ```
-    pub fn tensor_iter(&self) -> impl Iterator<Item = &Tensor> {
+    pub fn tensor_iter(&self) -> impl Iterator<Item = &Self> {
         self.tensors().iter()
     }
 
@@ -385,7 +385,7 @@ impl Tensor {
     /// Considers `legs`, `bond_dims`, `external_hyperedges` and `tensordata`.
     /// `edges` are not compared as different contraction ordering will result in
     /// different edges even though the tensors are otherwise identical.
-    pub fn approx_eq(&self, other: &Tensor, epsilon: f64) -> bool {
+    pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
         if self.tensors.len() != other.tensors.len() {
             return false;
         }
@@ -414,10 +414,10 @@ impl Tensor {
     ///
     /// * `tensor` - new `Tensor` to be added
     /// * `bond_dims` - `HashMap<usize, u64>` mapping edge id to bond dimension
-    pub fn push_tensor(&mut self, mut tensor: Tensor, bond_dims: Option<&HashMap<usize, u64>>) {
+    pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&HashMap<usize, u64>>) {
         // In the case of pushing to an empty tensor, avoid unnecessary heirarchies
         if self.tensors().is_empty() && self.legs().is_empty() {
-            let Tensor {
+            let Self {
                 legs,
                 tensors: _,
                 bond_dims: _,
@@ -431,7 +431,7 @@ impl Tensor {
             if let Some(bond_dims) = bond_dims {
                 self.add_bond_dims(bond_dims);
             }
-            for (&key, &value) in external_hyperedge.iter() {
+            for (&key, &value) in &external_hyperedge {
                 self.external_hyperedge
                     .entry(key)
                     .and_modify(|old_val| *old_val += value)
@@ -470,7 +470,7 @@ impl Tensor {
     /// * `external_hyperedge` - Optional `HashMap<EdgeIndex, usize>` of external hyperedges, mapping the edge index to count of external hyperedges.
     pub fn push_tensors(
         &mut self,
-        tensors: Vec<Tensor>,
+        tensors: Vec<Self>,
         bond_dims: Option<&HashMap<usize, u64>>,
         external_hyperedge: Option<&HashMap<EdgeIndex, usize>>,
     ) {
@@ -489,7 +489,7 @@ impl Tensor {
             self.add_bond_dims(bond_dims);
         };
 
-        for mut tensor in tensors.into_iter() {
+        for mut tensor in tensors {
             self.update_tensor_edges(&mut tensor);
             self.tensors.push(tensor);
         }
@@ -503,15 +503,15 @@ impl Tensor {
     /// existing keys are not changed.
     fn add_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
         let mut shared_bond_dims = self.bond_dims.write().unwrap();
-        for (key, value) in bond_dims.iter() {
+        for (key, value) in bond_dims {
             shared_bond_dims
                 .entry(*key)
-                .and_modify(|e| assert_eq!(e, value, "Updating bond dims will overwrite entry at key {} with value {} with new value of {}", key, e, value))
+                .and_modify(|e| assert_eq!(e, value, "Updating bond dims will overwrite entry at key {key} with value {e} with new value of {value}"))
                 .or_insert(*value);
         }
     }
 
-    /// Internal method to update hyperedges in edge HashMap. Adds an additional open vertex to each indicated edge if they are missing
+    /// Internal method to update hyperedges in edge `HashMap`. Adds an additional open vertex to each indicated edge if they are missing
     pub(super) fn update_external_edges(&mut self, external_hyperedge: &HashMap<EdgeIndex, usize>) {
         for (&edge_index, &count) in external_hyperedge {
             self.edges.entry(edge_index).and_modify(|edge| {
@@ -525,7 +525,7 @@ impl Tensor {
     /// Internal method to update edges in tensornetwork after new tensor is added.
     /// If existing edges are introduced, assume that a contraction occurs between them
     /// Otherwise, introduce a new open vertex in edges
-    pub(super) fn update_tensor_edges(&mut self, tensor: &mut Tensor) {
+    pub(super) fn update_tensor_edges(&mut self, tensor: &mut Self) {
         tensor.bond_dims = Arc::clone(&self.bond_dims);
         let shared_bond_dims = self.bond_dims.read().unwrap();
 
@@ -550,7 +550,7 @@ impl Tensor {
                         edge.push(Vertex::Closed(index));
                     }
                 })
-                .or_insert(vec![Vertex::Closed(index), Vertex::Open]);
+                .or_insert_with(|| vec![Vertex::Closed(index), Vertex::Open]);
         }
     }
 
@@ -597,14 +597,15 @@ impl Tensor {
     /// let diff_tensor = &tensor1 - &tensor2;
     /// assert_eq!(diff_tensor.legs(), &vec![1,3]);
     /// ```
-    pub fn difference(&self, other: &Tensor) -> Tensor {
+    #[must_use]
+    pub fn difference(&self, other: &Self) -> Self {
         let mut new_legs = Vec::new();
         for &i in self.legs_iter() {
             if !other.contains_leg(i) {
                 new_legs.push(i);
             }
         }
-        Tensor::new(new_legs)
+        Self::new(new_legs)
     }
 
     /// Returns Tensor with union of legs in both `self` and `other`.
@@ -622,8 +623,9 @@ impl Tensor {
     /// let union_tensor = &tensor1 | &tensor2;
     /// assert_eq!(union_tensor.legs(), &vec![1,2,3,4,5]);
     /// ```
-    pub fn union(&self, other: &Tensor) -> Tensor {
-        let mut new_tn = Tensor::new(self.legs().union(other.legs().clone()));
+    #[must_use]
+    pub fn union(&self, other: &Self) -> Self {
+        let mut new_tn = Self::new(self.legs().union(other.legs().clone()));
         new_tn.insert_bond_dims(&self.bond_dims());
         new_tn
     }
@@ -643,8 +645,9 @@ impl Tensor {
     /// let intersection_tensor = &tensor1 & &tensor2;
     /// assert_eq!(intersection_tensor.legs(), &vec![2]);
     /// ```
-    pub fn intersection(&self, other: &Tensor) -> Tensor {
-        let mut new_tn = Tensor::new(self.legs().intersect(other.legs().clone()));
+    #[must_use]
+    pub fn intersection(&self, other: &Self) -> Self {
+        let mut new_tn = Self::new(self.legs().intersect(other.legs().clone()));
         new_tn.insert_bond_dims(&self.bond_dims());
         new_tn
     }
@@ -664,19 +667,20 @@ impl Tensor {
     /// let sym_dif_tensor = &tensor1 ^ &tensor2;
     /// assert_eq!(sym_dif_tensor.legs(), &vec![1,3,4,5]);
     /// ```
-    pub fn symmetric_difference(&self, other: &Tensor) -> Tensor {
+    #[must_use]
+    pub fn symmetric_difference(&self, other: &Self) -> Self {
         let mut new_legs = Vec::new();
         for &i in self.legs_iter() {
             if !other.contains_leg(i) {
                 new_legs.push(i);
             }
         }
-        for &i in other.legs().iter() {
+        for &i in other.legs() {
             if !self.contains_leg(i) {
                 new_legs.push(i);
             }
         }
-        let mut new_tn = Tensor::new(new_legs);
+        let mut new_tn = Self::new(new_legs);
         new_tn.insert_bond_dims(&self.bond_dims());
         new_tn
     }
@@ -687,12 +691,12 @@ impl Tensor {
             return self.legs().clone();
         }
 
-        let mut ext_edges = Tensor::default();
-        for tensor in self.tensors.iter() {
+        let mut ext_edges = Self::default();
+        for tensor in &self.tensors {
             ext_edges = &ext_edges ^ tensor;
         }
         let mut ext_edges = std::mem::take(&mut ext_edges.legs);
-        for (&edge_index, &count) in self.external_hyperedge.iter() {
+        for (&edge_index, &count) in &self.external_hyperedge {
             ext_edges.append(&mut vec![edge_index; count]);
         }
         ext_edges
@@ -762,7 +766,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(
+        expected = "assertion `left == right` failed: Updating bond dims will overwrite entry at key 2 with value 5 with new value of 17\n  left: 5\n right: 17"
+    )]
     fn test_add_bond_dims() {
         let mut tensor = Tensor::new(vec![2, 4, 5]);
         tensor.insert_bond_dim(2, 5);

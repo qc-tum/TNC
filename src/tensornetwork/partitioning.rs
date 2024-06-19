@@ -7,16 +7,16 @@ use super::tensor::Tensor;
 use crate::types::Vertex;
 use kahypar_sys::{partition, KaHyParContext};
 
-/// Partitions input tensor network using KaHyPar library.
+/// Partitions input tensor network using `KaHyPar` library.
 /// Returns a `Vec<usize>` of length equal to the number of input tensors storing final partitioning results.
 /// The usize associated with each Tensor indicates its partionining.
 ///
 /// # Arguments
 ///
 /// * `tn` - [`Tensor`] to be partitionined
-/// * `k` - imbalance parameter for KaHyPar
-/// * `config_file` - KaHyPar config file name
-/// * `min` - if `true` performs min_cut to partition tensor network, if `false`, uses max_cut
+/// * `k` - imbalance parameter for `KaHyPar`
+/// * `config_file` - `KaHyPar` config file name
+/// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
 ///
 pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
     assert!(k > 1, "Partitioning only valid for more than one process");
@@ -79,10 +79,8 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
         .unique()
         .copied()
         .collect::<Vec<usize>>();
-    let partition_dict = HashMap::<usize, usize>::from_iter(zip(
-        partition_ids.iter().cloned(),
-        0..partition_ids.len(),
-    ));
+    let partition_dict =
+        zip(partition_ids.iter().copied(), 0..partition_ids.len()).collect::<HashMap<_, _>>();
     let mut partitions = vec![Tensor::default(); partition_ids.len()];
 
     for (partition_id, tensor) in zip(partitioning.iter(), tn.tensors.iter()) {

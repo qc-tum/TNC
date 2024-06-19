@@ -146,11 +146,11 @@ impl<'a> BranchBound<'a> {
         }
 
         let mut candidates = BinaryHeap::<Candidate>::new();
-        for i in remaining.iter().cloned().combinations(2) {
+        for i in remaining.iter().copied().combinations(2) {
             let candidate =
                 self.assess_candidate(i[0] as usize, i[1] as usize, flops, size, &remaining);
             if let Some(new_candidate) = candidate {
-                candidates.push(new_candidate)
+                candidates.push(new_candidate);
             }
         }
         let bi = 0;

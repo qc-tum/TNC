@@ -86,7 +86,7 @@ where
                 next_edge += 1;
             }
         }
-        for (i, j) in filtered_connectivity.iter() {
+        for (i, j) in &filtered_connectivity {
             // Placing of random two qubit gate
             if rng.sample(uniform_prob) < two_qubit_probability {
                 sycamore_bonddims.insert(next_edge, 2);

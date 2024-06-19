@@ -28,14 +28,11 @@ pub(crate) fn validate_path(path: &[ContractionIndex]) {
     for index in path {
         match index {
             ContractionIndex::Pair(u, v) => {
-                if contracted.contains(u) {
-                    panic!(
-                        "Contracting already contracted tensors: {:?}, path: {:?}",
-                        u, path,
-                    )
-                } else {
-                    contracted.push(*v);
-                }
+                assert!(
+                    !contracted.contains(u),
+                    "Contracting already contracted tensors: {u:?}, path: {path:?}"
+                );
+                contracted.push(*v);
             }
             ContractionIndex::Path(_, path) => {
                 validate_path(path);
@@ -69,7 +66,9 @@ mod tests {
     use super::validate_path;
 
     #[test]
-    #[should_panic]
+    #[should_panic(
+        expected = "Contracting already contracted tensors: 1, path: [Pair(0, 1), Pair(1, 2)]"
+    )]
     fn test_validate_paths() {
         let invalid_path = path![(0, 1), (1, 2)];
         validate_path(invalid_path);

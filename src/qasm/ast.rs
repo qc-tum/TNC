@@ -289,7 +289,7 @@ impl Display for GateDeclarationData {
         // Write body
         if let Some(body) = &self.body {
             writeln!(f, " {{")?;
-            for statement in body.iter() {
+            for statement in body {
                 writeln!(f, "    {statement}")?;
             }
             write!(f, "}}")
@@ -553,7 +553,7 @@ gate y(a) q1, q2 {
 y(2) q[0], q[1];
 measure q[1] -> c[0];
 "
-        )
+        );
     }
 
     #[test]

@@ -1,5 +1,3 @@
-extern crate tensorcontraction;
-
 use mpi::topology::SimpleCommunicator;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -12,10 +10,10 @@ use tensorcontraction::networks::sycamore::sycamore_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 
-use mpi::traits::*;
-use tensorcontraction::tensornetwork::tensor::Tensor;
+use mpi::traits::{Communicator, CommunicatorCollectives, Root};
 use tensorcontraction::types::ContractionIndex;
 
+#[must_use]
 pub fn broadcast_path(
     local_path: &[ContractionIndex],
     world: &SimpleCommunicator,
@@ -41,38 +39,46 @@ pub fn broadcast_path(
 // Run with at least 2 processes
 fn main() {
     let mut rng = StdRng::seed_from_u64(23);
-
     let universe = mpi::initialize().unwrap();
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
-    println!("Size: {:?}", size);
-    let k = 20;
-    // Do we need to know communication beforehand?
-    let mut partitioned_tn = Tensor::default();
-    let mut path = Vec::new();
+
     if rank == 0 {
+        println!("Running with {size} processes");
+    }
+
+    let k = 20;
+
+    // Setup tensor network
+    // TODO: Do we need to know communication beforehand?
+    let (mut partitioned_tn, path) = if rank == 0 {
         let r_tn = sycamore_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
-        if size > 1 {
+        let partitioned_tn = if size > 1 {
             let partitioning = find_partitioning(
                 &r_tn,
                 size,
                 String::from("tests/km1_kKaHyPar_sea20.ini"),
                 true,
             );
-            partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+            partition_tensor_network(&r_tn, &partitioning)
         } else {
-            partitioned_tn = r_tn;
-        }
+            r_tn
+        };
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
         opt.optimize_path();
-        path = opt.get_best_replace_path();
-    }
+        let path = opt.get_best_replace_path();
+        (partitioned_tn, path)
+    } else {
+        Default::default()
+    };
     world.barrier();
+
+    // Distribute tensor network and contract
     let local_tn = if size > 1 {
         let (mut local_tn, local_path) =
-            scatter_tensor_network(partitioned_tn.clone(), &path, rank, size, &world);
+            scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
         contract_tensor_network(&mut local_tn, &local_path);
 
         let path = if rank == 0 {
@@ -88,7 +94,8 @@ fn main() {
         partitioned_tn
     };
 
+    // Print the result
     if rank == 0 {
-        println!("{:?}", local_tn);
+        println!("{local_tn:?}");
     }
 }
