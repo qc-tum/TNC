@@ -1,10 +1,10 @@
-use crate::contractionpath::paths::{
-    greedy::Greedy,
-    {CostType, OptimizePath},
-};
 use crate::contractionpath::ssa_replace_ordering;
 use crate::tensornetwork::{create_tensor_network, tensor::Tensor};
 use crate::types::ContractionIndex;
+use crate::{
+    contractionpath::paths::{greedy::Greedy, CostType, OptimizePath},
+    tensornetwork::tensor,
+};
 use crate::{pair, path};
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::seq::SliceRandom;
@@ -219,6 +219,7 @@ impl ContractionTree {
         self.nodes.remove(&node_id);
     }
 
+    // Recursive variant that accepts composite [`Tensor`] objects.
     fn from_contraction_path_recurse(
         tn: &Tensor,
         path: &[ContractionIndex],
@@ -284,6 +285,7 @@ impl ContractionTree {
             .or_default()
             .push(nodes.len() - 1);
     }
+
     #[must_use]
     /// Creates a [`ContractionTree`] object from a [`Tensor`] and a [`Vec<ContractionIndex>`].
     ///
@@ -741,6 +743,14 @@ impl ContractionTree {
             ^ &ContractionTree::tensor_recursive(right_child, tn)
     }
 
+    /// Returns intermediate [`Tensor`] object corresponding to `node_id`.
+    ///
+    /// # Arguments
+    /// * `node_id` - id of Node corresponding to [`Tensor`] of interest
+    /// * `tensor` - [`Tensor`] object containing bond dimension and leaf node information
+    ///
+    /// # Returns
+    /// Empty [`Tensor`] object with legs (dimensions) of data after fully contracted.
     pub fn tensor(&self, node_id: usize, tensor: &Tensor) -> Tensor {
         ContractionTree::tensor_recursive(self.node_ptr(node_id), tensor)
     }
@@ -881,7 +891,7 @@ fn find_potential_nodes(
     }))
 }
 
-pub fn balance_path_iter(
+pub fn balance_partitions_iter(
     tn: &Tensor,
     path: &[ContractionIndex],
     random_balance: bool,
@@ -889,7 +899,7 @@ pub fn balance_path_iter(
     iterations: usize,
     output_file: String,
     cost_function: fn(&Tensor, &Tensor) -> u64,
-) -> (usize, ContractionTree) {
+) -> (usize, Tensor, Vec<ContractionIndex>, Vec<u64>) {
     let mut contraction_tree = ContractionTree::from_contraction_path(tn, path);
     let mut path = path.to_owned();
     let final_contraction = path
@@ -929,12 +939,17 @@ pub fn balance_path_iter(
         cost_function,
         output_file.clone() + "_0",
     );
+
+    let mut new_tn = Tensor::default();
     let mut best_contraction = 0;
     let mut best_contraction_tree = contraction_tree.clone();
+    let mut best_contraction_path = path.clone();
     let mut best_cost = max_cost + final_op_cost;
 
+    let mut best_tn = tn.clone();
+
     for i in 1..(iterations + 1) {
-        (max_cost, path) =
+        (max_cost, path, new_tn) =
             balance_partitions(tn, &mut contraction_tree, random_balance, rebalance_depth);
         assert_eq!(partition_number, path.len(), "Tensors lost!");
         validate_path(&path);
@@ -949,19 +964,23 @@ pub fn balance_path_iter(
 
         max_costs.push(new_max_cost);
 
+        if new_max_cost < best_cost {
+            best_cost = new_max_cost;
+            best_contraction = i;
+            best_contraction_tree = contraction_tree.clone();
+            best_tn = new_tn;
+            best_contraction_path = path.clone()
+        }
+
         to_dendogram(
             &contraction_tree,
             tn,
             cost_function,
             output_file.clone() + &format!("_{}", i),
         );
-        if new_max_cost < best_cost {
-            best_cost = new_max_cost;
-            best_contraction = i;
-            best_contraction_tree = contraction_tree.clone();
-        }
     }
-    (best_contraction, best_contraction_tree)
+    best_contraction_path.extend(final_contraction);
+    (best_contraction, best_tn, best_contraction_path, max_costs)
 }
 
 pub fn balance_partitions(
@@ -969,7 +988,7 @@ pub fn balance_partitions(
     contraction_tree: &mut ContractionTree,
     random_balance: bool,
     rebalance_depth: usize,
-) -> (u64, Vec<ContractionIndex>) {
+) -> (u64, Vec<ContractionIndex>, Tensor) {
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
     if tn.tensors().len() < 3 {
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
@@ -978,6 +997,7 @@ pub fn balance_partitions(
     fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
         -((t1 ^ t2).size() as i64) + (t1.size() as i64) + (t2.size() as i64)
     }
+    let bond_dims = tn.bond_dims();
 
     // 1. Create binary contraction tree. It details how tensors are contracted via the given path.
     // let mut tree = ContractionTree::from_contraction_path(tn, contraction_tree);
@@ -1197,15 +1217,21 @@ pub fn balance_partitions(
 
     // 7. Generate new paths based on greedy paths
     let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
-    let rebalanced_path = children
+
+    let (partition_tensors, mut rebalanced_path): (Vec<Tensor>, Vec<ContractionIndex>) = children
         .iter()
         .enumerate()
         .map(|(i, e)| {
-            let (_, local_path) = subtensor_network(contraction_tree, *e, tn);
-            ContractionIndex::Path(i, local_path)
+            let (tensors, local_path) = subtensor_network(contraction_tree, *e, tn);
+            let mut tensor = Tensor::default();
+            tensor.push_tensors(tensors, Some(&bond_dims), None);
+            (tensor, ContractionIndex::Path(i, local_path))
         })
-        .collect::<Vec<ContractionIndex>>();
-    (new_max, rebalanced_path)
+        .collect();
+
+    let mut updated_tn = Tensor::default();
+    updated_tn.push_tensors(partition_tensors, Some(&bond_dims), None);
+    (new_max, rebalanced_path, updated_tn)
 }
 
 pub fn find_min_max_subtree(
@@ -1437,7 +1463,7 @@ pub fn to_dendogram(
     // Command::new("pdflatex").arg(svg_name).spawn().unwrap();
 }
 
-pub fn repartition_tn(tn: &Tensor, tree: ContractionTree, partition_depth: usize) -> Tensor {
+pub fn repartition_tn(tn: &Tensor, tree: &ContractionTree, partition_depth: usize) -> Tensor {
     let mut partitioned_tensor = Vec::new();
     for partition_id in tree
         .partitions()
@@ -1448,7 +1474,7 @@ pub fn repartition_tn(tn: &Tensor, tree: ContractionTree, partition_depth: usize
     {
         let mut leaf_ids = Vec::new();
         tree.leaf_ids(*partition_id, &mut leaf_ids);
-        println!("leaf_ids: {:?}", leaf_ids);
+        println!("Leaf ids: {:?}", leaf_ids);
         for leaf_id in leaf_ids {
             partitioned_tensor.push(
                 tn.tensor_recurse(tree.node(leaf_id).tensor_index.as_ref().unwrap())
