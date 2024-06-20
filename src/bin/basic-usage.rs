@@ -4,18 +4,20 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
-use tensorcontraction::contractionpath::contraction_tree::balance_path_iter;
+use tensorcontraction::contractionpath::contraction_tree::balance_partitions_iter;
 use tensorcontraction::contractionpath::paths::greedy::Greedy;
 use tensorcontraction::contractionpath::paths::{CostType, OptimizePath};
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 
+use std::time::{Duration, Instant};
+
 fn main() {
     let mut rng: StdRng = StdRng::seed_from_u64(27);
 
-    let num_qubits = 10;
-    let circuit_depth = 5;
+    let num_qubits = 20;
+    let circuit_depth = 10;
     let single_qubit_probability = 0.4;
     let two_qubit_probability = 0.4;
     let connectivity = ConnectivityLayout::Osprey;
@@ -41,14 +43,15 @@ fn main() {
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
     opt.optimize_path();
     let path = opt.get_best_replace_path();
-
-    let (cost, new_tree) = balance_path_iter(
+    let now = Instant::now();
+    let (cost, new_tree, contraction_path, costs) = balance_partitions_iter(
         &partitioned_tn,
         &path,
         false,
         1,
-        5,
+        120,
         String::from("output/rebalance_trial"),
         contract_cost_tensors,
     );
+    println!("{:?}", now.duration_since(now));
 }
