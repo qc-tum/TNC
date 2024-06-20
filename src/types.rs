@@ -1,5 +1,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+
+use serde::{Deserialize, Serialize};
 // use std::hash::DefaultHasher;
 
 pub type EdgeIndex = usize;
@@ -11,7 +13,7 @@ pub enum Vertex {
     Closed(TensorIndex),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ContractionIndex {
     Pair(usize, usize),
     Path(usize, Vec<ContractionIndex>),
