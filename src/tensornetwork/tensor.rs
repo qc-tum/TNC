@@ -514,7 +514,7 @@ impl Tensor {
     pub fn push_tensors(
         &mut self,
         tensors: Vec<Self>,
-        bond_dims: Option<&HashMap<usize, u64>>,
+        bond_dims: Option<&HashMap<EdgeIndex, u64>>,
         external_hyperedge: Option<&HashMap<EdgeIndex, usize>>,
     ) {
         // Case that tensor is not empty but has no subtensors.
