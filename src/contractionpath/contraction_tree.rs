@@ -1,11 +1,7 @@
-use crate::contractionpath::ssa_replace_ordering;
+use crate::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
+use crate::pair;
 use crate::tensornetwork::{create_tensor_network, tensor::Tensor};
 use crate::types::ContractionIndex;
-use crate::{
-    contractionpath::paths::{greedy::Greedy, CostType, OptimizePath},
-    tensornetwork::tensor,
-};
-use crate::{pair, path};
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -942,13 +938,13 @@ pub fn balance_partitions_iter(
 
     let mut new_tn = Tensor::default();
     let mut best_contraction = 0;
-    let mut best_contraction_tree = contraction_tree.clone();
     let mut best_contraction_path = path.clone();
     let mut best_cost = max_cost + final_op_cost;
 
     let mut best_tn = tn.clone();
 
     for i in 1..(iterations + 1) {
+        println!("Iter: {:?}", i);
         (max_cost, path, new_tn) =
             balance_partitions(tn, &mut contraction_tree, random_balance, rebalance_depth);
         assert_eq!(partition_number, path.len(), "Tensors lost!");
@@ -967,8 +963,7 @@ pub fn balance_partitions_iter(
         if new_max_cost < best_cost {
             best_cost = new_max_cost;
             best_contraction = i;
-            best_contraction_tree = contraction_tree.clone();
-            best_tn = new_tn;
+            best_tn = new_tn.clone();
             best_contraction_path = path.clone()
         }
 
@@ -990,7 +985,7 @@ pub fn balance_partitions(
     rebalance_depth: usize,
 ) -> (u64, Vec<ContractionIndex>, Tensor) {
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
-    if tn.tensors().len() < 3 {
+    if tn.num_tensors() < 3 {
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
     }
 
@@ -1021,7 +1016,7 @@ pub fn balance_partitions(
     let (larger_subtree_id, _) = partition_costs[partition_costs.len() - 1];
     let (smaller_subtree_id, _) = partition_costs[0];
     let mut new_max = if children.len() > 2 {
-        let (_, mut new_max) = partition_costs[partition_costs.len() - 2];
+        let (_, new_max) = partition_costs[partition_costs.len() - 2];
         new_max
     } else {
         u64::MAX
@@ -1218,7 +1213,7 @@ pub fn balance_partitions(
     // 7. Generate new paths based on greedy paths
     let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
 
-    let (partition_tensors, mut rebalanced_path): (Vec<Tensor>, Vec<ContractionIndex>) = children
+    let (partition_tensors, rebalanced_path): (Vec<Tensor>, Vec<ContractionIndex>) = children
         .iter()
         .enumerate()
         .map(|(i, e)| {
