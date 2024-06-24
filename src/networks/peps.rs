@@ -363,27 +363,45 @@ mod tests {
 
     #[test]
     fn test_pep_init() {
-        let length = 2;
-        let depth = 2;
+        let length = 3;
+        let depth = 3;
         let physical_dim = 4;
         let virtual_dim = 10;
 
         let mut ref_tensor = Tensor::default();
         let tensors = vec![
-            Tensor::new(vec![0, 4, 6]),
-            Tensor::new(vec![1, 4, 7]),
-            Tensor::new(vec![2, 5, 6]),
-            Tensor::new(vec![3, 5, 7]),
+            Tensor::new(vec![0, 9, 15]),
+            Tensor::new(vec![1, 9, 10, 16]),
+            Tensor::new(vec![2, 10, 17]),
+            Tensor::new(vec![3, 11, 15, 18]),
+            Tensor::new(vec![4, 11, 12, 16, 19]),
+            Tensor::new(vec![5, 12, 17, 20]),
+            Tensor::new(vec![6, 13, 18]),
+            Tensor::new(vec![7, 13, 14, 19]),
+            Tensor::new(vec![8, 14, 20]),
         ];
         let bond_dims = HashMap::from([
-            (3, 4),
-            (4, 10),
-            (1, 4),
-            (5, 10),
-            (7, 10),
-            (2, 4),
             (0, 4),
-            (6, 10),
+            (1, 4),
+            (2, 4),
+            (3, 4),
+            (4, 4),
+            (5, 4),
+            (6, 4),
+            (7, 4),
+            (8, 4),
+            (9, 10),
+            (10, 10),
+            (11, 10),
+            (12, 10),
+            (13, 10),
+            (14, 10),
+            (15, 10),
+            (16, 10),
+            (17, 10),
+            (18, 10),
+            (19, 10),
+            (20, 10),
         ]);
         ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
 
@@ -396,40 +414,76 @@ mod tests {
 
     #[test]
     fn test_pepo() {
-        let length = 2;
-        let depth = 2;
+        let length = 3;
+        let depth = 3;
         let physical_dim = 4;
         let virtual_dim = 10;
         let layers = 1;
 
         let mut ref_tensor = Tensor::default();
         let tensors = vec![
-            Tensor::new(vec![0, 4, 6]),
-            Tensor::new(vec![1, 4, 7]),
-            Tensor::new(vec![2, 5, 6]),
-            Tensor::new(vec![3, 5, 7]),
-            Tensor::new(vec![0, 8, 12, 14]),
-            Tensor::new(vec![1, 9, 12, 15]),
-            Tensor::new(vec![2, 10, 13, 14]),
-            Tensor::new(vec![3, 11, 13, 15]),
+            Tensor::new(vec![0, 9, 15]),
+            Tensor::new(vec![1, 9, 10, 16]),
+            Tensor::new(vec![2, 10, 17]),
+            Tensor::new(vec![3, 11, 15, 18]),
+            Tensor::new(vec![4, 11, 12, 16, 19]),
+            Tensor::new(vec![5, 12, 17, 20]),
+            Tensor::new(vec![6, 13, 18]),
+            Tensor::new(vec![7, 13, 14, 19]),
+            Tensor::new(vec![8, 14, 20]),
+            Tensor::new(vec![0, 21, 30, 36]),
+            Tensor::new(vec![1, 22, 30, 31, 37]),
+            Tensor::new(vec![2, 23, 31, 38]),
+            Tensor::new(vec![3, 24, 32, 36, 39]),
+            Tensor::new(vec![4, 25, 32, 33, 37, 40]),
+            Tensor::new(vec![5, 26, 33, 38, 41]),
+            Tensor::new(vec![6, 27, 34, 39]),
+            Tensor::new(vec![7, 28, 34, 35, 40]),
+            Tensor::new(vec![8, 29, 35, 41]),
         ];
         let bond_dims = HashMap::from([
             (0, 4),
             (1, 4),
             (2, 4),
             (3, 4),
-            (4, 10),
-            (5, 10),
-            (6, 10),
-            (7, 10),
+            (4, 4),
+            (5, 4),
+            (6, 4),
+            (7, 4),
             (8, 4),
-            (9, 4),
-            (10, 4),
-            (11, 4),
+            (9, 10),
+            (10, 10),
+            (11, 10),
             (12, 10),
             (13, 10),
             (14, 10),
             (15, 10),
+            (16, 10),
+            (17, 10),
+            (18, 10),
+            (19, 10),
+            (20, 10),
+            (21, 4),
+            (22, 4),
+            (23, 4),
+            (24, 4),
+            (25, 4),
+            (26, 4),
+            (27, 4),
+            (28, 4),
+            (29, 4),
+            (30, 10),
+            (31, 10),
+            (32, 10),
+            (33, 10),
+            (34, 10),
+            (35, 10),
+            (36, 10),
+            (37, 10),
+            (38, 10),
+            (39, 10),
+            (40, 10),
+            (41, 10),
         ]);
         ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
 
@@ -446,40 +500,55 @@ mod tests {
 
     #[test]
     fn test_peps_final() {
-        let length = 2;
-        let depth = 2;
+        let length = 3;
+        let depth = 3;
         let physical_dim = 4;
         let virtual_dim = 10;
         let layers = 1;
 
         let mut ref_tensor = Tensor::default();
         let tensors = vec![
-            Tensor::new(vec![0, 4, 6]),
-            Tensor::new(vec![1, 4, 7]),
-            Tensor::new(vec![2, 5, 6]),
-            Tensor::new(vec![3, 5, 7]),
-            Tensor::new(vec![0, 8, 12, 14]),
-            Tensor::new(vec![1, 9, 12, 15]),
-            Tensor::new(vec![2, 10, 13, 14]),
-            Tensor::new(vec![3, 11, 13, 15]),
-            Tensor::new(vec![8, 16, 18]),
-            Tensor::new(vec![9, 16, 19]),
-            Tensor::new(vec![10, 17, 18]),
-            Tensor::new(vec![11, 17, 19]),
+            Tensor::new(vec![0, 9, 15]),
+            Tensor::new(vec![1, 9, 10, 16]),
+            Tensor::new(vec![2, 10, 17]),
+            Tensor::new(vec![3, 11, 15, 18]),
+            Tensor::new(vec![4, 11, 12, 16, 19]),
+            Tensor::new(vec![5, 12, 17, 20]),
+            Tensor::new(vec![6, 13, 18]),
+            Tensor::new(vec![7, 13, 14, 19]),
+            Tensor::new(vec![8, 14, 20]),
+            Tensor::new(vec![0, 21, 30, 36]),
+            Tensor::new(vec![1, 22, 30, 31, 37]),
+            Tensor::new(vec![2, 23, 31, 38]),
+            Tensor::new(vec![3, 24, 32, 36, 39]),
+            Tensor::new(vec![4, 25, 32, 33, 37, 40]),
+            Tensor::new(vec![5, 26, 33, 38, 41]),
+            Tensor::new(vec![6, 27, 34, 39]),
+            Tensor::new(vec![7, 28, 34, 35, 40]),
+            Tensor::new(vec![8, 29, 35, 41]),
+            Tensor::new(vec![21, 42, 48]),
+            Tensor::new(vec![22, 42, 43, 49]),
+            Tensor::new(vec![23, 43, 50]),
+            Tensor::new(vec![24, 44, 48, 51]),
+            Tensor::new(vec![25, 44, 45, 49, 52]),
+            Tensor::new(vec![26, 45, 50, 53]),
+            Tensor::new(vec![27, 46, 51]),
+            Tensor::new(vec![28, 46, 47, 52]),
+            Tensor::new(vec![29, 47, 53]),
         ];
         let bond_dims = HashMap::from([
             (0, 4),
             (1, 4),
             (2, 4),
             (3, 4),
-            (4, 10),
-            (5, 10),
-            (6, 10),
-            (7, 10),
+            (4, 4),
+            (5, 4),
+            (6, 4),
+            (7, 4),
             (8, 4),
-            (9, 4),
-            (10, 4),
-            (11, 4),
+            (9, 10),
+            (10, 10),
+            (11, 10),
             (12, 10),
             (13, 10),
             (14, 10),
@@ -488,6 +557,40 @@ mod tests {
             (17, 10),
             (18, 10),
             (19, 10),
+            (20, 10),
+            (21, 4),
+            (22, 4),
+            (23, 4),
+            (24, 4),
+            (25, 4),
+            (26, 4),
+            (27, 4),
+            (28, 4),
+            (29, 4),
+            (30, 10),
+            (31, 10),
+            (32, 10),
+            (33, 10),
+            (34, 10),
+            (35, 10),
+            (36, 10),
+            (37, 10),
+            (38, 10),
+            (39, 10),
+            (40, 10),
+            (41, 10),
+            (42, 10),
+            (43, 10),
+            (44, 10),
+            (45, 10),
+            (46, 10),
+            (47, 10),
+            (48, 10),
+            (49, 10),
+            (50, 10),
+            (51, 10),
+            (52, 10),
+            (53, 10),
         ]);
         ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
 
@@ -504,40 +607,55 @@ mod tests {
 
     #[test]
     fn test_peps() {
-        let length = 2;
-        let depth = 2;
+        let length = 3;
+        let depth = 3;
         let physical_dim = 4;
         let virtual_dim = 10;
         let layers = 1;
 
         let mut ref_tensor = Tensor::default();
         let tensors = vec![
-            Tensor::new(vec![0, 4, 6]),
-            Tensor::new(vec![1, 4, 7]),
-            Tensor::new(vec![2, 5, 6]),
-            Tensor::new(vec![3, 5, 7]),
-            Tensor::new(vec![0, 8, 12, 14]),
-            Tensor::new(vec![1, 9, 12, 15]),
-            Tensor::new(vec![2, 10, 13, 14]),
-            Tensor::new(vec![3, 11, 13, 15]),
-            Tensor::new(vec![8, 16, 18]),
-            Tensor::new(vec![9, 16, 19]),
-            Tensor::new(vec![10, 17, 18]),
-            Tensor::new(vec![11, 17, 19]),
+            Tensor::new(vec![0, 9, 15]),
+            Tensor::new(vec![1, 9, 10, 16]),
+            Tensor::new(vec![2, 10, 17]),
+            Tensor::new(vec![3, 11, 15, 18]),
+            Tensor::new(vec![4, 11, 12, 16, 19]),
+            Tensor::new(vec![5, 12, 17, 20]),
+            Tensor::new(vec![6, 13, 18]),
+            Tensor::new(vec![7, 13, 14, 19]),
+            Tensor::new(vec![8, 14, 20]),
+            Tensor::new(vec![0, 21, 30, 36]),
+            Tensor::new(vec![1, 22, 30, 31, 37]),
+            Tensor::new(vec![2, 23, 31, 38]),
+            Tensor::new(vec![3, 24, 32, 36, 39]),
+            Tensor::new(vec![4, 25, 32, 33, 37, 40]),
+            Tensor::new(vec![5, 26, 33, 38, 41]),
+            Tensor::new(vec![6, 27, 34, 39]),
+            Tensor::new(vec![7, 28, 34, 35, 40]),
+            Tensor::new(vec![8, 29, 35, 41]),
+            Tensor::new(vec![21, 42, 48]),
+            Tensor::new(vec![22, 42, 43, 49]),
+            Tensor::new(vec![23, 43, 50]),
+            Tensor::new(vec![24, 44, 48, 51]),
+            Tensor::new(vec![25, 44, 45, 49, 52]),
+            Tensor::new(vec![26, 45, 50, 53]),
+            Tensor::new(vec![27, 46, 51]),
+            Tensor::new(vec![28, 46, 47, 52]),
+            Tensor::new(vec![29, 47, 53]),
         ];
         let bond_dims = HashMap::from([
             (0, 4),
             (1, 4),
             (2, 4),
             (3, 4),
-            (4, 10),
-            (5, 10),
-            (6, 10),
-            (7, 10),
+            (4, 4),
+            (5, 4),
+            (6, 4),
+            (7, 4),
             (8, 4),
-            (9, 4),
-            (10, 4),
-            (11, 4),
+            (9, 10),
+            (10, 10),
+            (11, 10),
             (12, 10),
             (13, 10),
             (14, 10),
@@ -546,6 +664,40 @@ mod tests {
             (17, 10),
             (18, 10),
             (19, 10),
+            (20, 10),
+            (21, 4),
+            (22, 4),
+            (23, 4),
+            (24, 4),
+            (25, 4),
+            (26, 4),
+            (27, 4),
+            (28, 4),
+            (29, 4),
+            (30, 10),
+            (31, 10),
+            (32, 10),
+            (33, 10),
+            (34, 10),
+            (35, 10),
+            (36, 10),
+            (37, 10),
+            (38, 10),
+            (39, 10),
+            (40, 10),
+            (41, 10),
+            (42, 10),
+            (43, 10),
+            (44, 10),
+            (45, 10),
+            (46, 10),
+            (47, 10),
+            (48, 10),
+            (49, 10),
+            (50, 10),
+            (51, 10),
+            (52, 10),
+            (53, 10),
         ]);
         ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
 
