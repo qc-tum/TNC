@@ -59,8 +59,11 @@ pub(super) fn ssa_replace_ordering(
                 n += 1;
             }
             ContractionIndex::Path(index, path) => {
-                // Does not support hierarchical tensors
-                let k = path.len() + 1;
+                let k = path
+                    .iter()
+                    .filter(|n| matches!(n, ContractionIndex::Pair(_, _)))
+                    .count()
+                    + 1;
                 let ssa_path = ssa_replace_ordering(path, k);
                 replace_path.push(ContractionIndex::Path(*index, ssa_path));
             }
@@ -97,8 +100,8 @@ mod tests {
 
     #[test]
     fn test_ssa_replace_ordering() {
-        let path = path![(0, 3), (1, 2), (6, 4), (5, 7), (9, 8), (11, 10)];
-        let new_path = ssa_replace_ordering(path, 7);
+        let path = path![(0, 3), (1, 2), (6, 4), (5, 7), (9, 8), (11, 10)].to_vec();
+        let new_path = ssa_replace_ordering(&path, 7);
 
         assert_eq!(
             new_path,
@@ -108,16 +111,17 @@ mod tests {
 
     #[test]
     fn test_ssa_replace_ordering_nested() {
-        let path = [
-            pair!(0, 3),
-            path!(1, [(2, 1), (0, 3)]),
-            pair!(1, 2),
-            path!(6, [(0, 2), (1, 3), (4, 5)]),
-            pair!(6, 4),
-            pair!(5, 7),
-            pair!(9, 8),
-            pair!(11, 10),
-        ];
+        let path = path![
+            (0, 3),
+            (1, [(2, 1), (0, 3)]),
+            (1, 2),
+            (6, [(0, 2), (1, 3), (4, 5)]),
+            (6, 4),
+            (5, 7),
+            (9, 8),
+            (11, 10)
+        ]
+        .to_vec();
 
         let new_path = ssa_replace_ordering(&path, 7);
 
