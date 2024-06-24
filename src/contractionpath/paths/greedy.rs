@@ -819,7 +819,7 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 600);
+        assert_eq!(opt.best_flops, 3694);
         assert_eq!(opt.best_size, 538);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
@@ -831,7 +831,7 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 228);
+        assert_eq!(opt.best_flops, 1464);
         assert_eq!(opt.best_size, 121);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
@@ -843,7 +843,7 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 16);
+        assert_eq!(opt.best_flops, 96);
         assert_eq!(opt.best_size, 19);
         assert_eq!(opt.best_path, path![(1, 2), (0, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 2), (0, 1)]);
@@ -855,7 +855,7 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 10);
+        assert_eq!(opt.best_flops, 74);
         assert_eq!(opt.best_size, 11);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
@@ -867,7 +867,7 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 529815);
+        assert_eq!(opt.best_flops, 3186128);
         assert_eq!(opt.best_size, 89478);
         assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 7), (8, 9)]);
         assert_eq!(
