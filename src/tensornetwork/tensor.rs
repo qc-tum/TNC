@@ -129,10 +129,10 @@ impl Tensor {
         &self.tensors
     }
 
-    /// Getter Tensor from a nested or hierarchical Tensor.
+    /// Gets a nested `Tensor` based on the `nested_indices` which specify the index
+    /// of the tensor at each level of the hierarchy.
     ///
     /// # Examples
-    ///
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
@@ -150,11 +150,10 @@ impl Tensor {
     ///    assert_eq!(tensor.legs(), ref_tensor.legs());
     /// }
     /// ```
-    pub fn tensor_recurse(&self, nested_i: &[usize]) -> &Tensor {
-        assert!(!nested_i.is_empty());
-        let mut tensor = self.tensor(nested_i[0]);
-        for i in nested_i.iter().skip(1) {
-            tensor = tensor.tensor(*i);
+    pub fn nested_tensor(&self, nested_indices: &[usize]) -> &Tensor {
+        let mut tensor = self;
+        for index in nested_indices {
+            tensor = tensor.tensor(*index);
         }
         tensor
     }

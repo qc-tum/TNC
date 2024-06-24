@@ -530,7 +530,7 @@ impl ContractionTree {
             };
             scratch
                 .entry(node_id)
-                .or_insert(tn.tensor_recurse(&tensor_index).clone());
+                .or_insert(tn.nested_tensor(&tensor_index).clone());
             return;
         }
 
@@ -599,7 +599,7 @@ impl ContractionTree {
         populate_subtree_tensor_map(self, subtree_root, &mut node_tensor_map, tn);
         let node = self.node(node_index);
         let tensor_index = node.tensor_index.as_ref().unwrap();
-        let t1 = tn.tensor_recurse(tensor_index);
+        let t1 = tn.nested_tensor(tensor_index);
 
         // Find the tensor that maximizes cost function.
         let (node, cost) = node_tensor_map
@@ -629,7 +629,7 @@ impl ContractionTree {
             .map(|&node| {
                 (
                     node,
-                    tn.tensor_recurse(&(self.node(node).tensor_index.clone().unwrap())),
+                    tn.nested_tensor(&(self.node(node).tensor_index.clone().unwrap())),
                 )
             })
             .reduce(|node1, node2| cmp::max_by_key(node1, node2, |a| cost_function(a.1)))?;
@@ -731,7 +731,7 @@ impl ContractionTree {
 
         if is_leaf {
             let tensor_index = unsafe { (*node).tensor_index.as_ref().unwrap() };
-            return tn.tensor_recurse(tensor_index).clone();
+            return tn.nested_tensor(tensor_index).clone();
         }
 
         let (left_child, right_child) = unsafe { ((*node).left_child, (*node).right_child) };
@@ -772,7 +772,7 @@ fn populate_subtree_tensor_map(
 
     if node.is_leaf() {
         let tensor_index = node.tensor_index.as_ref().unwrap();
-        let t = tn.tensor_recurse(tensor_index);
+        let t = tn.nested_tensor(tensor_index);
         node_tensor_map.insert(node.id, t.clone());
         t.clone()
     } else {
@@ -830,7 +830,7 @@ fn subtensor_network(
         .enumerate()
         .map(|(a, b)| {
             let tensor = tn
-                .tensor_recurse(contraction_tree.node(*b).tensor_index.as_ref().unwrap())
+                .nested_tensor(contraction_tree.node(*b).tensor_index.as_ref().unwrap())
                 .clone();
             ((b, a), tensor)
         })
@@ -872,7 +872,7 @@ fn find_potential_nodes(
         tn,
     );
     HashMap::from_iter(bigger_subtree_leaf_nodes.iter().map(|leaf_index| {
-        let t1 = tn.tensor_recurse(
+        let t1 = tn.nested_tensor(
             contraction_tree
                 .node(*leaf_index)
                 .tensor_index
@@ -1131,7 +1131,7 @@ pub fn balance_partitions(
         .map(|&e| {
             (
                 e,
-                tn.tensor_recurse(contraction_tree.node(e).tensor_index.as_ref().unwrap())
+                tn.nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
                     .clone(),
             )
         })
@@ -1160,7 +1160,7 @@ pub fn balance_partitions(
         .map(|&e| {
             (
                 e,
-                tn.tensor_recurse(contraction_tree.node(e).tensor_index.as_ref().unwrap())
+                tn.nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
                     .clone(),
             )
         })
@@ -1472,7 +1472,7 @@ pub fn repartition_tn(tn: &Tensor, tree: &ContractionTree, partition_depth: usiz
         println!("Leaf ids: {:?}", leaf_ids);
         for leaf_id in leaf_ids {
             partitioned_tensor.push(
-                tn.tensor_recurse(tree.node(leaf_id).tensor_index.as_ref().unwrap())
+                tn.nested_tensor(tree.node(leaf_id).tensor_index.as_ref().unwrap())
                     .clone(),
             )
         }
