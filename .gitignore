@@ -10,3 +10,5 @@ src/qasm/.antlr
 *.data
 *.profraw
 *.profdata
+*.jats
+*.pdf
