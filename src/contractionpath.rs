@@ -59,7 +59,13 @@ pub(super) fn ssa_replace_ordering(
                 n += 1;
             }
             ContractionIndex::Path(index, path) => {
-                replace_path.push(ContractionIndex::Path(*index, path.clone()));
+                let k = path
+                    .iter()
+                    .filter(|n| matches!(n, ContractionIndex::Pair(_, _)))
+                    .count()
+                    + 1;
+                let ssa_path = ssa_replace_ordering(path, k);
+                replace_path.push(ContractionIndex::Path(*index, ssa_path));
             }
         }
     }
@@ -71,7 +77,7 @@ mod tests {
 
     use crate::{
         contractionpath::{ssa_ordering, ssa_replace_ordering},
-        path,
+        pair, path,
     };
 
     #[test]
@@ -100,6 +106,36 @@ mod tests {
         assert_eq!(
             new_path,
             path![(0, 3), (1, 2), (4, 6), (0, 5), (1, 4), (0, 1)]
+        );
+    }
+
+    #[test]
+    fn test_ssa_replace_ordering_nested() {
+        let path = path![
+            (0, 3),
+            (1, [(2, 1), (0, 3)]),
+            (1, 2),
+            (6, [(0, 2), (1, 3), (4, 5)]),
+            (6, 4),
+            (5, 7),
+            (9, 8),
+            (11, 10)
+        ];
+
+        let new_path = ssa_replace_ordering(path, 7);
+
+        assert_eq!(
+            new_path,
+            [
+                pair!(0, 3),
+                path!(1, [(1, 2), (0, 1)]),
+                pair!(1, 2),
+                path!(6, [(0, 2), (1, 3), (0, 1)]),
+                pair!(4, 6),
+                pair!(0, 5),
+                pair!(1, 4),
+                pair!(0, 1),
+            ]
         );
     }
 }
