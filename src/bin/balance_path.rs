@@ -56,7 +56,7 @@ fn main() {
         contract_cost_tensors,
     );
     // repartition_tn(&partitioned_tn, &new_tree, rebalance_depth);
-    println!("partitioned_tn: {:?}", new_tn.num_tensors());
+    println!("partitioned_tn: {:?}", new_tn.total_num_tensors());
     contract_tensor_network(&mut new_tn, &contraction_path);
     println!("new_tn: {:?}", new_tn);
     println!("{:?}", now.elapsed());

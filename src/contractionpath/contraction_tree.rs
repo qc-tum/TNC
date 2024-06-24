@@ -985,7 +985,7 @@ pub fn balance_partitions(
     rebalance_depth: usize,
 ) -> (u64, Vec<ContractionIndex>, Tensor) {
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
-    if tn.num_tensors() < 3 {
+    if tn.total_num_tensors() < 3 {
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
     }
 
@@ -1344,7 +1344,7 @@ pub fn to_dendogram(
     svg_name: String,
 ) {
     let length = 80f64;
-    let x_spacing = length / tn.num_tensors() as f64;
+    let x_spacing = length / tn.total_num_tensors() as f64;
     let mut last_leaf_x = x_spacing;
     let height = 60f64;
     let mut node_to_position: HashMap<usize, (f64, f64)> = HashMap::new();

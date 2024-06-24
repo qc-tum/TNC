@@ -158,14 +158,11 @@ impl Tensor {
         tensor
     }
 
-    pub fn num_tensors(&self) -> usize {
+    /// Returns the total number of tensors in the hierarchy, including all nested
+    /// tensors.
+    pub fn total_num_tensors(&self) -> usize {
         if self.is_composite() {
-            return self
-                .tensors
-                .iter()
-                .map(|e| e.num_tensors())
-                .reduce(|a, b| a + b)
-                .unwrap();
+            self.tensors.iter().map(|e| e.total_num_tensors()).sum()
         } else {
             1
         }
