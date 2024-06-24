@@ -578,8 +578,7 @@ impl<'a> OptimizePath for Greedy<'a> {
                     &mut rng,
                 );
                 if !path.is_empty() {
-                    let ssa_path = ssa_replace_ordering(&path, input_tensor.tensors().len());
-                    self.best_path.push(ContractionIndex::Path(index, ssa_path));
+                    self.best_path.push(ContractionIndex::Path(index, path));
                 }
                 input_tensor.set_legs(external_legs);
             }
