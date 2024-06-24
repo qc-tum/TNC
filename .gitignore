@@ -10,3 +10,5 @@
 *.data
 *.profraw
 *.profdata
+*.jats
+*.pdf
