@@ -936,7 +936,7 @@ pub fn balance_partitions_iter(
         output_file.clone() + "_0",
     );
 
-    let mut new_tn = Tensor::default();
+    let mut new_tn;
     let mut best_contraction = 0;
     let mut best_contraction_path = path.clone();
     let mut best_cost = max_cost + final_op_cost;

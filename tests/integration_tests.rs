@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
@@ -132,7 +130,7 @@ fn setup_complex() -> (Tensor, Vec<ContractionIndex>) {
 
 #[test]
 fn test_partitioned_tensor() {
-    let (tensor, ref_path) = setup_complex();
+    let (tensor, _ref_path) = setup_complex();
     let partitioning = find_partitioning(
         &tensor,
         3,
