@@ -345,7 +345,7 @@ pub enum Statement {
     Reset {
         dest: Argument,
     },
-    IfStatement {
+    If {
         cond_name: String,
         condition: u32,
         body: Box<Statement>,
@@ -368,7 +368,7 @@ impl Display for Statement {
             Self::GateCall(data) => write!(f, "{data}"),
             Self::Measurement { src, dest } => write!(f, "measure {src} -> {dest};"),
             Self::Reset { dest } => write!(f, "reset {dest};"),
-            Self::IfStatement {
+            Self::If {
                 cond_name,
                 condition,
                 body,
@@ -451,7 +451,7 @@ pub trait Visitor {
                     self.visit_expression(expr);
                 }
             }
-            Statement::IfStatement {
+            Statement::If {
                 cond_name: _,
                 condition: _,
                 body,
