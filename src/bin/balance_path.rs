@@ -1,5 +1,3 @@
-extern crate tensorcontraction;
-
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
