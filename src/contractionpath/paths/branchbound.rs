@@ -21,15 +21,15 @@ use super::{CostType, OptimizePath};
 pub struct BranchBound<'a> {
     tn: &'a Tensor,
     nbranch: Option<u32>,
-    cutoff_flops_factor: u64,
+    cutoff_flops_factor: u128,
     minimize: CostType,
-    best_flops: u64,
-    best_size: u64,
+    best_flops: u128,
+    best_size: u128,
     best_path: Vec<ContractionIndex>,
-    best_progress: HashMap<usize, u64>,
+    best_progress: HashMap<usize, u128>,
     result_cache: HashMap<(usize, usize), usize>,
-    flop_cache: HashMap<usize, u64>,
-    size_cache: HashMap<usize, u64>,
+    flop_cache: HashMap<usize, u128>,
+    size_cache: HashMap<usize, u128>,
     tensor_cache: HashMap<usize, Tensor>,
 }
 
@@ -37,7 +37,7 @@ impl<'a> BranchBound<'a> {
     pub fn new(
         tn: &'a Tensor,
         nbranch: Option<u32>,
-        cutoff_flops_factor: u64,
+        cutoff_flops_factor: u128,
         minimize: CostType,
     ) -> Self {
         Self {
@@ -45,8 +45,8 @@ impl<'a> BranchBound<'a> {
             nbranch,
             cutoff_flops_factor,
             minimize,
-            best_flops: u64::MAX,
-            best_size: u64::MAX,
+            best_flops: u128::MAX,
+            best_size: u128::MAX,
             best_path: Vec::new(),
             best_progress: HashMap::new(),
             result_cache: HashMap::new(),
@@ -60,12 +60,12 @@ impl<'a> BranchBound<'a> {
         &mut self,
         i: usize,
         j: usize,
-        flops: u64,
-        size: u64,
+        flops: u128,
+        size: u128,
         remaining: &[u32],
     ) -> Option<Candidate> {
-        let flops_12: u64;
-        let size_12: u64;
+        let flops_12: u128;
+        let size_12: u128;
         let k12: usize;
         let k12_tensor: Tensor;
         let mut current_flops = flops;
@@ -120,8 +120,8 @@ impl<'a> BranchBound<'a> {
         &mut self,
         path: Vec<(usize, usize, usize)>,
         remaining: Vec<u32>,
-        flops: u64,
-        size: u64,
+        flops: u128,
+        size: u128,
     ) {
         if remaining.len() == 1 {
             match self.minimize {
@@ -173,8 +173,8 @@ impl<'a> BranchBound<'a> {
                 self,
                 new_path,
                 new_remaining,
-                flop_cost as u64,
-                size_cost as u64,
+                flop_cost as u128,
+                size_cost as u128,
             );
         }
     }
@@ -208,7 +208,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
             }
             self.size_cache
                 .entry(index)
-                .or_insert_with(|| tensor.shape().iter().product::<u64>());
+                .or_insert_with(|| tensor.shape().iter().product::<u128>());
 
             self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
@@ -218,11 +218,11 @@ impl<'a> OptimizePath for BranchBound<'a> {
         self.best_path = sub_tensor_contraction;
     }
 
-    fn get_best_flops(&self) -> u64 {
+    fn get_best_flops(&self) -> u128 {
         self.best_flops
     }
 
-    fn get_best_size(&self) -> u64 {
+    fn get_best_size(&self) -> u128 {
         self.best_size
     }
 

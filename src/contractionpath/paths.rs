@@ -13,8 +13,8 @@ pub trait OptimizePath {
 
     fn get_best_path(&self) -> &Vec<ContractionIndex>;
     fn get_best_replace_path(&self) -> Vec<ContractionIndex>;
-    fn get_best_flops(&self) -> u64;
-    fn get_best_size(&self) -> u64;
+    fn get_best_flops(&self) -> u128;
+    fn get_best_size(&self) -> u128;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

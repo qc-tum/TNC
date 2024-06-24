@@ -19,11 +19,11 @@ use std::cmp::max;
 /// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 45045);
+/// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 270286);
 /// ```
-pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> u64 {
+pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> u128 {
     contract_cost_tensors(tn.tensor(i), tn.tensor(j))
 }
 
@@ -43,12 +43,11 @@ pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> u64 {
 /// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 45045);
+/// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 270286);
 /// ```
-pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> u64 {
-    let shared_dims = t_1 | t_2;
+pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> u128 {
     let bond_dims = t_1.bond_dims();
     shared_dims.legs_iter().map(|e| bond_dims[e]).product()
 }
@@ -69,11 +68,11 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> u64 {
 /// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_size_in_tn(&tn, 0, 1), 6607);
 /// ```
-pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> u64 {
+pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> u128 {
     contract_size_tensors(tn.tensor(i), tn.tensor(j))
 }
 
@@ -93,11 +92,11 @@ pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> u64 {
 /// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1)), 6607);
 /// ```
-pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> u64 {
+pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> u128 {
     let diff = t_1 ^ t_2;
 
     diff.size() + t_1.size() + t_2.size()
@@ -110,7 +109,7 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> u64 {
 /// * `inputs` - First tensor to determine contraction cost.
 /// * `ssa_path`  - Contraction order as replacement path
 /// * `bond_dims`- Dict of bond dimensions.
-pub fn contract_path_cost(inputs: &[Tensor], contract_path: &[ContractionIndex]) -> (u64, u64) {
+pub fn contract_path_cost(inputs: &[Tensor], contract_path: &[ContractionIndex]) -> (u128, u128) {
     let mut op_cost = 0;
     let mut mem_cost = 0;
     let mut inputs = inputs.to_vec();

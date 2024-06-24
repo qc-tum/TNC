@@ -105,8 +105,8 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.is_composite() {
                 let mut best_path = vec![];
-                let mut best_cost = std::u64::MAX;
-                let mut best_size = std::u64::MAX;
+                let mut best_cost = u128::MAX;
+                let mut best_size = u128::MAX;
                 let external_legs = input_tensor.external_edges();
                 for _ in 0..trials {
                     let ssa_path = self.ssa_greedy_optimize(
@@ -147,8 +147,8 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
         let output_dims = Tensor::new(self.tn.external_edges());
         // Dictionary that maps leg id to bond dimension
         let mut best_path = vec![];
-        let mut best_cost = std::u64::MAX;
-        let mut best_size = std::u64::MAX;
+        let mut best_cost = u128::MAX;
+        let mut best_size = u128::MAX;
         for _ in 0..trials {
             let ssa_path = self.ssa_greedy_optimize(
                 &inputs,

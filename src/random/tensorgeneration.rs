@@ -135,7 +135,7 @@ where
 /// let r_tensor = random_sparse_tensor_data(&shape, None);
 /// ```
 #[must_use]
-pub fn random_sparse_tensor_data(shape: &[u64], sparsity: Option<f32>) -> TensorData {
+pub fn random_sparse_tensor_data(shape: &[u128], sparsity: Option<f32>) -> TensorData {
     let shape = shape.iter().map(|e| *e as u32).collect::<Vec<u32>>();
     random_sparse_tensor_data_with_rng(&shape, sparsity, &mut rand::thread_rng())
 }
@@ -246,7 +246,7 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> Tensor {
 
 pub fn create_filled_tensor_network<R>(
     tensors: Vec<Tensor>,
-    bond_dims: &HashMap<usize, u64>,
+    bond_dims: &HashMap<usize, u128>,
     external_legs: Option<&HashMap<usize, usize>>,
     rng: &mut R,
 ) -> Tensor

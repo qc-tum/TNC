@@ -92,14 +92,20 @@ pub fn scatter_tensor_network(
     let mut bond_vec = if rank == 0 {
         r_tn.bond_dims()
             .iter()
-            .map(|(&bond_id, &bond_size)| BondDim { bond_id, bond_size })
+            .map(|(&bond_id, &bond_size)| BondDim {
+                bond_id,
+                bond_size: bond_size as u64,
+            })
             .collect::<Vec<_>>()
     } else {
         Vec::new()
     };
     broadcast_vec(&mut bond_vec, &root_process, world);
     world.barrier();
-    let bond_dims = bond_vec.iter().map(|e| (e.bond_id, e.bond_size)).collect();
+    let bond_dims = bond_vec
+        .iter()
+        .map(|e| (e.bond_id, e.bond_size as u128))
+        .collect();
 
     // Distribute tensors
     let (local_tn, local_path) = if rank == 0 {
@@ -176,7 +182,7 @@ pub fn intermediate_reduce_tensor_network(
                 let (legs, _status) = world.process_at_rank(sender).receive_vec::<EdgeIndex>();
                 let mut returned_tensor = Tensor::new(legs);
                 let (shape, _status) = world.process_at_rank(sender).receive_vec::<u32>();
-                let shape = shape.iter().map(|e| u64::from(*e)).collect::<Vec<u64>>();
+                let shape = shape.iter().map(|e| u128::from(*e)).collect::<Vec<u128>>();
                 let (data, _status) = world.process_at_rank(sender).receive_vec::<Complex64>();
                 let tensor_data = TensorData::new_from_data(&shape, data, None);
                 returned_tensor.set_tensor_data(tensor_data);
@@ -204,7 +210,7 @@ pub fn intermediate_reduce_tensor_network(
             let (legs, _status) = world.process_at_rank(final_rank).receive_vec::<EdgeIndex>();
             let mut returned_tensor = Tensor::new(legs);
             let (shape, _status) = world.process_at_rank(final_rank).receive_vec::<u32>();
-            let shape = shape.iter().map(|e| u64::from(*e)).collect::<Vec<u64>>();
+            let shape = shape.iter().map(|e| u128::from(*e)).collect::<Vec<u128>>();
             let (data, _status) = world.process_at_rank(final_rank).receive_vec::<Complex64>();
             let tensor_data = TensorData::new_from_data(&shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);
@@ -236,7 +242,7 @@ pub fn naive_reduce_tensor_network(
             let (legs, _status) = world.process_at_rank(i).receive_vec::<EdgeIndex>();
             let mut returned_tensor = Tensor::new(legs);
             let (shape, _status) = world.process_at_rank(i).receive_vec::<u32>();
-            let shape = shape.iter().map(|e| u64::from(*e)).collect::<Vec<u64>>();
+            let shape = shape.iter().map(|e| u128::from(*e)).collect::<Vec<u128>>();
             let (data, _status) = world.process_at_rank(i).receive_vec::<Complex64>();
             let tensor_data = TensorData::new_from_data(&shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);

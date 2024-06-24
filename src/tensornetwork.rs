@@ -11,7 +11,7 @@ use std::collections::HashMap;
 #[must_use]
 pub fn create_tensor_network(
     tensors: Vec<Tensor>,
-    bond_dims: &HashMap<usize, u64>,
+    bond_dims: &HashMap<usize, u128>,
     external_legs: Option<&HashMap<usize, usize>>,
 ) -> Tensor {
     let mut tensor = Tensor::default();

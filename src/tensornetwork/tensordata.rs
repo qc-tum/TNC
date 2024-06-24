@@ -17,7 +17,11 @@ pub enum TensorData {
 impl TensorData {
     /// Creates a new tensor from raw (flat) data.
     #[must_use]
-    pub fn new_from_data(dimensions: &[u64], data: Vec<Complex64>, layout: Option<Layout>) -> Self {
+    pub fn new_from_data(
+        dimensions: &[u128],
+        data: Vec<Complex64>,
+        layout: Option<Layout>,
+    ) -> Self {
         Self::Matrix(DataTensor::new_from_flat(
             dimensions
                 .iter()

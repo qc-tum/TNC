@@ -20,10 +20,10 @@ use super::{validate_path, CostFnType, CostType, OptimizePath};
 pub struct Greedy<'a> {
     pub(crate) tn: &'a Tensor,
     pub(crate) minimize: CostType,
-    pub(crate) best_flops: u64,
-    pub(crate) best_size: u64,
+    pub(crate) best_flops: u128,
+    pub(crate) best_size: u128,
     pub(crate) best_path: Vec<ContractionIndex>,
-    best_progress: HashMap<usize, u64>,
+    best_progress: HashMap<usize, u128>,
 }
 
 struct SimpleChooser;
@@ -66,10 +66,10 @@ impl<'a> Greedy<'a> {
         Self {
             tn,
             minimize,
-            best_flops: u64::MAX,
-            best_size: u64::MAX,
+            best_flops: u128::MAX,
+            best_size: u128::MAX,
             best_path: Vec::new(),
-            best_progress: HashMap::<usize, u64>::new(),
+            best_progress: HashMap::<usize, u128>::new(),
         }
     }
 
@@ -600,11 +600,11 @@ impl<'a> OptimizePath for Greedy<'a> {
         self.best_flops = op_cost;
     }
 
-    fn get_best_flops(&self) -> u64 {
+    fn get_best_flops(&self) -> u128 {
         self.best_flops
     }
 
-    fn get_best_size(&self) -> u64 {
+    fn get_best_size(&self) -> u128 {
         self.best_size
     }
 

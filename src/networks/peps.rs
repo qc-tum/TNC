@@ -14,7 +14,7 @@ use crate::tensornetwork::tensor::Tensor;
 ///
 /// # Returns
 /// [`Tensor`] of initial state of PEPS
-fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -> Tensor {
+fn peps_init(length: usize, depth: usize, physical_dim: u128, virtual_dim: u128) -> Tensor {
     let mut pep = Tensor::default();
 
     let physical_up = length * depth;
@@ -114,8 +114,8 @@ fn pepo(
     length: usize,
     depth: usize,
     layer: usize,
-    physical_dim: u64,
-    virtual_dim: u64,
+    physical_dim: u128,
+    virtual_dim: u128,
 ) -> Tensor {
     let physical_up = length * depth;
     let virtual_vertical = (length - 1) * depth;
@@ -227,7 +227,7 @@ fn peps_final(
     mut peps: Tensor,
     length: usize,
     depth: usize,
-    virtual_dim: u64,
+    virtual_dim: u128,
     layers: usize,
 ) -> Tensor {
     let physical_up = length * depth;
@@ -340,8 +340,8 @@ fn peps_final(
 pub fn peps(
     length: usize,
     depth: usize,
-    physical_dim: u64,
-    virtual_dim: u64,
+    physical_dim: u128,
+    virtual_dim: u128,
     layers: usize,
 ) -> Tensor {
     assert!(length > 1, "PEPS should have length greater than 1");
