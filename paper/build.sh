@@ -1,0 +1,1 @@
+docker run --rm --env JOURNAL=joss --volume $PWD:/data openjournals/inara
