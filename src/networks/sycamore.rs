@@ -60,8 +60,8 @@ where
     let mut next_edge = size;
     let uniform_prob = Uniform::new(0.0, 1.0);
 
-    let mut initial_state = Vec::<Tensor>::new();
     // set up initial state
+    let mut initial_state = Vec::with_capacity(size);
     for i in 0..size {
         let mut new_state = Tensor::new(vec![i]);
         new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], None, rng));
@@ -103,8 +103,8 @@ where
     }
     sycamore_tn.push_tensors(intermediate_gates, Some(&sycamore_bonddims), None);
 
-    let mut final_state = Vec::<Tensor>::new();
     // set up final state
+    let mut final_state = Vec::with_capacity(open_edges.len());
     for (_index, i) in open_edges {
         let mut new_state = Tensor::new(vec![i]);
         new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], None, rng));
