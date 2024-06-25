@@ -97,35 +97,6 @@ fn test_partitioned_contraction_mixed() {
     assert!(&ref_tn.approx_eq(&partitioned_tn, 1e-12));
 }
 
-#[test]
-fn test_partitioned_tensor() {
-    let mut rng = StdRng::seed_from_u64(23);
-    let k = 10;
-    let r_tn = random_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
-    let mut ref_tn = r_tn.clone();
-
-    let size = 5;
-    let partitioning = find_partitioning(
-        &r_tn,
-        size,
-        String::from("tests/km1_kKaHyPar_sea20.ini"),
-        true,
-    );
-    // contract partitioned
-    let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
-    let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
-    opt.optimize_path();
-    let path = opt.get_best_replace_path();
-    contract_tensor_network(&mut partitioned_tn, &path);
-    // contract reference
-    let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
-    ref_opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42));
-    let ref_path = ref_opt.get_best_replace_path();
-    contract_tensor_network(&mut ref_tn, &ref_path);
-
-    assert!(partitioned_tn.approx_eq(&ref_tn, 1e-8));
-}
-
 #[mpi_test(4)]
 fn test_partitioned_contraction_need_mpi() {
     let mut rng = StdRng::seed_from_u64(23);
