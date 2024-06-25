@@ -99,9 +99,7 @@ impl<'a> BranchBound<'a> {
             .or_insert(current_flops);
 
         if current_flops < best_flops {
-            self.best_progress
-                .entry(remaining.len())
-                .insert_entry(current_flops);
+            self.best_progress.insert(remaining.len(), current_flops);
         } else if current_flops > self.cutoff_flops_factor * best_flops {
             return None;
         }

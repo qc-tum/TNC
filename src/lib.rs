@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 #![feature(const_trait_impl)]
-#![feature(entry_insert)]
 #![feature(map_many_mut)]
 #![feature(map_try_insert)]
 #![feature(slice_pattern)]

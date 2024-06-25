@@ -82,7 +82,7 @@ where
                 let mut new_tensor = Tensor::new(vec![open_edges[&i], next_edge]);
                 new_tensor.set_tensor_data(single_qubit_gate[&die.sample(rng)].clone());
                 intermediate_gates.push(new_tensor);
-                open_edges.entry(i).insert_entry(next_edge);
+                open_edges.insert(i, next_edge);
                 next_edge += 1;
             }
         }
@@ -95,8 +95,8 @@ where
                     Tensor::new(vec![open_edges[i], open_edges[j], next_edge, next_edge + 1]);
                 new_tensor.set_tensor_data(fsim!(0.3, 0.2));
                 intermediate_gates.push(new_tensor);
-                open_edges.entry(*i).insert_entry(next_edge);
-                open_edges.entry(*j).insert_entry(next_edge + 1);
+                open_edges.insert(*i, next_edge);
+                open_edges.insert(*j, next_edge + 1);
                 next_edge += 2;
             }
         }
