@@ -139,16 +139,21 @@ impl Tensor {
     /// # use std::collections::HashMap;
     /// let mut v1 = Tensor::new(vec![0,1]);
     /// let mut v2 = Tensor::new(vec![1,2]);
+    /// let mut v3 = Tensor::new(vec![2,3]);
+    /// let mut v4 = Tensor::new(vec![3,4]);
     /// let bond_dims = HashMap::from([
-    /// (0, 17), (1, 19), (2, 8)
+    /// (0, 17), (1, 19), (2, 8), (3, 2), (4, 1)
     /// ]);
-    /// let mut tn = Tensor::default();
-    /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
-    /// v1.insert_bond_dims(&bond_dims);
-    /// v2.insert_bond_dims(&bond_dims);
-    /// for (tensor, ref_tensor) in std::iter::zip(tn.tensors(), vec![v1, v2]){
-    ///    assert_eq!(tensor.legs(), ref_tensor.legs());
-    /// }
+    /// let mut tn1 = Tensor::default();
+    /// tn1.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
+    /// let mut tn2 = Tensor::default();
+    /// tn2.push_tensors(vec![v3.clone(), v4.clone()], Some(&bond_dims), None);
+    /// let mut nested_tn = Tensor::default();
+    /// nested_tn.push_tensors(vec![tn1.clone(), tn2.clone()], Some(&bond_dims), None);
+    /// v3.insert_bond_dims(&bond_dims);
+    ///
+    /// assert_eq!(nested_tn.nested_tensor(&[1,0]).legs(), v3.legs());
+    ///
     /// ```
     pub fn nested_tensor(&self, nested_indices: &[usize]) -> &Tensor {
         let mut tensor = self;
