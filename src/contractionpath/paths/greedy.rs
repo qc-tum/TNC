@@ -394,7 +394,7 @@ impl<'a> Greedy<'a> {
             let tensor_size = (&k12_tensor & output_dims).size() as i64;
             if tensor_size > 0 {
                 let candidate = Candidate {
-                    flop_cost: 0,
+                    flop_cost: tensor_size,
                     size_cost: tensor_size,
                     parent_ids: (ssa_id, 0),
                     child_id: 0,
