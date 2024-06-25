@@ -18,15 +18,7 @@ impl TensorData {
     /// Creates a new tensor from raw (flat) data.
     #[must_use]
     pub fn new_from_data(dimensions: &[u64], data: Vec<Complex64>, layout: Option<Layout>) -> Self {
-        Self::Matrix(DataTensor::new_from_flat(
-            dimensions
-                .iter()
-                .map(|e| *e as u32)
-                .collect::<Vec<u32>>()
-                .as_slice(),
-            data,
-            layout,
-        ))
+        Self::Matrix(DataTensor::new_from_flat(dimensions, data, layout))
     }
 
     pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {

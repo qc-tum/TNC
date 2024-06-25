@@ -81,7 +81,7 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
 /// random_sparse_tensor_data_with_rng(&shape, None, &mut rand::thread_rng());
 /// ```
 pub fn random_sparse_tensor_data_with_rng<R>(
-    dims: &[u32],
+    dims: &[u64],
     sparsity: Option<f32>,
     rng: &mut R,
 ) -> TensorData
@@ -95,12 +95,12 @@ where
         0.5
     };
 
-    let ranges: Vec<Uniform<u32>> = dims.iter().map(|i| Uniform::new(0, *i)).collect();
-    let size = dims.iter().product::<u32>();
+    let ranges = dims.iter().map(|i| Uniform::new(0, *i)).collect::<Vec<_>>();
+    let size = dims.iter().product::<u64>();
     let mut tensor = DataTensor::new(dims);
 
     let mut nnz = 0;
-    let mut loc = Vec::<u32>::new();
+    let mut loc = Vec::new();
     while (nnz as f32 / size as f32) < sparsity {
         for r in &ranges {
             loc.push(rng.sample(r));
@@ -136,8 +136,7 @@ where
 /// ```
 #[must_use]
 pub fn random_sparse_tensor_data(shape: &[u64], sparsity: Option<f32>) -> TensorData {
-    let shape = shape.iter().map(|e| *e as u32).collect::<Vec<u32>>();
-    random_sparse_tensor_data_with_rng(&shape, sparsity, &mut rand::thread_rng())
+    random_sparse_tensor_data_with_rng(shape, sparsity, &mut rand::thread_rng())
 }
 
 /// Generates random [`Tensor`] objects based on a quantum circuit with `n` qubits and `cycles` layers of
@@ -256,11 +255,7 @@ where
     let mut tn = create_tensor_network(tensors, bond_dims, external_legs);
     for child_tensor in &mut tn.tensors {
         child_tensor.set_tensor_data(random_sparse_tensor_data_with_rng(
-            &child_tensor
-                .shape()
-                .iter()
-                .map(|&e| e.try_into().unwrap())
-                .collect::<Vec<u32>>(),
+            &child_tensor.shape(),
             None,
             rng,
         ));
