@@ -1015,7 +1015,7 @@ pub fn balance_partitions(
         let (_, new_max) = partition_costs[partition_costs.len() - 2];
         new_max
     } else {
-        u64::MAX
+        0
     };
 
     contraction_tree
