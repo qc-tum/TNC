@@ -15,6 +15,7 @@ pub enum ConnectivityLayout {
     Eagle,
     Osprey,
     Sycamore,
+    AllLayer(usize),
     All(usize),
 }
 
@@ -38,27 +39,29 @@ impl Connectivity {
             ConnectivityLayout::Eagle => eagle_connect(),
             ConnectivityLayout::Osprey => osprey_connect(),
             ConnectivityLayout::Sycamore => sycamore_connect(),
+            ConnectivityLayout::AllLayer(n) => all_layer_connect(n),
             ConnectivityLayout::All(n) => all_connect(n),
         };
         Self { connectivity, name }
     }
-
-    pub fn reset(&mut self) {
-        match &mut self.name {
-            ConnectivityLayout::All(n) => {
-                self.connectivity = all_connect(*n);
-            }
-            _ => {}
-        }
-    }
 }
 
-fn all_connect(n: usize) -> Vec<(usize, usize)> {
+fn all_layer_connect(n: usize) -> Vec<(usize, usize)> {
     let mut v = Vec::from_iter(0..n);
     v.shuffle(&mut thread_rng());
     v.chunks(2)
         .map(|x| (x[0], x[1]))
         .collect::<Vec<(usize, usize)>>()
+}
+
+fn all_connect(n: usize) -> Vec<(usize, usize)> {
+    let mut v = Vec::with_capacity((n * (n + 1)) / 2);
+    for i in 0..n {
+        for j in i..n {
+            v.push((i, j));
+        }
+    }
+    v
 }
 
 fn sycamore_connect() -> Vec<(usize, usize)> {
