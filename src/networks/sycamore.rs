@@ -105,8 +105,8 @@ where
 
     // set up final state
     let mut final_state = Vec::with_capacity(open_edges.len());
-    for (_index, i) in open_edges {
-        let mut new_state = Tensor::new(vec![i]);
+    for i in 0..size {
+        let mut new_state = Tensor::new(vec![open_edges[&i]]);
         new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], None, rng));
         final_state.push(new_state);
     }
