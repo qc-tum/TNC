@@ -993,13 +993,9 @@ pub fn balance_partitions(
     }
     let bond_dims = tn.bond_dims();
 
-    // 1. Create binary contraction tree. It details how tensors are contracted via the given path.
-    // let mut tree = ContractionTree::from_contraction_path(tn, contraction_tree);
+    // Create binary contraction tree.
     let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
     assert!(children.len() > 1);
-
-    // let (smaller_subtree_id, _min_costs, larger_subtree_id, _max_costs) =
-    //     find_min_max_subtree(children, contraction_tree, tn);
 
     let mut partition_costs = children
         .iter()
@@ -1012,6 +1008,7 @@ pub fn balance_partitions(
         .collect::<Vec<(usize, u64)>>();
     partition_costs.sort_unstable_by_key(|e| e.1);
 
+    // Obtain larger and smaller partitions
     let (larger_subtree_id, _) = partition_costs[partition_costs.len() - 1];
     let (smaller_subtree_id, _) = partition_costs[0];
     let mut new_max = if children.len() > 2 {
@@ -1048,7 +1045,7 @@ pub fn balance_partitions(
         .parent_id()
         .unwrap();
 
-    // 3. Find the tensor to be rebalanced to the bigger subtree.
+    // Find the tensor to be rebalanced to the bigger subtree.
     // Get smaller subtree leaf nodes
     let mut smaller_subtree_leaf_nodes = Vec::new();
     contraction_tree.leaf_ids(smaller_subtree_id, &mut smaller_subtree_leaf_nodes);
@@ -1057,10 +1054,10 @@ pub fn balance_partitions(
     let mut larger_subtree_leaf_nodes = Vec::new();
     contraction_tree.leaf_ids(larger_subtree_id, &mut larger_subtree_leaf_nodes);
 
-    // /* 3.3 Select the leaf node in the smaller subtree that causes the biggest memory reduction in the bigger subtree
+    // Find the leaf node in the smaller subtree that causes the biggest memory reduction in the bigger subtree
     let rebalanced_node = if random_balance {
         // Randomly select one of the top n nodes to rebalance.
-        let top_n = 5;
+        let top_n = 3;
         let rebalanced_node_weights = find_potential_nodes(
             contraction_tree,
             &larger_subtree_leaf_nodes,
@@ -1116,13 +1113,15 @@ pub fn balance_partitions(
         }
         best_node
     };
+
+    // Always check that a node is moved over.
     assert!(!smaller_subtree_leaf_nodes.contains(&rebalanced_node));
     assert!(larger_subtree_leaf_nodes.contains(&rebalanced_node));
-    // 4. Remove selected tensor from bigger subtree. Add it to the smaller subtree
+    // Remove selected tensor from bigger subtree. Add it to the smaller subtree
     smaller_subtree_leaf_nodes.push(rebalanced_node);
     larger_subtree_leaf_nodes.retain(|&leaf| leaf != rebalanced_node);
 
-    // 5. Rerun Greedy algorithm on smaller subtree
+    // Rerun Greedy algorithm on smaller subtree
     // Delete edge between root and smaller subtree. Will use greedy path instead
 
     let (smaller_indices, smaller_tensors): (Vec<usize>, Vec<Tensor>) = smaller_subtree_leaf_nodes
@@ -1152,7 +1151,7 @@ pub fn balance_partitions(
         })
         .collect::<Vec<ContractionIndex>>();
 
-    // 6. Rerun Greedy algorithm on larger subtree
+    // Rerun Greedy algorithm on larger subtree
     // Delete edge between root and larger subtree. Will use greedy path instead
     let (larger_indices, larger_tensors): (Vec<usize>, Vec<Tensor>) = larger_subtree_leaf_nodes
         .iter()
@@ -1209,7 +1208,7 @@ pub fn balance_partitions(
         .entry(rebalance_depth)
         .and_modify(|e| e.push(smaller_partition_root));
 
-    // 7. Generate new paths based on greedy paths
+    // Generate new paths based on greedy paths
     let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
 
     let (partition_tensors, rebalanced_path): (Vec<Tensor>, Vec<ContractionIndex>) = children
