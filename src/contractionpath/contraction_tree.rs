@@ -944,7 +944,6 @@ pub fn balance_partitions_iter(
     let mut best_tn = tn.clone();
 
     for i in 1..(iterations + 1) {
-        println!("Iter: {:?}", i);
         (max_cost, path, new_tn) =
             balance_partitions(tn, &mut contraction_tree, random_balance, rebalance_depth);
         assert_eq!(partition_number, path.len(), "Tensors lost!");
@@ -1469,7 +1468,7 @@ pub fn repartition_tn(tn: &Tensor, tree: &ContractionTree, partition_depth: usiz
     {
         let mut leaf_ids = Vec::new();
         tree.leaf_ids(*partition_id, &mut leaf_ids);
-        println!("Leaf ids: {:?}", leaf_ids);
+
         for leaf_id in leaf_ids {
             partitioned_tensor.push(
                 tn.nested_tensor(tree.node(leaf_id).tensor_index.as_ref().unwrap())
