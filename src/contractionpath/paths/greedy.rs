@@ -20,10 +20,10 @@ use super::{validate_path, CostFnType, CostType, OptimizePath};
 pub struct Greedy<'a> {
     pub(crate) tn: &'a Tensor,
     pub(crate) minimize: CostType,
-    pub(crate) best_flops: u128,
-    pub(crate) best_size: u128,
+    pub(crate) best_flops: f64,
+    pub(crate) best_size: f64,
     pub(crate) best_path: Vec<ContractionIndex>,
-    best_progress: HashMap<usize, u128>,
+    best_progress: HashMap<usize, f64>,
 }
 
 struct SimpleChooser;
@@ -66,36 +66,36 @@ impl<'a> Greedy<'a> {
         Self {
             tn,
             minimize,
-            best_flops: u128::MAX,
-            best_size: u128::MAX,
+            best_flops: f64::MAX,
+            best_size: f64::MAX,
             best_path: Vec::new(),
-            best_progress: HashMap::<usize, u128>::new(),
+            best_progress: HashMap::<usize, f64>::new(),
         }
     }
 
     /// The default heuristic cost, corresponding to the total reduction in
     /// memory of performing a contraction.
     pub(crate) fn cost_memory_removed(
-        size12: i64,
-        size1: i64,
-        size2: i64,
+        size12: f64,
+        size1: f64,
+        size2: f64,
         _k12: &Tensor,
         _k1: &Tensor,
         _k2: &Tensor,
-    ) -> i64 {
+    ) -> f64 {
         size12 - size1 - size2
     }
 
     /// Con cost, corresponding to the total reduction in
     /// memory of performing a contraction.
     pub(crate) fn cost_communication(
-        _size12: i64,
-        size1: i64,
-        _size2: i64,
+        _size12: f64,
+        size1: f64,
+        _size2: f64,
         _k12: &Tensor,
         _k1: &Tensor,
         _k2: &Tensor,
-    ) -> i64 {
+    ) -> f64 {
         size1
     }
 
@@ -189,7 +189,7 @@ impl<'a> Greedy<'a> {
         // Maps tensor ssa_id to size
         let mut tensor_mem_size = ssa_id_to_tensor
             .values()
-            .map(|tensor| (calculate_hash(tensor), tensor.size()))
+            .map(|tensor| (calculate_hash(tensor), tensor.size() as f64))
             .collect::<HashMap<_, _>>();
 
         let mut queue = BinaryHeap::new();
@@ -210,15 +210,15 @@ impl<'a> Greedy<'a> {
                     let k12_hash = calculate_hash(&k12);
                     tensor_mem_size
                         .entry(k12_hash)
-                        .or_insert_with(|| k12.size());
+                        .or_insert_with(|| k12.size() as f64);
                     ssa_id_to_tensor
                         .entry(next_ssa_id)
                         .or_insert_with(|| k12.clone());
 
                     let size_cost = cost_fn(
-                        tensor_mem_size[&k12_hash] as i64,
-                        tensor_mem_size[&k1_hash] as i64,
-                        tensor_mem_size[&k2_hash] as i64,
+                        tensor_mem_size[&k12_hash],
+                        tensor_mem_size[&k1_hash],
+                        tensor_mem_size[&k2_hash],
                         &k12,
                         k1,
                         k2,
@@ -232,7 +232,7 @@ impl<'a> Greedy<'a> {
                     }
 
                     queue.push(Candidate {
-                        flop_cost: 0,
+                        flop_cost: 0f64,
                         size_cost,
                         parent_ids: (id1, id2),
                         child_id: next_ssa_id,
@@ -254,7 +254,7 @@ impl<'a> Greedy<'a> {
                 rng,
             );
             let Some(Candidate {
-                flop_cost: 0,
+                flop_cost: 0f64,
                 size_cost: _cost,
                 parent_ids: (id1, id2),
                 child_id,
@@ -334,7 +334,7 @@ impl<'a> Greedy<'a> {
 
             tensor_mem_size
                 .entry(k12_hash)
-                .or_insert_with(|| k12.size());
+                .or_insert_with(|| k12.size() as f64);
 
             //Find new candidate contractions.
             let k1 = k12;
@@ -358,12 +358,12 @@ impl<'a> Greedy<'a> {
                     let k12_hash = calculate_hash(&k12);
                     tensor_mem_size
                         .entry(k12_hash)
-                        .or_insert_with(|| k12.size());
+                        .or_insert_with(|| k12.size() as f64);
 
                     let size_cost = cost_fn(
-                        tensor_mem_size[&k12_hash] as i64,
-                        tensor_mem_size[&k1_hash] as i64,
-                        tensor_mem_size[&k2_hash] as i64,
+                        tensor_mem_size[&k12_hash],
+                        tensor_mem_size[&k1_hash],
+                        tensor_mem_size[&k2_hash],
                         &k12,
                         &k1,
                         k2,
@@ -378,7 +378,7 @@ impl<'a> Greedy<'a> {
                     }
 
                     queue.push(Candidate {
-                        flop_cost: 0,
+                        flop_cost: 0f64,
                         size_cost,
                         parent_ids: (id1, id2),
                         child_id: next_ssa_id,
@@ -391,10 +391,10 @@ impl<'a> Greedy<'a> {
         assert!(queue.is_empty());
         for (_key, ssa_id) in remaining_tensors {
             let k12_tensor = ssa_id_to_tensor[&ssa_id].clone();
-            let tensor_size = (&k12_tensor & output_dims).size() as i64;
-            if tensor_size > 0 {
+            let tensor_size = (&k12_tensor & output_dims).size() as f64;
+            if tensor_size > 0f64 {
                 let candidate = Candidate {
-                    flop_cost: 0,
+                    flop_cost: 0f64,
                     size_cost: tensor_size,
                     parent_ids: (ssa_id, 0),
                     child_id: 0,
@@ -426,10 +426,10 @@ impl<'a> Greedy<'a> {
             let k2 = ssa_id_to_tensor.remove(&ssa_id2).unwrap();
             ssa_path.push((min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2), next_ssa_id));
             let k12 = &(&k1 | &k2) & output_dims;
-            let cost = k12.size() as i64;
+            let cost = k12.size() as f64;
 
             queue.push(Candidate {
-                flop_cost: 0,
+                flop_cost: 0f64,
                 size_cost: cost,
                 parent_ids: (next_ssa_id, 0),
                 child_id: 0,
@@ -560,8 +560,8 @@ impl<'a> OptimizePath for Greedy<'a> {
     fn optimize_path(&mut self) {
         if self.tn.tensors().len() == 1 {
             // Perform a single contraction to match output shape.
-            self.best_flops = 0;
-            self.best_size = 0;
+            self.best_flops = 0f64;
+            self.best_size = 0f64;
             self.best_path = vec![];
             return;
         }
@@ -600,11 +600,11 @@ impl<'a> OptimizePath for Greedy<'a> {
         self.best_flops = op_cost;
     }
 
-    fn get_best_flops(&self) -> u128 {
+    fn get_best_flops(&self) -> f64 {
         self.best_flops
     }
 
-    fn get_best_size(&self) -> u128 {
+    fn get_best_size(&self) -> f64 {
         self.best_size
     }
 
@@ -819,8 +819,8 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 3694);
-        assert_eq!(opt.best_size, 538);
+        assert_eq!(opt.best_flops, 3694f64);
+        assert_eq!(opt.best_size, 538f64);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
     }
@@ -831,8 +831,8 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 1464);
-        assert_eq!(opt.best_size, 121);
+        assert_eq!(opt.best_flops, 1464f64);
+        assert_eq!(opt.best_size, 121f64);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
     }
@@ -843,8 +843,8 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 96);
-        assert_eq!(opt.best_size, 19);
+        assert_eq!(opt.best_flops, 96f64);
+        assert_eq!(opt.best_size, 19f64);
         assert_eq!(opt.best_path, path![(1, 2), (0, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 2), (0, 1)]);
     }
@@ -855,8 +855,8 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 74);
-        assert_eq!(opt.best_size, 11);
+        assert_eq!(opt.best_flops, 74f64);
+        assert_eq!(opt.best_size, 11f64);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
     }
@@ -867,8 +867,8 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 3186128);
-        assert_eq!(opt.best_size, 89478);
+        assert_eq!(opt.best_flops, 3186128f64);
+        assert_eq!(opt.best_size, 89478f64);
         assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 7), (8, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),

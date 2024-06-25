@@ -21,9 +21,9 @@ use std::cmp::max;
 /// let vec2 = Vec::from([2,3,4]);
 /// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 270286);
+/// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 270286f64);
 /// ```
-pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> u128 {
+pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
     contract_cost_tensors(tn.tensor(i), tn.tensor(j))
 }
 
@@ -45,24 +45,24 @@ pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> u128 {
 /// let vec2 = Vec::from([2,3,4]);
 /// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 270286);
+/// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 270286f64);
 /// ```
-pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> u128 {
+pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     let final_dims = t_1 ^ t_2;
     let shared_dims = t_1 & t_2;
     let bond_dims = t_1.bond_dims();
     let single_loop_cost = shared_dims
         .legs_iter()
-        .map(|e| bond_dims[e])
-        .product::<u128>();
+        .map(|e| bond_dims[e] as f64)
+        .product::<f64>();
 
-    (single_loop_cost - 1) * 2
+    (single_loop_cost - 1f64) * 2f64
         + single_loop_cost
-            * 6
+            * 6f64
             * final_dims
                 .legs_iter()
-                .map(|e| bond_dims[e])
-                .product::<u128>()
+                .map(|e| bond_dims[e] as f64)
+                .product::<f64>()
 }
 
 /// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
@@ -83,9 +83,9 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> u128 {
 /// let vec2 = Vec::from([2,3,4]);
 /// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_size_in_tn(&tn, 0, 1), 6607);
+/// assert_eq!(contract_size_in_tn(&tn, 0, 1), 6607f64);
 /// ```
-pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> u128 {
+pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
     contract_size_tensors(tn.tensor(i), tn.tensor(j))
 }
 
@@ -107,12 +107,12 @@ pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> u128 {
 /// let vec2 = Vec::from([2,3,4]);
 /// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1)), 6607);
+/// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1)), 6607f64);
 /// ```
-pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> u128 {
+pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     let diff = t_1 ^ t_2;
-
-    diff.size() + t_1.size() + t_2.size()
+    // Conversion for individual components before summing to prevent overflow
+    diff.size() as f64 + t_1.size() as f64 + t_2.size() as f64
 }
 
 /// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object
@@ -122,9 +122,9 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> u128 {
 /// * `inputs` - First tensor to determine contraction cost.
 /// * `ssa_path`  - Contraction order as replacement path
 /// * `bond_dims`- Dict of bond dimensions.
-pub fn contract_path_cost(inputs: &[Tensor], contract_path: &[ContractionIndex]) -> (u128, u128) {
-    let mut op_cost = 0;
-    let mut mem_cost = 0;
+pub fn contract_path_cost(inputs: &[Tensor], contract_path: &[ContractionIndex]) -> (f64, f64) {
+    let mut op_cost = 0f64;
+    let mut mem_cost = 0f64;
     let mut inputs = inputs.to_vec();
 
     for index in contract_path {
@@ -133,7 +133,11 @@ pub fn contract_path_cost(inputs: &[Tensor], contract_path: &[ContractionIndex])
                 op_cost += contract_cost_tensors(&inputs[i], &inputs[j]);
                 let k12 = &inputs[i] ^ &inputs[j];
                 let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
-                mem_cost = max(mem_cost, new_mem_cost);
+                mem_cost = if mem_cost < new_mem_cost {
+                    new_mem_cost
+                } else {
+                    mem_cost
+                };
                 inputs[i] = k12;
             }
             ContractionIndex::Path(i, ref path) => {
@@ -171,10 +175,10 @@ mod tests {
     fn test_contract_path_cost() {
         let tn = setup_simple();
         let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 1), (0, 2)]);
-        assert_eq!(op_cost, 3694);
-        assert_eq!(mem_cost, 538);
+        assert_eq!(op_cost, 3694f64);
+        assert_eq!(mem_cost, 538f64);
         let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 2), (0, 1)]);
-        assert_eq!(op_cost, 38110);
-        assert_eq!(mem_cost, 1176);
+        assert_eq!(op_cost, 38110f64);
+        assert_eq!(mem_cost, 1176f64);
     }
 }
