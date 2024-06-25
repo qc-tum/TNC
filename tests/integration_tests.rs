@@ -130,19 +130,31 @@ fn setup_complex() -> (Tensor, Vec<ContractionIndex>) {
 
 #[test]
 fn test_partitioned_tensor() {
-    let (tensor, _ref_path) = setup_complex();
+    let mut rng = StdRng::seed_from_u64(23);
+    let k = 10;
+    let r_tn = random_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+    let mut ref_tn = r_tn.clone();
+
+    let size = 5;
     let partitioning = find_partitioning(
-        &tensor,
-        3,
+        &r_tn,
+        size,
         String::from("tests/km1_kKaHyPar_sea20.ini"),
         true,
     );
-    let partitioned_tn = partition_tensor_network(&tensor, &partitioning);
+    // contract partitioned
+    let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
     opt.optimize_path();
     let path = opt.get_best_replace_path();
-    let tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
-    println!("tree: {:?}", tree);
+    contract_tensor_network(&mut partitioned_tn, &path);
+    // contract reference
+    let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
+    ref_opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42));
+    let ref_path = ref_opt.get_best_replace_path();
+    contract_tensor_network(&mut ref_tn, &ref_path);
+
+    assert!(partitioned_tn.approx_eq(&ref_tn, 1e-8));
 }
 
 #[mpi_test(4)]
