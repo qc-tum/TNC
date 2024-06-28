@@ -1,7 +1,4 @@
-use std::{
-    cmp::max,
-    collections::{BinaryHeap, HashMap},
-};
+use std::collections::{BinaryHeap, HashMap};
 
 use itertools::Itertools;
 
@@ -21,15 +18,15 @@ use super::{CostType, OptimizePath};
 pub struct BranchBound<'a> {
     tn: &'a Tensor,
     nbranch: Option<u32>,
-    cutoff_flops_factor: u64,
+    cutoff_flops_factor: f64,
     minimize: CostType,
-    best_flops: u64,
-    best_size: u64,
+    best_flops: f64,
+    best_size: f64,
     best_path: Vec<ContractionIndex>,
-    best_progress: HashMap<usize, u64>,
+    best_progress: HashMap<usize, f64>,
     result_cache: HashMap<(usize, usize), usize>,
-    flop_cache: HashMap<usize, u64>,
-    size_cache: HashMap<usize, u64>,
+    flop_cache: HashMap<usize, f64>,
+    size_cache: HashMap<usize, f64>,
     tensor_cache: HashMap<usize, Tensor>,
 }
 
@@ -37,7 +34,7 @@ impl<'a> BranchBound<'a> {
     pub fn new(
         tn: &'a Tensor,
         nbranch: Option<u32>,
-        cutoff_flops_factor: u64,
+        cutoff_flops_factor: f64,
         minimize: CostType,
     ) -> Self {
         Self {
@@ -45,8 +42,8 @@ impl<'a> BranchBound<'a> {
             nbranch,
             cutoff_flops_factor,
             minimize,
-            best_flops: u64::MAX,
-            best_size: u64::MAX,
+            best_flops: f64::INFINITY,
+            best_size: f64::INFINITY,
             best_path: Vec::new(),
             best_progress: HashMap::new(),
             result_cache: HashMap::new(),
@@ -60,12 +57,12 @@ impl<'a> BranchBound<'a> {
         &mut self,
         i: usize,
         j: usize,
-        flops: u64,
-        size: u64,
+        flops: f64,
+        size: f64,
         remaining: &[u32],
     ) -> Option<Candidate> {
-        let flops_12: u64;
-        let size_12: u64;
+        let flops_12: f64;
+        let size_12: f64;
         let k12: usize;
         let k12_tensor: Tensor;
         let mut current_flops = flops;
@@ -88,7 +85,7 @@ impl<'a> BranchBound<'a> {
                 .or_insert_with(|| k12_tensor.clone());
         }
         current_flops += flops_12;
-        current_size = max(current_size, size_12);
+        current_size = current_size.max(size_12);
 
         if current_flops > self.best_flops && current_size > self.best_size {
             return None;
@@ -105,8 +102,8 @@ impl<'a> BranchBound<'a> {
         }
 
         Some(Candidate {
-            flop_cost: current_flops as i64,
-            size_cost: current_size as i64,
+            flop_cost: current_flops,
+            size_cost: current_size,
             parent_ids: (i, j),
             child_id: k12,
         })
@@ -120,8 +117,8 @@ impl<'a> BranchBound<'a> {
         &mut self,
         path: Vec<(usize, usize, usize)>,
         remaining: Vec<u32>,
-        flops: u64,
-        size: u64,
+        flops: f64,
+        size: f64,
     ) {
         if remaining.len() == 1 {
             match self.minimize {
@@ -169,13 +166,7 @@ impl<'a> BranchBound<'a> {
             new_remaining.push(child_id as u32);
             new_path = path.clone();
             new_path.push((parent_ids.0, parent_ids.1, child_id));
-            BranchBound::branch_iterate(
-                self,
-                new_path,
-                new_remaining,
-                flop_cost as u64,
-                size_cost as u64,
-            );
+            BranchBound::branch_iterate(self, new_path, new_remaining, flop_cost, size_cost);
         }
     }
 }
@@ -208,21 +199,21 @@ impl<'a> OptimizePath for BranchBound<'a> {
             }
             self.size_cache
                 .entry(index)
-                .or_insert_with(|| tensor.shape().iter().product::<u64>());
+                .or_insert_with(|| tensor.shape().iter().product::<u64>() as f64);
 
             self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
         let remaining = (0u32..self.tn.tensors().len() as u32).collect();
-        BranchBound::branch_iterate(self, vec![], remaining, 0, 0);
+        BranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64);
         sub_tensor_contraction.extend_from_slice(&self.best_path);
         self.best_path = sub_tensor_contraction;
     }
 
-    fn get_best_flops(&self) -> u64 {
+    fn get_best_flops(&self) -> f64 {
         self.best_flops
     }
 
-    fn get_best_size(&self) -> u64 {
+    fn get_best_size(&self) -> f64 {
         self.best_size
     }
 
@@ -288,11 +279,11 @@ mod tests {
     #[test]
     fn test_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = BranchBound::new(&tn, None, 20, CostType::Flops);
+        let mut opt = BranchBound::new(&tn, None, 20f64, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 600);
-        assert_eq!(opt.best_size, 538);
+        assert_eq!(opt.best_flops, 3694f64);
+        assert_eq!(opt.best_size, 538f64);
         assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
     }
@@ -300,11 +291,11 @@ mod tests {
     #[test]
     fn test_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = BranchBound::new(&tn, None, 20, CostType::Flops);
+        let mut opt = BranchBound::new(&tn, None, 20f64, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 332685);
-        assert_eq!(opt.best_size, 89478);
+        assert_eq!(opt.best_flops, 2003348f64);
+        assert_eq!(opt.best_size, 89478f64);
         assert_eq!(opt.best_path, path![(1, 5), (0, 6), (2, 7), (3, 8), (4, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),

@@ -13,8 +13,8 @@ pub trait OptimizePath {
 
     fn get_best_path(&self) -> &Vec<ContractionIndex>;
     fn get_best_replace_path(&self) -> Vec<ContractionIndex>;
-    fn get_best_flops(&self) -> u64;
-    fn get_best_size(&self) -> u64;
+    fn get_best_flops(&self) -> f64;
+    fn get_best_size(&self) -> f64;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -41,7 +41,7 @@ pub(crate) fn validate_path(path: &[ContractionIndex]) {
     }
 }
 
-type CostFnType = dyn Fn(i64, i64, i64, &Tensor, &Tensor, &Tensor) -> i64;
+type CostFnType = dyn Fn(f64, f64, f64, &Tensor, &Tensor, &Tensor) -> f64;
 
 // Define a trait for functions that take an RNG as an argument
 pub(crate) trait RNGChooser {
