@@ -44,9 +44,9 @@ fn read_tensor(file: &File) -> Result<Tensor> {
         let bond_ids = tensor.attr("bids").unwrap().read_1d::<usize>()?;
         let tensor_dataset = gr.dataset(&tensor_name).unwrap().read_dyn::<Complex64>()?;
         let tensor_shape = tensor_dataset.shape().to_vec();
-        let mut bond_dims = HashMap::<usize, u128>::new();
+        let mut bond_dims = HashMap::<usize, u64>::new();
         for (&bond_id, &bond_dim) in std::iter::zip(&bond_ids, &tensor_shape) {
-            bond_dims.entry(bond_id).or_insert(bond_dim as u128);
+            bond_dims.entry(bond_id).or_insert(bond_dim as u64);
         }
 
         let tensor_dataset = gr.dataset(&tensor_name).unwrap().read_dyn::<Complex64>()?;

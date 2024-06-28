@@ -166,8 +166,8 @@ impl TensorNetworkCreator {
         }
 
         let bond_dims = (0..self.edge_counter)
-            .map(|e| (e, 2u128))
-            .collect::<HashMap<usize, u128>>();
+            .map(|e| (e, 2u64))
+            .collect::<HashMap<usize, u64>>();
 
         create_tensor_network(tensors, &bond_dims, None)
     }

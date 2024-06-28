@@ -16,7 +16,7 @@ use super::tensordata::TensorData;
 pub struct Tensor {
     pub(crate) tensors: Vec<Tensor>,
     pub(crate) legs: Vec<EdgeIndex>,
-    pub(crate) bond_dims: Arc<RwLock<HashMap<EdgeIndex, u128>>>,
+    pub(crate) bond_dims: Arc<RwLock<HashMap<EdgeIndex, u64>>>,
     pub(crate) edges: HashMap<EdgeIndex, Vec<Vertex>>,
     external_hyperedge: HashMap<EdgeIndex, usize>,
     tensordata: RefCell<TensorData>,
@@ -194,7 +194,7 @@ impl Tensor {
     /// let tn = create_tensor_network(vec![v1,v2], &bond_dims, None);
     /// assert_eq!(*tn.bond_dims(), bond_dims);
     /// ```
-    pub fn bond_dims(&self) -> RwLockReadGuard<HashMap<EdgeIndex, u128>> {
+    pub fn bond_dims(&self) -> RwLockReadGuard<HashMap<EdgeIndex, u64>> {
         self.bond_dims.read().unwrap()
     }
 
@@ -217,7 +217,7 @@ impl Tensor {
     /// tn.insert_bond_dim(1, 12);
     /// assert_ne!(*tn.bond_dims(), bond_dims);
     /// ```
-    pub fn insert_bond_dim(&mut self, k: EdgeIndex, v: u128) {
+    pub fn insert_bond_dim(&mut self, k: EdgeIndex, v: u64) {
         self.bond_dims
             .write()
             .unwrap()
@@ -245,7 +245,7 @@ impl Tensor {
     /// tn.insert_bond_dims(&HashMap::from([(1, 12), (0, 5)]));
     /// assert_eq!(*tn.bond_dims(), HashMap::from([(0, 5), (1, 12), (2, 8)]) );
     /// ```
-    pub fn insert_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u128>) {
+    pub fn insert_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
         for (k, v) in bond_dims {
             self.bond_dims
                 .write()
@@ -300,7 +300,7 @@ impl Tensor {
     ///
     /// assert_eq!(tensor.shape(), vec![17, 19, 8]);
     /// ```
-    pub fn shape(&self) -> Vec<u128> {
+    pub fn shape(&self) -> Vec<u64> {
         let bond_dims = self.bond_dims();
         self.legs_iter().map(|e| bond_dims[e]).collect()
     }
@@ -336,7 +336,7 @@ impl Tensor {
     /// tensor.insert_bond_dims(&bond_dims);
     /// assert_eq!(tensor.size(), 600);
     /// ```
-    pub fn size(&self) -> u128 {
+    pub fn size(&self) -> u64 {
         self.legs.iter().map(|e| self.bond_dims()[e]).product()
     }
 
@@ -414,7 +414,7 @@ impl Tensor {
     ///
     /// * `tensor` - new `Tensor` to be added
     /// * `bond_dims` - `HashMap<usize, u64>` mapping edge id to bond dimension
-    pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&HashMap<usize, u128>>) {
+    pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&HashMap<usize, u64>>) {
         // In the case of pushing to an empty tensor, avoid unnecessary heirarchies
         if self.tensors().is_empty() && self.legs().is_empty() {
             let Self {
@@ -471,7 +471,7 @@ impl Tensor {
     pub fn push_tensors(
         &mut self,
         tensors: Vec<Self>,
-        bond_dims: Option<&HashMap<usize, u128>>,
+        bond_dims: Option<&HashMap<usize, u64>>,
         external_hyperedge: Option<&HashMap<EdgeIndex, usize>>,
     ) {
         // Case that tensor is not empty but has no subtensors.
@@ -501,7 +501,7 @@ impl Tensor {
 
     /// Internal method to update bond dimensions based on `bond_dims`. Only incorporates missing dimensions,
     /// existing keys are not changed.
-    fn add_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u128>) {
+    fn add_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
         let mut shared_bond_dims = self.bond_dims.write().unwrap();
         for (key, value) in bond_dims {
             shared_bond_dims
@@ -773,16 +773,16 @@ mod tests {
         let mut tensor = Tensor::new(vec![2, 4, 5]);
         tensor.insert_bond_dim(2, 5);
 
-        let bond_dims = HashMap::<usize, u128>::from([(2, 17), (4, 11), (5, 14)]);
+        let bond_dims = HashMap::<usize, u64>::from([(2, 17), (4, 11), (5, 14)]);
         tensor.add_bond_dims(&bond_dims);
     }
 
     #[test]
     fn test_push_tensor() {
-        let reference_bond_dims_1 = HashMap::<usize, u128>::from([(2, 17), (3, 1), (4, 11)]);
+        let reference_bond_dims_1 = HashMap::<usize, u64>::from([(2, 17), (3, 1), (4, 11)]);
         let reference_bond_dims_2 =
-            HashMap::<usize, u128>::from([(2, 17), (3, 1), (4, 11), (8, 3), (9, 20)]);
-        let reference_bond_dims_3 = HashMap::<usize, u128>::from([
+            HashMap::<usize, u64>::from([(2, 17), (3, 1), (4, 11), (8, 3), (9, 20)]);
+        let reference_bond_dims_3 = HashMap::<usize, u64>::from([
             (2, 17),
             (3, 1),
             (4, 11),
@@ -855,8 +855,8 @@ mod tests {
 
     #[test]
     fn test_push_tensors() {
-        let reference_bond_dims_1 = HashMap::<usize, u128>::from([(2, 17), (3, 1), (4, 11)]);
-        let reference_bond_dims_3 = HashMap::<usize, u128>::from([
+        let reference_bond_dims_1 = HashMap::<usize, u64>::from([(2, 17), (3, 1), (4, 11)]);
+        let reference_bond_dims_3 = HashMap::<usize, u64>::from([
             (2, 17),
             (3, 1),
             (4, 11),
@@ -909,14 +909,14 @@ mod tests {
 
     #[test]
     fn test_push_tensor_hyperedges() {
-        let reference_bond_dims_0 = HashMap::<usize, u128>::from([(2, 17), (3, 1), (4, 11)]);
+        let reference_bond_dims_0 = HashMap::<usize, u64>::from([(2, 17), (3, 1), (4, 11)]);
         let reference_bond_dims_1 =
-            HashMap::<usize, u128>::from([(2, 17), (3, 1), (4, 11), (9, 20)]);
+            HashMap::<usize, u64>::from([(2, 17), (3, 1), (4, 11), (9, 20)]);
         let reference_bond_dims_2 =
-            HashMap::<usize, u128>::from([(2, 17), (3, 1), (4, 11), (9, 20)]);
+            HashMap::<usize, u64>::from([(2, 17), (3, 1), (4, 11), (9, 20)]);
 
         let reference_bond_dims_3 =
-            HashMap::<usize, u128>::from([(2, 17), (3, 1), (4, 11), (5, 2), (6, 6), (9, 20)]);
+            HashMap::<usize, u64>::from([(2, 17), (3, 1), (4, 11), (5, 2), (6, 6), (9, 20)]);
 
         let mut ref_tensor_0 = Tensor::new(vec![4, 3, 2]);
         ref_tensor_0.insert_bond_dims(&reference_bond_dims_0);

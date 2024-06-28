@@ -19,7 +19,7 @@ use std::cmp::max;
 /// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 270286f64);
 /// ```
@@ -43,7 +43,7 @@ pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
 /// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 270286f64);
 /// ```
@@ -81,7 +81,7 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_size_in_tn(&tn, 0, 1), 6607f64);
 /// ```
@@ -105,7 +105,7 @@ pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
 /// # use std::collections::HashMap;
 /// let vec1 = Vec::from([0,1,2]);
 /// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u128>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1)), 6607f64);
 /// ```
