@@ -1,6 +1,5 @@
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
-use std::cmp::max;
 
 /// Returns Schroedinger contraction time complexity of contracting [Tensor] objects at indices `i` and `j`.
 ///
@@ -133,11 +132,7 @@ pub fn contract_path_cost(inputs: &[Tensor], contract_path: &[ContractionIndex])
                 op_cost += contract_cost_tensors(&inputs[i], &inputs[j]);
                 let k12 = &inputs[i] ^ &inputs[j];
                 let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
-                mem_cost = if mem_cost < new_mem_cost {
-                    new_mem_cost
-                } else {
-                    mem_cost
-                };
+                mem_cost = mem_cost.max(new_mem_cost);
                 inputs[i] = k12;
             }
             ContractionIndex::Path(i, ref path) => {

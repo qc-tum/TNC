@@ -1,8 +1,5 @@
 use rand::{distributions::WeightedIndex, prelude::*};
-use std::{
-    cmp::{max, max_by},
-    collections::{BinaryHeap, HashMap},
-};
+use std::collections::{BinaryHeap, HashMap};
 
 use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
@@ -71,7 +68,7 @@ impl RNGChooser for ThermalChooser {
 
         // adjust by the overall scale to account for fluctuating absolute costs
         if rel_temperature {
-            temperature *= max_by(1f64, cmin.abs(), |a, b| a.total_cmp(b)) as f64;
+            temperature *= cmin.abs().max(1f64);
         }
 
         // compute relative probability for each potential contraction
@@ -105,8 +102,8 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.is_composite() {
                 let mut best_path = vec![];
-                let mut best_cost = f64::MAX;
-                let mut best_size = f64::MAX;
+                let mut best_cost = f64::INFINITY;
+                let mut best_size = f64::INFINITY;
                 let external_legs = input_tensor.external_edges();
                 for _ in 0..trials {
                     let ssa_path = self.ssa_greedy_optimize(
@@ -147,8 +144,8 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
         let output_dims = Tensor::new(self.tn.external_edges());
         // Dictionary that maps leg id to bond dimension
         let mut best_path = vec![];
-        let mut best_cost = f64::MAX;
-        let mut best_size = f64::MAX;
+        let mut best_cost = f64::INFINITY;
+        let mut best_size = f64::INFINITY;
         for _ in 0..trials {
             let ssa_path = self.ssa_greedy_optimize(
                 &inputs,

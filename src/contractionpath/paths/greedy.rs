@@ -66,8 +66,8 @@ impl<'a> Greedy<'a> {
         Self {
             tn,
             minimize,
-            best_flops: f64::MAX,
-            best_size: f64::MAX,
+            best_flops: f64::INFINITY,
+            best_size: f64::INFINITY,
             best_path: Vec::new(),
             best_progress: HashMap::<usize, f64>::new(),
         }
@@ -254,10 +254,9 @@ impl<'a> Greedy<'a> {
                 rng,
             );
             let Some(Candidate {
-                flop_cost: 0f64,
-                size_cost: _cost,
                 parent_ids: (id1, id2),
                 child_id,
+                ..
             }) = candidate
             else {
                 continue;

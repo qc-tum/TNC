@@ -1,7 +1,4 @@
-use std::{
-    cmp::max,
-    collections::{BinaryHeap, HashMap},
-};
+use std::collections::{BinaryHeap, HashMap};
 
 use itertools::Itertools;
 
@@ -45,8 +42,8 @@ impl<'a> BranchBound<'a> {
             nbranch,
             cutoff_flops_factor,
             minimize,
-            best_flops: f64::MAX,
-            best_size: f64::MAX,
+            best_flops: f64::INFINITY,
+            best_size: f64::INFINITY,
             best_path: Vec::new(),
             best_progress: HashMap::new(),
             result_cache: HashMap::new(),
@@ -88,11 +85,7 @@ impl<'a> BranchBound<'a> {
                 .or_insert_with(|| k12_tensor.clone());
         }
         current_flops += flops_12;
-        current_size = if size_12 > current_size {
-            size_12
-        } else {
-            current_size
-        };
+        current_size = current_size.max(size_12);
 
         if current_flops > self.best_flops && current_size > self.best_size {
             return None;
