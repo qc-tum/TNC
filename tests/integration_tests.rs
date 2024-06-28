@@ -1,11 +1,8 @@
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
-use tensorcontraction::path;
-use tensorcontraction::tensornetwork::create_tensor_network;
 use tensorcontraction::{
     contractionpath::{
-        contraction_tree::ContractionTree,
         paths::{greedy::Greedy, CostType, OptimizePath},
         random_paths::RandomOptimizePath,
     },
@@ -16,7 +13,6 @@ use tensorcontraction::{
         partitioning::{find_partitioning, partition_tensor_network},
         tensor::Tensor,
     },
-    types::ContractionIndex,
 };
 
 #[test]
