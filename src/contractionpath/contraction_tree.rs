@@ -2,6 +2,7 @@ use crate::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use crate::pair;
 use crate::tensornetwork::{create_tensor_network, tensor::Tensor};
 use crate::types::ContractionIndex;
+use itertools::Itertools;
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::thread_rng;
 use std::cell::{Ref, RefCell, RefMut};
@@ -538,7 +539,7 @@ fn subtensor_network(
         .iter()
         .map(|&id| tn.nested_tensor(contraction_tree.node(id).tensor_index.as_ref().unwrap()))
         .cloned()
-        .collect::<Vec<_>>();
+        .collect_vec();
     let local_mapping = leaf_ids
         .iter()
         .enumerate()
@@ -556,7 +557,7 @@ fn subtensor_network(
                 panic!("No recursive path from flat contraction path!");
             }
         })
-        .collect::<Vec<_>>();
+        .collect_vec();
 
     (local_tensors, local_contraction_path)
 }
@@ -611,7 +612,7 @@ pub fn balance_partitions_iter(
         .iter()
         .filter(|&e| matches!(e, ContractionIndex::Pair(..)))
         .cloned()
-        .collect::<Vec<_>>();
+        .collect_vec();
 
     let children = &contraction_tree.partitions()[&rebalance_depth];
 
@@ -621,7 +622,7 @@ pub fn balance_partitions_iter(
     let children_tensors = children
         .iter()
         .map(|e| contraction_tree.tensor(*e, tensor))
-        .collect::<Vec<_>>();
+        .collect_vec();
 
     let mut partition_costs = children
         .iter()
@@ -631,7 +632,7 @@ pub fn balance_partitions_iter(
                 tree_contraction_cost(&contraction_tree, *child, tensor).0,
             )
         })
-        .collect::<Vec<_>>();
+        .collect_vec();
     partition_costs.sort_unstable_by_key(|e| e.1);
 
     let (_, mut max_cost) = partition_costs.last().unwrap();
@@ -667,7 +668,7 @@ pub fn balance_partitions_iter(
         let children_tensors = children
             .iter()
             .map(|e| contraction_tree.tensor(*e, tensor))
-            .collect::<Vec<_>>();
+            .collect_vec();
 
         let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
         let new_max_cost = max_cost + final_op_cost;
@@ -721,7 +722,7 @@ pub fn balance_partitions(
                 tree_contraction_cost(contraction_tree, *child, tn).0,
             )
         })
-        .collect::<Vec<_>>();
+        .collect_vec();
     partition_costs.sort_unstable_by_key(|e| e.1);
 
     // Obtain larger and smaller partitions
@@ -768,13 +769,13 @@ pub fn balance_partitions(
             greedy_cost_fn,
         );
 
-        let mut keys = rebalanced_node_weights.keys().cloned().collect::<Vec<_>>();
+        let mut keys = rebalanced_node_weights.keys().copied().collect_vec();
         keys.sort_by_key(|&key| rebalanced_node_weights[&key]);
         if keys.len() < top_n {
             panic!("Error rebalance_path: Not enough nodes in the bigger subtree to select the top {top_n} from!");
         } else {
             // Sample randomly from the top n nodes. Use softmax probabilities.
-            let top_n_nodes = keys.into_iter().take(top_n).collect::<Vec<_>>();
+            let top_n_nodes = keys.into_iter().take(top_n).collect_vec();
 
             // Subtract max val after inverting for numerical stability.
             let l2_norm = top_n_nodes
@@ -787,13 +788,10 @@ pub fn balance_partitions(
                 .iter()
                 .map(|idx| rebalanced_node_weights[idx] as f64)
                 .map(|weight| (-weight / l2_norm).exp())
-                .collect::<Vec<_>>();
+                .collect_vec();
 
             let sum_exp = top_n_exp.iter().sum::<f64>();
-            let top_n_prob = top_n_exp
-                .iter()
-                .map(|&exp| (exp / sum_exp))
-                .collect::<Vec<_>>();
+            let top_n_prob = top_n_exp.iter().map(|&exp| (exp / sum_exp)).collect_vec();
 
             // Sample index based on its probability
             let dist = WeightedIndex::new(top_n_prob).unwrap();
@@ -858,7 +856,7 @@ pub fn balance_partitions(
                 panic!("Should only produce Pairs!")
             }
         })
-        .collect::<Vec<_>>();
+        .collect_vec();
 
     // Rerun Greedy algorithm on larger subtree
     // Delete edge between root and larger subtree. Will use greedy path instead
@@ -890,7 +888,7 @@ pub fn balance_partitions(
                 panic!("Should only produce Pairs!")
             }
         })
-        .collect::<Vec<_>>();
+        .collect_vec();
 
     contraction_tree.remove_subtree(smaller_subtree_id);
     contraction_tree.remove_subtree(larger_subtree_id);
@@ -931,7 +929,7 @@ pub fn balance_partitions(
             tensor.push_tensors(tensors, Some(&bond_dims), None);
             (tensor, ContractionIndex::Path(i, local_path))
         })
-        .collect::<(Vec<Tensor>, Vec<ContractionIndex>)>();
+        .collect::<(Vec<_>, Vec<_>)>();
 
     let mut updated_tn = Tensor::default();
     updated_tn.push_tensors(partition_tensors, Some(&bond_dims), None);
