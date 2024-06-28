@@ -78,7 +78,7 @@ impl RNGChooser for ThermalChooser {
             weights[0] = 1.0;
         } else {
             for c in costs {
-                weights.push((-(c - cmin) as f64 / temperature).exp());
+                weights.push((-(c - cmin) / temperature).exp());
             }
         }
         let dist = WeightedIndex::new(&weights).unwrap();
