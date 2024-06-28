@@ -434,7 +434,6 @@ impl ContractionTree {
     }
 
     fn next_id(&self, mut init: usize) -> usize {
-        // TODO: does this always work? What if nodes have been removed already, leaving holes?
         while self.nodes.contains_key(&init) {
             init += 1;
         }
