@@ -2,39 +2,39 @@ use crate::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use crate::pair;
 use crate::tensornetwork::{create_tensor_network, tensor::Tensor};
 use crate::types::ContractionIndex;
+use itertools::Itertools;
 use rand::distributions::{Distribution, WeightedIndex};
-use rand::seq::SliceRandom;
 use rand::thread_rng;
-use std::borrow::Borrow;
 use std::cell::{Ref, RefCell, RefMut};
-use std::cmp::{self, max, min, min_by_key};
+use std::cmp::min;
 use std::collections::HashMap;
+use std::fs;
 use std::io::Write;
 use std::process::{Command, Stdio};
-use std::rc::Rc;
-use std::{fs, ptr};
+use std::rc::{Rc, Weak};
 
 use super::contraction_cost::contract_path_cost;
 use super::paths::validate_path;
 
 type NodeRef = Rc<RefCell<Node>>;
+type WeakNodeRef = Weak<RefCell<Node>>;
 
 /// Node in ContractionTree, represents a contraction of Tensor with position `left_child` and position `right_child` to obtain Tensor at position `parent`.
 #[derive(Debug, Clone)]
 pub struct Node {
     id: usize,
-    left_child: *mut Node,
-    right_child: *mut Node,
-    parent: *mut Node,
+    left_child: WeakNodeRef,
+    right_child: WeakNodeRef,
+    parent: WeakNodeRef,
     tensor_index: Option<Vec<usize>>,
 }
 
 impl Node {
     fn new(
         id: usize,
-        left_child: *mut Node,
-        right_child: *mut Node,
-        parent: *mut Node,
+        left_child: WeakNodeRef,
+        right_child: WeakNodeRef,
+        parent: WeakNodeRef,
         tensor_index: Option<Vec<usize>>,
     ) -> Self {
         Self {
@@ -47,148 +47,46 @@ impl Node {
     }
 
     pub fn left_child_id(&self) -> Option<usize> {
-        if self.left_child.is_null() {
-            return None;
-        }
-        unsafe { Some((*self.left_child).id) }
+        self.left_child.upgrade().map(|node| node.borrow().id)
     }
 
     pub fn right_child_id(&self) -> Option<usize> {
-        if self.right_child.is_null() {
-            return None;
-        }
-        unsafe { Some((*self.right_child).id) }
+        self.right_child.upgrade().map(|node| node.borrow().id)
     }
 
     pub fn id(&self) -> usize {
         self.id
     }
 
-    fn set_left_child(&mut self, child: *mut Node) {
-        self.left_child = child;
-    }
-
-    fn set_right_child(&mut self, child: *mut Node) {
-        self.right_child = child;
-    }
-
     pub fn parent_id(&self) -> Option<usize> {
-        if self.parent.is_null() {
-            return None;
-        }
-        unsafe { Some((*self.parent).id) }
-    }
-
-    fn set_parent(&mut self, parent: *mut Node) {
-        self.parent = parent;
-    }
-
-    fn remove_parent(&mut self) {
-        self.parent = ptr::null_mut();
+        self.parent.upgrade().map(|node| node.borrow().id)
     }
 
     fn is_leaf(&self) -> bool {
-        self.left_child.is_null() && self.right_child.is_null()
+        self.left_child.upgrade().is_none() && self.right_child.upgrade().is_none()
     }
 
-    fn add_child(&mut self, child: *mut Node) {
-        if self.left_child.is_null() {
+    fn add_child(&mut self, child: WeakNodeRef) {
+        assert!(child.upgrade().is_some(), "Child is already deallocated");
+        if self.left_child.upgrade().is_none() {
             self.left_child = child;
-            return;
-        }
-        if self.right_child.is_null() {
+        } else if self.right_child.upgrade().is_none() {
             self.right_child = child;
-            return;
-        }
-
-        panic!("Unable to add child, Node already has two children");
-    }
-
-    unsafe fn remove_child(&mut self, child: *mut Node) {
-        let child_id = unsafe { (*child).id };
-
-        if !self.left_child.is_null() {
-            let left_child_id = unsafe { (*self.left_child).id };
-            if left_child_id == child_id {
-                self.left_child = ptr::null_mut();
-                return;
-            }
-        }
-
-        if !self.right_child.is_null() {
-            let right_child_id = unsafe { (*self.right_child).id };
-            if right_child_id == child_id {
-                self.right_child = ptr::null_mut();
-                return;
-            }
-        }
-
-        panic!("Child {:?} not found in Node", child);
-    }
-
-    fn get_other_child(&self, child: *mut Node) -> *mut Node {
-        let left_child_id = unsafe { (*self.left_child).id };
-        let right_child_id = unsafe { (*self.right_child).id };
-        let child_id = unsafe { (*child).id };
-
-        if left_child_id == child_id {
-            self.right_child
-        } else if right_child_id == child_id {
-            self.left_child
         } else {
-            panic!("Child {:?} not found in Node", child);
+            panic!("Parent already has two children");
         }
-    }
-
-    fn replace_child(&mut self, child: *mut Node, repl_node: *mut Node) {
-        let left_child_id = unsafe { (*self.left_child).id };
-        let right_child_id = unsafe { (*self.right_child).id };
-        let child_id = unsafe { (*child).id };
-
-        if left_child_id == child_id {
-            self.right_child = repl_node;
-        } else if right_child_id == child_id {
-            self.left_child = repl_node;
-        } else {
-            panic!("Child {:?} not found in Node", child);
-        }
-    }
-
-    fn deprecate(&mut self) {
-        self.left_child = ptr::null_mut();
-        self.right_child = ptr::null_mut();
-        self.parent = ptr::null_mut();
     }
 }
 
 /// Struct representing the full contraction path of a given Tensor object
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct ContractionTree {
     nodes: HashMap<usize, NodeRef>,
     partitions: HashMap<usize, Vec<usize>>,
-    root: *mut Node,
-}
-
-impl Default for ContractionTree {
-    fn default() -> Self {
-        Self {
-            nodes: Default::default(),
-            partitions: HashMap::new(),
-            root: ptr::null_mut(),
-        }
-    }
+    root: WeakNodeRef,
 }
 
 impl ContractionTree {
-    fn add_node(&mut self, mut node: Node) -> usize {
-        let index = self.nodes.len();
-        node.id = index;
-        self.nodes
-            .entry(index)
-            .or_insert(Rc::new(RefCell::new(node)));
-        index
-    }
-
     pub fn node(&self, tensor_id: usize) -> Ref<Node> {
         let borrow = self.nodes.get(&tensor_id).unwrap();
         borrow.as_ref().borrow()
@@ -198,81 +96,78 @@ impl ContractionTree {
         self.nodes.get_mut(&tensor_id).unwrap().borrow_mut()
     }
 
-    pub fn node_ptr(&self, tensor_id: usize) -> *mut Node {
-        self.nodes.get(&tensor_id).unwrap().as_ptr()
-    }
-
-    pub fn root_id(&self) -> usize {
-        unsafe { (*self.root).id }
+    pub fn root_id(&self) -> Option<usize> {
+        self.root.upgrade().map(|node| node.borrow().id)
     }
 
     pub fn partitions(&self) -> &HashMap<usize, Vec<usize>> {
         &self.partitions
     }
 
-    /// Removes node from HashMap. Warning! As HashMap stores Node data, removing a Node here can result in invalid references.
-    unsafe fn remove_node(&mut self, node_id: usize) {
-        self.nodes.remove(&node_id);
-    }
-
-    // Recursive variant that accepts composite [`Tensor`] objects.
+    /// Populates `nodes` and `partitions` with the tree structure of the contraction
+    /// `path`.
     fn from_contraction_path_recurse(
-        tn: &Tensor,
+        tensor: &Tensor,
         path: &[ContractionIndex],
         nodes: &mut HashMap<usize, NodeRef>,
         partitions: &mut HashMap<usize, Vec<usize>>,
         prefix: &[usize],
     ) {
         let mut scratch = HashMap::new();
-        // Obtain tree structure from uncontracted nodes
-        for contr in path.iter() {
+
+        // Obtain tree structure from composite tensors
+        for contr in path {
             if let ContractionIndex::Path(path_id, path) = contr {
-                let intermediate_tensor = tn.tensor(*path_id);
+                let composite_tensor = tensor.tensor(*path_id);
                 let mut new_prefix = prefix.to_owned();
-                new_prefix.extend_from_slice(&[*path_id]);
+                new_prefix.push(*path_id);
                 Self::from_contraction_path_recurse(
-                    intermediate_tensor,
+                    composite_tensor,
                     path,
                     nodes,
                     partitions,
                     &new_prefix,
                 );
-                scratch.insert(*path_id, Rc::clone(nodes.get(&(nodes.len() - 1)).unwrap()));
+                scratch.insert(*path_id, Rc::clone(&nodes[&(nodes.len() - 1)]));
             }
         }
-        // Shift index by number of existing leaf nodes and intermediate nodes (to allow SSA enumeration)
-        let nodes_shift = nodes.len();
-        for (tensor_idx, tensor) in tn.tensors().iter().enumerate() {
-            let mut nested_tensor_idx = prefix.to_owned();
-            nested_tensor_idx.extend_from_slice(&[tensor_idx]);
-            // let tensor_idx = nested_tensor_idx + nodes_shift;
+
+        // Add nodes for leaf tensors
+        for (tensor_idx, tensor) in tensor.tensor_iter().enumerate() {
             if tensor.is_single_tensor() {
+                let mut nested_tensor_idx = prefix.to_owned();
+                nested_tensor_idx.push(tensor_idx);
                 let new_node = Node::new(
                     nodes.len(),
-                    ptr::null_mut(),
-                    ptr::null_mut(),
-                    ptr::null_mut(),
+                    Weak::new(),
+                    Weak::new(),
+                    Weak::new(),
                     Some(nested_tensor_idx),
                 );
-                nodes.insert(tensor_idx + nodes_shift, Rc::new(RefCell::new(new_node)));
-                scratch.insert(
-                    tensor_idx,
-                    Rc::clone(nodes.get(&(tensor_idx + nodes_shift)).unwrap()),
-                );
+                let new_node = Rc::new(RefCell::new(new_node));
+                scratch.insert(tensor_idx, Rc::clone(&new_node));
+                nodes.insert(nodes.len(), new_node);
             }
         }
 
-        for contr in path.iter() {
+        // Build tree based on contraction path
+        for contr in path {
             if let ContractionIndex::Pair(i_path, j_path) = contr {
-                // Destructure contraction index. Check if contracted tensor already moved there.
                 let i = &scratch[i_path];
                 let j = &scratch[j_path];
-                let parent = Node::new(nodes.len(), i.as_ptr(), j.as_ptr(), ptr::null_mut(), None);
+                let parent = Node::new(
+                    nodes.len(),
+                    Rc::downgrade(i),
+                    Rc::downgrade(j),
+                    Weak::new(),
+                    None,
+                );
 
-                nodes.insert(nodes.len(), Rc::new(RefCell::new(parent)));
-                i.borrow_mut().parent = nodes.get(&(nodes.len() - 1)).unwrap().as_ptr();
-                j.borrow_mut().parent = nodes.get(&(nodes.len() - 1)).unwrap().as_ptr();
-                scratch.insert(*i_path, Rc::clone(nodes.get(&(nodes.len() - 1)).unwrap()));
+                let parent = Rc::new(RefCell::new(parent));
+                i.borrow_mut().parent = Rc::downgrade(&parent);
+                j.borrow_mut().parent = Rc::downgrade(&parent);
+                scratch.insert(*i_path, Rc::clone(&parent));
+                nodes.insert(nodes.len(), parent);
                 scratch.remove(j_path);
             }
         }
@@ -282,21 +177,16 @@ impl ContractionTree {
             .push(nodes.len() - 1);
     }
 
+    /// Creates a `ContractionTree` from `tensor` and contract `path`. The tree
+    /// represents all intermediate tensors and costs of given contraction path and
+    /// tensor network.
     #[must_use]
-    /// Creates a [`ContractionTree`] object from a [`Tensor`] and a [`Vec<ContractionIndex>`].
-    ///
-    /// # Arguments
-    ///
-    /// * `tn` - [`Tensor`] providing topographic and geometric information.
-    /// * `contract_path` - slice of [`ContractionIndex`], indicating contraction path.
-    /// # Returns
-    /// Constructed [`ContractionTree`] that represents all intermediate tensors and costs of given contraction path and tensor network.
-    pub fn from_contraction_path(tn: &Tensor, path: &[ContractionIndex]) -> Self {
+    pub fn from_contraction_path(tensor: &Tensor, path: &[ContractionIndex]) -> Self {
         validate_path(path);
         let mut nodes = HashMap::new();
         let mut partitions = HashMap::new();
-        Self::from_contraction_path_recurse(tn, path, &mut nodes, &mut partitions, &Vec::new());
-        let root = nodes.get(&(nodes.len() - 1)).unwrap().as_ptr();
+        Self::from_contraction_path_recurse(tensor, path, &mut nodes, &mut partitions, &Vec::new());
+        let root = Rc::downgrade(&nodes[&(nodes.len() - 1)]);
         ContractionTree {
             nodes,
             partitions,
@@ -304,252 +194,127 @@ impl ContractionTree {
         }
     }
 
-    /// Returns the depth of subtree in [`ContractionTree`] object starting from a given `node_index`. The depth of a [`Node`] object that is a leaf node is 0.
-    /// # Safety
-    ///
-    /// Is always safe if every parent has two children in a contraction tree. Pointer is never written to and `is_leaf` should prevent any dereferencing of null ptr.
-    fn tree_depth_recurse(node: *mut Node) -> usize {
-        let is_leaf = unsafe { (*node).is_leaf() };
-        let (left_child, right_child) = unsafe { ((*node).left_child, (*node).right_child) };
-
-        if is_leaf {
-            0
+    fn leaf_ids_recurse(node: &Node, leaf_indices: &mut Vec<usize>) {
+        if node.is_leaf() {
+            leaf_indices.push(node.id);
         } else {
-            1 + max(
-                Self::tree_depth_recurse(left_child),
-                Self::tree_depth_recurse(right_child),
-            )
+            Self::leaf_ids_recurse(
+                &node.left_child.upgrade().unwrap().as_ref().borrow(),
+                leaf_indices,
+            );
+            Self::leaf_ids_recurse(
+                &node.right_child.upgrade().unwrap().as_ref().borrow(),
+                leaf_indices,
+            );
         }
     }
 
-    /// Returns the depth of subtree in [`ContractionTree`] object starting from a given `node_index`. The depth of a [`Node`] object that is a leaf node is 0.
-    ///
-    /// # Arguments
-    ///
-    /// * `node_index` - `id` attribute of starting [`Node`]
-    pub fn tree_depth(&self, node_index: usize) -> usize {
-        Self::tree_depth_recurse(self.node_ptr(node_index))
+    /// Returns the id of all leaf nodes in subtree with root at `node_id`.
+    pub fn leaf_ids(&self, node_id: usize) -> Vec<usize> {
+        let mut leaf_indices = Vec::new();
+        let node = self.node(node_id);
+        Self::leaf_ids_recurse(&node, &mut leaf_indices);
+        leaf_indices
     }
 
-    /// Returns the number of leaf nodes in subtree of [`ContractionTree`] object starting from a given `node_index`. Returns 1 if `node_index` points to a leaf node.
-    /// # Safety
-    ///
-    /// Is always safe. Pointer is never written to and `is_null` should prevent any dereferencing of null ptr.
-    fn leaf_count_recurse(node: *mut Node) -> usize {
-        if node.is_null() {
-            panic!("All non-leaf nodes should have two children in a contraction tree")
+    /// Removes subtree with root at `node_id`.
+    fn remove_subtree_recurse(&mut self, node_id: usize) {
+        if self.node(node_id).is_leaf() {
+            return;
         }
 
-        let is_leaf = unsafe { (*node).is_leaf() };
-        let (left_child, right_child) = unsafe { ((*node).left_child, (*node).right_child) };
+        let node = self.nodes.remove(&node_id).unwrap();
+        let node = node.borrow();
 
-        if is_leaf {
-            1
-        } else {
-            ContractionTree::leaf_count_recurse(left_child)
-                + ContractionTree::leaf_count_recurse(right_child)
+        if let Some(id) = node.left_child_id() {
+            self.remove_subtree_recurse(id);
+        }
+        if let Some(id) = node.right_child_id() {
+            self.remove_subtree_recurse(id);
         }
     }
 
-    /// Returns the number of leaf nodes in subtree of [`ContractionTree`] object starting from a given `node_index`. Returns 1 if `node_index` points to a leaf node.
-    ///
-    /// # Arguments
-    ///
-    /// * `node_index` - `id` attribute of starting [`Node`]
-    pub fn leaf_count(&self, node_index: usize) -> usize {
-        ContractionTree::leaf_count_recurse(self.node_ptr(node_index))
-    }
-
-    fn leaf_ids_recurse(node: *mut Node, leaf_indices: &mut Vec<usize>) {
-        let is_leaf = unsafe { (*node).is_leaf() };
-        let id = unsafe { (*node).id };
-        let (left_child, right_child) = unsafe { ((*node).left_child, (*node).right_child) };
-
-        if is_leaf {
-            leaf_indices.push(id);
-        } else {
-            ContractionTree::leaf_ids_recurse(left_child, leaf_indices);
-            ContractionTree::leaf_ids_recurse(right_child, leaf_indices);
-        }
-    }
-
-    /// Populates `leaf_indices` with `id`` attribute of all leaf nodes in subtree with root at `node_index`.
-    ///
-    /// # Arguments
-    ///
-    /// * `node_index` - `id` attribute of starting [`Node`]
-    /// * `leaf_indices` - mutable Vec that stores `id` attributes
-    pub fn leaf_ids(&self, node_index: usize, leaf_indices: &mut Vec<usize>) {
-        let node = self.node_ptr(node_index);
-        ContractionTree::leaf_ids_recurse(node, leaf_indices);
-    }
-
-    /// Populates `children` with pointer to [`Node`] objects at depth  attribute of all leaf nodes in subtree with root at `node_index`.
-    ///
-    /// # Arguments
-    ///
-    /// * `node` - mutable pointer to [`Node`] object
-    /// * `depth` - depth to find children of `node`
-    /// * `children` - mutable vector storing found children
-    ///
-    /// # Safety
-    ///
-    /// This function only dereferences a raw pointer after checking for null. Referenced data is not changed.
-    fn nodes_at_depth_recurse(node: *mut Node, depth: usize, children: &mut Vec<usize>) {
-        if node.is_null() {
-        } else if depth == 0 {
-            unsafe {
-                children.push((*node).id);
-            }
-        } else {
-            unsafe {
-                Self::nodes_at_depth_recurse((*node).left_child, depth - 1, children);
-                Self::nodes_at_depth_recurse((*node).right_child, depth - 1, children);
-            }
-        }
-    }
-
-    /// Populates `children` with pointer to [`Node`] objects at depth  attribute of all leaf nodes in subtree with root at `node_index`.
-    ///
-    /// # Arguments
-    ///
-    /// * `node_index` - id of root of subtree
-    /// * `depth` - depth to find children of `node`
-    /// * `children` - mutable vector storing found children
-    ///
-    pub fn nodes_at_depth(&self, node_index: usize, depth: usize, children: &mut Vec<usize>) {
-        Self::nodes_at_depth_recurse(self.node_ptr(node_index), depth, children);
-    }
-
-    /// Removes subtree with root at `node`
-    ///
-    /// # Safety
-    ///
-    /// Removing a subtree from the ['ContractionTree'] object also removes all associated ['Tensor'] objects in the contained HashMap `nodes`. All pointers to the [`Node`] object at `node_id` and its children are invalid after calling this function.
-    unsafe fn remove_subtree_recurse(&mut self, node: *mut Node) {
-        if node.is_null() {
-        } else {
-            unsafe {
-                self.remove_subtree_recurse((*node).left_child);
-                self.remove_subtree_recurse((*node).right_child);
-                if !(*node).is_leaf() {
-                    self.remove_node((*node).id);
-                }
-                (*node).deprecate();
-            }
-        }
-    }
-
-    /// Removes subtree with root at `node_id`
-    /// # Arguments
-    /// * `node_id` - root of subtree to remove
-    ///
-    /// # Safety
-    ///
-    /// Removing a subtree from the ['ContractionTree'] object also removes all associated ['Tensor'] objects in the contained HashMap `nodes`. All pointers to the [`Node`] object at `node_id` and its children are invalid after calling this function.
-    pub unsafe fn remove_subtree(&mut self, node_id: usize) {
-        let this_node = self.node_ptr(node_id);
-        (*self.mut_node(node_id).parent).remove_child(this_node);
-
-        self.remove_subtree_recurse(self.node_ptr(node_id));
-    }
-
-    fn replace_node(&mut self, node_index: usize, node: Node) {
-        self.nodes.insert(node_index, Rc::new(RefCell::new(node)));
+    /// Removes subtree with root at `node_id`.
+    pub fn remove_subtree(&mut self, node_id: usize) {
+        self.remove_subtree_recurse(node_id);
     }
 
     pub fn add_subtree(
         &mut self,
-        tn: &Tensor,
         path: &[ContractionIndex],
         parent_id: usize,
-        tensor_indices: Option<Vec<usize>>,
+        tensor_indices: &[usize],
     ) -> usize {
         validate_path(path);
         assert!(self.nodes.contains_key(&parent_id));
         let mut index = 0;
         let mut scratch = HashMap::new();
-        let tensor_indices = if let Some(tensor_indices) = tensor_indices {
-            tensor_indices
-        } else {
-            (0..tn.tensors().len()).collect()
-        };
 
-        for tensor_index in tensor_indices {
-            scratch.insert(
-                tensor_index,
-                Rc::clone(self.nodes.get(&tensor_index).unwrap()),
-            );
+        for &tensor_index in tensor_indices {
+            scratch.insert(tensor_index, Rc::clone(&self.nodes[&tensor_index]));
         }
 
-        for contr in path.iter() {
-            match contr {
-                ContractionIndex::Pair(i_path, j_path) => {
-                    index = self.next_id(index);
-                    // Destructure contraction index. Check if contracted tensor already moved there.
-                    let i = &scratch[i_path];
-                    let j = &scratch[j_path];
-                    let parent = Node::new(index, i.as_ptr(), j.as_ptr(), ptr::null_mut(), None);
+        for contr in path {
+            if let ContractionIndex::Pair(i_path, j_path) = contr {
+                index = self.next_id(index);
+                let i = &scratch[i_path];
+                let j = &scratch[j_path];
+                let parent =
+                    Node::new(index, Rc::downgrade(i), Rc::downgrade(j), Weak::new(), None);
 
-                    self.nodes.insert(index, Rc::new(RefCell::new(parent)));
-                    i.borrow_mut().parent = self.nodes.get(&index).unwrap().as_ptr();
-                    j.borrow_mut().parent = self.nodes.get(&index).unwrap().as_ptr();
-                    scratch.insert(*i_path, Rc::clone(self.nodes.get(&index).unwrap()));
-                    scratch.remove(j_path);
-                }
-                _ => {
-                    panic!("Constructor not implemented for nested Tensors")
-                }
+                let parent = Rc::new(RefCell::new(parent));
+                i.borrow_mut().parent = Rc::downgrade(&parent);
+                j.borrow_mut().parent = Rc::downgrade(&parent);
+                scratch.insert(*i_path, Rc::clone(&parent));
+                scratch.remove(j_path);
+                self.nodes.insert(index, parent);
+            } else {
+                panic!("Constructor not implemented for nested Tensors")
             }
         }
 
-        let new_parent = self.node_ptr(parent_id);
-        let new_child = self.node_ptr(index);
-        unsafe {
-            (*new_parent).add_child(self.node_ptr(index));
-            (*new_child).set_parent(new_parent);
-        }
+        let new_parent = &self.nodes[&parent_id];
+        new_parent
+            .borrow_mut()
+            .add_child(Rc::downgrade(&self.nodes[&index]));
+
+        let new_child = &self.nodes[&index];
+        new_child.borrow_mut().parent = Rc::downgrade(new_parent);
+
         index
     }
 
     fn tree_weights_recurse(
-        node: *mut Node,
+        node: &Node,
         tn: &Tensor,
         weights: &mut HashMap<usize, u64>,
         scratch: &mut HashMap<usize, Tensor>,
         cost_function: fn(&Tensor, &Tensor) -> u64,
     ) {
-        let is_leaf = unsafe { (*node).is_leaf() };
-        let node_id = unsafe { (*node).id };
-        let tensor_index = unsafe { (*node).tensor_index.clone() };
-
-        if is_leaf {
-            weights.entry(node_id).or_insert(0u64);
-            let Some(tensor_index) = tensor_index else {
+        if node.is_leaf() {
+            let Some(tensor_index) = &node.tensor_index else {
                 panic!("All leaf nodes should have a tensor index")
             };
-            scratch
-                .entry(node_id)
-                .or_insert(tn.nested_tensor(&tensor_index).clone());
+            weights.insert(node.id, 0);
+            scratch.insert(node.id, tn.nested_tensor(tensor_index).clone());
             return;
         }
 
-        let (left_child, right_child) = unsafe { ((*node).left_child, (*node).right_child) };
-        let (left_child_id, right_child_id) = unsafe { ((*left_child).id, (*right_child).id) };
+        let left_child = &node.left_child.upgrade().unwrap();
+        let right_child = &node.right_child.upgrade().unwrap();
+        let left_ref = left_child.as_ref().borrow();
+        let right_ref = right_child.as_ref().borrow();
 
-        Self::tree_weights_recurse(left_child, tn, weights, scratch, cost_function);
-        Self::tree_weights_recurse(right_child, tn, weights, scratch, cost_function);
-        let t1 = scratch.get(&left_child_id).unwrap();
-        let t2 = scratch.get(&right_child_id).unwrap();
+        Self::tree_weights_recurse(&left_ref, tn, weights, scratch, cost_function);
+        Self::tree_weights_recurse(&right_ref, tn, weights, scratch, cost_function);
 
-        let cost = weights.get(&left_child_id).unwrap()
-            + weights.get(&right_child_id).unwrap()
-            + cost_function(t1, t2);
+        let t1 = &scratch[&left_ref.id];
+        let t2 = &scratch[&right_ref.id];
 
-        unsafe {
-            weights.insert((*node).id, cost);
-            scratch.insert((*node).id, t1 ^ t2);
-        }
+        let cost = weights[&left_ref.id] + weights[&right_ref.id] + cost_function(t1, t2);
+
+        weights.insert(node.id, cost);
+        scratch.insert(node.id, t1 ^ t2);
     }
 
     /// Returns HashMap storing resultant tensor and its respective contraction costs calculated via `cost_function`.
@@ -557,7 +322,7 @@ impl ContractionTree {
     /// # Arguments
     /// * `node_id` - root of Node to start calculating contraction costs
     /// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
-    /// * `cost_function` - cost function taking two [`Tensor`] objects and returning contraction cost as u64
+    /// * `cost_function` - cost function returning contraction cost
     pub fn tree_weights(
         &self,
         node_id: usize,
@@ -566,13 +331,8 @@ impl ContractionTree {
     ) -> HashMap<usize, u64> {
         let mut weights = HashMap::new();
         let mut scratch = HashMap::new();
-        Self::tree_weights_recurse(
-            self.node_ptr(node_id),
-            tn,
-            &mut weights,
-            &mut scratch,
-            cost_function,
-        );
+        let node = self.node(node_id);
+        Self::tree_weights_recurse(&node, tn, &mut weights, &mut scratch, cost_function);
         weights
     }
 
@@ -584,20 +344,21 @@ impl ContractionTree {
     /// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
     /// * `cost_function` - cost function taking two [`Tensor`] objects and returning a value as i64
     ///
-    /// #Returns
+    /// # Returns
     /// * option of node id (not necessarily a leaf node) in subtree that maximizes `cost_function`.
     pub fn max_match_by(
         &self,
-        node_index: usize,
+        node_id: usize,
         subtree_root: usize,
         tn: &Tensor,
         cost_function: fn(&Tensor, &Tensor) -> i64,
     ) -> Option<(usize, i64)> {
-        assert!(self.node(node_index).borrow().is_leaf());
-        // Get a map that maps leaf nodes to corresponding [`Tensor`] objects.
-        let mut node_tensor_map: HashMap<usize, Tensor> = HashMap::new();
+        assert!(self.node(node_id).is_leaf());
+
+        // Get a map that maps leaf nodes to corresponding tensor objects.
+        let mut node_tensor_map = HashMap::new();
         populate_subtree_tensor_map(self, subtree_root, &mut node_tensor_map, tn);
-        let node = self.node(node_index);
+        let node = self.node(node_id);
         let tensor_index = node.tensor_index.as_ref().unwrap();
         let t1 = tn.nested_tensor(tensor_index);
 
@@ -605,118 +366,71 @@ impl ContractionTree {
         let (node, cost) = node_tensor_map
             .iter()
             .map(|(id, tensor)| (id, cost_function(tensor, t1)))
-            .reduce(|node1, node2| cmp::max_by_key(node1, node2, |&a| a.1))?;
+            .max_by_key(|k| k.1)?;
         Some((*node, cost))
-    }
-
-    /// Given a list of leaf nodes ids `leaf_node_indices`, identifies leaf node id that maximizes `cost_function.
-    ///
-    /// # Arguments
-    /// * `leaf_node_indices` - vector of lead node ids
-    /// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
-    /// * `cost_function` - cost function taking one [`Tensor`] objects and returning a value as i64
-    ///
-    /// # Return
-    /// * leaf node id that maximizes cost function as Option<usize>
-    pub fn max_leaf_node_by(
-        &self,
-        leaf_node_indices: &[usize],
-        tn: &Tensor,
-        cost_function: fn(&Tensor) -> u64,
-    ) -> Option<usize> {
-        let (node_index, _) = leaf_node_indices
-            .iter()
-            .map(|&node| {
-                (
-                    node,
-                    tn.nested_tensor(&(self.node(node).tensor_index.clone().unwrap())),
-                )
-            })
-            .reduce(|node1, node2| cmp::max_by_key(node1, node2, |a| cost_function(a.1)))?;
-        Some(node_index)
     }
 
     /// Populates given vector with contractions path of contraction tree starting at `node`.
     ///
     /// # Arguments
     /// * `node` - pointer to [`Node`] object
-    /// * `path` - empty Vec<ContractionIndex> to store contraction path
+    /// * `path` - vec to store contraction path in
     fn to_contraction_path_recurse(
-        node: *mut Node,
+        node: &Node,
         path: &mut Vec<ContractionIndex>,
         replace: bool,
         hierarchy: bool,
     ) -> usize {
-        unsafe {
-            if (*node).is_leaf() {
-                if hierarchy {
-                    let tn_index = (*node).tensor_index.as_ref().unwrap();
-                    return *tn_index.last().unwrap();
-                } else {
-                    return (*node).id;
-                }
-            }
-        }
-        let left_child;
-        let right_child;
-        unsafe {
-            left_child = (*node).left_child;
-            right_child = (*node).right_child;
-        }
-        if !left_child.is_null() && !right_child.is_null() {
-            let mut t1_id = Self::to_contraction_path_recurse(left_child, path, replace, hierarchy);
-            let mut t2_id =
-                Self::to_contraction_path_recurse(right_child, path, replace, hierarchy);
-            if t2_id < t1_id {
-                (t1_id, t2_id) = (t2_id, t1_id);
-            }
-            path.push(pair!(t1_id, t2_id));
-            if replace {
-                t1_id
+        if node.is_leaf() {
+            if hierarchy {
+                let tn_index = node.tensor_index.as_ref().unwrap();
+                return *tn_index.last().unwrap();
             } else {
-                unsafe { (*node).id }
+                return node.id;
             }
-        } else {
+        }
+
+        // Get children
+        let (Some(left_child), Some(right_child)) =
+            (node.left_child.upgrade(), node.right_child.upgrade())
+        else {
             panic!("All parents should have two children")
+        };
+
+        // Get right and left child tensor ids
+        let mut t1_id = Self::to_contraction_path_recurse(
+            &left_child.as_ref().borrow(),
+            path,
+            replace,
+            hierarchy,
+        );
+        let mut t2_id = Self::to_contraction_path_recurse(
+            &right_child.as_ref().borrow(),
+            path,
+            replace,
+            hierarchy,
+        );
+        if t2_id < t1_id {
+            (t1_id, t2_id) = (t2_id, t1_id);
+        }
+
+        // Add pair to path
+        path.push(pair!(t1_id, t2_id));
+
+        // Return id of contracted tensor
+        if replace {
+            t1_id
+        } else {
+            node.id
         }
     }
 
-    /// Populates given vector with contractions path of contraction tree starting at `node`.
-    ///
-    /// # Arguments
-    /// * `node_id` - id of root of tree
-    /// * `path` - empty Vec<ContractionIndex> to store contraction path
-    pub fn to_flat_contraction_path(
-        &self,
-        node_index: usize,
-        path: &mut Vec<ContractionIndex>,
-        replace: bool,
-    ) {
-        ContractionTree::to_contraction_path_recurse(
-            self.node_ptr(node_index),
-            path,
-            replace,
-            false,
-        );
-    }
-
-    /// Populates given vector with contractions path of contraction tree starting at `node`.
-    ///
-    /// # Arguments
-    /// * `node_id` - id of root of tree
-    /// * `path` - empty Vec<ContractionIndex> to store contraction path
-    pub fn to_hierarchical_contraction_path(
-        &self,
-        node_index: usize,
-        path: &mut Vec<ContractionIndex>,
-        replace: bool,
-    ) {
-        ContractionTree::to_contraction_path_recurse(
-            self.node_ptr(node_index),
-            path,
-            replace,
-            true,
-        );
+    /// Populates given vector with contractions path of contraction tree starting at `node_id`.
+    pub fn to_flat_contraction_path(&self, node_id: usize, replace: bool) -> Vec<ContractionIndex> {
+        let node = self.node(node_id);
+        let mut path = Vec::new();
+        Self::to_contraction_path_recurse(&node, &mut path, replace, false);
+        path
     }
 
     fn next_id(&self, mut init: usize) -> usize {
@@ -726,33 +440,34 @@ impl ContractionTree {
         init
     }
 
-    fn tensor_recursive(node: *mut Node, tn: &Tensor) -> Tensor {
-        let is_leaf = unsafe { (*node).is_leaf() };
-
-        if is_leaf {
-            let tensor_index = unsafe { (*node).tensor_index.as_ref().unwrap() };
-            return tn.nested_tensor(tensor_index).clone();
+    fn tensor_recursive(node: &Node, tn: &Tensor) -> Tensor {
+        if node.is_leaf() {
+            let tensor_index = node.tensor_index.as_ref().unwrap();
+            tn.nested_tensor(tensor_index).clone()
+        } else {
+            let left =
+                Self::tensor_recursive(&node.left_child.upgrade().unwrap().as_ref().borrow(), tn);
+            let right =
+                Self::tensor_recursive(&node.right_child.upgrade().unwrap().as_ref().borrow(), tn);
+            &left ^ &right
         }
-
-        let (left_child, right_child) = unsafe { ((*node).left_child, (*node).right_child) };
-        &ContractionTree::tensor_recursive(left_child, tn)
-            ^ &ContractionTree::tensor_recursive(right_child, tn)
     }
 
     /// Returns intermediate [`Tensor`] object corresponding to `node_id`.
     ///
     /// # Arguments
     /// * `node_id` - id of Node corresponding to [`Tensor`] of interest
-    /// * `tensor` - [`Tensor`] object containing bond dimension and leaf node information
+    /// * `tensor` - tensor containing bond dimension and leaf node information
     ///
     /// # Returns
-    /// Empty [`Tensor`] object with legs (dimensions) of data after fully contracted.
+    /// Empty tensor with legs (dimensions) of data after fully contracted.
     pub fn tensor(&self, node_id: usize, tensor: &Tensor) -> Tensor {
-        ContractionTree::tensor_recursive(self.node_ptr(node_id), tensor)
+        let node = self.node(node_id);
+        Self::tensor_recursive(&node, tensor)
     }
 }
 
-/// Populates HashMap<usize, Tensor> `node_tensor_map`  with all intermediate and leaf node ids and corresponding [`Tensor`] object, with root at `node_id`.
+/// Populates `node_tensor_map` with all intermediate and leaf node ids and corresponding [`Tensor`] object, with root at `node_id`.
 ///
 /// # Arguments
 /// * `contraction_tree` - [`ContractionTree`] object
@@ -776,29 +491,25 @@ fn populate_subtree_tensor_map(
         node_tensor_map.insert(node.id, t.clone());
         t.clone()
     } else {
-        let t1;
-        let t2;
-        unsafe {
-            t1 = populate_subtree_tensor_map(
-                contraction_tree,
-                (*node.left_child).id,
-                node_tensor_map,
-                tn,
-            );
-            t2 = populate_subtree_tensor_map(
-                contraction_tree,
-                (*node.right_child).id,
-                node_tensor_map,
-                tn,
-            );
-        }
+        let t1 = populate_subtree_tensor_map(
+            contraction_tree,
+            node.left_child_id().unwrap(),
+            node_tensor_map,
+            tn,
+        );
+        let t2 = populate_subtree_tensor_map(
+            contraction_tree,
+            node.right_child_id().unwrap(),
+            node_tensor_map,
+            tn,
+        );
         let t12 = &t1 ^ &t2;
         node_tensor_map.insert(node.id, t12.clone());
         t12
     }
 }
 
-/// Returns contraction cost of subtree in [`ContractionTree`] object.
+/// Returns contraction cost of subtree in `contraction_tree`.
 ///
 /// # Arguments
 /// * `contraction_tree` - [`ContractionTree`] object
@@ -809,35 +520,32 @@ fn populate_subtree_tensor_map(
 /// Total op cost and maximum memory required of fully contracting subtree rooted at `node_id`
 pub fn tree_contraction_cost(
     contraction_tree: &ContractionTree,
-    node_index: usize,
+    node_id: usize,
     tn: &Tensor,
 ) -> (u64, u64) {
-    let (local_tensors, local_contraction_path) =
-        subtensor_network(contraction_tree, node_index, tn);
+    let (local_tensors, local_contraction_path) = subtensor_network(contraction_tree, node_id, tn);
 
     contract_path_cost(&local_tensors, &local_contraction_path)
 }
 
 fn subtensor_network(
     contraction_tree: &ContractionTree,
-    node_index: usize,
+    node_id: usize,
     tn: &Tensor,
 ) -> (Vec<Tensor>, Vec<ContractionIndex>) {
-    let mut leaf_ids = Vec::new();
-    contraction_tree.leaf_ids(node_index, &mut leaf_ids);
-    let (local_mapping, local_tensors): (HashMap<&usize, usize>, Vec<Tensor>) = leaf_ids
+    let leaf_ids = contraction_tree.leaf_ids(node_id);
+    let local_tensors = leaf_ids
+        .iter()
+        .map(|&id| tn.nested_tensor(contraction_tree.node(id).tensor_index.as_ref().unwrap()))
+        .cloned()
+        .collect_vec();
+    let local_mapping = leaf_ids
         .iter()
         .enumerate()
-        .map(|(a, b)| {
-            let tensor = tn
-                .nested_tensor(contraction_tree.node(*b).tensor_index.as_ref().unwrap())
-                .clone();
-            ((b, a), tensor)
-        })
-        .collect();
+        .map(|(local_idx, leaf_id)| (leaf_id, local_idx))
+        .collect::<HashMap<_, _>>();
 
-    let mut contraction_path = vec![];
-    contraction_tree.to_flat_contraction_path(node_index, &mut contraction_path, true);
+    let contraction_path = contraction_tree.to_flat_contraction_path(node_id, true);
 
     let local_contraction_path = contraction_path
         .into_iter()
@@ -848,10 +556,13 @@ fn subtensor_network(
                 panic!("No recursive path from flat contraction path!");
             }
         })
-        .collect::<Vec<ContractionIndex>>();
+        .collect_vec();
+
     (local_tensors, local_contraction_path)
 }
 
+/// Computes a hashmap that maps the node id to its weight. The weight is the maximum
+/// memory reduction that can be achieved if it is shifted to the other subtree.
 fn find_potential_nodes(
     contraction_tree: &ContractionTree,
     bigger_subtree_leaf_nodes: &[usize],
@@ -859,19 +570,16 @@ fn find_potential_nodes(
     tn: &Tensor,
     cost_function: fn(&Tensor, &Tensor) -> i64,
 ) -> HashMap<usize, i64> {
-    // This hashmap maps the node idx to it's weight. The weight is the
-    // maximum memory reduction that can be achieved if it is shifted to the
-    // other subtree.
-
     // Get a map that maps nodes to their tensors.
-    let mut node_tensor_map: HashMap<usize, Tensor> = HashMap::new();
+    let mut node_tensor_map = HashMap::new();
     populate_subtree_tensor_map(
         contraction_tree,
         smaller_subtree_root,
         &mut node_tensor_map,
         tn,
     );
-    HashMap::from_iter(bigger_subtree_leaf_nodes.iter().map(|leaf_index| {
+
+    (bigger_subtree_leaf_nodes.iter().map(|leaf_index| {
         let t1 = tn.nested_tensor(
             contraction_tree
                 .node(*leaf_index)
@@ -882,13 +590,14 @@ fn find_potential_nodes(
         node_tensor_map
             .iter()
             .map(|(&index, tensor)| (index, cost_function(tensor, t1)))
-            .reduce(|a, b| min_by_key(a, b, |a| a.1))
+            .min_by_key(|k| k.1)
             .unwrap()
     }))
+    .collect()
 }
 
 pub fn balance_partitions_iter(
-    tn: &Tensor,
+    tensor: &Tensor,
     path: &[ContractionIndex],
     random_balance: bool,
     rebalance_depth: usize,
@@ -896,42 +605,44 @@ pub fn balance_partitions_iter(
     output_file: String,
     cost_function: fn(&Tensor, &Tensor) -> u64,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<u64>) {
-    let mut contraction_tree = ContractionTree::from_contraction_path(tn, path);
+    let mut contraction_tree = ContractionTree::from_contraction_path(tensor, path);
     let mut path = path.to_owned();
     let final_contraction = path
         .iter()
-        .filter(|&e| matches!(e, ContractionIndex::Pair(_, _)))
+        .filter(|&e| matches!(e, ContractionIndex::Pair(..)))
         .cloned()
-        .collect::<Vec<ContractionIndex>>();
+        .collect_vec();
 
-    let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
+    let children = &contraction_tree.partitions()[&rebalance_depth];
 
     assert!(children.len() > 1);
     let partition_number = children.len();
+
     let children_tensors = children
         .iter()
-        .map(|e| contraction_tree.tensor(*e, tn))
-        .collect::<Vec<Tensor>>();
+        .map(|e| contraction_tree.tensor(*e, tensor))
+        .collect_vec();
 
     let mut partition_costs = children
         .iter()
         .map(|child| {
             (
                 *child,
-                tree_contraction_cost(&contraction_tree, *child, tn).0,
+                tree_contraction_cost(&contraction_tree, *child, tensor).0,
             )
         })
-        .collect::<Vec<(usize, u64)>>();
+        .collect_vec();
     partition_costs.sort_unstable_by_key(|e| e.1);
 
-    let (_, mut max_cost) = partition_costs[partition_costs.len() - 1];
+    let (_, mut max_cost) = partition_costs.last().unwrap();
 
     let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
-    let mut max_costs = vec![max_cost + final_op_cost];
+    let mut max_costs = Vec::with_capacity(iterations + 1);
+    max_costs.push(max_cost + final_op_cost);
 
     to_dendogram(
         &contraction_tree,
-        tn,
+        tensor,
         cost_function,
         output_file.clone() + "_0",
     );
@@ -941,18 +652,22 @@ pub fn balance_partitions_iter(
     let mut best_contraction_path = path.clone();
     let mut best_cost = max_cost + final_op_cost;
 
-    let mut best_tn = tn.clone();
+    let mut best_tn = tensor.clone();
 
     for i in 1..(iterations + 1) {
-        (max_cost, path, new_tn) =
-            balance_partitions(tn, &mut contraction_tree, random_balance, rebalance_depth);
+        (max_cost, path, new_tn) = balance_partitions(
+            tensor,
+            &mut contraction_tree,
+            random_balance,
+            rebalance_depth,
+        );
         assert_eq!(partition_number, path.len(), "Tensors lost!");
         validate_path(&path);
-        let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
+        let children = &contraction_tree.partitions()[&rebalance_depth];
         let children_tensors = children
             .iter()
-            .map(|e| contraction_tree.tensor(*e, tn))
-            .collect::<Vec<Tensor>>();
+            .map(|e| contraction_tree.tensor(*e, tensor))
+            .collect_vec();
 
         let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
         let new_max_cost = max_cost + final_op_cost;
@@ -968,7 +683,7 @@ pub fn balance_partitions_iter(
 
         to_dendogram(
             &contraction_tree,
-            tn,
+            tensor,
             cost_function,
             output_file.clone() + &format!("_{}", i),
         );
@@ -985,6 +700,7 @@ pub fn balance_partitions(
 ) -> (u64, Vec<ContractionIndex>, Tensor) {
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
     if tn.total_num_tensors() < 3 {
+        // TODO: should not panic, but handle gracefully
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
     }
 
@@ -994,7 +710,7 @@ pub fn balance_partitions(
     let bond_dims = tn.bond_dims();
 
     // Create binary contraction tree.
-    let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
+    let children = &contraction_tree.partitions()[&rebalance_depth];
     assert!(children.len() > 1);
 
     let mut partition_costs = children
@@ -1005,12 +721,12 @@ pub fn balance_partitions(
                 tree_contraction_cost(contraction_tree, *child, tn).0,
             )
         })
-        .collect::<Vec<(usize, u64)>>();
+        .collect_vec();
     partition_costs.sort_unstable_by_key(|e| e.1);
 
     // Obtain larger and smaller partitions
-    let (larger_subtree_id, _) = partition_costs[partition_costs.len() - 1];
-    let (smaller_subtree_id, _) = partition_costs[0];
+    let (larger_subtree_id, _) = *partition_costs.last().unwrap();
+    let (smaller_subtree_id, _) = *partition_costs.first().unwrap();
     let mut new_max = if children.len() > 2 {
         let (_, new_max) = partition_costs[partition_costs.len() - 2];
         new_max
@@ -1020,39 +736,25 @@ pub fn balance_partitions(
 
     contraction_tree
         .partitions
-        .entry(rebalance_depth)
-        .and_modify(|e| {
-            let index = e.iter().position(|x| *x == smaller_subtree_id).unwrap();
-            e.remove(index);
-        });
-
-    contraction_tree
-        .partitions
-        .entry(rebalance_depth)
-        .and_modify(|e| {
-            let index = e.iter().position(|x| *x == larger_subtree_id).unwrap();
-            e.remove(index);
-        });
+        .get_mut(&rebalance_depth)
+        .unwrap()
+        .retain(|&e| e != smaller_subtree_id && e != larger_subtree_id);
 
     let smaller_subtree_parent_id = contraction_tree
         .node(smaller_subtree_id)
-        .borrow()
         .parent_id()
         .unwrap();
     let larger_subtree_parent_id = contraction_tree
         .node(larger_subtree_id)
-        .borrow()
         .parent_id()
         .unwrap();
 
     // Find the tensor to be rebalanced to the bigger subtree.
     // Get smaller subtree leaf nodes
-    let mut smaller_subtree_leaf_nodes = Vec::new();
-    contraction_tree.leaf_ids(smaller_subtree_id, &mut smaller_subtree_leaf_nodes);
+    let mut smaller_subtree_leaf_nodes = contraction_tree.leaf_ids(smaller_subtree_id);
 
     // Get bigger subtree leaf nodes
-    let mut larger_subtree_leaf_nodes = Vec::new();
-    contraction_tree.leaf_ids(larger_subtree_id, &mut larger_subtree_leaf_nodes);
+    let mut larger_subtree_leaf_nodes = contraction_tree.leaf_ids(larger_subtree_id);
 
     // Find the leaf node in the smaller subtree that causes the biggest memory reduction in the bigger subtree
     let rebalanced_node = if random_balance {
@@ -1066,31 +768,29 @@ pub fn balance_partitions(
             greedy_cost_fn,
         );
 
-        let mut keys = rebalanced_node_weights
-            .keys()
-            .cloned()
-            .collect::<Vec<usize>>();
+        let mut keys = rebalanced_node_weights.keys().copied().collect_vec();
         keys.sort_by_key(|&key| rebalanced_node_weights[&key]);
         if keys.len() < top_n {
-            panic!("Error rebalance_path: Not enough nodes in the bigger subtree to select the top {} from!", top_n);
+            panic!("Error rebalance_path: Not enough nodes in the bigger subtree to select the top {top_n} from!");
         } else {
             // Sample randomly from the top n nodes. Use softmax probabilities.
-            let top_n_nodes = keys.iter().take(top_n).cloned().collect::<Vec<usize>>();
+            let top_n_nodes = keys.into_iter().take(top_n).collect_vec();
 
             // Subtract max val after inverting for numerical stability.
-            let l2_norm: f64 = top_n_nodes
+            let l2_norm = top_n_nodes
                 .iter()
                 .map(|idx| rebalanced_node_weights[idx] as f64)
-                .map(|weight| weight * weight)
+                .map(|weight| weight.powi(2))
                 .sum::<f64>()
                 .sqrt();
-            let top_n_exp: Vec<f64> = top_n_nodes
+            let top_n_exp = top_n_nodes
                 .iter()
-                .map(|idx| ((-rebalanced_node_weights[idx] as f64) / l2_norm).exp())
-                .collect();
+                .map(|idx| rebalanced_node_weights[idx] as f64)
+                .map(|weight| (-weight / l2_norm).exp())
+                .collect_vec();
 
-            let sum_exp: f64 = top_n_exp.iter().sum();
-            let top_n_prob: Vec<f64> = top_n_exp.iter().map(|&exp| (exp / sum_exp)).collect();
+            let sum_exp = top_n_exp.iter().sum::<f64>();
+            let top_n_prob = top_n_exp.iter().map(|&exp| (exp / sum_exp)).collect_vec();
 
             // Sample index based on its probability
             let dist = WeightedIndex::new(top_n_prob).unwrap();
@@ -1100,23 +800,26 @@ pub fn balance_partitions(
             top_n_nodes[rand_idx]
         }
     } else {
-        let mut max_cost = i64::MIN;
-        let mut best_node = usize::MAX;
-        for larger_node in larger_subtree_leaf_nodes.iter() {
-            let (_, cost) = contraction_tree
-                .max_match_by(*larger_node, smaller_subtree_id, tn, greedy_cost_fn)
-                .unwrap();
-            if max_cost < cost {
-                best_node = *larger_node;
-                max_cost = cost;
-            }
-        }
+        let (best_node, _max_cost) = larger_subtree_leaf_nodes
+            .iter()
+            .map(|larger_node| {
+                (
+                    *larger_node,
+                    contraction_tree
+                        .max_match_by(*larger_node, smaller_subtree_id, tn, greedy_cost_fn)
+                        .unwrap()
+                        .1,
+                )
+            })
+            .max_by_key(|k| k.1)
+            .unwrap();
         best_node
     };
 
     // Always check that a node is moved over.
     assert!(!smaller_subtree_leaf_nodes.contains(&rebalanced_node));
     assert!(larger_subtree_leaf_nodes.contains(&rebalanced_node));
+
     // Remove selected tensor from bigger subtree. Add it to the smaller subtree
     smaller_subtree_leaf_nodes.push(rebalanced_node);
     larger_subtree_leaf_nodes.retain(|&leaf| leaf != rebalanced_node);
@@ -1124,7 +827,7 @@ pub fn balance_partitions(
     // Rerun Greedy algorithm on smaller subtree
     // Delete edge between root and smaller subtree. Will use greedy path instead
 
-    let (smaller_indices, smaller_tensors): (Vec<usize>, Vec<Tensor>) = smaller_subtree_leaf_nodes
+    let (smaller_indices, smaller_tensors): (Vec<_>, Vec<_>) = smaller_subtree_leaf_nodes
         .iter()
         .map(|&e| {
             (
@@ -1145,15 +848,18 @@ pub fn balance_partitions(
 
     let updated_smaller_path = path_smaller_subtree
         .iter()
-        .map(|e| match e {
-            ContractionIndex::Pair(v1, v2) => pair!(smaller_indices[*v1], smaller_indices[*v2]),
-            _ => panic!("Should only produce Pairs!"),
+        .map(|e| {
+            if let ContractionIndex::Pair(v1, v2) = e {
+                pair!(smaller_indices[*v1], smaller_indices[*v2])
+            } else {
+                panic!("Should only produce Pairs!")
+            }
         })
-        .collect::<Vec<ContractionIndex>>();
+        .collect_vec();
 
     // Rerun Greedy algorithm on larger subtree
     // Delete edge between root and larger subtree. Will use greedy path instead
-    let (larger_indices, larger_tensors): (Vec<usize>, Vec<Tensor>) = larger_subtree_leaf_nodes
+    let (larger_indices, larger_tensors): (Vec<_>, Vec<_>) = larger_subtree_leaf_nodes
         .iter()
         .map(|&e| {
             (
@@ -1164,6 +870,7 @@ pub fn balance_partitions(
         })
         .unzip();
     let tn_larger_subtree = create_tensor_network(larger_tensors, &tn.bond_dims(), None);
+
     let mut opt = Greedy::new(&tn_larger_subtree, CostType::Flops);
     opt.optimize_path();
     if opt.get_best_flops() > new_max {
@@ -1173,166 +880,59 @@ pub fn balance_partitions(
 
     let updated_larger_path = path_larger_subtree
         .iter()
-        .map(|e| match e {
-            ContractionIndex::Pair(v1, v2) => pair!(larger_indices[*v1], larger_indices[*v2]),
-            _ => panic!("Should only produce Pairs!"),
+        .map(|e| {
+            if let ContractionIndex::Pair(v1, v2) = e {
+                pair!(larger_indices[*v1], larger_indices[*v2])
+            } else {
+                panic!("Should only produce Pairs!")
+            }
         })
-        .collect::<Vec<ContractionIndex>>();
+        .collect_vec();
 
-    unsafe {
-        contraction_tree.remove_subtree(smaller_subtree_id);
-        contraction_tree.remove_subtree(larger_subtree_id);
-    }
+    contraction_tree.remove_subtree(smaller_subtree_id);
+    contraction_tree.remove_subtree(larger_subtree_id);
 
     let smaller_partition_root = contraction_tree.add_subtree(
-        tn,
         &updated_smaller_path,
         smaller_subtree_parent_id,
-        Some(smaller_indices),
+        &smaller_indices,
     );
 
     let larger_partition_root = contraction_tree.add_subtree(
-        tn,
         &updated_larger_path,
         larger_subtree_parent_id,
-        Some(larger_indices),
+        &larger_indices,
     );
 
     contraction_tree
         .partitions
-        .entry(rebalance_depth)
-        .and_modify(|e| e.push(larger_partition_root));
+        .get_mut(&rebalance_depth)
+        .unwrap()
+        .push(larger_partition_root);
 
     contraction_tree
         .partitions
-        .entry(rebalance_depth)
-        .and_modify(|e| e.push(smaller_partition_root));
+        .get_mut(&rebalance_depth)
+        .unwrap()
+        .push(smaller_partition_root);
 
     // Generate new paths based on greedy paths
-    let children = contraction_tree.partitions().get(&rebalance_depth).unwrap();
+    let children = &contraction_tree.partitions()[&rebalance_depth];
 
-    let (partition_tensors, rebalanced_path): (Vec<Tensor>, Vec<ContractionIndex>) = children
+    let (partition_tensors, rebalanced_path) = children
         .iter()
         .enumerate()
-        .map(|(i, e)| {
-            let (tensors, local_path) = subtensor_network(contraction_tree, *e, tn);
+        .map(|(i, node_id)| {
+            let (tensors, local_path) = subtensor_network(contraction_tree, *node_id, tn);
             let mut tensor = Tensor::default();
             tensor.push_tensors(tensors, Some(&bond_dims), None);
             (tensor, ContractionIndex::Path(i, local_path))
         })
-        .collect();
+        .collect::<(Vec<_>, Vec<_>)>();
 
     let mut updated_tn = Tensor::default();
     updated_tn.push_tensors(partition_tensors, Some(&bond_dims), None);
     (new_max, rebalanced_path, updated_tn)
-}
-
-pub fn find_min_max_subtree(
-    children: &[usize],
-    tree: &ContractionTree,
-    tn: &Tensor,
-) -> (usize, u64, usize, u64) {
-    let mut min_cost = u64::MAX;
-    let mut max_cost = 0;
-
-    let mut smaller_subtree_id = children[0];
-    let mut larger_subtree_id = children[1];
-
-    children
-        .iter()
-        .map(|&child| (child, tree_contraction_cost(tree, child, tn)))
-        .for_each(|(child_id, (op_cost, _mem_cost))| {
-            if op_cost > max_cost {
-                max_cost = op_cost;
-                larger_subtree_id = child_id;
-            }
-            if op_cost < min_cost {
-                min_cost = op_cost;
-                smaller_subtree_id = child_id;
-            }
-        });
-    if smaller_subtree_id == larger_subtree_id {
-        let mut options = (0..children.len()).collect::<Vec<usize>>();
-        options.shuffle(&mut thread_rng());
-        smaller_subtree_id = children[options[0]];
-        larger_subtree_id = children[options[1]];
-    }
-    (smaller_subtree_id, min_cost, larger_subtree_id, max_cost)
-}
-
-pub fn to_png(
-    contraction_tree: ContractionTree,
-    tn: &Tensor,
-    cost_function: fn(&Tensor, &Tensor) -> u64,
-    svg_name: String,
-) {
-    let root;
-    unsafe {
-        root = (*contraction_tree.root).id;
-    }
-    let tree_weights = contraction_tree.tree_weights(root, tn, cost_function);
-    let mut contraction_path = Vec::new();
-    contraction_tree.to_flat_contraction_path(root, &mut contraction_path, false);
-
-    let mut edges = String::new();
-    for contraction_index in contraction_path {
-        if let ContractionIndex::Pair(t1, t2) = contraction_index {
-            if !contraction_tree.node(t1).borrow().parent.is_null() {
-                unsafe {
-                    let parent_id = (*contraction_tree.node(t1).borrow().parent).id;
-                    let new_edges = format!(
-                        r#"
-                        {parent} -> {t1}:n [headlabel="[{t1_weight}]"];
-                        {parent} -> {t2}:n [headlabel="[{t2_weight}]"]; "#,
-                        t1 = t1,
-                        t2 = t2,
-                        parent = parent_id,
-                        t1_weight = tree_weights[&t1],
-                        t2_weight = tree_weights[&t2],
-                    );
-                    edges = new_edges + &edges;
-                }
-            }
-        } else {
-            continue;
-        }
-    }
-
-    let graphviz_string = edges;
-
-    let mut final_string = String::from(
-        r#"digraph {
-            node [fixedsize=true width=0.6 height=0.6]
-            edge [labelOverlay=true label2node=true arrowhead=none labelfontsize=12]"#, // node [shape=circle];"#,
-    );
-    final_string.push_str(&graphviz_string);
-    final_string.push('}');
-
-    let mut dot_output = Command::new("dot")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap();
-
-    let mut dot_gv = dot_output.stdin.take().expect("Failed to open stdin");
-    std::thread::spawn(move || {
-        dot_gv
-            .write_all(final_string.as_bytes())
-            .expect("Failed to write to stdin");
-    });
-
-    let gvpr_output = Command::new("gvpr")
-        .args(["-c", "-ftree.gv"])
-        .stdin(dot_output.stdout.unwrap())
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap();
-
-    let _ = Command::new("neato")
-        .args(["-n", "-Tpng", &format!("-o {}", svg_name)])
-        .stdin(gvpr_output.stdout.unwrap())
-        .spawn()
-        .unwrap();
 }
 
 pub fn to_dendogram(
@@ -1346,9 +946,8 @@ pub fn to_dendogram(
     let mut last_leaf_x = x_spacing;
     let height = 60f64;
     let mut node_to_position: HashMap<usize, (f64, f64)> = HashMap::new();
-    let root_id = contraction_tree.root_id();
-    let mut path = Vec::new();
-    contraction_tree.to_flat_contraction_path(root_id, &mut path, false);
+    let root_id = contraction_tree.root_id().unwrap();
+    let path = contraction_tree.to_flat_contraction_path(root_id, false);
 
     let tree_weights = contraction_tree.tree_weights(root_id, tn, cost_function);
     let scaling_factor = tree_weights[&root_id] as f64;
@@ -1370,23 +969,21 @@ pub fn to_dendogram(
         } else {
             if !contraction_tree.node(node_id).is_leaf() {
                 panic!(
-                    "Contraction relies on Node id {:?} but it does not yet exist in tree",
-                    node_id
+                    "Contraction relies on Node id {node_id:?} but it does not yet exist in tree",
                 );
             }
             let (x, y) = (last_leaf_x, 0f64);
             node_map.entry(node_id).or_insert((x, y));
             last_leaf_x += x_spacing;
             tikz_picture.push_str(&format!(
-                r#"    \node[label=below:{{{}}}] at ({}, {}) ({}) {{}};
-"#,
-                node_id, x, y, node_id,
+                r#"    \node[label=below:{{{node_id}}}] at ({x}, {y}) ({node_id}) {{}};
+            "#,
             ));
             (x, y)
         }
     };
 
-    let mut plot = |&node_1_id, &node_2_id, last: bool| {
+    let mut plot = |&node_1_id, &node_2_id, last| {
         let (x1, _) = get_coordinates(node_1_id, &mut node_to_position, &mut tikz_picture);
         let (x2, _) = get_coordinates(node_2_id, &mut node_to_position, &mut tikz_picture);
 
@@ -1403,23 +1000,18 @@ pub fn to_dendogram(
             .entry(parent_id)
             .or_insert(((x1 + x2) / 2f64, scaled_height));
         tikz_picture.push_str(&format!(
-            r#"    \node[label={{[shift={{(-0.4,-0.1)}}]{}}}, label=below:{{{}}}] at ({}, {}) ({}) {{}};
+            r#"    \node[label={{[shift={{(-0.4,-0.1)}}]{}}}, label=below:{{{parent_id}}}] at ({}, {scaled_height}) ({parent_id}) {{}};
 "#,
             tree_weights[&parent_id],
-            parent_id,
             (x1 + x2) / 2f64,
-            scaled_height,
-            parent_id,
         ));
         tikz_picture.push_str(&format!(
-            r#"    \path[draw] ({}.center) -- ({}, {}) -- ({}.center);
+            r#"    \path[draw] ({node_1_id}.center) -- ({x1}, {scaled_height}) -- ({parent_id}.center);
 "#,
-            node_1_id, x1, scaled_height, parent_id
         ));
         tikz_picture.push_str(&format!(
-            r#"    \path[draw] ({}.center) -- ({}, {}) -- ({}.center);
+            r#"    \path[draw] ({node_2_id}.center) -- ({x2}, {scaled_height}) -- ({parent_id}.center);
 "#,
-            node_2_id, x2, scaled_height, parent_id
         ));
     };
     let mut node_iter = path.iter().peekable();
@@ -1439,7 +1031,7 @@ pub fn to_dendogram(
     );
     let mut pdf_output = Command::new("pdflatex")
         .arg("-quiet")
-        .arg(format!("-jobname={}", svg_name))
+        .arg(format!("-jobname={svg_name}"))
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -1456,34 +1048,9 @@ pub fn to_dendogram(
     // Command::new("pdflatex").arg(svg_name).spawn().unwrap();
 }
 
-pub fn repartition_tn(tn: &Tensor, tree: &ContractionTree, partition_depth: usize) -> Tensor {
-    let mut partitioned_tensor = Vec::new();
-    for partition_id in tree
-        .partitions()
-        .get(&partition_depth)
-        .unwrap()
-        .iter()
-        .rev()
-    {
-        let mut leaf_ids = Vec::new();
-        tree.leaf_ids(*partition_id, &mut leaf_ids);
-
-        for leaf_id in leaf_ids {
-            partitioned_tensor.push(
-                tn.nested_tensor(tree.node(leaf_id).tensor_index.as_ref().unwrap())
-                    .clone(),
-            )
-        }
-    }
-    let mut tensor = Tensor::default();
-    tensor.push_tensors(partitioned_tensor, Some(&tn.bond_dims()), None);
-    tensor
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::ptr;
 
     use crate::contractionpath::contraction_cost::contract_cost_tensors;
     use crate::contractionpath::contraction_tree::{ContractionTree, Node};
@@ -1493,7 +1060,7 @@ mod tests {
     use crate::tensornetwork::tensor::Tensor;
     use crate::types::ContractionIndex;
 
-    use super::populate_subtree_tensor_map;
+    use super::*;
 
     fn setup_simple() -> (Tensor, Vec<ContractionIndex>) {
         (
@@ -1573,343 +1140,199 @@ mod tests {
         )
     }
 
+    impl PartialEq for Node {
+        fn eq(&self, other: &Self) -> bool {
+            self.id == other.id
+                && self.left_child_id() == other.left_child_id()
+                && self.right_child_id() == other.right_child_id()
+                && self.parent_id() == other.parent_id()
+                && self.tensor_index == other.tensor_index
+        }
+    }
+
     #[test]
-    fn test_constructor_simple() {
+    fn test_from_contraction_path_simple() {
         let (tensor, path) = setup_simple();
         let ContractionTree { nodes, root, .. } =
             ContractionTree::from_contraction_path(&tensor, &path);
 
-        let mut node0 = Node::new(
+        let node0 = Rc::new(RefCell::new(Node::new(
             0,
-            ptr::null_mut(),
-            ptr::null_mut(),
-            ptr::null_mut(),
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
             Some(vec![0]),
-        );
-        let mut node1 = Node::new(
+        )));
+        let node1 = Rc::new(RefCell::new(Node::new(
             1,
-            ptr::null_mut(),
-            ptr::null_mut(),
-            ptr::null_mut(),
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
             Some(vec![1]),
-        );
-        let mut node2 = Node::new(
+        )));
+        let node2 = Rc::new(RefCell::new(Node::new(
             2,
-            ptr::null_mut(),
-            ptr::null_mut(),
-            ptr::null_mut(),
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
             Some(vec![2]),
-        );
-        let mut node3 = Node::new(3, &mut node0, &mut node1, ptr::null_mut(), None);
-        let mut node4 = Node::new(4, &mut node3, &mut node2, ptr::null_mut(), None);
-        node0.set_parent(&mut node3);
-        node1.set_parent(&mut node3);
-        node2.set_parent(&mut node4);
-        node3.set_parent(&mut node4);
+        )));
+        let node3 = Rc::new(RefCell::new(Node::new(
+            3,
+            Rc::downgrade(&node0),
+            Rc::downgrade(&node1),
+            Weak::new(),
+            None,
+        )));
+        let node4 = Rc::new(RefCell::new(Node::new(
+            4,
+            Rc::downgrade(&node3),
+            Rc::downgrade(&node2),
+            Weak::new(),
+            None,
+        )));
+        node0.borrow_mut().parent = Rc::downgrade(&node3);
+        node1.borrow_mut().parent = Rc::downgrade(&node3);
+        node2.borrow_mut().parent = Rc::downgrade(&node4);
+        node3.borrow_mut().parent = Rc::downgrade(&node4);
 
-        let ref_root = node4.clone();
-        let ref_nodes = vec![node0, node1, node2, node3, node4];
+        let ref_root = Rc::clone(&node4);
+        let ref_nodes = [node0, node1, node2, node3, node4];
 
         for (key, ref_node) in ref_nodes.iter().enumerate().rev() {
-            let node = nodes.get(&key).unwrap().borrow();
-
-            let Node {
-                id: ref_id,
-                left_child: ref_left_child,
-                right_child: ref_right_child,
-                parent: ref_parent,
-                tensor_index: ref_tensor_idx,
-            } = ref_node;
-            assert_eq!(node.id, *ref_id);
-            assert_eq!(node.left_child.is_null(), (*ref_left_child).is_null());
-            if !node.left_child.is_null() {
-                unsafe {
-                    assert_eq!((*node.left_child).id, (**ref_left_child).id);
-                }
-            }
-            assert_eq!(node.right_child.is_null(), (*ref_right_child).is_null());
-            if !node.right_child.is_null() {
-                unsafe {
-                    assert_eq!((*node.right_child).id, (**ref_right_child).id);
-                }
-            }
-
-            assert_eq!(node.parent.is_null(), (*ref_parent).is_null());
-            if !node.parent.is_null() {
-                unsafe {
-                    assert_eq!((*node.parent).id, (*(*ref_parent)).id);
-                }
-            }
-
-            assert_eq!(node.tensor_index, *ref_tensor_idx);
+            let node = &nodes[&key];
+            assert_eq!(node, ref_node);
         }
-        unsafe {
-            assert_eq!((*root).id, ref_root.id);
-        }
+        assert_eq!(root.upgrade().unwrap(), ref_root);
     }
 
     #[test]
-    fn test_constructor_complex() {
+    fn test_from_contraction_path_complex() {
         let (tensor, path) = setup_complex();
         let ContractionTree { nodes, root, .. } =
             ContractionTree::from_contraction_path(&tensor, &path);
 
-        let mut node0 = Node::new(
+        let node0 = Rc::new(RefCell::new(Node::new(
             0,
-            ptr::null_mut(),
-            ptr::null_mut(),
-            ptr::null_mut(),
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
             Some(vec![0]),
-        );
-        let mut node1 = Node::new(
+        )));
+        let node1 = Rc::new(RefCell::new(Node::new(
             1,
-            ptr::null_mut(),
-            ptr::null_mut(),
-            ptr::null_mut(),
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
             Some(vec![1]),
-        );
-        let mut node2 = Node::new(
+        )));
+        let node2 = Rc::new(RefCell::new(Node::new(
             2,
-            ptr::null_mut(),
-            ptr::null_mut(),
-            ptr::null_mut(),
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
             Some(vec![2]),
-        );
-        let mut node3 = Node::new(
+        )));
+        let node3 = Rc::new(RefCell::new(Node::new(
             3,
-            ptr::null_mut(),
-            ptr::null_mut(),
-            ptr::null_mut(),
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
             Some(vec![3]),
-        );
-        let mut node4 = Node::new(
+        )));
+        let node4 = Rc::new(RefCell::new(Node::new(
             4,
-            ptr::null_mut(),
-            ptr::null_mut(),
-            ptr::null_mut(),
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
             Some(vec![4]),
-        );
-
-        let mut node5 = Node::new(
+        )));
+        let node5 = Rc::new(RefCell::new(Node::new(
             5,
-            ptr::null_mut(),
-            ptr::null_mut(),
-            ptr::null_mut(),
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
             Some(vec![5]),
-        );
+        )));
+        let node6 = Rc::new(RefCell::new(Node::new(
+            6,
+            Rc::downgrade(&node1),
+            Rc::downgrade(&node5),
+            Weak::new(),
+            None,
+        )));
+        let node7 = Rc::new(RefCell::new(Node::new(
+            7,
+            Rc::downgrade(&node0),
+            Rc::downgrade(&node6),
+            Weak::new(),
+            None,
+        )));
+        let node8 = Rc::new(RefCell::new(Node::new(
+            8,
+            Rc::downgrade(&node3),
+            Rc::downgrade(&node4),
+            Weak::new(),
+            None,
+        )));
+        let node9 = Rc::new(RefCell::new(Node::new(
+            9,
+            Rc::downgrade(&node2),
+            Rc::downgrade(&node8),
+            Weak::new(),
+            None,
+        )));
+        let node10 = Rc::new(RefCell::new(Node::new(
+            10,
+            Rc::downgrade(&node7),
+            Rc::downgrade(&node9),
+            Weak::new(),
+            None,
+        )));
+        node0.borrow_mut().parent = Rc::downgrade(&node7);
+        node1.borrow_mut().parent = Rc::downgrade(&node6);
+        node2.borrow_mut().parent = Rc::downgrade(&node9);
+        node3.borrow_mut().parent = Rc::downgrade(&node8);
+        node4.borrow_mut().parent = Rc::downgrade(&node8);
+        node5.borrow_mut().parent = Rc::downgrade(&node6);
+        node6.borrow_mut().parent = Rc::downgrade(&node7);
+        node7.borrow_mut().parent = Rc::downgrade(&node10);
+        node8.borrow_mut().parent = Rc::downgrade(&node9);
+        node9.borrow_mut().parent = Rc::downgrade(&node10);
 
-        let mut node6 = Node::new(6, &mut node1, &mut node5, ptr::null_mut(), None);
-        let mut node7 = Node::new(7, &mut node0, &mut node6, ptr::null_mut(), None);
-        let mut node8 = Node::new(8, &mut node3, &mut node4, ptr::null_mut(), None);
-        let mut node9 = Node::new(9, &mut node2, &mut node8, ptr::null_mut(), None);
-        let mut node10 = Node::new(10, &mut node7, &mut node9, ptr::null_mut(), None);
-        node0.set_parent(&mut node7);
-        node1.set_parent(&mut node6);
-        node2.set_parent(&mut node9);
-        node3.set_parent(&mut node8);
-        node4.set_parent(&mut node8);
-        node5.set_parent(&mut node6);
-        node6.set_parent(&mut node7);
-        node7.set_parent(&mut node10);
-        node8.set_parent(&mut node9);
-        node9.set_parent(&mut node10);
-
-        let ref_root = node10.clone();
-        let ref_nodes = vec![
+        let ref_root = Rc::clone(&node10);
+        let ref_nodes = [
             node0, node1, node2, node3, node4, node5, node6, node7, node8, node9, node10,
         ];
 
-        for (key, ref_node) in ref_nodes.iter().enumerate() {
-            let node = nodes.get(&key).unwrap().borrow();
-            let Node {
-                id: ref_id,
-                left_child: ref_left_child,
-                right_child: ref_right_child,
-                parent: ref_parent,
-                tensor_index: ref_tensor_idx,
-            } = ref_node;
-            assert_eq!(node.id, *ref_id);
-            assert_eq!(node.left_child.is_null(), (*ref_left_child).is_null());
-            if !node.left_child.is_null() {
-                unsafe {
-                    assert_eq!((*node.left_child).id, (**ref_left_child).id);
-                }
-            }
-            assert_eq!(node.right_child.is_null(), (*ref_right_child).is_null());
-            if !node.right_child.is_null() {
-                unsafe {
-                    assert_eq!((*node.right_child).id, (**ref_right_child).id);
-                }
-            }
-
-            assert_eq!(node.parent.is_null(), (*ref_parent).is_null());
-            if !node.parent.is_null() {
-                unsafe {
-                    assert_eq!((*node.parent).id, (*(*ref_parent)).id);
-                }
-            }
-
-            assert_eq!(node.tensor_index, *ref_tensor_idx);
+        for (key, ref_node) in ref_nodes.iter().enumerate().rev() {
+            let node = &nodes[&key];
+            assert_eq!(node, ref_node);
         }
-        unsafe {
-            assert_eq!((*root).id, ref_root.id);
-        }
-    }
-
-    #[test]
-    fn test_tree_depth_simple() {
-        let (tn, path) = setup_simple();
-        let tree = ContractionTree::from_contraction_path(&tn, &path);
-        assert_eq!(tree.tree_depth(4), 2);
-        assert_eq!(tree.tree_depth(3), 1);
-        assert_eq!(tree.tree_depth(2), 0);
-        assert_eq!(tree.tree_depth(1), 0);
-        assert_eq!(tree.tree_depth(0), 0);
-    }
-
-    #[test]
-    fn test_tree_depth_complex() {
-        let (tn, path) = setup_complex();
-        let tree = ContractionTree::from_contraction_path(&tn, &path);
-        assert_eq!(tree.tree_depth(10), 3);
-        assert_eq!(tree.tree_depth(9), 2);
-        assert_eq!(tree.tree_depth(8), 1);
-        assert_eq!(tree.tree_depth(7), 2);
-        assert_eq!(tree.tree_depth(6), 1);
-        assert_eq!(tree.tree_depth(5), 0);
-        assert_eq!(tree.tree_depth(4), 0);
-        assert_eq!(tree.tree_depth(3), 0);
-        assert_eq!(tree.tree_depth(2), 0);
-        assert_eq!(tree.tree_depth(1), 0);
-        assert_eq!(tree.tree_depth(0), 0);
-    }
-
-    #[test]
-    fn test_leaf_count_simple() {
-        let (tn, path) = setup_simple();
-        let tree = ContractionTree::from_contraction_path(&tn, &path);
-        assert_eq!(tree.leaf_count(4), 3);
-        assert_eq!(tree.leaf_count(3), 2);
-        assert_eq!(tree.leaf_count(2), 1);
-        assert_eq!(tree.leaf_count(1), 1);
-        assert_eq!(tree.leaf_count(0), 1);
-    }
-
-    #[test]
-    fn test_leaf_count_complex() {
-        let (tn, path) = setup_complex();
-        let tree = ContractionTree::from_contraction_path(&tn, &path);
-        assert_eq!(tree.leaf_count(10), 6);
-        assert_eq!(tree.leaf_count(9), 3);
-        assert_eq!(tree.leaf_count(8), 2);
-        assert_eq!(tree.leaf_count(7), 3);
-        assert_eq!(tree.leaf_count(6), 2);
-        assert_eq!(tree.leaf_count(5), 1);
-        assert_eq!(tree.leaf_count(4), 1);
-        assert_eq!(tree.leaf_count(3), 1);
-        assert_eq!(tree.leaf_count(2), 1);
-        assert_eq!(tree.leaf_count(1), 1);
-        assert_eq!(tree.leaf_count(0), 1);
+        assert_eq!(root.upgrade().unwrap(), ref_root);
     }
 
     #[test]
     fn test_leaf_ids_simple() {
         let (tn, path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tn, &path);
-        let mut leaf_ids = Vec::new();
-        tree.leaf_ids(4, &mut leaf_ids);
-        assert_eq!(leaf_ids, vec![0, 1, 2]);
 
-        leaf_ids = Vec::new();
-        tree.leaf_ids(3, &mut leaf_ids);
-        assert_eq!(leaf_ids, vec![0, 1]);
-
-        leaf_ids = Vec::new();
-        tree.leaf_ids(2, &mut leaf_ids);
-        assert_eq!(leaf_ids, vec![2]);
+        assert_eq!(tree.leaf_ids(4), vec![0, 1, 2]);
+        assert_eq!(tree.leaf_ids(3), vec![0, 1]);
+        assert_eq!(tree.leaf_ids(2), vec![2]);
     }
 
     #[test]
     fn test_leaf_ids_complex() {
         let (tn, path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tn, &path);
-        let mut leaf_ids = Vec::new();
-        tree.leaf_ids(10, &mut leaf_ids);
-        leaf_ids.sort();
-        assert_eq!(leaf_ids, vec![0, 1, 2, 3, 4, 5]);
 
-        leaf_ids = Vec::new();
-        tree.leaf_ids(9, &mut leaf_ids);
-        assert_eq!(leaf_ids, vec![2, 3, 4]);
-
-        leaf_ids = Vec::new();
-        tree.leaf_ids(8, &mut leaf_ids);
-        assert_eq!(leaf_ids, vec![3, 4]);
-
-        leaf_ids = Vec::new();
-        tree.leaf_ids(7, &mut leaf_ids);
-        assert_eq!(leaf_ids, vec![0, 1, 5]);
-
-        leaf_ids = Vec::new();
-        tree.leaf_ids(6, &mut leaf_ids);
-        assert_eq!(leaf_ids, vec![1, 5]);
-
-        leaf_ids = Vec::new();
-        tree.leaf_ids(3, &mut leaf_ids);
-        assert_eq!(leaf_ids, vec![3]);
-    }
-
-    #[test]
-    fn test_nodes_at_depth() {
-        let (tensor, path) = setup_simple();
-        let tree = ContractionTree::from_contraction_path(&tensor, &path);
-
-        let mut leaves = vec![];
-
-        tree.nodes_at_depth(tree.root_id(), 0, &mut leaves);
-
-        assert_eq!(leaves[0], 4);
-
-        leaves = vec![];
-        tree.nodes_at_depth(tree.root_id(), 1, &mut leaves);
-
-        assert_eq!(leaves[0], 3);
-        assert_eq!(leaves[1], 2);
-
-        leaves = vec![];
-        tree.nodes_at_depth(tree.root_id(), 2, &mut leaves);
-
-        assert_eq!(leaves[0], 0);
-        assert_eq!(leaves[1], 1);
-    }
-
-    #[test]
-    fn test_nodes_at_depth_complex() {
-        let (tensor, path) = setup_complex();
-        let tree = ContractionTree::from_contraction_path(&tensor, &path);
-
-        let mut leaves = vec![];
-        tree.nodes_at_depth(tree.root_id(), 0, &mut leaves);
-        assert_eq!(leaves[0], 10);
-
-        leaves = vec![];
-        tree.nodes_at_depth(tree.root_id(), 1, &mut leaves);
-        assert_eq!(leaves[0], 7);
-        assert_eq!(leaves[1], 9);
-
-        leaves = vec![];
-        tree.nodes_at_depth(tree.root_id(), 2, &mut leaves);
-        assert_eq!(leaves[0], 0);
-        assert_eq!(leaves[1], 6);
-        assert_eq!(leaves[2], 2);
-        assert_eq!(leaves[3], 8);
-
-        leaves = vec![];
-        tree.nodes_at_depth(tree.root_id(), 3, &mut leaves);
-        assert_eq!(leaves[0], 1);
-        assert_eq!(leaves[1], 5);
-        assert_eq!(leaves[2], 3);
-        assert_eq!(leaves[3], 4);
+        assert_eq!(tree.leaf_ids(10), vec![0, 1, 5, 2, 3, 4]);
+        assert_eq!(tree.leaf_ids(9), vec![2, 3, 4]);
+        assert_eq!(tree.leaf_ids(8), vec![3, 4]);
+        assert_eq!(tree.leaf_ids(7), vec![0, 1, 5]);
+        assert_eq!(tree.leaf_ids(6), vec![1, 5]);
+        assert_eq!(tree.leaf_ids(3), vec![3]);
     }
 
     #[test]
@@ -1975,36 +1398,10 @@ mod tests {
     }
 
     #[test]
-    fn test_match_leaf_by_complex() {
-        let (tensor, path) = setup_complex();
-        let tree = ContractionTree::from_contraction_path(&tensor, &path);
-        let leaf_node_indices = vec![0, 1, 2, 3, 4, 5];
-
-        fn greedy_cost_fn(t1: &Tensor) -> u64 {
-            t1.size()
-        }
-        let max_match = tree
-            .max_leaf_node_by(&leaf_node_indices, &tensor, greedy_cost_fn)
-            .unwrap();
-
-        assert_eq!(max_match, 1);
-
-        fn min_greedy_cost_fn(t1: &Tensor) -> u64 {
-            u64::MAX - t1.size()
-        }
-
-        let max_match = tree
-            .max_leaf_node_by(&leaf_node_indices, &tensor, min_greedy_cost_fn)
-            .unwrap();
-        assert_eq!(max_match, 2);
-    }
-
-    #[test]
     fn test_to_contraction_path_simple() {
         let (tensor, ref_path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        let mut path = Vec::new();
-        tree.to_flat_contraction_path(4, &mut path, false);
+        let path = tree.to_flat_contraction_path(4, false);
         let path = ssa_replace_ordering(&path, 3);
         assert_eq!(path, ref_path);
     }
@@ -2013,8 +1410,7 @@ mod tests {
     fn test_to_contraction_path_complex() {
         let (tensor, ref_path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        let mut path = Vec::new();
-        tree.to_flat_contraction_path(10, &mut path, false);
+        let path = tree.to_flat_contraction_path(10, false);
         let path = ssa_replace_ordering(&path, 6);
         assert_eq!(path, ref_path);
     }
@@ -2023,8 +1419,7 @@ mod tests {
     fn test_to_contraction_path_unbalanced() {
         let (tensor, ref_path) = setup_unbalanced();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        let mut path = Vec::new();
-        tree.to_flat_contraction_path(10, &mut path, false);
+        let path = tree.to_flat_contraction_path(10, false);
         let path = ssa_replace_ordering(&path, 6);
         assert_eq!(path, ref_path);
     }
