@@ -1200,7 +1200,7 @@ mod tests {
         node3.borrow_mut().parent = Rc::downgrade(&node4);
 
         let ref_root = Rc::clone(&node4);
-        let ref_nodes = vec![node0, node1, node2, node3, node4];
+        let ref_nodes = [node0, node1, node2, node3, node4];
 
         for (key, ref_node) in ref_nodes.iter().enumerate().rev() {
             let node = &nodes[&key];
@@ -1304,7 +1304,7 @@ mod tests {
         node9.borrow_mut().parent = Rc::downgrade(&node10);
 
         let ref_root = Rc::clone(&node10);
-        let ref_nodes = vec![
+        let ref_nodes = [
             node0, node1, node2, node3, node4, node5, node6, node7, node8, node9, node10,
         ];
 
