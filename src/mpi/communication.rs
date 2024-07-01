@@ -175,8 +175,7 @@ pub fn intermediate_reduce_tensor_network(
             if receiver == rank {
                 let (legs, _status) = world.process_at_rank(sender).receive_vec::<EdgeIndex>();
                 let mut returned_tensor = Tensor::new(legs);
-                let (shape, _status) = world.process_at_rank(sender).receive_vec::<u32>();
-                let shape = shape.iter().map(|e| u64::from(*e)).collect::<Vec<u64>>();
+                let (shape, _status) = world.process_at_rank(sender).receive_vec::<u64>();
                 let (data, _status) = world.process_at_rank(sender).receive_vec::<Complex64>();
                 let tensor_data = TensorData::new_from_data(&shape, data, None);
                 returned_tensor.set_tensor_data(tensor_data);
@@ -203,8 +202,7 @@ pub fn intermediate_reduce_tensor_network(
         if rank == 0 {
             let (legs, _status) = world.process_at_rank(final_rank).receive_vec::<EdgeIndex>();
             let mut returned_tensor = Tensor::new(legs);
-            let (shape, _status) = world.process_at_rank(final_rank).receive_vec::<u32>();
-            let shape = shape.iter().map(|e| u64::from(*e)).collect::<Vec<u64>>();
+            let (shape, _status) = world.process_at_rank(final_rank).receive_vec::<u64>();
             let (data, _status) = world.process_at_rank(final_rank).receive_vec::<Complex64>();
             let tensor_data = TensorData::new_from_data(&shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);
@@ -235,8 +233,7 @@ pub fn naive_reduce_tensor_network(
         for i in 1..size {
             let (legs, _status) = world.process_at_rank(i).receive_vec::<EdgeIndex>();
             let mut returned_tensor = Tensor::new(legs);
-            let (shape, _status) = world.process_at_rank(i).receive_vec::<u32>();
-            let shape = shape.iter().map(|e| u64::from(*e)).collect::<Vec<u64>>();
+            let (shape, _status) = world.process_at_rank(i).receive_vec::<u64>();
             let (data, _status) = world.process_at_rank(i).receive_vec::<Complex64>();
             let tensor_data = TensorData::new_from_data(&shape, data, None);
             returned_tensor.set_tensor_data(tensor_data);

@@ -13,7 +13,7 @@ RUN apt-get update && \
     # 4. Install dependencies for the project
     apt-get install -y clang cmake libboost-all-dev libhdf5-dev libopenblas-dev libssl-dev pkg-config && \
     # 5. Clear intermediate files
-    apt-get clean
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml Cargo.lock tmp/
 ARG SSH_PRIVATE_KEY
 RUN --mount=type=ssh \
@@ -45,7 +45,7 @@ RUN --mount=type=ssh \
             echo "$SSH_PRIVATE_KEY" | base64 -d | tr -d '\r' | ssh-add -; \
         fi; \
     fi && \
-    # 1.3 Install dependencies
+    # 1.4 Install dependencies
     cargo fetch && \
     # 2. Clean intermediate files
     cd .. && \

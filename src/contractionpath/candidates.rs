@@ -1,20 +1,33 @@
 use std::cmp::Ordering;
 
+use float_cmp::approx_eq;
+
 /// Struct to store contraction candidate information when searching for optimal contraction path.
-#[derive(Eq, PartialEq, Hash, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Candidate {
-    pub(crate) flop_cost: i64,
-    pub(crate) size_cost: i64,
+    pub(crate) flop_cost: f64,
+    pub(crate) size_cost: f64,
     pub(crate) parent_ids: (usize, usize),
     pub(crate) child_id: usize,
 }
+
+impl PartialEq for Candidate {
+    fn eq(&self, other: &Self) -> bool {
+        approx_eq!(f64, self.flop_cost, other.flop_cost)
+            && approx_eq!(f64, self.size_cost, other.size_cost)
+            && self.parent_ids == other.parent_ids
+            && self.child_id == other.child_id
+    }
+}
+
+impl Eq for Candidate {}
 
 impl Ord for Candidate {
     fn cmp(&self, other: &Self) -> Ordering {
         other
             .size_cost
-            .cmp(&self.size_cost)
-            .then_with(|| self.flop_cost.cmp(&other.flop_cost))
+            .total_cmp(&self.size_cost)
+            .then_with(|| self.flop_cost.total_cmp(&other.flop_cost))
     }
 }
 

@@ -1,8 +1,5 @@
 use rand::{distributions::WeightedIndex, prelude::*};
-use std::{
-    cmp::max,
-    collections::{BinaryHeap, HashMap},
-};
+use std::collections::{BinaryHeap, HashMap};
 
 use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
@@ -66,12 +63,12 @@ impl RNGChooser for ThermalChooser {
             return choices.pop();
         }
 
-        let costs = choices.iter().map(|e| e.size_cost).collect::<Vec<i64>>();
+        let costs = choices.iter().map(|e| e.size_cost).collect::<Vec<f64>>();
         let min_cost = costs[0];
 
         // adjust by the overall scale to account for fluctuating absolute costs
         if rel_temperature {
-            temperature *= max(1, min_cost.abs()) as f64;
+            temperature *= min_cost.abs().max(1f64);
         }
 
         // compute relative probability for each potential contraction
@@ -81,7 +78,7 @@ impl RNGChooser for ThermalChooser {
             weights[0] = 1.0;
         } else {
             for cost in costs {
-                weights.push((-(cost - min_cost) as f64 / temperature).exp());
+                weights.push((-(cost - min_cost) / temperature).exp());
             }
         }
         let dist = WeightedIndex::new(&weights).unwrap();
@@ -105,8 +102,8 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.is_composite() {
                 let mut best_path = vec![];
-                let mut best_cost = u64::MAX;
-                let mut best_size = u64::MAX;
+                let mut best_cost = f64::INFINITY;
+                let mut best_size = f64::INFINITY;
                 let external_legs = input_tensor.external_edges();
                 for _ in 0..trials {
                     let ssa_path = self.ssa_greedy_optimize(
@@ -147,8 +144,8 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
         let output_dims = Tensor::new(self.tn.external_edges());
         // Dictionary that maps leg id to bond dimension
         let mut best_path = vec![];
-        let mut best_cost = u64::MAX;
-        let mut best_size = u64::MAX;
+        let mut best_cost = f64::INFINITY;
+        let mut best_size = f64::INFINITY;
         for _ in 0..trials {
             let ssa_path = self.ssa_greedy_optimize(
                 &inputs,
@@ -244,8 +241,8 @@ mod tests {
         let tn = setup_simple();
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42));
-        assert_eq!(opt.best_flops, 600);
-        assert_eq!(opt.best_size, 538);
+        assert_eq!(opt.best_flops, 3694f64);
+        assert_eq!(opt.best_size, 538f64);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
     }
@@ -256,8 +253,8 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42));
 
-        assert_eq!(opt.best_flops, 528750);
-        assert_eq!(opt.best_size, 89478);
+        assert_eq!(opt.best_flops, 3179738f64);
+        assert_eq!(opt.best_size, 89478f64);
         assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 8), (7, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),
