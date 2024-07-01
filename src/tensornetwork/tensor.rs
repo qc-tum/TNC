@@ -145,11 +145,11 @@ impl Tensor {
     /// (0, 17), (1, 19), (2, 8), (3, 2), (4, 1)
     /// ]);
     /// let mut tn1 = Tensor::default();
-    /// tn1.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
+    /// tn1.push_tensors(vec![v1, v2], Some(&bond_dims), None);
     /// let mut tn2 = Tensor::default();
-    /// tn2.push_tensors(vec![v3.clone(), v4.clone()], Some(&bond_dims), None);
+    /// tn2.push_tensors(vec![v3.clone(), v4], Some(&bond_dims), None);
     /// let mut nested_tn = Tensor::default();
-    /// nested_tn.push_tensors(vec![tn1.clone(), tn2.clone()], Some(&bond_dims), None);
+    /// nested_tn.push_tensors(vec![tn1, tn2], Some(&bond_dims), None);
     /// v3.insert_bond_dims(&bond_dims);
     ///
     /// assert_eq!(nested_tn.nested_tensor(&[1,0]).legs(), v3.legs());
