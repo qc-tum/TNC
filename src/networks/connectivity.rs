@@ -55,9 +55,11 @@ fn all_layer_connect(n: usize) -> Vec<(usize, usize)> {
 }
 
 fn all_connect(n: usize) -> Vec<(usize, usize)> {
-    let mut v = Vec::with_capacity((n * (n + 1)) / 2);
-    for i in 0..n {
-        for j in i..n {
+    assert!(n > 0);
+
+    let mut v = Vec::with_capacity(n * (n - 1) / 2);
+    for i in 0..(n - 1) {
+        for j in (i + 1)..n {
             v.push((i, j));
         }
     }
