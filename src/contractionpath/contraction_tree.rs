@@ -6,7 +6,6 @@ use itertools::Itertools;
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::thread_rng;
 use std::cell::{Ref, RefCell, RefMut};
-use std::cmp::min;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -287,15 +286,15 @@ impl ContractionTree {
     fn tree_weights_recurse(
         node: &Node,
         tn: &Tensor,
-        weights: &mut HashMap<usize, u64>,
+        weights: &mut HashMap<usize, f64>,
         scratch: &mut HashMap<usize, Tensor>,
-        cost_function: fn(&Tensor, &Tensor) -> u64,
+        cost_function: fn(&Tensor, &Tensor) -> f64,
     ) {
         if node.is_leaf() {
             let Some(tensor_index) = &node.tensor_index else {
                 panic!("All leaf nodes should have a tensor index")
             };
-            weights.insert(node.id, 0);
+            weights.insert(node.id, 0f64);
             scratch.insert(node.id, tn.nested_tensor(tensor_index).clone());
             return;
         }
@@ -327,8 +326,8 @@ impl ContractionTree {
         &self,
         node_id: usize,
         tn: &Tensor,
-        cost_function: fn(&Tensor, &Tensor) -> u64,
-    ) -> HashMap<usize, u64> {
+        cost_function: fn(&Tensor, &Tensor) -> f64,
+    ) -> HashMap<usize, f64> {
         let mut weights = HashMap::new();
         let mut scratch = HashMap::new();
         let node = self.node(node_id);
@@ -342,7 +341,7 @@ impl ContractionTree {
     /// * `node_id` - leaf node used to calculation cost function, must be disjoint from subtree rooted at `subtree_root`
     /// * `subtree_root` - identifies root of subtree to be considered
     /// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
-    /// * `cost_function` - cost function taking two [`Tensor`] objects and returning a value as i64
+    /// * `cost_function` - cost function of contracting the tensors
     ///
     /// # Returns
     /// * option of node id (not necessarily a leaf node) in subtree that maximizes `cost_function`.
@@ -351,8 +350,8 @@ impl ContractionTree {
         node_id: usize,
         subtree_root: usize,
         tn: &Tensor,
-        cost_function: fn(&Tensor, &Tensor) -> i64,
-    ) -> Option<(usize, i64)> {
+        cost_function: fn(&Tensor, &Tensor) -> f64,
+    ) -> Option<(usize, f64)> {
         assert!(self.node(node_id).is_leaf());
 
         // Get a map that maps leaf nodes to corresponding tensor objects.
@@ -366,7 +365,7 @@ impl ContractionTree {
         let (node, cost) = node_tensor_map
             .iter()
             .map(|(id, tensor)| (id, cost_function(tensor, t1)))
-            .max_by_key(|k| k.1)?;
+            .max_by(|a, b| a.1.total_cmp(&b.1))?;
         Some((*node, cost))
     }
 
@@ -522,7 +521,7 @@ pub fn tree_contraction_cost(
     contraction_tree: &ContractionTree,
     node_id: usize,
     tn: &Tensor,
-) -> (u64, u64) {
+) -> (f64, f64) {
     let (local_tensors, local_contraction_path) = subtensor_network(contraction_tree, node_id, tn);
 
     contract_path_cost(&local_tensors, &local_contraction_path)
@@ -568,8 +567,8 @@ fn find_potential_nodes(
     bigger_subtree_leaf_nodes: &[usize],
     smaller_subtree_root: usize,
     tn: &Tensor,
-    cost_function: fn(&Tensor, &Tensor) -> i64,
-) -> HashMap<usize, i64> {
+    cost_function: fn(&Tensor, &Tensor) -> f64,
+) -> HashMap<usize, f64> {
     // Get a map that maps nodes to their tensors.
     let mut node_tensor_map = HashMap::new();
     populate_subtree_tensor_map(
@@ -590,7 +589,7 @@ fn find_potential_nodes(
         node_tensor_map
             .iter()
             .map(|(&index, tensor)| (index, cost_function(tensor, t1)))
-            .min_by_key(|k| k.1)
+            .min_by(|a, b| a.1.total_cmp(&b.1))
             .unwrap()
     }))
     .collect()
@@ -603,8 +602,8 @@ pub fn balance_partitions_iter(
     rebalance_depth: usize,
     iterations: usize,
     output_file: String,
-    cost_function: fn(&Tensor, &Tensor) -> u64,
-) -> (usize, Tensor, Vec<ContractionIndex>, Vec<u64>) {
+    cost_function: fn(&Tensor, &Tensor) -> f64,
+) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor, path);
     let mut path = path.to_owned();
     let final_contraction = path
@@ -632,7 +631,7 @@ pub fn balance_partitions_iter(
             )
         })
         .collect_vec();
-    partition_costs.sort_unstable_by_key(|e| e.1);
+    partition_costs.sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
 
     let (_, mut max_cost) = partition_costs.last().unwrap();
 
@@ -697,15 +696,15 @@ pub fn balance_partitions(
     contraction_tree: &mut ContractionTree,
     random_balance: bool,
     rebalance_depth: usize,
-) -> (u64, Vec<ContractionIndex>, Tensor) {
+) -> (f64, Vec<ContractionIndex>, Tensor) {
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
     if tn.total_num_tensors() < 3 {
         // TODO: should not panic, but handle gracefully
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
     }
 
-    fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
-        -((t1 ^ t2).size() as i64) + (t1.size() as i64) + (t2.size() as i64)
+    fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
+        -((t1 ^ t2).size() as f64) + (t1.size() as f64) + (t2.size() as f64)
     }
     let bond_dims = tn.bond_dims();
 
@@ -722,7 +721,7 @@ pub fn balance_partitions(
             )
         })
         .collect_vec();
-    partition_costs.sort_unstable_by_key(|e| e.1);
+    partition_costs.sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
 
     // Obtain larger and smaller partitions
     let (larger_subtree_id, _) = *partition_costs.last().unwrap();
@@ -731,7 +730,7 @@ pub fn balance_partitions(
         let (_, new_max) = partition_costs[partition_costs.len() - 2];
         new_max
     } else {
-        0
+        0f64
     };
 
     contraction_tree
@@ -769,7 +768,7 @@ pub fn balance_partitions(
         );
 
         let mut keys = rebalanced_node_weights.keys().copied().collect_vec();
-        keys.sort_by_key(|&key| rebalanced_node_weights[&key]);
+        keys.sort_by(|a, b| rebalanced_node_weights[a].total_cmp(&rebalanced_node_weights[b]));
         if keys.len() < top_n {
             panic!("Error rebalance_path: Not enough nodes in the bigger subtree to select the top {top_n} from!");
         } else {
@@ -811,7 +810,7 @@ pub fn balance_partitions(
                         .1,
                 )
             })
-            .max_by_key(|k| k.1)
+            .max_by(|a, b| a.1.total_cmp(&b.1))
             .unwrap();
         best_node
     };
@@ -938,7 +937,7 @@ pub fn balance_partitions(
 pub fn to_dendogram(
     contraction_tree: &ContractionTree,
     tn: &Tensor,
-    cost_function: fn(&Tensor, &Tensor) -> u64,
+    cost_function: fn(&Tensor, &Tensor) -> f64,
     svg_name: String,
 ) {
     let length = 80f64;
@@ -950,7 +949,7 @@ pub fn to_dendogram(
     let path = contraction_tree.to_flat_contraction_path(root_id, false);
 
     let tree_weights = contraction_tree.tree_weights(root_id, tn, cost_function);
-    let scaling_factor = tree_weights[&root_id] as f64;
+    let scaling_factor = tree_weights[&root_id];
     let mut tikz_picture = String::from(
         r#"% tikzpic.tex
 \documentclass[crop,tikz]{standalone}% 'crop' is the default for v1.0, before it was 'preview'
@@ -989,10 +988,10 @@ pub fn to_dendogram(
 
         let parent_id = contraction_tree.node(node_1_id).parent_id().unwrap();
 
-        let mut parent_cost = tree_weights[&parent_id] as f64;
+        let mut parent_cost = tree_weights[&parent_id];
         if last {
             let child_cost = tree_weights[&node_1_id];
-            let child_cost = min(child_cost, tree_weights[&node_2_id]) as f64;
+            let child_cost = child_cost.min(tree_weights[&node_2_id]);
             parent_cost -= child_cost;
         }
         let scaled_height = parent_cost / scaling_factor * height;
@@ -1339,16 +1338,17 @@ mod tests {
     fn test_tree_weights_simple() {
         let (tensor, path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
-        let ref_weights = HashMap::from([(1, 0), (0, 0), (2, 0), (3, 480), (4, 600)]);
+        let ref_weights =
+            HashMap::from([(1, 0f64), (0, 0f64), (2, 0f64), (3, 2974f64), (4, 3694f64)]);
         let weights = tree.tree_weights(4, &tensor, contract_cost_tensors);
 
         assert_eq!(weights, ref_weights);
-        let ref_weights = HashMap::from([(1, 0), (0, 0), (3, 480)]);
+        let ref_weights = HashMap::from([(1, 0f64), (0, 0f64), (3, 2974f64)]);
         let weights = tree.tree_weights(3, &tensor, contract_cost_tensors);
         assert_eq!(weights, ref_weights);
 
         assert_eq!(weights, ref_weights);
-        let ref_weights = HashMap::from([(2, 0)]);
+        let ref_weights = HashMap::from([(2, 0f64)]);
         let weights = tree.tree_weights(2, &tensor, contract_cost_tensors);
         assert_eq!(weights, ref_weights);
     }
@@ -1358,17 +1358,17 @@ mod tests {
         let (tensor, path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
         let ref_weights = HashMap::from([
-            (0, 0),
-            (1, 0),
-            (2, 0),
-            (3, 0),
-            (4, 0),
-            (5, 0),
-            (6, 262440),
-            (7, 265140),
-            (8, 263250),
-            (9, 264600),
-            (10, 529815),
+            (0, 0f64),
+            (1, 0f64),
+            (2, 0f64),
+            (3, 0f64),
+            (4, 0f64),
+            (5, 0f64),
+            (6, 1575610f64),
+            (7, 1592168f64),
+            (8, 1585348f64),
+            (9, 1593482f64),
+            (10, 3186128f64),
         ]);
         let weights = tree.tree_weights(10, &tensor, contract_cost_tensors);
 
@@ -1380,15 +1380,15 @@ mod tests {
         let (tensor, path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
 
-        fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
-            (t1.size() as i64) + (t2.size() as i64) - ((t1 ^ t2).size() as i64)
+        fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
+            (t1.size() as f64) + (t2.size() as f64) - ((t1 ^ t2).size() as f64)
         }
         let (max_match, _) = tree.max_match_by(2, 7, &tensor, greedy_cost_fn).unwrap();
 
         assert_eq!(max_match, 7);
 
-        fn max_memory_cost_fn(t1: &Tensor, t2: &Tensor) -> i64 {
-            (t1 ^ t2).size() as i64
+        fn max_memory_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
+            (t1 ^ t2).size() as f64
         }
 
         let (max_match, _) = tree
