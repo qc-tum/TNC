@@ -64,16 +64,23 @@ pub fn is_gate_known(gate: &str) -> bool {
     gates.contains(gate)
 }
 
-/// Helper method to compute the adjoint (conjugate transpose) of a data tensor
-/// in-place. The data tensor can be a matrix, or also be split in dimensions of
-/// size 2. For example, both `(8,8)` or `(2,2,2,2,2,2)` are okay.
-fn apply_adjoint(data: &mut DataTensor) {
+/// Helper method to compute the transpose of a data tensor in-place. The data
+/// tensor can be a matrix, or also be split in dimensions of size 2. For example,
+/// both `(8,8)` or `(2,2,2,2,2,2)` are okay.
+fn transpose_inplace(data: &mut DataTensor) {
     if data.ndim() > 0 {
         assert!(data.ndim().is_power_of_two());
         let half = data.ndim() / 2;
         let perm = (half..data.ndim()).chain(0..half).collect::<Vec<_>>();
         data.transpose(&Permutation::oneline(perm));
     }
+}
+
+/// Helper method to compute the adjoint (conjugate transpose) of a data tensor
+/// in-place. The data tensor can be a matrix, or also be split in dimensions of
+/// size 2. For example, both `(8,8)` or `(2,2,2,2,2,2)` are okay.
+fn adjoint_inplace(data: &mut DataTensor) {
+    transpose_inplace(data);
     data.conjugate();
 }
 
@@ -89,7 +96,7 @@ pub trait Gate: Send + Sync {
     /// overridden, this computes the conjugate transpose of the gate matrix.
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
         let mut matrix = self.compute(angles);
-        apply_adjoint(&mut matrix);
+        adjoint_inplace(&mut matrix);
         matrix
     }
 }
@@ -256,15 +263,10 @@ impl Gate for Sx {
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
-        let a = Complex64::new(0.5, -0.5);
-        let b = Complex64::new(0.5, 0.5);
-        #[rustfmt::skip]
-        let data = vec![
-            a, b,
-            b, a,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        // symmetric
+        let mut matrix = self.compute(angles);
+        matrix.conjugate();
+        matrix
     }
 }
 
@@ -283,18 +285,6 @@ impl Gate for Sy {
         let data = vec![
             a, b,
             a, a,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
-    }
-
-    fn adjoint(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
-        let a = Complex64::new(0.5, -0.5);
-        let b = Complex64::new(-0.5, 0.5);
-        #[rustfmt::skip]
-        let data = vec![
-            a, a,
-            b, a,
         ];
         DataTensor::new_from_flat(&[2, 2], data, None)
     }
@@ -321,16 +311,10 @@ impl Gate for Sz {
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
-        let z = Complex64::ZERO;
-        let o = Complex64::ONE;
-        let i = Complex64::I;
-        #[rustfmt::skip]
-        let data = vec![
-            o,  z,
-            z, -i,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        // symmetric
+        let mut matrix = self.compute(angles);
+        matrix.conjugate();
+        matrix
     }
 }
 
@@ -385,5 +369,12 @@ impl Gate for Fsim {
             z, z, z, c,
         ];
         DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+    }
+
+    fn adjoint(&self, angles: &[f64]) -> DataTensor {
+        // symmetric
+        let mut matrix = self.compute(angles);
+        matrix.conjugate();
+        matrix
     }
 }
