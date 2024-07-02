@@ -39,7 +39,7 @@ impl GateInliner {
                 let call = cast!(statement, Statement::GateCall);
 
                 // Ensure that all calls of the gates to be inlined are already inlined
-                assert!(call.name == "U" || call.name == "CX");
+                assert!(call.is_builtin());
 
                 // Replace any used variables by their actual values given by the caller
                 let mut new_args = Vec::with_capacity(call.args.len());
@@ -155,15 +155,15 @@ mod tests {
     #[test]
     fn recursive_inline() {
         // INPUT:
-        // gate x (a, b) q {
+        // gate bar (a, b) q {
         //   U(a + b, 0, b) q;
         // }
-        // gate y (a) q1, q2 {
-        //   x(a, 0) q2;
+        // gate foo (a) q1, q2 {
+        //   bar(a, 0) q2;
         //   U(1, 2, 3) q1;
-        //   x(1, a) q1;
+        //   bar(1, a) q1;
         // }
-        // y(2) q[0], q[1];
+        // foo(2) q[0], q[1];
 
         // RESULT:
         // U(2 + 0, 0, 0) q[1];
@@ -173,7 +173,7 @@ mod tests {
         let mut program = Program {
             statements: vec![
                 Statement::gate_declaration(
-                    "x",
+                    "bar",
                     vec![String::from("a"), String::from("b")],
                     vec![String::from("q")],
                     Some(vec![Statement::gate_call(
@@ -191,12 +191,12 @@ mod tests {
                     )]),
                 ),
                 Statement::gate_declaration(
-                    "y",
+                    "foo",
                     vec![String::from("a")],
                     vec![String::from("q1"), String::from("q2")],
                     Some(vec![
                         Statement::gate_call(
-                            "x",
+                            "bar",
                             vec![Expr::Variable(String::from("a")), Expr::Int(0)],
                             vec![Argument(String::from("q2"), None)],
                         ),
@@ -206,14 +206,14 @@ mod tests {
                             vec![Argument(String::from("q1"), None)],
                         ),
                         Statement::gate_call(
-                            "x",
+                            "bar",
                             vec![Expr::Int(1), Expr::Variable(String::from("a"))],
                             vec![Argument(String::from("q1"), None)],
                         ),
                     ]),
                 ),
                 Statement::gate_call(
-                    "y",
+                    "foo",
                     vec![Expr::Int(2)],
                     vec![
                         Argument(String::from("q"), Some(0)),
