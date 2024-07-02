@@ -47,6 +47,16 @@ pub fn load_gate(gate: &str, angles: &[f64]) -> DataTensor {
     gate.compute(angles)
 }
 
+/// Computes the adjoint of the gate matrix for the given gate and angles.
+#[must_use]
+pub fn load_gate_adjoint(gate: &str, angles: &[f64]) -> DataTensor {
+    let gates = &GATES.read().unwrap();
+    let gate = gates
+        .get(gate)
+        .unwrap_or_else(|| panic!("Gate '{}' not found.", gate));
+    gate.adjoint(angles)
+}
+
 /// Returns whether the given gate is known.
 #[must_use]
 pub fn is_gate_known(gate: &str) -> bool {
