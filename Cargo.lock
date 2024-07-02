@@ -1628,6 +1628,7 @@ dependencies = [
  "hdf5",
  "itertools 0.13.0",
  "kahypar-sys",
+ "lazy_static",
  "mpi",
  "mpi_test",
  "ndarray",
