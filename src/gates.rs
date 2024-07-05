@@ -64,10 +64,12 @@ pub fn is_gate_known(gate: &str) -> bool {
     gates.contains(gate)
 }
 
-/// Helper method to compute the transpose of a data tensor in-place. The data
-/// tensor can be a matrix, or also be split in dimensions of size 2. For example,
-/// both `(8,8)` or `(2,2,2,2,2,2)` are okay.
-fn transpose_inplace(data: &mut DataTensor) {
+/// Helper method to compute the transpose of a matrix-like data tensor in-place. The
+/// data tensor can be of shape `(2^n, 2^n)`, or also be split in `2n` dimensions of
+/// size `2`, like `(2,2,2,...)`.
+///
+/// For example, both `(8,8)` or `(2,2,2,2,2,2)` are okay.
+fn matrix_transpose_inplace(data: &mut DataTensor) {
     if data.ndim() > 0 {
         assert!(data.ndim().is_power_of_two());
         let half = data.ndim() / 2;
@@ -76,11 +78,13 @@ fn transpose_inplace(data: &mut DataTensor) {
     }
 }
 
-/// Helper method to compute the adjoint (conjugate transpose) of a data tensor
-/// in-place. The data tensor can be a matrix, or also be split in dimensions of
-/// size 2. For example, both `(8,8)` or `(2,2,2,2,2,2)` are okay.
-fn adjoint_inplace(data: &mut DataTensor) {
-    transpose_inplace(data);
+/// Helper method to compute the adjoint (conjugate transpose) of a matrix-like data
+/// tensor in-place. The data tensor can be of shape `(2^n, 2^n)`, or also be split
+/// in `2n` dimensions of size `2`, like `(2,2,2,...)`.
+///
+/// For example, both `(8,8)` or `(2,2,2,2,2,2)` are okay.
+fn matrix_adjoint_inplace(data: &mut DataTensor) {
+    matrix_transpose_inplace(data);
     data.conjugate();
 }
 
@@ -96,7 +100,7 @@ pub trait Gate: Send + Sync {
     /// overridden, this computes the conjugate transpose of the gate matrix.
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
         let mut matrix = self.compute(angles);
-        adjoint_inplace(&mut matrix);
+        matrix_adjoint_inplace(&mut matrix);
         matrix
     }
 }
