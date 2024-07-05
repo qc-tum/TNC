@@ -23,7 +23,7 @@ pub enum CostType {
     Size,
 }
 
-pub(crate) fn validate_path(path: &[ContractionIndex]) {
+pub fn validate_path(path: &[ContractionIndex]) {
     let mut contracted = Vec::<usize>::new();
     for index in path {
         match index {

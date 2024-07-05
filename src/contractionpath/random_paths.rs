@@ -64,11 +64,11 @@ impl RNGChooser for ThermalChooser {
         }
 
         let costs = choices.iter().map(|e| e.size_cost).collect::<Vec<f64>>();
-        let cmin = costs[0];
+        let min_cost = costs[0];
 
         // adjust by the overall scale to account for fluctuating absolute costs
         if rel_temperature {
-            temperature *= cmin.abs().max(1f64);
+            temperature *= min_cost.abs().max(1f64);
         }
 
         // compute relative probability for each potential contraction
@@ -77,8 +77,8 @@ impl RNGChooser for ThermalChooser {
             weights = vec![0.0; costs.len()];
             weights[0] = 1.0;
         } else {
-            for c in costs {
-                weights.push((-(c - cmin) / temperature).exp());
+            for cost in costs {
+                weights.push((-(cost - min_cost) / temperature).exp());
             }
         }
         let dist = WeightedIndex::new(&weights).unwrap();

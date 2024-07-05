@@ -129,6 +129,50 @@ impl Tensor {
         &self.tensors
     }
 
+    /// Gets a nested `Tensor` based on the `nested_indices` which specify the index
+    /// of the tensor at each level of the hierarchy.
+    ///
+    /// # Examples
+    /// ```
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
+    /// # use std::collections::HashMap;
+    /// let mut v1 = Tensor::new(vec![0,1]);
+    /// let mut v2 = Tensor::new(vec![1,2]);
+    /// let mut v3 = Tensor::new(vec![2,3]);
+    /// let mut v4 = Tensor::new(vec![3,4]);
+    /// let bond_dims = HashMap::from([
+    /// (0, 17), (1, 19), (2, 8), (3, 2), (4, 1)
+    /// ]);
+    /// let mut tn1 = Tensor::default();
+    /// tn1.push_tensors(vec![v1, v2], Some(&bond_dims), None);
+    /// let mut tn2 = Tensor::default();
+    /// tn2.push_tensors(vec![v3.clone(), v4], Some(&bond_dims), None);
+    /// let mut nested_tn = Tensor::default();
+    /// nested_tn.push_tensors(vec![tn1, tn2], Some(&bond_dims), None);
+    /// v3.insert_bond_dims(&bond_dims);
+    ///
+    /// assert_eq!(nested_tn.nested_tensor(&[1,0]).legs(), v3.legs());
+    ///
+    /// ```
+    pub fn nested_tensor(&self, nested_indices: &[usize]) -> &Tensor {
+        let mut tensor = self;
+        for index in nested_indices {
+            tensor = tensor.tensor(*index);
+        }
+        tensor
+    }
+
+    /// Returns the total number of tensors in the hierarchy, including all nested
+    /// tensors.
+    pub fn total_num_tensors(&self) -> usize {
+        if self.is_composite() {
+            self.tensors.iter().map(|e| e.total_num_tensors()).sum()
+        } else {
+            1
+        }
+    }
+
     /// Get ith Tensor.
     ///
     /// # Examples
@@ -471,7 +515,7 @@ impl Tensor {
     pub fn push_tensors(
         &mut self,
         tensors: Vec<Self>,
-        bond_dims: Option<&HashMap<usize, u64>>,
+        bond_dims: Option<&HashMap<EdgeIndex, u64>>,
         external_hyperedge: Option<&HashMap<EdgeIndex, usize>>,
     ) {
         // Case that tensor is not empty but has no subtensors.

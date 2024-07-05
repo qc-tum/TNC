@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{pair, types::ContractionIndex};
 pub mod candidates;
 pub mod contraction_cost;
+pub mod contraction_tree;
 pub mod paths;
 pub mod random_paths;
 // pub mod optimizer;

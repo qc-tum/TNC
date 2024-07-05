@@ -1,6 +1,7 @@
-use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
+use tensorcontraction::contractionpath::contraction_tree::balance_partitions_iter;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
     broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
@@ -9,6 +10,8 @@ use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
+
+use mpi::traits::{Communicator, CommunicatorCollectives};
 
 // Run with at least 2 processes
 fn main() {
@@ -23,12 +26,20 @@ fn main() {
         println!("Running with {size} processes");
     }
 
-    let k = 20;
+    let qubits = 5;
+    let rounds = 10;
 
     // Setup tensor network
     // TODO: Do we need to know communication beforehand?
     let (mut partitioned_tn, path) = if rank == 0 {
-        let r_tn = random_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+        let r_tn = random_circuit(
+            qubits,
+            rounds,
+            0.4,
+            0.4,
+            &mut rng,
+            ConnectivityLayout::Osprey,
+        );
         let partitioned_tn = if size > 1 {
             let partitioning = find_partitioning(
                 &r_tn,
@@ -44,12 +55,25 @@ fn main() {
 
         opt.optimize_path();
         let path = opt.get_best_replace_path();
+
+        let rebalance_depth = 1;
+        let (_cost, _partitioned_tn, _path, _costs) = balance_partitions_iter(
+            &partitioned_tn,
+            &path,
+            false,
+            rebalance_depth,
+            10,
+            String::from("output/rebalance_trial"),
+            contract_cost_tensors,
+        );
+
         (partitioned_tn, path)
     } else {
         Default::default()
     };
     world.barrier();
-
+    // println!("partitioned_tn: {:?}", partitioned_tn);
+    // println!("path: {:?}", path);
     // Distribute tensor network and contract
     let local_tn = if size > 1 {
         let (mut local_tn, local_path) =
