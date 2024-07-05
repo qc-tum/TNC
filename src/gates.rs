@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use num_complex::Complex64;
 use permutation::Permutation;
@@ -346,11 +347,7 @@ impl Gate for Rx {
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
         // symmetric
-        let angles = angles
-            .iter()
-            .map(|&angle| angle * -1.0)
-            .collect::<Vec<f64>>();
-        self.compute(&angles)
+        self.compute(&angles.iter().map(|&x| -x).collect_vec())
     }
 }
 
@@ -378,11 +375,7 @@ impl Gate for Ry {
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
         // symmetric
-        let angles = angles
-            .iter()
-            .map(|&angle| angle * -1.0)
-            .collect::<Vec<f64>>();
-        self.compute(&angles)
+        self.compute(&angles.iter().map(|&x| -x).collect_vec())
     }
 }
 
@@ -411,11 +404,7 @@ impl Gate for Rz {
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
         // symmetric
-        let angles = angles
-            .iter()
-            .map(|&angle| angle * -1.0)
-            .collect::<Vec<f64>>();
-        self.compute(&angles)
+        self.compute(&angles.iter().map(|&x| -x).collect_vec())
     }
 }
 
@@ -474,8 +463,6 @@ impl Gate for Fsim {
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
         // symmetric
-        let mut matrix = self.compute(angles);
-        matrix.conjugate();
-        matrix
+        self.compute(&angles.iter().map(|&x| -x).collect_vec())
     }
 }
