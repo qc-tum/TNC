@@ -318,6 +318,103 @@ impl Gate for Sz {
     }
 }
 
+/// Rotation by angle along X axis.
+struct Rx;
+impl Gate for Rx {
+    fn name(&self) -> &str {
+        "rx"
+    }
+
+    fn compute(&self, angles: &[f64]) -> DataTensor {
+        let [theta] = angles else {
+            panic!("Expected 1 angle, got {}", angles.len())
+        };
+        let (sin, cos) = (theta / 2.0).sin_cos();
+        let o = Complex64::ONE;
+        let i = Complex64::I;
+        #[rustfmt::skip]
+        let data = vec![
+            o*cos, -i*sin,
+            -i*sin, o*cos,
+        ];
+        DataTensor::new_from_flat(&[2, 2], data, None)
+    }
+
+    fn adjoint(&self, angles: &[f64]) -> DataTensor {
+        // symmetric
+        let angles = angles
+            .iter()
+            .map(|&angle| angle * -1.0)
+            .collect::<Vec<f64>>();
+        self.compute(&angles)
+    }
+}
+
+/// Rotation by angle along Y axis.
+struct Ry;
+impl Gate for Ry {
+    fn name(&self) -> &str {
+        "ry"
+    }
+
+    fn compute(&self, angles: &[f64]) -> DataTensor {
+        let [theta] = angles else {
+            panic!("Expected 1 angle, got {}", angles.len())
+        };
+        let (sin, cos) = (theta / 2.0).sin_cos();
+        let o = Complex64::ONE;
+
+        #[rustfmt::skip]
+        let data = vec![
+            o*cos, -o*sin,
+            o*sin, o*cos,
+        ];
+        DataTensor::new_from_flat(&[2, 2], data, None)
+    }
+
+    fn adjoint(&self, angles: &[f64]) -> DataTensor {
+        // symmetric
+        let angles = angles
+            .iter()
+            .map(|&angle| angle * -1.0)
+            .collect::<Vec<f64>>();
+        self.compute(&angles)
+    }
+}
+
+/// Rotation by angle along Z axis.
+struct Rz;
+impl Gate for Rz {
+    fn name(&self) -> &str {
+        "rz"
+    }
+
+    fn compute(&self, angles: &[f64]) -> DataTensor {
+        let [theta] = angles else {
+            panic!("Expected 1 angle, got {}", angles.len())
+        };
+
+        let z = Complex64::ZERO;
+        let i = Complex64::I;
+
+        #[rustfmt::skip]
+        let data = vec![
+            (-i*theta/2.0).exp(), z,
+            z, (i*theta/2.0).exp(),
+        ];
+        DataTensor::new_from_flat(&[2, 2], data, None)
+    }
+
+    fn adjoint(&self, angles: &[f64]) -> DataTensor {
+        // symmetric
+        let angles = angles
+            .iter()
+            .map(|&angle| angle * -1.0)
+            .collect::<Vec<f64>>();
+        self.compute(&angles)
+    }
+}
+
 /// The controlled-X gate.
 struct Cx;
 impl Gate for Cx {
