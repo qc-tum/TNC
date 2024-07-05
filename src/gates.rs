@@ -67,9 +67,11 @@ pub fn is_gate_known(gate: &str) -> bool {
 
 /// Helper method to compute the transpose of a matrix-like data tensor in-place. The
 /// data tensor can be of shape `(2^n, 2^n)`, or also be split in `2n` dimensions of
-/// size `2`, like `(2,2,2,...)`.
+/// size `2`, like `(2,2,2,...)`. In the second case, the transpose is computed by
+/// swapping the first half of the dimensions with the second half.
 ///
-/// For example, both `(8,8)` or `(2,2,2,2,2,2)` are okay.
+/// For example, both `(8,8)` or `(2,2,2,2,2,2)` are okay. If given `(2,2,2,2,2,2)`,
+/// the permutation applied will be `(3,4,5,0,1,2)`.
 fn matrix_transpose_inplace(data: &mut DataTensor) {
     if data.ndim() > 0 {
         assert!(data.ndim().is_power_of_two());
