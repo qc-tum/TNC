@@ -173,31 +173,6 @@ impl Tensor {
         &self.tensors[i]
     }
 
-    /// Getter for iterator over Tensor objects.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
-    /// # use std::collections::HashMap;
-    /// let mut v1 = Tensor::new(vec![0,1]);
-    /// let mut v2 = Tensor::new(vec![1,2]);
-    /// let bond_dims = HashMap::from([
-    /// (0, 17), (1, 19), (2, 8)
-    /// ]);
-    /// let mut tn = Tensor::default();
-    /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
-    /// v1.insert_bond_dims(&bond_dims);
-    /// v2.insert_bond_dims(&bond_dims);
-    /// for (t1, ref_t1) in std::iter::zip(tn.tensor_iter(), vec![v1, v2].iter()) {
-    ///    assert_eq!(t1.legs(), ref_t1.legs());
-    ///}
-    /// ```
-    pub fn tensor_iter(&self) -> impl Iterator<Item = &Self> {
-        self.tensors().iter()
-    }
-
     /// Getter for bond dimensions.
     ///
     /// # Examples
