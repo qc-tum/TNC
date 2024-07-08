@@ -601,7 +601,7 @@ impl Tensor {
     //TODO: Implement docstring once comparison of data tensors done
     /// Getter for tensor data.
     ///
-    pub fn tensor_data(&self) -> Ref<'_, TensorData> {
+    pub fn tensor_data(&self) -> Ref<TensorData> {
         self.tensordata.borrow()
     }
 
