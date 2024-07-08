@@ -12,7 +12,7 @@ use crate::types::{EdgeIndex, Vertex};
 use super::tensordata::TensorData;
 
 /// Abstract representation of a tensor.
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Tensor {
     pub(crate) tensors: Vec<Tensor>,
     pub(crate) legs: Vec<EdgeIndex>,
@@ -25,27 +25,6 @@ pub struct Tensor {
 impl Hash for Tensor {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.legs.hash(state);
-    }
-}
-
-impl Default for Tensor {
-    /// Constructs an empty Tensor object
-    ///
-    ///
-    /// # Examples
-    /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor = Tensor::default();
-    /// ```
-    fn default() -> Self {
-        Self {
-            tensors: Vec::new(),
-            legs: Vec::new(),
-            bond_dims: Arc::default(),
-            edges: HashMap::new(),
-            external_hyperedge: HashMap::new(),
-            tensordata: RefCell::new(TensorData::Uncontracted),
-        }
     }
 }
 
@@ -64,12 +43,8 @@ impl Tensor {
     /// ```
     pub fn new(legs: Vec<EdgeIndex>) -> Self {
         Self {
-            tensors: Vec::new(),
             legs,
-            bond_dims: Arc::default(),
-            edges: HashMap::new(),
-            external_hyperedge: HashMap::new(),
-            tensordata: RefCell::new(TensorData::Uncontracted),
+            ..Default::default()
         }
     }
 

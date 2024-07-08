@@ -6,12 +6,13 @@ use std::path::PathBuf;
 use num_complex::Complex64;
 use tetra::{all_close, Layout, Tensor as DataTensor};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub enum TensorData {
+    #[default]
+    Uncontracted,
     File(PathBuf),
     Gate((String, Vec<f64>)),
     Matrix(DataTensor),
-    Uncontracted,
 }
 
 impl TensorData {
