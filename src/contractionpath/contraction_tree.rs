@@ -130,7 +130,7 @@ impl ContractionTree {
         }
 
         // Add nodes for leaf tensors
-        for (tensor_idx, tensor) in tensor.tensor_iter().enumerate() {
+        for (tensor_idx, tensor) in tensor.tensors().iter().enumerate() {
             if tensor.is_single_tensor() {
                 let mut nested_tensor_idx = prefix.to_owned();
                 nested_tensor_idx.push(tensor_idx);
