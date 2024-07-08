@@ -6,7 +6,9 @@ use crate::types::ContractionIndex;
 use balancing::{balance_partitions, tensor_bipartition};
 use export::to_dendogram;
 use itertools::Itertools;
-use std::cell::{Ref, RefCell, RefMut};
+use rand::distributions::{Distribution, WeightedIndex};
+use rand::thread_rng;
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 use utils::{calculate_partition_costs, parallel_tree_contraction_cost};
@@ -21,7 +23,9 @@ mod utils;
 type NodeRef = Rc<RefCell<Node>>;
 type WeakNodeRef = Weak<RefCell<Node>>;
 
-/// Node in ContractionTree, represents a contraction of Tensor with position `left_child` and position `right_child` to obtain Tensor at position `parent`.
+/// Node in [`ContractionTree`], represents a contraction of [`Tensor`] with position
+/// `left_child` and position `right_child` to obtain [`Tensor`] at position
+/// `parent`.
 #[derive(Debug, Clone)]
 pub struct Node {
     id: usize,
@@ -56,7 +60,7 @@ impl Node {
         self.right_child.upgrade().map(|node| node.borrow().id)
     }
 
-    pub fn id(&self) -> usize {
+    pub const fn id(&self) -> usize {
         self.id
     }
 
@@ -94,15 +98,11 @@ impl ContractionTree {
         borrow.as_ref().borrow()
     }
 
-    pub fn mut_node(&mut self, tensor_id: usize) -> RefMut<Node> {
-        self.nodes.get_mut(&tensor_id).unwrap().borrow_mut()
-    }
-
     pub fn root_id(&self) -> Option<usize> {
         self.root.upgrade().map(|node| node.borrow().id)
     }
 
-    pub fn partitions(&self) -> &HashMap<usize, Vec<usize>> {
+    pub const fn partitions(&self) -> &HashMap<usize, Vec<usize>> {
         &self.partitions
     }
 
@@ -189,7 +189,7 @@ impl ContractionTree {
         let mut partitions = HashMap::new();
         Self::from_contraction_path_recurse(tensor, path, &mut nodes, &mut partitions, &Vec::new());
         let root = Rc::downgrade(&nodes[&(nodes.len() - 1)]);
-        ContractionTree {
+        Self {
             nodes,
             partitions,
             root,
@@ -327,7 +327,7 @@ impl ContractionTree {
         scratch.insert(node.id, t1 ^ t2);
     }
 
-    /// Returns HashMap storing resultant tensor and its respective contraction costs calculated via `cost_function`.
+    /// Returns `HashMap` storing resultant tensor and its respective contraction costs calculated via `cost_function`.
     ///
     /// # Arguments
     /// * `node_id` - root of Node to start calculating contraction costs
@@ -346,7 +346,7 @@ impl ContractionTree {
         weights
     }
 
-    /// Given a specific tensor at leaf node "n1" with id `node_index`, identifies tensor at node "n2" in ContractionTree subtree rooted at `subtree_root`, such that (n1, n2) maximizes provided cost function `cost_function`.
+    /// Given a specific tensor at leaf node "n1" with id `node_index`, identifies tensor at node "n2" in `ContractionTree` subtree rooted at `subtree_root`, such that (n1, n2) maximizes provided cost function `cost_function`.
     ///
     /// # Arguments
     /// * `node_id` - leaf node used to calculation cost function, must be disjoint from subtree rooted at `subtree_root`
@@ -571,7 +571,7 @@ pub fn balance_partitions_iter(
 
     let mut best_tn = tensor.clone();
 
-    for i in 1..(iterations + 1) {
+    for i in 1..=iterations {
         (max_cost, path, new_tn) = balance_partitions(
             tensor,
             &mut contraction_tree,
@@ -638,7 +638,7 @@ pub fn balance_partitions_iter(
             best_cost = new_max_cost;
             best_contraction = i;
             best_tn = new_tn.clone();
-            best_contraction_path = path.clone()
+            best_contraction_path = path.clone();
         }
 
         to_dendogram(
@@ -1046,8 +1046,8 @@ mod tests {
             (4, Tensor::new(vec![0, 1, 5, 6])),
         ]);
 
-        for (key, value) in ref_node_tensor_map.iter() {
-            assert_eq!(node_tensor_map[key].legs(), value.legs());
+        for (key, value) in ref_node_tensor_map {
+            assert_eq!(node_tensor_map[&key].legs(), value.legs());
         }
     }
 
@@ -1072,8 +1072,8 @@ mod tests {
             (10, Tensor::new(vec![10])),
         ]);
 
-        for (key, value) in ref_node_tensor_map.iter() {
-            assert_eq!(node_tensor_map[key].legs(), value.legs());
+        for (key, value) in ref_node_tensor_map {
+            assert_eq!(node_tensor_map[&key].legs(), value.legs());
         }
     }
 
