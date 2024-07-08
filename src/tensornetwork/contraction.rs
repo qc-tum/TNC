@@ -137,7 +137,8 @@ impl TensorContraction for Tensor {
         }
 
         let out_indices = tensor_symmetric_difference
-            .legs_iter()
+            .legs
+            .iter()
             .map(|e| *e as u32)
             .collect::<Vec<_>>();
         let a_indices = tensor_a_legs

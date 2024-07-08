@@ -61,19 +61,6 @@ impl Tensor {
         &self.legs
     }
 
-    /// Returns iterator over leg ids of Tensor object
-    ///
-    /// # Examples
-    /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let vec = Vec::from([1,2,3]);
-    /// let tensor = Tensor::new(vec.clone()) ;
-    /// assert_eq!(tensor.legs(), &vec);
-    /// ```
-    pub fn legs_iter(&self) -> impl Iterator<Item = &EdgeIndex> {
-        self.legs.iter()
-    }
-
     /// Internal method to set legs. Needs pub(crate) for contraction order finding for hierarchies.
     pub(crate) fn set_legs(&mut self, legs: Vec<EdgeIndex>) {
         self.legs = legs;
@@ -321,7 +308,7 @@ impl Tensor {
     /// ```
     pub fn shape(&self) -> Vec<u64> {
         let bond_dims = self.bond_dims();
-        self.legs_iter().map(|e| bond_dims[e]).collect()
+        self.legs.iter().map(|e| bond_dims[e]).collect()
     }
 
     /// Returns number of dimensions of Tensor object
@@ -619,7 +606,7 @@ impl Tensor {
     #[must_use]
     pub fn difference(&self, other: &Self) -> Self {
         let mut new_legs = Vec::new();
-        for &i in self.legs_iter() {
+        for &i in &self.legs {
             if !other.contains_leg(i) {
                 new_legs.push(i);
             }
@@ -689,7 +676,7 @@ impl Tensor {
     #[must_use]
     pub fn symmetric_difference(&self, other: &Self) -> Self {
         let mut new_legs = Vec::new();
-        for &i in self.legs_iter() {
+        for &i in &self.legs {
             if !other.contains_leg(i) {
                 new_legs.push(i);
             }
