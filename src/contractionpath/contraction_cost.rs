@@ -51,7 +51,8 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     let shared_dims = t_1 & t_2;
     let bond_dims = t_1.bond_dims();
     let single_loop_cost = shared_dims
-        .legs_iter()
+        .legs
+        .iter()
         .map(|e| bond_dims[e] as f64)
         .product::<f64>();
 
@@ -59,7 +60,8 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
         + single_loop_cost
             * 6f64
             * final_dims
-                .legs_iter()
+                .legs
+                .iter()
                 .map(|e| bond_dims[e] as f64)
                 .product::<f64>()
 }
