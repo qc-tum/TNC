@@ -14,11 +14,25 @@ use super::tensordata::TensorData;
 /// Abstract representation of a tensor.
 #[derive(Default, Debug, Clone)]
 pub struct Tensor {
+    /// The inner tensors that make up this tensor. If non-empty, this tensor is
+    /// called a *composite* tensor.
     pub(crate) tensors: Vec<Tensor>,
+
+    /// The legs of the tensor. Each leg is an index to an edge.
     pub(crate) legs: Vec<EdgeIndex>,
+
+    /// The shared bond dimensions. Maps an edge index to the bond dimension.
     pub(crate) bond_dims: Arc<RwLock<HashMap<EdgeIndex, u64>>>,
+
+    /// All edges of the tensor. Maps an edge index to the vertices that make up the
+    /// edge.
     pub(crate) edges: HashMap<EdgeIndex, Vec<Vertex>>,
+
+    /// Maps an edge index which corresponds to a hyperedge to the number of external
+    /// tensors that it connects to.
     external_hyperedge: HashMap<EdgeIndex, usize>,
+
+    /// The data of the tensor.
     tensordata: RefCell<TensorData>,
 }
 
@@ -291,7 +305,7 @@ impl Tensor {
         &self.edges
     }
 
-    /// Returns shape of Tensor object
+    /// Returns the shape.
     ///
     /// # Examples
     /// ```
@@ -311,7 +325,7 @@ impl Tensor {
         self.legs.iter().map(|e| bond_dims[e]).collect()
     }
 
-    /// Returns number of dimensions of Tensor object
+    /// Returns the number of dimensions.
     ///
     /// # Examples
     /// ```
@@ -324,11 +338,7 @@ impl Tensor {
         self.legs.len()
     }
 
-    /// Returns product of leg sizes based on input Hashmap. Returns the number of elements in a tensor
-    ///
-    /// # Arguments
-    ///
-    /// * `bond_dim` - Reference to hashmap mapping edge ID to bond dimension size
+    /// Returns the number of elements.
     ///
     /// # Examples
     /// ```
@@ -343,7 +353,8 @@ impl Tensor {
     /// assert_eq!(tensor.size(), 600);
     /// ```
     pub fn size(&self) -> u64 {
-        self.legs.iter().map(|e| self.bond_dims()[e]).product()
+        let bond_dims = self.bond_dims();
+        self.legs.iter().map(|e| bond_dims[e]).product()
     }
 
     /// Returns true if Tensor contains `leg_id`.
@@ -692,7 +703,7 @@ impl Tensor {
     }
 
     /// Get output legs after tensor contraction
-    pub fn external_edges(&self) -> Vec<usize> {
+    pub fn external_edges(&self) -> Vec<EdgeIndex> {
         if self.is_single_tensor() {
             return self.legs().clone();
         }
