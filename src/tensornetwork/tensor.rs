@@ -223,7 +223,7 @@ impl Tensor {
             .or_insert(v);
     }
 
-    /// Setter for multiple bond dimensions.
+    /// Setter for multiple bond dimensions. Overwrites existing bond dimensions.
     ///
     /// # Examples
     ///
@@ -241,15 +241,9 @@ impl Tensor {
     /// assert_eq!(*tn.bond_dims(), HashMap::from([(0, 5), (1, 12), (2, 8)]) );
     /// ```
     pub fn insert_bond_dims(&mut self, bond_dims: &HashMap<EdgeIndex, u64>) {
+        let mut own_bond_dims = self.bond_dims.write().unwrap();
         for (k, v) in bond_dims {
-            self.bond_dims
-                .write()
-                .unwrap()
-                .entry(*k)
-                .and_modify(|e| {
-                    *e = *v;
-                })
-                .or_insert(*v);
+            own_bond_dims.insert(*k, *v);
         }
     }
 
