@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 mpi = { version = "0.8.0", features = ["complex", "derive"] }
-array_tool = "1.0.3"
 hdf5 = { git = "https://github.com/aldanor/hdf5-rust.git", features = ["complex"] }
 itertools = "0.13.0"
 num-complex = "0.4.6"
