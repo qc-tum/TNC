@@ -193,36 +193,6 @@ impl Tensor {
         self.bond_dims.read().unwrap()
     }
 
-    /// Setter for single bond dimension.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::create_tensor_network;
-    /// # use std::collections::HashMap;
-    /// let v1 = Tensor::new(vec![0,1]);
-    /// let v2 = Tensor::new(vec![1,2]);
-    /// let bond_dims = HashMap::from([
-    /// (0, 17), (1, 19), (2, 8)
-    /// ]);
-    /// let mut tn = Tensor::default();
-    /// tn.push_tensors(vec![v1,v2], Some(&bond_dims), None);
-    /// assert_eq!(*tn.bond_dims(), bond_dims);
-    /// tn.insert_bond_dim(1, 12);
-    /// assert_ne!(*tn.bond_dims(), bond_dims);
-    /// ```
-    pub fn insert_bond_dim(&mut self, k: EdgeIndex, v: u64) {
-        self.bond_dims
-            .write()
-            .unwrap()
-            .entry(k)
-            .and_modify(|e| {
-                *e = v;
-            })
-            .or_insert(v);
-    }
-
     /// Setter for multiple bond dimensions. Overwrites existing bond dimensions.
     ///
     /// # Examples
@@ -755,7 +725,9 @@ mod tests {
     )]
     fn test_add_bond_dims() {
         let mut tensor = Tensor::new(vec![2, 4, 5]);
-        tensor.insert_bond_dim(2, 5);
+
+        let bond_dims = HashMap::<usize, u64>::from([(2, 5), (7, 24), (9, 2)]);
+        tensor.add_bond_dims(&bond_dims);
 
         let bond_dims = HashMap::<usize, u64>::from([(2, 17), (4, 11), (5, 14)]);
         tensor.add_bond_dims(&bond_dims);
