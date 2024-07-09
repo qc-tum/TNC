@@ -648,4 +648,46 @@ mod tests {
         assert!(tout.approx_eq(&tn, 1e-8));
         assert_eq!(tn.edges(), &edges_after_contraction);
     }
+
+    #[test]
+    fn test_outer_product_contraction() {
+        let mut t1 = Tensor::new(vec![0]);
+        let mut t2 = Tensor::new(vec![1]);
+        t1.set_tensor_data(TensorData::new_from_data(
+            &[3],
+            vec![
+                Complex64::new(1.0, 0.0),
+                Complex64::new(2.0, 5.0),
+                Complex64::new(3.0, -1.0),
+            ],
+            None,
+        ));
+        t2.set_tensor_data(TensorData::new_from_data(
+            &[2],
+            vec![Complex64::new(-4.0, 2.0), Complex64::new(0.0, -1.0)],
+            None,
+        ));
+        let mut t3 = Tensor::default();
+        let bond_dims = HashMap::from([(0, 3), (1, 2)]);
+        t3.push_tensors(vec![t1, t2], Some(&bond_dims), None);
+        let contract_path = path![(0, 1)];
+
+        let mut tn_ref = Tensor::new(vec![1, 0]);
+        tn_ref.insert_bond_dims(&bond_dims);
+        tn_ref.set_tensor_data(TensorData::new_from_data(
+            &[2, 3],
+            vec![
+                Complex64::new(-4.0, 2.0),
+                Complex64::new(0.0, -1.0),
+                Complex64::new(-18.0, -16.0),
+                Complex64::new(5.0, -2.0),
+                Complex64::new(-10.0, 10.0),
+                Complex64::new(-1.0, -3.0),
+            ],
+            None,
+        ));
+
+        contract_tensor_network(&mut t3, contract_path);
+        assert!(t3.approx_eq(&tn_ref, 1e-8));
+    }
 }
