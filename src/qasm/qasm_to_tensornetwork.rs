@@ -5,10 +5,10 @@ use super::{
     include_resolver::expand_includes, parser::parse, tn_creator::TensorNetworkCreator,
 };
 
-/// Creates a tensor network from QASM2 code. All gates are inlined, such that only U
-/// and CX gates remain. Since all qubits are initialized to zero, this method adds a
-/// tensor for all initial states. The tensor network is not closed, i.e. for each
-/// wire in the circuit there is an unbounded leg.
+/// Creates a tensor network from QASM2 code. All gates are inlined up to the known
+/// gates defined in [`crate::gates`]. Since all qubits are initialized to zero, this
+/// method adds a tensor for all initial states. The tensor network is not closed,
+/// i.e. for each wire in the circuit there is an unbounded leg.
 pub fn create_tensornetwork<S>(code: S) -> Tensor
 where
     S: Into<String>,
@@ -40,13 +40,17 @@ where
 #[cfg(test)]
 mod tests {
 
+    use std::f64::consts::FRAC_1_SQRT_2;
+
     use float_cmp::assert_approx_eq;
     use itertools::Itertools;
+    use num_complex::Complex64;
 
     use crate::{
         tensornetwork::{
             contraction::{contract_tensor_network, TensorContraction},
             tensor::Tensor,
+            tensordata::TensorData,
         },
         types::{ContractionIndex, Vertex},
     };
@@ -130,13 +134,13 @@ mod tests {
         assert_eq!(h.tensor.legs()[1], fq_to_h_id);
         assert!(edge_connects(fq_to_h_id, first_qubit_id, h.id, &tn));
 
-        let h_to_cx_c_id = h.tensor.legs()[0];
-        assert_eq!(cx.tensor.legs()[2], h_to_cx_c_id);
-        assert!(edge_connects(h_to_cx_c_id, h.id, cx.id, &tn));
-
         let sq_to_cx_t_id = second_qubit.tensor.legs()[0];
-        assert_eq!(cx.tensor.legs()[3], sq_to_cx_t_id);
+        assert_eq!(cx.tensor.legs()[2], sq_to_cx_t_id);
         assert!(edge_connects(sq_to_cx_t_id, second_qubit.id, cx.id, &tn));
+
+        let h_to_cx_c_id = h.tensor.legs()[0];
+        assert_eq!(cx.tensor.legs()[3], h_to_cx_c_id);
+        assert!(edge_connects(h_to_cx_c_id, h.id, cx.id, &tn));
 
         let cx_c_to_open_id = cx.tensor.legs()[0];
         assert!(is_open_edge_of(cx_c_to_open_id, cx.id, &tn));
@@ -161,13 +165,50 @@ mod tests {
 
         let resulting_state = tn.get_data();
         assert_eq!(resulting_state.shape(), &[2, 2]);
-        assert_approx_eq!(f64, resulting_state.get(&[0, 0]).re, 1.0 / 2.0f64.sqrt());
+        assert_approx_eq!(f64, resulting_state.get(&[0, 0]).re, FRAC_1_SQRT_2);
         assert_approx_eq!(f64, resulting_state.get(&[0, 0]).im, 0.0);
         assert_approx_eq!(f64, resulting_state.get(&[0, 1]).re, 0.0);
         assert_approx_eq!(f64, resulting_state.get(&[0, 1]).im, 0.0);
         assert_approx_eq!(f64, resulting_state.get(&[1, 0]).re, 0.0);
         assert_approx_eq!(f64, resulting_state.get(&[1, 0]).im, 0.0);
-        assert_approx_eq!(f64, resulting_state.get(&[1, 1]).re, 1.0 / 2.0f64.sqrt());
+        assert_approx_eq!(f64, resulting_state.get(&[1, 1]).re, FRAC_1_SQRT_2);
         assert_approx_eq!(f64, resulting_state.get(&[1, 1]).im, 0.0);
+    }
+
+    #[test]
+    fn custom_swap() {
+        let code = "OPENQASM 2.0;
+        include \"qelib1.inc\";
+        qreg q[2];
+        gate myswap a, b {
+            cx a, b;
+            cx b, a;
+            cx a, b;
+        }
+        x q[0];
+        myswap q[1], q[0];
+        ";
+        let mut tn = create_tensornetwork(code);
+        let opt_path = (1..tn.tensors().len())
+            .map(|tid| ContractionIndex::Pair(0, tid))
+            .collect_vec();
+        contract_tensor_network(&mut tn, &opt_path);
+
+        let resulting_state = tn.tensor_data();
+
+        let expected = TensorData::new_from_data(
+            &[2, 2],
+            vec![
+                Complex64::ZERO,
+                Complex64::ONE,
+                Complex64::ZERO,
+                Complex64::ZERO,
+            ],
+            None,
+        );
+        assert!(
+            resulting_state.approx_eq(&expected, f64::EPSILON),
+            "Got: {resulting_state:?}\nExpected: {expected:?}"
+        );
     }
 }

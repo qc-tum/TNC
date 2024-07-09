@@ -14,7 +14,7 @@ use crate::tensornetwork::tensordata::TensorData;
 
 macro_rules! fsim {
     ($a:expr, $b:expr) => {
-        $crate::tensornetwork::tensordata::TensorData::Gate((String::from("FSIM"), vec![$a, $b]))
+        $crate::tensornetwork::tensordata::TensorData::Gate((String::from("fsim"), vec![$a, $b]))
     };
 }
 
@@ -38,9 +38,9 @@ where
         "Probabilities should range from 0.0 to 1.0"
     );
     let single_qubit_gate = HashMap::from([
-        (0, TensorData::Gate((String::from("SQRX"), Vec::new()))),
-        (1, TensorData::Gate((String::from("SQRY"), Vec::new()))),
-        (2, TensorData::Gate((String::from("SQRZ"), Vec::new()))),
+        (0, TensorData::Gate((String::from("sx"), Vec::new()))),
+        (1, TensorData::Gate((String::from("sy"), Vec::new()))),
+        (2, TensorData::Gate((String::from("sz"), Vec::new()))),
     ]);
 
     let mut open_edges = HashMap::new();

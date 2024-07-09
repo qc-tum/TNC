@@ -6,6 +6,8 @@ use std::{
 use float_cmp::approx_eq;
 use itertools::join;
 
+use crate::gates::is_gate_known;
+
 /// A unary operator type.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnOp {
@@ -322,9 +324,9 @@ impl Display for GateCallData {
 }
 
 impl GateCallData {
-    /// Returns whether the called gate is builtin, i.e. a `U` or `CX` gate.
+    /// Returns whether the called gate is builtin.
     pub fn is_builtin(&self) -> bool {
-        self.name == "U" || self.name == "CX"
+        is_gate_known(&self.name.to_ascii_lowercase())
     }
 }
 
