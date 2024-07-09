@@ -1,4 +1,3 @@
-use array_tool::vec::{Intersect, Union};
 use core::ops::{BitAnd, BitOr, BitXor, Sub};
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
@@ -536,11 +535,7 @@ impl Tensor {
         *self.tensordata.get_mut() = tensordata;
     }
 
-    /// Returns Tensor with legs in `self` that are not in `other`.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - Tensor with legs to remove
+    /// Returns `Tensor` with legs in `self` that are not in `other`.
     ///
     /// # Examples
     /// ```
@@ -559,14 +554,12 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        Self::new(new_legs)
+        let mut new_tn = Self::new(new_legs);
+        new_tn.insert_bond_dims(&self.bond_dims());
+        new_tn
     }
 
-    /// Returns Tensor with union of legs in both `self` and `other`.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - Tensor with legs to join
+    /// Returns `Tensor` with union of legs in both `self` and `other`.
     ///
     /// # Examples
     /// ```
@@ -579,16 +572,18 @@ impl Tensor {
     /// ```
     #[must_use]
     pub fn union(&self, other: &Self) -> Self {
-        let mut new_tn = Self::new(self.legs().union(other.legs().clone()));
+        let mut new_legs = self.legs().clone();
+        for &i in other.legs() {
+            if !self.contains_leg(i) {
+                new_legs.push(i);
+            }
+        }
+        let mut new_tn = Self::new(new_legs);
         new_tn.insert_bond_dims(&self.bond_dims());
         new_tn
     }
 
-    /// Returns Tensor with intersection of legs in `self` and `other`.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - Tensor with legs to intersect
+    /// Returns `Tensor` with intersection of legs in `self` and `other`.
     ///
     /// # Examples
     /// ```
@@ -601,16 +596,18 @@ impl Tensor {
     /// ```
     #[must_use]
     pub fn intersection(&self, other: &Self) -> Self {
-        let mut new_tn = Self::new(self.legs().intersect(other.legs().clone()));
+        let mut new_legs = Vec::new();
+        for &i in &self.legs {
+            if other.contains_leg(i) {
+                new_legs.push(i);
+            }
+        }
+        let mut new_tn = Self::new(new_legs);
         new_tn.insert_bond_dims(&self.bond_dims());
         new_tn
     }
 
-    /// Returns Tensor with symmetrical difference of legs in `self` and `other`.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - Tensor with legs to intersect
+    /// Returns `Tensor` with symmetrical difference of legs in `self` and `other`.
     ///
     /// # Examples
     /// ```
@@ -629,7 +626,7 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        for &i in other.legs() {
+        for &i in &other.legs {
             if !self.contains_leg(i) {
                 new_legs.push(i);
             }
