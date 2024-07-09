@@ -565,13 +565,11 @@ impl Tensor {
     /// tensor.set_tensor_data(tensordata);
     /// ```
     pub fn set_tensor_data(&mut self, tensordata: TensorData) {
-        assert_eq!(
-            self.tensors().len(),
-            0,
-            "Cannot add data to Tensor object with multiple child Tensors"
+        assert!(
+            self.is_single_tensor(),
+            "Cannot add data to composite tensor"
         );
-        let mut td = self.tensordata.borrow_mut();
-        *td = tensordata;
+        *self.tensordata.get_mut() = tensordata;
     }
 
     /// Returns Tensor with legs in `self` that are not in `other`.
