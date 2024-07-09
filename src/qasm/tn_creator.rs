@@ -80,6 +80,7 @@ impl TensorNetworkCreator {
         let mut wires = HashMap::new();
         let mut register_sizes = HashMap::new();
         let mut tensors = Vec::new();
+        let ket0 = Self::ket0();
 
         for statement in &program.statements {
             match statement {
@@ -95,7 +96,7 @@ impl TensorNetworkCreator {
                         for i in 0..*count {
                             let edge = self.new_edge();
                             let mut tensor = Tensor::new(vec![edge]);
-                            tensor.set_tensor_data(TensorData::Matrix(Self::ket0()));
+                            tensor.set_tensor_data(TensorData::Matrix(ket0.clone()));
                             tensors.push(tensor);
                             wires.insert(Argument(name.clone(), Some(i)), edge);
                         }
