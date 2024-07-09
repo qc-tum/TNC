@@ -43,9 +43,10 @@ impl TensorNetworkCreator {
             let common_size = match sizes {
                 itertools::MinMaxResult::OneElement(&x) => x,
                 itertools::MinMaxResult::MinMax(&min, &max) => {
-                    if min != max {
-                        panic!("Broadcast of registers with different sizes is not possible");
-                    }
+                    assert_eq!(
+                        min, max,
+                        "Broadcast of registers with different sizes is not possible"
+                    );
                     min
                 }
                 itertools::MinMaxResult::NoElements => unreachable!(),
