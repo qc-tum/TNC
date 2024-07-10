@@ -238,6 +238,7 @@ impl ContractionTree {
         self.remove_subtree_recurse(node_id);
     }
 
+    /// Converts a contraction path into a ContractionTree, then attaches this as a subtree at "parent_id"
     pub fn add_subtree(
         &mut self,
         path: &[ContractionIndex],
@@ -247,14 +248,18 @@ impl ContractionTree {
         validate_path(path);
         assert!(self.nodes.contains_key(&parent_id));
         let mut index = 0;
+        // Utilize a scratch hashmap to store intermediate tensor information
         let mut scratch = HashMap::new();
 
+        // Fill scratch with initial tensor inputs
         for &tensor_index in tensor_indices {
             scratch.insert(tensor_index, Rc::clone(&self.nodes[&tensor_index]));
         }
 
+        // Generate intermediate tensors by looping over contraction operations, fill and update scratch as needed.
         for contr in path {
             if let ContractionIndex::Pair(i_path, j_path) = contr {
+                // Always keep track of latest added tensor. Last index will be the root of the subtree.
                 index = self.next_id(index);
                 let i = &scratch[i_path];
                 let j = &scratch[j_path];
@@ -266,12 +271,14 @@ impl ContractionTree {
                 j.borrow_mut().parent = Rc::downgrade(&parent);
                 scratch.insert(*i_path, Rc::clone(&parent));
                 scratch.remove(j_path);
+                // Ensure that intermediate tensor information is stored in internal HashMap for reference
                 self.nodes.insert(index, parent);
             } else {
                 panic!("Constructor not implemented for nested Tensors")
             }
         }
 
+        // Add the root of the subtree to the indicated node `parent_id` in larger contraction tree.
         let new_parent = &self.nodes[&parent_id];
         new_parent
             .borrow_mut()
