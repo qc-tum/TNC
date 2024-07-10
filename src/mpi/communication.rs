@@ -29,7 +29,6 @@ where
 pub enum CommunicationScheme {
     Greedy,
     Bipartition,
-    Both,
 }
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
