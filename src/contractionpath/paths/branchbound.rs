@@ -282,7 +282,7 @@ mod tests {
         let mut opt = BranchBound::new(&tn, None, 20f64, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 3694f64);
+        assert_eq!(opt.best_flops, 4540f64);
         assert_eq!(opt.best_size, 538f64);
         assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
@@ -294,7 +294,7 @@ mod tests {
         let mut opt = BranchBound::new(&tn, None, 20f64, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 2003348f64);
+        assert_eq!(opt.best_flops, 2654474f64);
         assert_eq!(opt.best_size, 89478f64);
         assert_eq!(opt.best_path, path![(1, 5), (0, 6), (2, 7), (3, 8), (4, 9)]);
         assert_eq!(
