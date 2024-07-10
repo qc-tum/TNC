@@ -571,6 +571,8 @@ pub fn parallel_tree_contraction_cost(
         (0.0, tensor.size() as f64, tensor)
     }
 }
+
+/// Identifies the contraction path designated by subtree rooted at `node_id` in TN
 fn subtensor_network(
     contraction_tree: &ContractionTree,
     node_id: usize,
