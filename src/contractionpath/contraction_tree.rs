@@ -699,8 +699,11 @@ pub fn balance_partitions_iter(
     rebalance_depth: usize,
     iterations: usize,
     output_file: String,
-    cost_function: fn(&Tensor, &Tensor) -> f64,
+    dendogram_cost_function: fn(&Tensor, &Tensor) -> f64,
+    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
+    communication_scheme: CommunicationScheme,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
+    let bond_dims = tensor.bond_dims();
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor, path);
     let mut path = path.to_owned();
     let final_contraction = path
@@ -708,29 +711,20 @@ pub fn balance_partitions_iter(
         .filter(|&e| matches!(e, ContractionIndex::Pair(..)))
         .cloned()
         .collect_vec();
+    let mut partition_costs =
+        calculate_partition_costs(&contraction_tree, rebalance_depth, tensor, true);
+
+    assert!(partition_costs.len() > 1);
+    let partition_number = partition_costs.len();
+
+    let (_, mut max_cost) = partition_costs.last().unwrap();
 
     let children = &contraction_tree.partitions()[&rebalance_depth];
 
-    assert!(children.len() > 1);
-    let partition_number = children.len();
-
-    let children_tensors = children
+    let mut children_tensors = children
         .iter()
         .map(|e| contraction_tree.tensor(*e, tensor))
         .collect_vec();
-
-    let mut partition_costs = children
-        .iter()
-        .map(|child| {
-            (
-                *child,
-                tree_contraction_cost(&contraction_tree, *child, tensor).0,
-            )
-        })
-        .collect_vec();
-    partition_costs.sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
-
-    let (_, mut max_cost) = partition_costs.last().unwrap();
 
     let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
     let mut max_costs = Vec::with_capacity(iterations + 1);
@@ -739,7 +733,7 @@ pub fn balance_partitions_iter(
     to_dendogram(
         &contraction_tree,
         tensor,
-        cost_function,
+        dendogram_cost_function,
         output_file.clone() + "_0",
     );
 
@@ -756,18 +750,98 @@ pub fn balance_partitions_iter(
             &mut contraction_tree,
             random_balance,
             rebalance_depth,
+            &partition_costs,
+            greedy_cost_function,
         );
         assert_eq!(partition_number, path.len(), "Tensors lost!");
         validate_path(&path);
-        let children = &contraction_tree.partitions()[&rebalance_depth];
-        let children_tensors = children
+
+        partition_costs =
+            calculate_partition_costs(&contraction_tree, rebalance_depth, tensor, true);
+        children_tensors = new_tn
+            .tensors()
             .iter()
-            .map(|e| contraction_tree.tensor(*e, tensor))
+            .map(|tensor| {
+                let ext_edges = tensor.external_edges();
+                let mut new_tensor = Tensor::new(ext_edges);
+                new_tensor.insert_bond_dims(&tensor.bond_dims());
+                new_tensor
+            })
             .collect_vec();
 
-        let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
+        let (final_op_cost, final_contraction) = match communication_scheme {
+            CommunicationScheme::Greedy => {
+                let mut communication_tensors = Tensor::default();
+                communication_tensors.push_tensors(
+                    children_tensors.clone(),
+                    Some(&bond_dims),
+                    None,
+                );
+
+                let mut opt = Greedy::new(&communication_tensors, CostType::Flops);
+                opt.optimize_path();
+                let final_contraction = opt.get_best_replace_path();
+                let contraction_tree = ContractionTree::from_contraction_path(
+                    &communication_tensors,
+                    &final_contraction,
+                );
+                // let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
+                let (final_op_cost, _, _) = parallel_tree_contraction_cost(
+                    &contraction_tree,
+                    contraction_tree.root_id().unwrap(),
+                    &communication_tensors,
+                );
+                (final_op_cost, final_contraction)
+            }
+            CommunicationScheme::Bipartition => {
+                let children_tensors = children_tensors.iter().cloned().enumerate().collect_vec();
+                let (_, final_op_cost, _, final_contraction) =
+                    tensor_bipartition(&children_tensors, &bond_dims);
+
+                (final_op_cost, final_contraction)
+            }
+            CommunicationScheme::Both => {
+                let mut communication_tensors = Tensor::default();
+                communication_tensors.push_tensors(
+                    children_tensors.clone(),
+                    Some(&bond_dims),
+                    None,
+                );
+
+                let mut opt = Greedy::new(&communication_tensors, CostType::Flops);
+                opt.optimize_path();
+                let greedy_contraction = opt.get_best_replace_path();
+                let contraction_tree = ContractionTree::from_contraction_path(
+                    &communication_tensors,
+                    &greedy_contraction,
+                );
+                // let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
+                let (greedy_op_cost, _, _) = parallel_tree_contraction_cost(
+                    &contraction_tree,
+                    contraction_tree.root_id().unwrap(),
+                    &communication_tensors,
+                );
+
+                let children_tensors = children_tensors.iter().cloned().enumerate().collect_vec();
+                let (_, bipart_op_cost, _, bipart_contraction) =
+                    tensor_bipartition(&children_tensors, &bond_dims);
+
+                if greedy_op_cost < bipart_op_cost {
+                    println!("Greedy wins!");
+                    (greedy_op_cost, greedy_contraction)
+                } else {
+                    println!("BiPart wins!");
+                    (bipart_op_cost, bipart_contraction)
+                }
+            }
+        };
+
+        println!("final_op_cost: {:?}", final_op_cost);
+
+        path.extend(final_contraction.clone());
         let new_max_cost = max_cost + final_op_cost;
 
+        println!("New max cost: {:?}", new_max_cost);
         max_costs.push(new_max_cost);
 
         if new_max_cost < best_cost {
@@ -780,11 +854,12 @@ pub fn balance_partitions_iter(
         to_dendogram(
             &contraction_tree,
             tensor,
-            cost_function,
+            dendogram_cost_function,
             output_file.clone() + &format!("_{}", i),
         );
     }
-    best_contraction_path.extend(final_contraction);
+
+    // best_contraction_path.extend(final_contraction);
     (best_contraction, best_tn, best_contraction_path, max_costs)
 }
 
@@ -793,6 +868,8 @@ pub fn balance_partitions(
     contraction_tree: &mut ContractionTree,
     random_balance: bool,
     rebalance_depth: usize,
+    partition_costs: &[(usize, f64)],
+    greedy_cost_fn: fn(&Tensor, &Tensor) -> f64,
 ) -> (f64, Vec<ContractionIndex>, Tensor) {
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
     if tn.total_num_tensors() < 3 {
@@ -800,117 +877,65 @@ pub fn balance_partitions(
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
     }
 
-    fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
-        -((t1 ^ t2).size() as f64) + (t1.size() as f64) + (t2.size() as f64)
-    }
+    // Use memory reduction to identify which leaf node to shift between partitions.
     let bond_dims = tn.bond_dims();
-
-    // Create binary contraction tree.
-    let children = &contraction_tree.partitions()[&rebalance_depth];
-    assert!(children.len() > 1);
-
-    let mut partition_costs = children
-        .iter()
-        .map(|child| {
-            (
-                *child,
-                tree_contraction_cost(contraction_tree, *child, tn).0,
-            )
-        })
-        .collect_vec();
-    partition_costs.sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
-
-    // Obtain larger and smaller partitions
+    // Obtain most expensive and cheapest partitions
     let (larger_subtree_id, _) = *partition_costs.last().unwrap();
-    let (smaller_subtree_id, _) = *partition_costs.first().unwrap();
-    let mut new_max = if children.len() > 2 {
-        let (_, new_max) = partition_costs[partition_costs.len() - 2];
-        new_max
+    let larger_subtree_parent_id = contraction_tree
+        .node(larger_subtree_id)
+        .parent_id()
+        .unwrap();
+
+    // Get bigger subtree leaf nodes
+    let mut larger_subtree_leaf_nodes = contraction_tree.leaf_ids(larger_subtree_id);
+    // Find the leaf node in the smaller subtree that causes the biggest memory reduction in the bigger subtree
+    let mut max_overlap = 0f64;
+    let mut smaller_subtree_id = partition_costs.len();
+    let mut rebalanced_node = 0;
+    for (subtree_id, _) in partition_costs.iter().take(partition_costs.len() - 1) {
+        let (potential_node, cost) = rebalance_node_largest_overlap(
+            random_balance,
+            contraction_tree,
+            &larger_subtree_leaf_nodes,
+            *subtree_id,
+            greedy_cost_fn,
+            tn,
+        );
+        if cost > max_overlap {
+            max_overlap = cost;
+            smaller_subtree_id = *subtree_id;
+            rebalanced_node = potential_node;
+        }
+    }
+
+    let new_max = partition_costs
+        .iter()
+        .filter(|(subtree_id, _)| {
+            *subtree_id != larger_subtree_id && *subtree_id != smaller_subtree_id
+        })
+        .collect::<Vec<&(usize, f64)>>();
+
+    let mut new_max = if !new_max.is_empty() {
+        let (_, new_max) = new_max.last().unwrap();
+        *new_max
     } else {
         0f64
     };
-
+    // Remove the updated partitions from the `ContractionTree`
     contraction_tree
         .partitions
         .get_mut(&rebalance_depth)
         .unwrap()
         .retain(|&e| e != smaller_subtree_id && e != larger_subtree_id);
 
+    // Obtain parent nodes of root of most expensive and cheapest partitions.
     let smaller_subtree_parent_id = contraction_tree
         .node(smaller_subtree_id)
         .parent_id()
         .unwrap();
-    let larger_subtree_parent_id = contraction_tree
-        .node(larger_subtree_id)
-        .parent_id()
-        .unwrap();
 
-    // Find the tensor to be rebalanced to the bigger subtree.
     // Get smaller subtree leaf nodes
     let mut smaller_subtree_leaf_nodes = contraction_tree.leaf_ids(smaller_subtree_id);
-
-    // Get bigger subtree leaf nodes
-    let mut larger_subtree_leaf_nodes = contraction_tree.leaf_ids(larger_subtree_id);
-
-    // Find the leaf node in the smaller subtree that causes the biggest memory reduction in the bigger subtree
-    let rebalanced_node = if random_balance {
-        // Randomly select one of the top n nodes to rebalance.
-        let top_n = 3;
-        let rebalanced_node_weights = find_potential_nodes(
-            contraction_tree,
-            &larger_subtree_leaf_nodes,
-            smaller_subtree_id,
-            tn,
-            greedy_cost_fn,
-        );
-
-        let mut keys = rebalanced_node_weights.keys().copied().collect_vec();
-        keys.sort_by(|a, b| rebalanced_node_weights[a].total_cmp(&rebalanced_node_weights[b]));
-        if keys.len() < top_n {
-            panic!("Error rebalance_path: Not enough nodes in the bigger subtree to select the top {top_n} from!");
-        } else {
-            // Sample randomly from the top n nodes. Use softmax probabilities.
-            let top_n_nodes = keys.into_iter().take(top_n).collect_vec();
-
-            // Subtract max val after inverting for numerical stability.
-            let l2_norm = top_n_nodes
-                .iter()
-                .map(|idx| rebalanced_node_weights[idx] as f64)
-                .map(|weight| weight.powi(2))
-                .sum::<f64>()
-                .sqrt();
-            let top_n_exp = top_n_nodes
-                .iter()
-                .map(|idx| rebalanced_node_weights[idx] as f64)
-                .map(|weight| (-weight / l2_norm).exp())
-                .collect_vec();
-
-            let sum_exp = top_n_exp.iter().sum::<f64>();
-            let top_n_prob = top_n_exp.iter().map(|&exp| (exp / sum_exp)).collect_vec();
-
-            // Sample index based on its probability
-            let dist = WeightedIndex::new(top_n_prob).unwrap();
-            let mut rng = thread_rng();
-            let rand_idx = dist.sample(&mut rng);
-
-            top_n_nodes[rand_idx]
-        }
-    } else {
-        let (best_node, _max_cost) = larger_subtree_leaf_nodes
-            .iter()
-            .map(|larger_node| {
-                (
-                    *larger_node,
-                    contraction_tree
-                        .max_match_by(*larger_node, smaller_subtree_id, tn, greedy_cost_fn)
-                        .unwrap()
-                        .1,
-                )
-            })
-            .max_by(|a, b| a.1.total_cmp(&b.1))
-            .unwrap();
-        best_node
-    };
 
     // Always check that a node is moved over.
     assert!(!smaller_subtree_leaf_nodes.contains(&rebalanced_node));
@@ -920,80 +945,34 @@ pub fn balance_partitions(
     smaller_subtree_leaf_nodes.push(rebalanced_node);
     larger_subtree_leaf_nodes.retain(|&leaf| leaf != rebalanced_node);
 
-    // Rerun Greedy algorithm on smaller subtree
-    // Delete edge between root and smaller subtree. Will use greedy path instead
+    let (smaller_indices, updated_smaller_path) = subtree_contraction_path(
+        smaller_subtree_leaf_nodes,
+        tn,
+        contraction_tree,
+        &mut new_max,
+    );
 
-    let (smaller_indices, smaller_tensors): (Vec<_>, Vec<_>) = smaller_subtree_leaf_nodes
-        .iter()
-        .map(|&e| {
-            (
-                e,
-                tn.nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
-                    .clone(),
-            )
-        })
-        .unzip();
-    let tn_smaller_subtree = create_tensor_network(smaller_tensors, &tn.bond_dims(), None);
-
-    let mut opt = Greedy::new(&tn_smaller_subtree, CostType::Flops);
-    opt.optimize_path();
-    if opt.get_best_flops() > new_max {
-        new_max = opt.get_best_flops();
-    }
-    let path_smaller_subtree = opt.get_best_replace_path();
-
-    let updated_smaller_path = path_smaller_subtree
-        .iter()
-        .map(|e| {
-            if let ContractionIndex::Pair(v1, v2) = e {
-                pair!(smaller_indices[*v1], smaller_indices[*v2])
-            } else {
-                panic!("Should only produce Pairs!")
-            }
-        })
-        .collect_vec();
-
-    // Rerun Greedy algorithm on larger subtree
-    // Delete edge between root and larger subtree. Will use greedy path instead
-    let (larger_indices, larger_tensors): (Vec<_>, Vec<_>) = larger_subtree_leaf_nodes
-        .iter()
-        .map(|&e| {
-            (
-                e,
-                tn.nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
-                    .clone(),
-            )
-        })
-        .unzip();
-    let tn_larger_subtree = create_tensor_network(larger_tensors, &tn.bond_dims(), None);
-
-    let mut opt = Greedy::new(&tn_larger_subtree, CostType::Flops);
-    opt.optimize_path();
-    if opt.get_best_flops() > new_max {
-        new_max = opt.get_best_flops();
-    }
-    let path_larger_subtree = opt.get_best_replace_path();
-
-    let updated_larger_path = path_larger_subtree
-        .iter()
-        .map(|e| {
-            if let ContractionIndex::Pair(v1, v2) = e {
-                pair!(larger_indices[*v1], larger_indices[*v2])
-            } else {
-                panic!("Should only produce Pairs!")
-            }
-        })
-        .collect_vec();
+    let (larger_indices, updated_larger_path) = subtree_contraction_path(
+        larger_subtree_leaf_nodes,
+        tn,
+        contraction_tree,
+        &mut new_max,
+    );
 
     contraction_tree.remove_subtree(smaller_subtree_id);
-    contraction_tree.remove_subtree(larger_subtree_id);
-
     let smaller_partition_root = contraction_tree.add_subtree(
         &updated_smaller_path,
         smaller_subtree_parent_id,
         &smaller_indices,
     );
 
+    contraction_tree
+        .partitions
+        .get_mut(&rebalance_depth)
+        .unwrap()
+        .push(smaller_partition_root);
+
+    contraction_tree.remove_subtree(larger_subtree_id);
     let larger_partition_root = contraction_tree.add_subtree(
         &updated_larger_path,
         larger_subtree_parent_id,
@@ -1005,12 +984,6 @@ pub fn balance_partitions(
         .get_mut(&rebalance_depth)
         .unwrap()
         .push(larger_partition_root);
-
-    contraction_tree
-        .partitions
-        .get_mut(&rebalance_depth)
-        .unwrap()
-        .push(smaller_partition_root);
 
     // Generate new paths based on greedy paths
     let children = &contraction_tree.partitions()[&rebalance_depth];
@@ -1029,6 +1002,145 @@ pub fn balance_partitions(
     let mut updated_tn = Tensor::default();
     updated_tn.push_tensors(partition_tensors, Some(&bond_dims), None);
     (new_max, rebalanced_path, updated_tn)
+}
+
+fn subtree_contraction_path(
+    subtree_leaf_nodes: Vec<usize>,
+    tn: &Tensor,
+    contraction_tree: &mut ContractionTree,
+    new_max: &mut f64,
+) -> (Vec<usize>, Vec<ContractionIndex>) {
+    // Obtain the flattened list of Tensors corresponding to `indices`
+    let (indices, tensors): (Vec<_>, Vec<_>) = subtree_leaf_nodes
+        .iter()
+        .map(|&e| {
+            (
+                e,
+                tn.nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
+                    .clone(),
+            )
+        })
+        .unzip();
+    // Obtain tensor network corresponding to subtree
+    let tn_subtree = create_tensor_network(tensors, &tn.bond_dims(), None);
+
+    let mut opt = Greedy::new(&tn_subtree, CostType::Flops);
+    opt.optimize_path();
+    if opt.get_best_flops() > *new_max {
+        *new_max = opt.get_best_flops();
+    }
+    let path_smaller_subtree = opt.get_best_replace_path();
+
+    let updated_smaller_path = path_smaller_subtree
+        .iter()
+        .map(|e| {
+            if let ContractionIndex::Pair(v1, v2) = e {
+                pair!(indices[*v1], indices[*v2])
+            } else {
+                panic!("Should only produce Pairs!")
+            }
+        })
+        .collect_vec();
+    (indices, updated_smaller_path)
+}
+
+fn rebalance_node_largest_overlap(
+    random_balance: bool,
+    contraction_tree: &mut ContractionTree,
+    larger_subtree_leaf_nodes: &[usize],
+    smaller_subtree_id: usize,
+    greedy_cost_fn: fn(&Tensor, &Tensor) -> f64,
+    tn: &Tensor,
+) -> (usize, f64) {
+    let (rebalanced_node, max_cost) = if random_balance {
+        // Randomly select one of the top n nodes to rebalance.
+        let top_n = 3;
+        let rebalanced_node_weights = find_potential_nodes(
+            contraction_tree,
+            larger_subtree_leaf_nodes,
+            smaller_subtree_id,
+            tn,
+            greedy_cost_fn,
+        );
+
+        let mut keys: Vec<(usize, f64)> = rebalanced_node_weights
+            .iter()
+            .map(|(a, b)| (*a, *b))
+            .collect_vec();
+        keys.sort_by(|(a, _), (b, _)| {
+            rebalanced_node_weights[a].total_cmp(&rebalanced_node_weights[b])
+        });
+        if keys.len() < top_n {
+            panic!("Error rebalance_path: Not enough nodes in the bigger subtree to select the top {top_n} from!");
+        } else {
+            // Sample randomly from the top n nodes. Use softmax probabilities.
+            let top_n_nodes = keys.into_iter().take(top_n).collect_vec();
+
+            // Subtract max val after inverting for numerical stability.
+            let l2_norm = top_n_nodes
+                .iter()
+                .map(|(_idx, weight)| weight.powi(2))
+                .sum::<f64>()
+                .sqrt();
+            let top_n_exp = top_n_nodes
+                .iter()
+                .map(|(_idx, weight)| (-1.0 * *weight / l2_norm).exp())
+                .collect_vec();
+
+            let sum_exp = top_n_exp.iter().sum::<f64>();
+            let top_n_prob = top_n_exp.iter().map(|&exp| (exp / sum_exp)).collect_vec();
+
+            // Sample index based on its probability
+            let dist = WeightedIndex::new(top_n_prob).unwrap();
+            let mut rng = thread_rng();
+            let rand_idx = dist.sample(&mut rng);
+
+            top_n_nodes[rand_idx]
+        }
+    } else {
+        let (best_node, max_cost) = larger_subtree_leaf_nodes
+            .iter()
+            .map(|larger_node| {
+                (
+                    *larger_node,
+                    contraction_tree
+                        .max_match_by(*larger_node, smaller_subtree_id, tn, greedy_cost_fn)
+                        .unwrap()
+                        .1,
+                )
+            })
+            .max_by(|a, b| a.1.total_cmp(&b.1))
+            .unwrap();
+        (best_node, max_cost)
+    };
+    (rebalanced_node, max_cost)
+}
+
+fn calculate_partition_costs(
+    contraction_tree: &ContractionTree,
+    rebalance_depth: usize,
+    tensor: &Tensor,
+    sort: bool,
+) -> Vec<(usize, f64)> {
+    // Create binary contraction tree.
+    let children = &contraction_tree.partitions()[&rebalance_depth];
+    assert!(children.len() > 1);
+
+    // Identify the contraction cost of each partition
+    let mut partition_costs = children
+        .iter()
+        .map(|child| {
+            (
+                *child,
+                tree_contraction_cost(contraction_tree, *child, tensor).0,
+            )
+        })
+        .collect_vec();
+    if sort {
+        partition_costs.sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
+    }
+
+    partition_costs
 }
 
 pub fn to_dendogram(

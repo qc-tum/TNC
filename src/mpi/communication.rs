@@ -26,6 +26,12 @@ where
     bincode::deserialize(data).unwrap()
 }
 
+pub enum CommunicationScheme {
+    Greedy,
+    Bipartition,
+    Both,
+}
+
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
 /// receivers, `data` can just be an empty vector.
 ///
