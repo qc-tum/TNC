@@ -4,7 +4,7 @@ use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
 use tensorcontraction::contractionpath::contraction_tree::balance_partitions_iter;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
-    broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
+    broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network, CommunicationScheme,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
@@ -12,7 +12,11 @@ use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 
 use mpi::traits::{Communicator, CommunicatorCollectives};
+use tensorcontraction::tensornetwork::tensor::Tensor;
 
+fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
+    t1.size() as f64 + t2.size() as f64 - (t1 ^ t2).size() as f64
+}
 // Run with at least 2 processes
 fn main() {
     let mut rng = StdRng::seed_from_u64(23);
@@ -65,6 +69,8 @@ fn main() {
             10,
             String::from("output/rebalance_trial"),
             contract_cost_tensors,
+            greedy_cost_fn,
+            CommunicationScheme::Greedy,
         );
 
         (partitioned_tn, path)
