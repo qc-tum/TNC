@@ -73,6 +73,108 @@ pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) ->
         .collect::<Vec<usize>>()
 }
 
+/// Bipartitions input tensor network using `KaHyPar` library.
+/// Returns a `Vec<ContractionIndex>` of length equal to the number of input tensors minus one.
+///
+/// # Arguments
+///
+/// * `tensors` - &[`Tensor`] to be partitionined
+/// * `tensor_weights` - HashMap mapping between tensor_id to time-to-solution of intermediate node
+/// * `config_file` - `KaHyPar` config file name
+/// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
+///
+pub fn communication_partitioning(
+    tensors: &[(usize, Tensor)],
+    // tensor_weights: &[(usize, f64)],
+    bond_dims: &HashMap<usize, u64>,
+    k: i32,
+    config_file: String,
+    min: bool,
+) -> Vec<usize> {
+    assert!(k > 1, "Partitioning only valid for more than one process");
+
+    let config_file = CString::new(config_file).unwrap();
+    let num_vertices = tensors.len() as u32;
+
+    let mut context = KaHyParContext::new();
+    context.configure(config_file);
+
+    let x = if min { 1 } else { -1 };
+
+    let imbalance: f64 = 0.03;
+    let mut objective = 0;
+
+    let mut hyperedge_weights = vec![];
+    // let vertex_weights = tensor_weights
+    //     .iter()
+    //     .map(|(_, cost)| *cost as i32)
+    //     .collect_vec();
+
+    let mut hyperedge_indices = vec![0];
+    let mut hyperedges = vec![];
+    // Bidirectional mapping to a new index as KaHyPar indexes from 0.
+    let mut edge_to_virtual_edge = HashMap::new();
+    let mut virtual_edge_to_edge = HashMap::new();
+    // New index that starts from 0
+    let mut edge_count = 0;
+
+    let mut intermediate_tensor = Tensor::default();
+    let tensors = tensors
+        .iter()
+        .map(|(_, b)| b.clone())
+        .collect::<Vec<Tensor>>();
+    intermediate_tensor.push_tensors(tensors, Some(bond_dims), None);
+
+    for (edges, tensor_ids) in intermediate_tensor.edges() {
+        let mut length = 0;
+        // Don't add edges that connect only one vertex
+        if tensor_ids.len() == 2 && tensor_ids.contains(&Vertex::Open) {
+            continue;
+        }
+
+        hyperedge_weights.push(x * bond_dims[edges] as i32);
+
+        for id in tensor_ids {
+            match id {
+                Vertex::Closed(id) => {
+                    if edge_to_virtual_edge.contains_key(id) {
+                        hyperedges.push(edge_to_virtual_edge[id] as u32);
+                    } else {
+                        edge_to_virtual_edge.insert(id, edge_count);
+                        virtual_edge_to_edge.insert(edge_count, id);
+                        hyperedges.push(edge_count as u32);
+                        edge_count += 1;
+                    }
+                    length += 1;
+                }
+                Vertex::Open => continue,
+            }
+        }
+        hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
+    }
+
+    let mut partitioning = vec![-1; num_vertices as usize];
+    partition(
+        num_vertices,
+        hyperedge_weights.len() as u32,
+        imbalance,
+        k,
+        None,
+        Some(hyperedge_weights),
+        &hyperedge_indices,
+        hyperedges.as_slice(),
+        &mut objective,
+        &mut context,
+        &mut partitioning,
+    );
+
+    // partitioning
+    partitioning
+        .iter()
+        .map(|e| *e as usize)
+        .collect::<Vec<usize>>()
+}
+
 pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
     let partition_ids = partitioning
         .iter()

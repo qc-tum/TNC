@@ -1,11 +1,15 @@
+use crate::contractionpath::contraction_cost::contract_size_tensors;
 use crate::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
+use crate::mpi::communication::CommunicationScheme;
 use crate::pair;
+use crate::tensornetwork::partitioning::communication_partitioning;
 use crate::tensornetwork::{create_tensor_network, tensor::Tensor};
 use crate::types::ContractionIndex;
 use itertools::Itertools;
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::thread_rng;
 use std::cell::{Ref, RefCell, RefMut};
+use std::cmp::minmax;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -639,6 +643,53 @@ fn find_potential_nodes(
             .unwrap()
     }))
     .collect()
+}
+
+/// Uses recursive bipartitioning to identify a communication scheme for final tensors
+fn tensor_bipartition(
+    children_tensor: &[(usize, Tensor)],
+    bond_dims: &HashMap<usize, u64>,
+) -> (usize, f64, Tensor, Vec<ContractionIndex>) {
+    let k = 2;
+    let min = true;
+    let config_file = String::from("tests/cut_kKaHyPar_sea20.ini");
+
+    if children_tensor.len() == 1 {
+        return (
+            children_tensor[0].0,
+            0.0,
+            children_tensor[0].1.clone(),
+            Vec::new(),
+        );
+    }
+    if children_tensor.len() == 2 {
+        let t1 = children_tensor[0].0;
+        let t2 = children_tensor[1].0;
+        let [t1, t2] = minmax(t1, t2);
+        let tensor = &children_tensor[0].1 ^ &children_tensor[1].1;
+        let contraction = &children_tensor[0].1 | &children_tensor[1].1;
+        return (t1, contraction.size() as f64, tensor, vec![pair!(t1, t2)]);
+    }
+
+    let partitioning = communication_partitioning(children_tensor, bond_dims, k, config_file, min);
+
+    let mut partition_iter = partitioning.iter();
+    let (children_1, children_2): (Vec<_>, Vec<_>) = children_tensor
+        .iter()
+        .cloned()
+        .partition(|_| partition_iter.next() == Some(&0));
+
+    let (id_1, cost_1, t1, mut contraction_1) = tensor_bipartition(&children_1, bond_dims);
+
+    let (id_2, cost_2, t2, mut contraction_2) = tensor_bipartition(&children_2, bond_dims);
+
+    let cost = cost_1.max(cost_2) + contract_cost_tensors(&t1, &t2);
+    let tensor = &t1 ^ &t2;
+
+    contraction_1.append(&mut contraction_2);
+    let [id_1, id_2] = minmax(id_1, id_2);
+    contraction_1.push(pair!(id_1, id_2));
+    (id_1, cost, tensor, contraction_1)
 }
 
 pub fn balance_partitions_iter(
