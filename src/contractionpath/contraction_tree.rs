@@ -12,7 +12,7 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 use std::rc::{Rc, Weak};
 
-use super::contraction_cost::contract_path_cost;
+use super::contraction_cost::{contract_cost_tensors, contract_path_cost};
 use super::paths::validate_path;
 
 type NodeRef = Rc<RefCell<Node>>;
@@ -527,6 +527,42 @@ pub fn tree_contraction_cost(
     contract_path_cost(&local_tensors, &local_contraction_path)
 }
 
+/// Returns contraction cost of subtree in `contraction_tree` if all subtrees can be contracted in parallel..
+///
+/// # Arguments
+/// * `contraction_tree` - [`ContractionTree`] object
+/// * `node_id` - root of subtree to examine
+/// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
+///
+/// # Returns
+/// Total op cost and maximum memory required of fully contracting subtree rooted at `node_id` in parallel
+pub fn parallel_tree_contraction_cost(
+    contraction_tree: &ContractionTree,
+    node_id: usize,
+    tn: &Tensor,
+) -> (f64, f64, Tensor) {
+    let left_child_id = contraction_tree.node(node_id).left_child_id();
+    let right_child_id = contraction_tree.node(node_id).right_child_id();
+    if left_child_id.is_some() && right_child_id.is_some() {
+        let (left_op_cost, left_mem_cost, t1) =
+            parallel_tree_contraction_cost(contraction_tree, left_child_id.unwrap(), tn);
+        let (right_op_cost, right_mem_cost, t2) =
+            parallel_tree_contraction_cost(contraction_tree, right_child_id.unwrap(), tn);
+        let current_tensor = &t1 ^ &t2;
+        let contraction_cost = contract_cost_tensors(&t1, &t2);
+        let current_mem_cost = contract_size_tensors(&t1, &t2);
+
+        (
+            left_op_cost.max(right_op_cost) + contraction_cost,
+            current_mem_cost.max(left_mem_cost.max(right_mem_cost)),
+            current_tensor,
+        )
+    } else {
+        let tensor_id = contraction_tree.node(node_id).tensor_index.clone().unwrap();
+        let tensor = tn.nested_tensor(&tensor_id).clone();
+        (0.0, tensor.size() as f64, tensor)
+    }
+}
 fn subtensor_network(
     contraction_tree: &ContractionTree,
     node_id: usize,
@@ -1339,11 +1375,11 @@ mod tests {
         let (tensor, path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
         let ref_weights =
-            HashMap::from([(1, 0f64), (0, 0f64), (2, 0f64), (3, 2974f64), (4, 3694f64)]);
+            HashMap::from([(1, 0f64), (0, 0f64), (2, 0f64), (3, 3820f64), (4, 4540f64)]);
         let weights = tree.tree_weights(4, &tensor, contract_cost_tensors);
 
         assert_eq!(weights, ref_weights);
-        let ref_weights = HashMap::from([(1, 0f64), (0, 0f64), (3, 2974f64)]);
+        let ref_weights = HashMap::from([(1, 0f64), (0, 0f64), (3, 3820f64)]);
         let weights = tree.tree_weights(3, &tensor, contract_cost_tensors);
         assert_eq!(weights, ref_weights);
 
@@ -1364,11 +1400,11 @@ mod tests {
             (3, 0f64),
             (4, 0f64),
             (5, 0f64),
-            (6, 1575610f64),
-            (7, 1592168f64),
-            (8, 1585348f64),
-            (9, 1593482f64),
-            (10, 3186128f64),
+            (6, 2098440f64),
+            (7, 2120010f64),
+            (8, 2105820f64),
+            (9, 2116470f64),
+            (10, 4237070f64),
         ]);
         let weights = tree.tree_weights(10, &tensor, contract_cost_tensors);
 
@@ -1468,5 +1504,49 @@ mod tests {
         for (key, value) in ref_node_tensor_map.iter() {
             assert_eq!(node_tensor_map[key].legs(), value.legs());
         }
+    }
+
+    #[test]
+    fn test_tree_contraction_path() {
+        let (tensor, ref_path) = setup_simple();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let (op_cost, mem_cost) = tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+
+        assert_eq!(op_cost, 4540f64);
+        assert_eq!(mem_cost, 538f64);
+    }
+
+    #[test]
+    fn test_parallel_tree_contraction_path() {
+        let (tensor, ref_path) = setup_simple();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+
+        let (op_cost, mem_cost, _) =
+            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+
+        assert_eq!(op_cost, 4540f64);
+        assert_eq!(mem_cost, 538f64);
+    }
+
+    #[test]
+    fn test_tree_contraction_path_complex() {
+        let (tensor, ref_path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let (op_cost, mem_cost) = tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+
+        assert_eq!(op_cost, 4237070f64);
+        assert_eq!(mem_cost, 89478f64);
+    }
+
+    #[test]
+    fn test_parallel_tree_contraction_path_complex() {
+        let (tensor, ref_path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+
+        let (op_cost, mem_cost, _) =
+            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+
+        assert_eq!(op_cost, 2120600f64);
+        assert_eq!(mem_cost, 89478f64);
     }
 }
