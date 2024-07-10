@@ -311,6 +311,7 @@ impl ContractionTree {
         let left_ref = left_child.as_ref().borrow();
         let right_ref = right_child.as_ref().borrow();
 
+        // Recurse first because weights of leaves are needed for further computation.
         Self::tree_weights_recurse(&left_ref, tn, weights, scratch, cost_function);
         Self::tree_weights_recurse(&right_ref, tn, weights, scratch, cost_function);
 
