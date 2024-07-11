@@ -61,7 +61,7 @@ fn main() {
         String::from("output/rebalance_trial"),
         contract_cost_tensors,
         greedy_cost_fn,
-        CommunicationScheme::Both,
+        CommunicationScheme::Greedy,
     );
     // repartition_tn(&partitioned_tn, &new_tree, rebalance_depth);
     println!("partitioned_tn: {:?}", new_tn.total_num_tensors());
