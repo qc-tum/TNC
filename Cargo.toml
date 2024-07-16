@@ -7,13 +7,17 @@ edition = "2021"
 
 [dependencies]
 mpi = { version = "0.8.0", features = ["complex", "derive"] }
-hdf5 = { git = "https://github.com/aldanor/hdf5-rust.git", features = ["complex"] }
+hdf5 = { git = "https://github.com/aldanor/hdf5-rust.git", features = [
+    "complex",
+] }
 itertools = "0.13.0"
 num-complex = "0.4.6"
 rand = "0.8.5"
 antlr-rust = "0.3.0-beta"
 float-cmp = "0.9.0"
-tetra = { git = "ssh://gitlab.lrz.de/quantum-research/tetra", branch = "main", features = ["serde"] }
+tetra = { git = "ssh://gitlab.lrz.de/quantum-research/tetra", branch = "main", features = [
+    "serde",
+] }
 kahypar-sys = { git = "ssh://gitlab.lrz.de/quantum-research/kahypar-sys", branch = "main" }
 permutation = "0.4.1"
 serde = { version = "1.0.203", features = ["derive"] }
