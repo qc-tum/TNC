@@ -173,7 +173,7 @@ impl<'a> BranchBound<'a> {
 
 impl<'a> OptimizePath for BranchBound<'a> {
     fn optimize_path(&mut self) {
-        if self.tn.is_single_tensor() {
+        if self.tn.is_leaf() {
             return;
         }
         let tensors = self.tn.tensors().clone();
