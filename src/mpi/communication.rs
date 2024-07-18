@@ -162,7 +162,6 @@ pub fn intermediate_reduce_tensor_network(
     local_tn: &mut Tensor,
     path: &[ContractionIndex],
     rank: i32,
-    _size: i32,
     world: &SimpleCommunicator,
 ) {
     let mut final_rank = 0;
