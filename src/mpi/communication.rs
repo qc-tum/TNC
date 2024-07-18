@@ -5,7 +5,7 @@ use mpi::traits::{BufferMut, Communicator, CommunicatorCollectives, Destination,
 use mpi::Rank;
 
 use super::mpi_types::BondDim;
-use crate::tensornetwork::contraction::{contract_tensor_network, TensorContraction};
+use crate::tensornetwork::contraction::contract_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 use crate::types::{ContractionIndex, EdgeIndex};
@@ -78,6 +78,36 @@ pub fn broadcast_path(
     }
 }
 
+/// Sends the leaf tensor `tensor` to `receiver` via MPI.
+fn send_leaf_tensor(tensor: &Tensor, receiver: Rank, world: &SimpleCommunicator) {
+    assert!(tensor.is_leaf());
+
+    // Send legs
+    let legs = tensor.legs();
+    world.process_at_rank(receiver).send(legs);
+
+    // Send data
+    let tensor_data = tensor.tensor_data();
+    world
+        .process_at_rank(receiver)
+        .send(&serialize(&*tensor_data));
+}
+
+/// Receives a leaf tensor from `sender` via MPI.
+fn receive_leaf_tensor(sender: Rank, world: &SimpleCommunicator) -> Tensor {
+    // Receive legs
+    let (legs, _status) = world.process_at_rank(sender).receive_vec::<EdgeIndex>();
+
+    // Receive data
+    let (raw_data, _status) = world.process_at_rank(sender).receive_vec::<u8>();
+    let tensor_data: TensorData = deserialize(&raw_data);
+
+    // Create tensor
+    let mut new_tensor = Tensor::new(legs);
+    new_tensor.set_tensor_data(tensor_data);
+    new_tensor
+}
+
 /// Partitions input Tensor `r_tn` into `size` partitions using `KaHyPar` and distributes the partitions to the various processes via `rank` via MPI.
 pub fn scatter_tensor_network(
     r_tn: &Tensor,
@@ -121,13 +151,7 @@ pub fn scatter_tensor_network(
             let num_tensors = tensor.tensors().len();
             world.process_at_rank(i).send(&num_tensors);
             for inner_tensor in tensor.tensors() {
-                // Send legs
-                let legs = inner_tensor.legs().clone();
-                world.process_at_rank(i).send(&legs);
-
-                // Send data
-                let tensor_data = inner_tensor.tensor_data().clone();
-                world.process_at_rank(i).send(&serialize(&tensor_data));
+                send_leaf_tensor(inner_tensor, i, world);
             }
         }
         (local_tn, local_path)
@@ -140,15 +164,7 @@ pub fn scatter_tensor_network(
         let mut local_tn = Tensor::default();
         let (num_tensors, _status) = world.any_process().receive::<usize>();
         for _ in 0..num_tensors {
-            // Receive legs
-            let (legs, _status) = world.any_process().receive_vec::<EdgeIndex>();
-
-            // Receive data
-            let (raw_data, _status) = world.any_process().receive_vec::<u8>();
-            let tensor_data: TensorData = deserialize(&raw_data);
-
-            let mut new_tensor = Tensor::new(legs);
-            new_tensor.set_tensor_data(tensor_data);
+            let new_tensor = receive_leaf_tensor(0, world);
             local_tn.push_tensor(new_tensor, Some(&bond_dims));
         }
         (local_tn, local_path)
@@ -172,31 +188,15 @@ pub fn intermediate_reduce_tensor_network(
             let sender: Rank = (*y).try_into().unwrap();
             final_rank = receiver;
             if receiver == rank {
-                // Receive legs
-                let (legs, _status) = world.process_at_rank(sender).receive_vec::<EdgeIndex>();
-                let mut returned_tensor = Tensor::new(legs);
-
-                // Receive data
-                let (raw_data_tensor, _) = world.process_at_rank(sender).receive_vec::<u8>();
-                let data_tensor = bincode::deserialize(&raw_data_tensor).unwrap();
-                returned_tensor.set_tensor_data(TensorData::Matrix(data_tensor));
-
-                // Insert data into local tensor
-                local_tn.push_tensor(returned_tensor, None);
+                // Insert received tensor into local tensor
+                let received_tensor = receive_leaf_tensor(sender, world);
+                local_tn.push_tensor(received_tensor, None);
 
                 // Contract tensors
                 contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
             }
             if sender == rank {
-                // Send legs
-                let legs = local_tn.legs().clone();
-                world.process_at_rank(receiver).send(&legs);
-
-                // Send data
-                let local_tensor = local_tn.get_data();
-                world
-                    .process_at_rank(receiver)
-                    .send(&bincode::serialize(&local_tensor).unwrap());
+                send_leaf_tensor(&local_tn, receiver, world);
             }
         }
         ContractionIndex::Path(..) => panic!("Requires pair"),
@@ -205,20 +205,11 @@ pub fn intermediate_reduce_tensor_network(
     // Only runs if the final contracted process is not process 0
     if final_rank != 0 {
         if rank == 0 {
-            let (legs, _status) = world.process_at_rank(final_rank).receive_vec::<EdgeIndex>();
-            let mut returned_tensor = Tensor::new(legs);
-            let (raw_data_tensor, _) = world.process_at_rank(final_rank).receive_vec::<u8>();
-            let data_tensor = bincode::deserialize(&raw_data_tensor).unwrap();
-            returned_tensor.set_tensor_data(TensorData::Matrix(data_tensor));
-            *local_tn = returned_tensor;
+            let received_tensor = receive_leaf_tensor(final_rank, world);
+            *local_tn = received_tensor;
         }
         if rank == final_rank {
-            let legs = local_tn.legs().clone();
-            world.process_at_rank(0).send(&legs);
-            let local_tensor = local_tn.get_data();
-            world
-                .process_at_rank(0)
-                .send(&bincode::serialize(&local_tensor).unwrap());
+            send_leaf_tensor(&local_tn, 0, world);
         }
     }
 }
@@ -233,27 +224,12 @@ pub fn naive_reduce_tensor_network(
 ) {
     if rank == 0 {
         for i in 1..size {
-            // Receive legs
-            let (legs, _) = world.process_at_rank(i).receive_vec::<EdgeIndex>();
-            let mut returned_tensor = Tensor::new(legs);
-
-            // Receive data
-            let (raw_data_tensor, _) = world.process_at_rank(i).receive_vec::<u8>();
-            let data_tensor = bincode::deserialize(&raw_data_tensor).unwrap();
-            returned_tensor.set_tensor_data(TensorData::Matrix(data_tensor));
-
-            // Add tensor to final tensor network
-            local_tn.push_tensor(returned_tensor, None);
+            // Add received tensor to final tensor network
+            let received_tensor = receive_leaf_tensor(i, world);
+            local_tn.push_tensor(received_tensor, None);
         }
     } else {
-        // Send legs
-        let legs = local_tn.legs().clone();
-        world.process_at_rank(0).send(&legs);
-
-        // Send data
-        let data_tensor = local_tn.get_data();
-        let raw_data_tensor = bincode::serialize(&data_tensor).unwrap();
-        world.process_at_rank(0).send(&raw_data_tensor);
+        send_leaf_tensor(&local_tn, 0, world);
     }
     world.barrier();
 
