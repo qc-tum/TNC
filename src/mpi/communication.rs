@@ -182,25 +182,27 @@ pub fn intermediate_reduce_tensor_network(
     world: &SimpleCommunicator,
 ) {
     let mut final_rank = 0;
-    path.iter().for_each(|i| match i {
-        ContractionIndex::Pair(x, y) => {
-            let receiver: Rank = (*x).try_into().unwrap();
-            let sender: Rank = (*y).try_into().unwrap();
-            final_rank = receiver;
-            if receiver == rank {
-                // Insert received tensor into local tensor
-                let received_tensor = receive_leaf_tensor(sender, world);
-                local_tn.push_tensor(received_tensor, None);
+    for pair in path {
+        match pair {
+            ContractionIndex::Pair(x, y) => {
+                let receiver: Rank = (*x).try_into().unwrap();
+                let sender: Rank = (*y).try_into().unwrap();
+                final_rank = receiver;
+                if receiver == rank {
+                    // Insert received tensor into local tensor
+                    let received_tensor = receive_leaf_tensor(sender, world);
+                    local_tn.push_tensor(received_tensor, None);
 
-                // Contract tensors
-                contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
+                    // Contract tensors
+                    contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
+                }
+                if sender == rank {
+                    send_leaf_tensor(&local_tn, receiver, world);
+                }
             }
-            if sender == rank {
-                send_leaf_tensor(&local_tn, receiver, world);
-            }
+            ContractionIndex::Path(..) => panic!("Requires pair"),
         }
-        ContractionIndex::Path(..) => panic!("Requires pair"),
-    });
+    }
 
     // Only runs if the final contracted process is not process 0
     if final_rank != 0 {
