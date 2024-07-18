@@ -2,6 +2,7 @@ use std::iter::zip;
 
 use mpi::topology::{Process, SimpleCommunicator};
 use mpi::traits::{BufferMut, Communicator, CommunicatorCollectives, Destination, Root, Source};
+use mpi::Rank;
 
 use super::mpi_types::BondDim;
 use crate::tensornetwork::contraction::{contract_tensor_network, TensorContraction};
@@ -81,8 +82,8 @@ pub fn broadcast_path(
 pub fn scatter_tensor_network(
     r_tn: &Tensor,
     path: &[ContractionIndex],
-    rank: i32,
-    size: i32,
+    rank: Rank,
+    size: Rank,
     world: &SimpleCommunicator,
 ) -> (Tensor, Vec<ContractionIndex>) {
     let root_process = world.process_at_rank(0);
@@ -161,14 +162,14 @@ pub fn scatter_tensor_network(
 pub fn intermediate_reduce_tensor_network(
     local_tn: &mut Tensor,
     path: &[ContractionIndex],
-    rank: i32,
+    rank: Rank,
     world: &SimpleCommunicator,
 ) {
     let mut final_rank = 0;
     path.iter().for_each(|i| match i {
         ContractionIndex::Pair(x, y) => {
-            let receiver = *x as i32;
-            let sender = *y as i32;
+            let receiver: Rank = (*x).try_into().unwrap();
+            let sender: Rank = (*y).try_into().unwrap();
             final_rank = receiver;
             if receiver == rank {
                 // Receive legs
@@ -226,8 +227,8 @@ pub fn intermediate_reduce_tensor_network(
 pub fn naive_reduce_tensor_network(
     local_tn: &mut Tensor,
     path: &[ContractionIndex],
-    rank: i32,
-    size: i32,
+    rank: Rank,
+    size: Rank,
     world: &SimpleCommunicator,
 ) {
     if rank == 0 {
