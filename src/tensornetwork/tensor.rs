@@ -312,19 +312,19 @@ impl Tensor {
         self.legs.contains(&leg_id)
     }
 
-    /// Returns true if Tensor is not a tensornetwork
+    /// Returns true if Tensor is a leaf tensor, without any nested tensors.
     ///
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let tensor = Tensor::new(Vec::from([1,2,3]));
-    /// assert_eq!(tensor.is_single_tensor(), true);
+    /// assert_eq!(tensor.is_leaf(), true);
     /// ```
-    pub fn is_single_tensor(&self) -> bool {
+    pub fn is_leaf(&self) -> bool {
         self.tensors.is_empty()
     }
 
-    /// Returns true if Tensor is composite
+    /// Returns true if Tensor is composite.
     ///
     /// # Examples
     /// ```
@@ -528,10 +528,7 @@ impl Tensor {
     /// tensor.set_tensor_data(tensordata);
     /// ```
     pub fn set_tensor_data(&mut self, tensordata: TensorData) {
-        assert!(
-            self.is_single_tensor(),
-            "Cannot add data to composite tensor"
-        );
+        assert!(self.is_leaf(), "Cannot add data to composite tensor");
         *self.tensordata.get_mut() = tensordata;
     }
 
@@ -638,7 +635,7 @@ impl Tensor {
 
     /// Get output legs after tensor contraction
     pub fn external_edges(&self) -> Vec<EdgeIndex> {
-        if self.is_single_tensor() {
+        if self.is_leaf() {
             return self.legs().clone();
         }
 
