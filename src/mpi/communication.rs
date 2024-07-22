@@ -1,7 +1,7 @@
 use std::iter::zip;
 
 use mpi::topology::{Process, SimpleCommunicator};
-use mpi::traits::{BufferMut, Communicator, CommunicatorCollectives, Destination, Root, Source};
+use mpi::traits::{BufferMut, Communicator, Destination, Root, Source};
 use mpi::Rank;
 
 use super::mpi_types::BondDim;
@@ -28,8 +28,6 @@ where
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
 /// receivers, `data` can just be an empty vector.
-///
-/// **Warning**: This function does not synchronize (no barrier).
 fn broadcast_vec<T>(data: &mut Vec<T>, root: &Process, world: &SimpleCommunicator)
 where
     T: Clone + Default,
@@ -52,8 +50,6 @@ where
 
 /// Broadcast a contraction index `path` from `root` to all processes in `world`. For
 /// the receivers, `path` can just be an empty slice.
-///
-/// **Warning**: This function does not synchronize (no barrier).
 #[must_use]
 pub fn broadcast_path(
     path: &[ContractionIndex],
@@ -128,7 +124,6 @@ pub fn scatter_tensor_network(
         Vec::new()
     };
     broadcast_vec(&mut bond_vec, &root_process, world);
-    world.barrier();
     let bond_dims = bond_vec.iter().map(|e| (e.bond_id, e.bond_size)).collect();
 
     // Distribute tensors
@@ -169,7 +164,6 @@ pub fn scatter_tensor_network(
         }
         (local_tn, local_path)
     };
-    world.barrier();
     (local_tn, local_path)
 }
 
@@ -233,7 +227,6 @@ pub fn naive_reduce_tensor_network(
     } else {
         send_leaf_tensor(&local_tn, 0, world);
     }
-    world.barrier();
 
     if rank == 0 {
         // Contract the final tensor network

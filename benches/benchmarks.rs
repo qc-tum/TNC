@@ -165,7 +165,6 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
                 } else {
                     broadcast_path(&[], &root, &world)
                 };
-                world.barrier();
                 intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
                 local_tn
             });
