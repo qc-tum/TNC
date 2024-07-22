@@ -30,6 +30,7 @@ criterion = "0.5.1"
 static_init = "1.0.3"
 mpi_test = { git = "ssh://gitlab.lrz.de/quantum-research/mpi_test", branch = "main" }
 ndarray = "0.15.6"
+flexi_logger = "0.28.5"
 
 [[bench]]
 name = "benchmarks"

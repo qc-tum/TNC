@@ -1,5 +1,6 @@
 use std::{collections::HashMap, ops::RangeBounds};
 
+use log::debug;
 use tetra::{contract, Tensor as DataTensor};
 
 use crate::{
@@ -39,6 +40,7 @@ use super::tensordata::TensorData;
 /// contract_tensor_network(&mut r_tn, &opt_path);
 /// ```
 pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionIndex]) {
+    debug!("Contracting tensor");
     for contract_index in contract_path {
         match contract_index {
             ContractionIndex::Pair(i, j) => {
