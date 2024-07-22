@@ -1629,6 +1629,7 @@ dependencies = [
  "itertools 0.13.0",
  "kahypar-sys",
  "lazy_static",
+ "log",
  "mpi",
  "mpi_test",
  "ndarray",
