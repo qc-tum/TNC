@@ -191,7 +191,7 @@ pub fn intermediate_reduce_tensor_network(
                     contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
                 }
                 if sender == rank {
-                    send_leaf_tensor(&local_tn, receiver, world);
+                    send_leaf_tensor(local_tn, receiver, world);
                 }
             }
             ContractionIndex::Path(..) => panic!("Requires pair"),
@@ -205,7 +205,7 @@ pub fn intermediate_reduce_tensor_network(
             *local_tn = received_tensor;
         }
         if rank == final_rank {
-            send_leaf_tensor(&local_tn, 0, world);
+            send_leaf_tensor(local_tn, 0, world);
         }
     }
 }
@@ -225,7 +225,7 @@ pub fn naive_reduce_tensor_network(
             local_tn.push_tensor(received_tensor, None);
         }
     } else {
-        send_leaf_tensor(&local_tn, 0, world);
+        send_leaf_tensor(local_tn, 0, world);
     }
 
     if rank == 0 {
