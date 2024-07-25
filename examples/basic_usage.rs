@@ -1,4 +1,4 @@
-use flexi_logger::{opt_format, Duplicate, FileSpec, Logger};
+use flexi_logger::{json_format, Duplicate, FileSpec, Logger};
 use log::{debug, info, LevelFilter};
 use mpi::traits::Communicator;
 use mpi::Rank;
@@ -16,11 +16,12 @@ use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partitio
 /// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
 fn setup_logging_mpi(rank: Rank) {
     let _logger = Logger::with(LevelFilter::Debug)
-        .format(opt_format)
+        .format(json_format)
         .log_to_file(
             FileSpec::default()
                 .discriminant(format!("rank{}", rank))
-                .suppress_timestamp(),
+                .suppress_timestamp()
+                .suffix("log.json"),
         )
         .duplicate_to_stdout(Duplicate::Info)
         .start()
@@ -36,8 +37,7 @@ fn main() {
     let rank = world.rank();
     let root = world.process_at_rank(0);
     setup_logging_mpi(rank);
-    info!("Running basic_usage");
-    info!("This is rank {rank} of {size}");
+    info!(rank, size; "Running basic_usage");
 
     let seed = 23;
     let qubits = 20;
@@ -45,7 +45,7 @@ fn main() {
     let single_qubit_probability = 0.4;
     let two_qubit_probability = 0.4;
     let connectivity = ConnectivityLayout::Osprey;
-    info!("Configuration: seed={seed}, qubits={qubits}, depth={depth}, single_qubit_probability={single_qubit_probability}, two_qubit_probability={two_qubit_probability}, connectivity={connectivity:?}");
+    info!(seed, qubits, depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
 
     // Setup tensor network
     let (mut partitioned_tn, path) = if rank == 0 {
@@ -66,7 +66,7 @@ fn main() {
                 String::from("tests/km1_kKaHyPar_sea20.ini"),
                 true,
             );
-            debug!("Partitioning: {partitioning:?}");
+            debug!(partitioning:serde; "Partitioning created");
             partition_tensor_network(&r_tn, &partitioning)
         } else {
             r_tn
@@ -75,7 +75,7 @@ fn main() {
 
         opt.optimize_path();
         let path = opt.get_best_replace_path();
-        debug!("Contraction path: {path:?}");
+        debug!(path:serde; "Found contraction path");
         (partitioned_tn, path)
     } else {
         Default::default()
