@@ -1,4 +1,4 @@
-use mpi::traits::{Communicator, CommunicatorCollectives};
+use mpi::traits::Communicator;
 use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
@@ -119,13 +119,11 @@ fn test_partitioned_contraction_need_mpi() {
     } else {
         Default::default()
     };
-    world.barrier();
     let (mut local_tn, local_path) =
         scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
     contract_tensor_network(&mut local_tn, &local_path);
 
     naive_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
-    world.barrier();
 
     if rank == 0 {
         let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
