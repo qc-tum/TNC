@@ -571,7 +571,7 @@ pub fn balance_partitions_iter(
         &contraction_tree,
         tensor,
         dendogram_cost_function,
-        output_file.clone() + "_0",
+        &format!("{output_file}_0"),
     );
 
     let mut new_tn;
@@ -655,7 +655,7 @@ pub fn balance_partitions_iter(
             &contraction_tree,
             tensor,
             dendogram_cost_function,
-            output_file.clone() + &format!("_{}", i),
+            &format!("{output_file}_{i}"),
         );
     }
 

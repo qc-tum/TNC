@@ -2,7 +2,6 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     fs,
-    io::Write,
     process::{Command, Stdio},
 };
 
@@ -185,7 +184,7 @@ pub fn to_dendogram_format(
     dendogram_entries.into_inner()
 }
 
-pub fn to_pdf(dendogram_entries: Vec<DendogramEntry>, svg_name: String) {
+pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
     let mut tikz_picture = String::from(
         r#"% tikzpic.tex
 \documentclass[crop,tikz]{standalone}% 'crop' is the default for v1.0, before it was 'preview'
@@ -203,7 +202,7 @@ pub fn to_pdf(dendogram_entries: Vec<DendogramEntry>, svg_name: String) {
         cost,
         color,
         children: (node_1_id, node_2_id),
-    } in dendogram_entries.iter()
+    } in dendogram_entries
     {
         id_position.entry(id).or_insert_with(|| (x, y));
 
@@ -234,14 +233,14 @@ pub fn to_pdf(dendogram_entries: Vec<DendogramEntry>, svg_name: String) {
 \end{document}
 "#,
     );
-    to_pdflatex(tikz_picture, svg_name);
+    compile_tex(pdf_name, &tikz_picture);
 }
 
 pub fn to_dendogram(
     contraction_tree: &ContractionTree,
     tn: &Tensor,
     cost_function: fn(&Tensor, &Tensor) -> f64,
-    svg_name: String,
+    pdf_name: &str,
 ) {
     let length = 80f64;
     let x_spacing = length / tn.total_num_tensors() as f64;
@@ -331,23 +330,20 @@ pub fn to_dendogram(
 \end{document}
 "#,
     );
-    to_pdflatex(tikz_picture, svg_name);
+    compile_tex(pdf_name, &tikz_picture);
 }
 
-fn to_pdflatex(tikz_picture: String, svg_name: String) {
-    let mut pdf_output = Command::new("pdflatex")
-        .arg("-quiet")
-        .arg(format!("-jobname={svg_name}"))
-        .stdin(Stdio::piped())
+/// Compiles the `tex_code` using `pdflatex` and saves the output as `pdf_name`.
+fn compile_tex(pdf_name: &str, tex_code: &str) {
+    fs::write("final.tex", tex_code).unwrap();
+
+    let compilation_status = Command::new("pdflatex")
+        .arg(format!("-jobname={pdf_name}"))
+        .arg("final.tex")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()
+        .status()
         .unwrap();
-    fs::write("final.txt", tikz_picture.clone()).expect("Unable to write out .gv file");
-    let mut pdf_run = pdf_output.stdin.take().expect("Failed to open stdin");
-    std::thread::spawn(move || {
-        pdf_run
-            .write_all(tikz_picture.as_bytes())
-            .expect("Failed to write to stdin");
-    });
+
+    assert!(compilation_status.success());
 }
