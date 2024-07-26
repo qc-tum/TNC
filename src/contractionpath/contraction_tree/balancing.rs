@@ -1,3 +1,4 @@
+use core::f64;
 use std::{cmp::minmax, collections::HashMap};
 
 use itertools::Itertools;
