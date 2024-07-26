@@ -6,8 +6,6 @@ use crate::types::ContractionIndex;
 use balancing::{balance_partitions, tensor_bipartition};
 use export::to_dendogram;
 use itertools::Itertools;
-use rand::distributions::{Distribution, WeightedIndex};
-use rand::thread_rng;
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
