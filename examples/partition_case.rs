@@ -81,9 +81,7 @@ fn main() {
     } else {
         Default::default()
     };
-    // println!("partitioned_tn: {:?}", partitioned_tn);
-    // println!("path: {:?}", path);
-    // Distribute tensor network and contract
+
     let local_tn = if size > 1 {
         let (mut local_tn, local_path) =
             scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
