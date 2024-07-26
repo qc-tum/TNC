@@ -91,7 +91,7 @@ pub(super) fn balance_partitions(
     // Get bigger subtree leaf nodes
     let mut larger_subtree_leaf_nodes = contraction_tree.leaf_ids(larger_subtree_id);
     // Find the leaf node in the smaller subtree that causes the biggest memory reduction in the bigger subtree
-    let mut max_overlap = 0f64;
+    let mut max_overlap = f64::MIN;
     let mut smaller_subtree_id = partition_costs.len();
     let mut rebalanced_node = 0;
     for (subtree_id, _) in partition_costs.iter().take(partition_costs.len() - 1) {
