@@ -1,4 +1,3 @@
-use core::f64;
 use std::{cmp::minmax, collections::HashMap};
 
 use itertools::Itertools;
@@ -92,7 +91,7 @@ pub(super) fn balance_partitions(
     // Get bigger subtree leaf nodes
     let mut larger_subtree_leaf_nodes = contraction_tree.leaf_ids(larger_subtree_id);
     // Find the leaf node in the smaller subtree that causes the biggest memory reduction in the bigger subtree
-    let mut max_overlap = f64::MIN;
+    let mut max_overlap = None;
     let mut smaller_subtree_id = partition_costs.len();
     let mut rebalanced_node = 0;
     for (subtree_id, _) in partition_costs.iter().take(partition_costs.len() - 1) {
@@ -104,8 +103,8 @@ pub(super) fn balance_partitions(
             greedy_cost_fn,
             tn,
         );
-        if cost > max_overlap {
-            max_overlap = cost;
+        if max_overlap.map(|ov| cost > ov).unwrap_or(true) {
+            max_overlap = Some(cost);
             smaller_subtree_id = *subtree_id;
             rebalanced_node = potential_node;
         }
