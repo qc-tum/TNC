@@ -77,25 +77,24 @@ pub fn to_dendogram_format(
 
     for (i, partition) in partitions.iter().enumerate() {
         partition_color
-            .entry(i)
-            .or_insert(String::from(*colors.next().unwrap()));
+            .try_insert(i, String::from(*colors.next().unwrap()))
+            .unwrap();
         for &leaf_id in partition {
-            id_to_partition
-                .borrow_mut()
-                .entry(leaf_id)
-                .or_insert_with(|| i);
-            tree_weights.entry(leaf_id).or_insert_with(|| 0f64);
-            intermediate_tensors.entry(leaf_id).or_insert_with(|| {
-                tensor_network
-                    .nested_tensor(
-                        contraction_tree
-                            .node(leaf_id)
-                            .tensor_index
-                            .as_ref()
-                            .unwrap(),
-                    )
-                    .clone()
-            });
+            id_to_partition.borrow_mut().try_insert(leaf_id, i).unwrap();
+            tree_weights.try_insert(leaf_id, 0f64).unwrap();
+            intermediate_tensors
+                .try_insert(leaf_id, {
+                    tensor_network
+                        .nested_tensor(
+                            contraction_tree
+                                .node(leaf_id)
+                                .tensor_index
+                                .as_ref()
+                                .unwrap(),
+                        )
+                        .clone()
+                })
+                .unwrap();
         }
     }
     println!("Partition color: {:?}", partition_color);
@@ -109,7 +108,7 @@ pub fn to_dendogram_format(
                 );
             }
             let (x, y) = (next_leaf_x, 0f64);
-            node_map.entry(node_id).or_insert((x, y));
+            node_map.try_insert(node_id, (x, y)).unwrap();
             dendogram_entries.borrow_mut().push(DendogramEntry {
                 id: node_id,
                 x,
@@ -145,8 +144,8 @@ pub fn to_dendogram_format(
             // Attribute this intermediate node to particular partition.
             id_to_partition
                 .borrow_mut()
-                .entry(parent_id)
-                .or_insert_with(|| partition);
+                .try_insert(parent_id, partition)
+                .unwrap();
             partition_color[&id_to_partition.borrow()[&node_1_id]].clone()
         } else {
             // Otherwise, this happens in parallel
@@ -156,8 +155,8 @@ pub fn to_dendogram_format(
             communication_color.clone()
         };
         node_to_position
-            .entry(parent_id)
-            .or_insert_with(|| ((x1 + x2) / 2f64, parent_cost));
+            .try_insert(parent_id, ((x1 + x2) / 2f64, parent_cost))
+            .unwrap();
         dendogram_entries.borrow_mut().push(DendogramEntry {
             id: parent_id,
             x: (x1 + x2) / 2f64,
@@ -166,10 +165,10 @@ pub fn to_dendogram_format(
             color,
             children: (node_1_id, node_2_id),
         });
-        tree_weights.entry(parent_id).or_insert_with(|| parent_cost);
+        tree_weights.try_insert(parent_id, parent_cost).unwrap();
         intermediate_tensors
-            .entry(parent_id)
-            .or_insert_with(|| parent_tensor);
+            .try_insert(parent_id, parent_tensor)
+            .unwrap();
     };
 
     while let Some(ContractionIndex::Pair(i, j)) = path_iter.next() {
@@ -204,7 +203,7 @@ pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
         children: (node_1_id, node_2_id),
     } in dendogram_entries
     {
-        id_position.entry(id).or_insert_with(|| (x, y));
+        id_position.try_insert(id, (x, y)).unwrap();
 
         if node_1_id != node_2_id {
             let (x1, _) = id_position[node_1_id];
@@ -274,7 +273,7 @@ pub fn to_dendogram(
                 );
             }
             let (x, y) = (last_leaf_x, 0f64);
-            node_map.entry(node_id).or_insert((x, y));
+            node_map.try_insert(node_id, (x, y)).unwrap();
             last_leaf_x += x_spacing;
             tikz_picture.push_str(&format!(
                 r#"    \node[label=below:{{{node_id}}}] at ({x}, {y}) ({node_id}) {{}};
@@ -298,8 +297,8 @@ pub fn to_dendogram(
         }
         let scaled_height = parent_cost / scaling_factor * height;
         node_to_position
-            .entry(parent_id)
-            .or_insert(((x1 + x2) / 2f64, scaled_height));
+            .try_insert(parent_id, ((x1 + x2) / 2f64, scaled_height))
+            .unwrap();
         tikz_picture.push_str(&format!(
             r#"    \node[label={{[shift={{(-0.4,-0.1)}}]{}}}, label=below:{{{parent_id}}}] at ({}, {scaled_height}) ({parent_id}) {{}};
 "#,
