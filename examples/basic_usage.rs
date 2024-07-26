@@ -1,4 +1,7 @@
+use flexi_logger::{json_format, Duplicate, FileSpec, Logger};
+use log::{debug, info, LevelFilter};
 use mpi::traits::Communicator;
+use mpi::Rank;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
@@ -10,6 +13,21 @@ use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 
+/// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
+fn setup_logging_mpi(rank: Rank) {
+    let _logger = Logger::with(LevelFilter::Debug)
+        .format(json_format)
+        .log_to_file(
+            FileSpec::default()
+                .discriminant(format!("rank{}", rank))
+                .suppress_timestamp()
+                .suffix("log.json"),
+        )
+        .duplicate_to_stdout(Duplicate::Info)
+        .start()
+        .unwrap();
+}
+
 // Run with at least 2 processes
 fn main() {
     let mut rng = StdRng::seed_from_u64(23);
@@ -18,17 +36,29 @@ fn main() {
     let size = world.size();
     let rank = world.rank();
     let root = world.process_at_rank(0);
+    setup_logging_mpi(rank);
+    info!(rank, size; "Running basic_usage");
 
-    if rank == 0 {
-        println!("Running with {size} processes");
-    }
-
-    let k = 20;
+    let seed = 23;
+    let qubits = 20;
+    let depth = 10;
+    let single_qubit_probability = 0.4;
+    let two_qubit_probability = 0.4;
+    let connectivity = ConnectivityLayout::Osprey;
+    info!(seed, qubits, depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
 
     // Setup tensor network
-    // TODO: Do we need to know communication beforehand?
     let (mut partitioned_tn, path) = if rank == 0 {
-        let r_tn = random_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+        let r_tn = random_circuit(
+            qubits,
+            depth,
+            single_qubit_probability,
+            two_qubit_probability,
+            &mut rng,
+            connectivity,
+        );
+        debug!("Tensors: {}", r_tn.total_num_tensors());
+
         let partitioned_tn = if size > 1 {
             let partitioning = find_partitioning(
                 &r_tn,
@@ -36,6 +66,7 @@ fn main() {
                 String::from("tests/km1_kKaHyPar_sea20.ini"),
                 true,
             );
+            debug!(partitioning:serde; "Partitioning created");
             partition_tensor_network(&r_tn, &partitioning)
         } else {
             r_tn
@@ -44,6 +75,7 @@ fn main() {
 
         opt.optimize_path();
         let path = opt.get_best_replace_path();
+        debug!(path:serde; "Found contraction path");
         (partitioned_tn, path)
     } else {
         Default::default()
@@ -69,6 +101,6 @@ fn main() {
 
     // Print the result
     if rank == 0 {
-        println!("{local_tn:?}");
+        info!("{local_tn:?}");
     }
 }

@@ -1,5 +1,6 @@
 use std::iter::zip;
 
+use log::debug;
 use mpi::topology::{Process, SimpleCommunicator};
 use mpi::traits::{BufferMut, Communicator, Destination, Root, Source};
 use mpi::Rank;
@@ -61,6 +62,8 @@ pub fn broadcast_path(
     root: &Process,
     world: &SimpleCommunicator,
 ) -> Vec<ContractionIndex> {
+    debug!(root=root.rank(), rank=world.rank(), path:serde; "Broadcasting path");
+
     // Serialize path
     let mut data = if world.rank() == root.rank() {
         serialize(&path)
@@ -72,11 +75,14 @@ pub fn broadcast_path(
     broadcast_vec(&mut data, root, world);
 
     // Deserialize path
-    if world.rank() == root.rank() {
+    let path = if world.rank() == root.rank() {
         path.to_vec()
     } else {
         deserialize(&data)
-    }
+    };
+
+    debug!(path:serde; "Received broadcasted path");
+    path
 }
 
 /// Sends the leaf tensor `tensor` to `receiver` via MPI.
@@ -117,9 +123,11 @@ pub fn scatter_tensor_network(
     size: Rank,
     world: &SimpleCommunicator,
 ) -> (Tensor, Vec<ContractionIndex>) {
+    debug!(rank, size, path:serde; "Scattering tensor network");
     let root_process = world.process_at_rank(0);
 
     // Distribute bond_dims
+    debug!(bond_dims:serde = *r_tn.bond_dims(); "Distributing bond dimensions");
     let mut bond_vec = if rank == 0 {
         r_tn.bond_dims()
             .iter()
@@ -132,12 +140,14 @@ pub fn scatter_tensor_network(
     let bond_dims = bond_vec.iter().map(|e| (e.bond_id, e.bond_size)).collect();
 
     // Distribute tensors
+    debug!("Distributing paths and tensors");
     let (local_tn, local_path) = if rank == 0 {
         let local_path = path[0].clone().get_data();
         let local_tn = r_tn.tensor(0).clone();
 
         // Send the local paths to the other processes
         for (i, contraction_path) in zip(1..size, path[1..size as usize].iter()) {
+            debug!(receiver = i, local_path:serde = contraction_path; "Sending local path");
             match contraction_path {
                 ContractionIndex::Path(_, local) => {
                     world.process_at_rank(i).send(&serialize(&local));
@@ -145,30 +155,40 @@ pub fn scatter_tensor_network(
                 ContractionIndex::Pair(_, _) => panic!("Requires path"),
             }
         }
+        debug!("Sent all local paths");
 
         // Send the tensors to the other processes
         for (i, tensor) in zip(1..size, r_tn.tensors()[1..size as usize].iter()) {
             let num_tensors = tensor.tensors().len();
+            debug!(receiver = i, num_tensors; "Sending tensor count");
             world.process_at_rank(i).send(&num_tensors);
+            debug!(receiver = i; "Sending tensors");
             for inner_tensor in tensor.tensors() {
                 send_leaf_tensor(inner_tensor, i, world);
             }
         }
+        debug!("Sent all tensors");
         (local_tn, local_path)
     } else {
         // Receive local path
-        let (raw_path, _status) = world.any_process().receive_vec::<u8>();
+        debug!(sender = 0; "Receiving local path");
+        let (raw_path, _status) = world.process_at_rank(0).receive_vec::<u8>();
         let local_path = deserialize(&raw_path);
+        debug!(local_path:serde; "Received local path");
 
         // Receive tensors
+        debug!(sender = 0; "Receiving tensor count");
         let mut local_tn = Tensor::default();
-        let (num_tensors, _status) = world.any_process().receive::<usize>();
+        let (num_tensors, _status) = world.process_at_rank(0).receive::<usize>();
+        debug!(sender = 0, num_tensors; "Receiving tensors");
         for _ in 0..num_tensors {
             let new_tensor = receive_leaf_tensor(0, world);
             local_tn.push_tensor(new_tensor, Some(&bond_dims));
         }
+        debug!("Received all tensors");
         (local_tn, local_path)
     };
+    debug!("Scattered tensor network");
     (local_tn, local_path)
 }
 
@@ -180,6 +200,7 @@ pub fn intermediate_reduce_tensor_network(
     rank: Rank,
     world: &SimpleCommunicator,
 ) {
+    debug!(rank, path:serde; "Reducing tensor network (intermediate)");
     let mut final_rank = 0;
     for pair in path {
         match pair {
@@ -189,6 +210,7 @@ pub fn intermediate_reduce_tensor_network(
                 final_rank = receiver;
                 if receiver == rank {
                     // Insert received tensor into local tensor
+                    debug!(sender; "Receiving tensor");
                     let received_tensor = receive_leaf_tensor(sender, world);
                     local_tn.push_tensor(received_tensor, None);
 
@@ -196,6 +218,7 @@ pub fn intermediate_reduce_tensor_network(
                     contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
                 }
                 if sender == rank {
+                    debug!(receiver; "Sending tensor");
                     send_leaf_tensor(local_tn, receiver, world);
                 }
             }
@@ -205,14 +228,18 @@ pub fn intermediate_reduce_tensor_network(
 
     // Only runs if the final contracted process is not process 0
     if final_rank != 0 {
+        debug!(rank, final_rank; "Final rank is not 0");
         if rank == 0 {
+            debug!(sender = final_rank; "Receiving final tensor");
             let received_tensor = receive_leaf_tensor(final_rank, world);
             *local_tn = received_tensor;
         }
         if rank == final_rank {
+            debug!(receiver = 0; "Sending final tensor");
             send_leaf_tensor(local_tn, 0, world);
         }
     }
+    debug!("Reduced tensor network");
 }
 
 /// Sends all tensors to the root process before contracting all tensors.
@@ -223,13 +250,16 @@ pub fn naive_reduce_tensor_network(
     size: Rank,
     world: &SimpleCommunicator,
 ) {
+    debug!(rank, size, path:serde; "Reducing tensor network (naive)");
     if rank == 0 {
         for i in 1..size {
             // Add received tensor to final tensor network
+            debug!(sender = i; "Receiving tensor");
             let received_tensor = receive_leaf_tensor(i, world);
             local_tn.push_tensor(received_tensor, None);
         }
     } else {
+        debug!(receiver = 0; "Sending tensor");
         send_leaf_tensor(local_tn, 0, world);
     }
 
@@ -237,6 +267,7 @@ pub fn naive_reduce_tensor_network(
         // Contract the final tensor network
         contract_tensor_network(local_tn, &path[(size as usize)..path.len()]);
     }
+    debug!("Reduced tensor network");
 }
 
 #[cfg(test)]

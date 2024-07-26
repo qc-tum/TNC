@@ -5,3 +5,4 @@ src/qasm/.antlr
 *.gv
 *.aux
 *.log
+*.log.json
