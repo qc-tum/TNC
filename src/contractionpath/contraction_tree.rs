@@ -517,16 +517,28 @@ fn populate_subtree_tensor_map(
     }
 }
 
+pub struct BalanceSettings {
+    pub random_balance: bool,
+    pub rebalance_depth: usize,
+    pub iterations: usize,
+    pub output_file: String,
+    pub dendogram_cost_function: fn(&Tensor, &Tensor) -> f64,
+    pub greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
+    pub communication_scheme: CommunicationScheme,
+}
+
 pub fn balance_partitions_iter(
     tensor: &Tensor,
     path: &[ContractionIndex],
-    random_balance: bool,
-    rebalance_depth: usize,
-    iterations: usize,
-    output_file: String,
-    dendogram_cost_function: fn(&Tensor, &Tensor) -> f64,
-    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
-    communication_scheme: CommunicationScheme,
+    BalanceSettings {
+        random_balance,
+        rebalance_depth,
+        iterations,
+        output_file,
+        dendogram_cost_function,
+        greedy_cost_function,
+        communication_scheme,
+    }: BalanceSettings,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
     let bond_dims = tensor.bond_dims();
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor, path);

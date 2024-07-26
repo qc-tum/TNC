@@ -2,7 +2,9 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
-use tensorcontraction::contractionpath::contraction_tree::balance_partitions_iter;
+use tensorcontraction::contractionpath::contraction_tree::{
+    balance_partitions_iter, BalanceSettings,
+};
 use tensorcontraction::contractionpath::paths::greedy::Greedy;
 use tensorcontraction::contractionpath::paths::{CostType, OptimizePath};
 use tensorcontraction::mpi::communication::CommunicationScheme;
@@ -50,24 +52,20 @@ fn main() {
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
     opt.optimize_path();
     let path = opt.get_best_replace_path();
-    let now = Instant::now();
+
     let rebalance_depth = 1;
-    let (num, mut new_tn, contraction_path, _costs) = balance_partitions_iter(
+    let (_num, mut new_tn, contraction_path, _costs) = balance_partitions_iter(
         &partitioned_tn,
         &path,
-        false,
-        rebalance_depth,
-        30,
-        String::from("output/rebalance_trial"),
-        contract_cost_tensors,
-        greedy_cost_fn,
-        CommunicationScheme::Greedy,
+        BalanceSettings {
+            random_balance: false,
+            rebalance_depth,
+            iterations: 30,
+            output_file: String::from("output/rebalance_trial"),
+            dendogram_cost_function: contract_cost_tensors,
+            greedy_cost_function: greedy_cost_fn,
+            communication_scheme: CommunicationScheme::Greedy,
+        },
     );
-    // repartition_tn(&partitioned_tn, &new_tree, rebalance_depth);
-    println!("partitioned_tn: {:?}", new_tn.total_num_tensors());
-    println!("Best path: {:?}", num);
-    println!("Final path: {:?}", contraction_path);
     contract_tensor_network(&mut new_tn, &contraction_path);
-    println!("new_tn: {:?}", new_tn);
-    println!("{:?}", now.elapsed());
 }
