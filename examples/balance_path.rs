@@ -14,8 +14,6 @@ use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::tensornetwork::tensor::Tensor;
 
-use std::time::Instant;
-
 fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
     t1.size() as f64 + t2.size() as f64 - (t1 ^ t2).size() as f64
 }
