@@ -11,7 +11,7 @@ use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 
-use mpi::traits::{Communicator, CommunicatorCollectives};
+use mpi::traits::Communicator;
 use tensorcontraction::tensornetwork::tensor::Tensor;
 
 fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
