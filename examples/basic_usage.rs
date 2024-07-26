@@ -1,4 +1,4 @@
-use mpi::traits::{Communicator, CommunicatorCollectives};
+use mpi::traits::Communicator;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
@@ -48,7 +48,6 @@ fn main() {
     } else {
         Default::default()
     };
-    world.barrier();
 
     // Distribute tensor network and contract
     let local_tn = if size > 1 {
@@ -61,8 +60,7 @@ fn main() {
         } else {
             broadcast_path(&[], &root, &world)
         };
-        world.barrier();
-        intermediate_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
+        intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
         local_tn
     } else {
         contract_tensor_network(&mut partitioned_tn, &path);

@@ -77,7 +77,6 @@ fn main() {
     } else {
         Default::default()
     };
-    world.barrier();
     // println!("partitioned_tn: {:?}", partitioned_tn);
     // println!("path: {:?}", path);
     // Distribute tensor network and contract
@@ -91,8 +90,7 @@ fn main() {
         } else {
             broadcast_path(&[], &root, &world)
         };
-        world.barrier();
-        intermediate_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
+        intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
         local_tn
     } else {
         contract_tensor_network(&mut partitioned_tn, &path);
