@@ -17,7 +17,7 @@ use super::contraction_cost::contract_path_cost;
 use super::paths::validate_path;
 
 mod balancing;
-mod export;
+pub mod export;
 mod utils;
 
 type NodeRef = Rc<RefCell<Node>>;
