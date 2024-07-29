@@ -122,19 +122,15 @@ pub(super) fn balance_partitions(
         .max_by(|(_, _, cost_a), (_, _, cost_b)| cost_a.total_cmp(cost_b))
         .unwrap();
 
-    let new_max = partition_costs
+    let mut new_max = partition_costs
         .iter()
-        .filter(|(subtree_id, _)| {
-            *subtree_id != larger_subtree_id && *subtree_id != smaller_subtree_id
+        .filter(|&&(subtree_id, _)| {
+            subtree_id != smaller_subtree_id && subtree_id != larger_subtree_id
         })
-        .collect::<Vec<&(usize, f64)>>();
+        .map(|(_, cost)| *cost)
+        .last()
+        .unwrap_or_default();
 
-    let mut new_max = if !new_max.is_empty() {
-        let (_, new_max) = new_max.last().unwrap();
-        *new_max
-    } else {
-        0f64
-    };
     // Remove the updated partitions from the `ContractionTree`
     contraction_tree
         .partitions
