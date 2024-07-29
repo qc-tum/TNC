@@ -110,7 +110,6 @@ pub fn communication_partitioning(
     let mut hyperedges = vec![];
     // Bidirectional mapping to a new index as KaHyPar indexes from 0.
     let mut edge_to_virtual_edge = HashMap::new();
-    let mut virtual_edge_to_edge = HashMap::new();
     // New index that starts from 0
     let mut edge_count = 0;
 
@@ -137,7 +136,6 @@ pub fn communication_partitioning(
                         hyperedges.push(edge_to_virtual_edge[id] as u32);
                     } else {
                         edge_to_virtual_edge.insert(id, edge_count);
-                        virtual_edge_to_edge.insert(edge_count, id);
                         hyperedges.push(edge_count as u32);
                         edge_count += 1;
                     }
