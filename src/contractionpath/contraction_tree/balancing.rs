@@ -156,27 +156,23 @@ pub(super) fn balance_partitions(
     smaller_subtree_leaf_nodes.push(rebalanced_node);
     larger_subtree_leaf_nodes.retain(|&leaf| leaf != rebalanced_node);
 
-    let (smaller_indices, updated_smaller_path) = subtree_contraction_path(
-        smaller_subtree_leaf_nodes,
-        tn,
-        contraction_tree,
-        &mut new_max,
-        true,
-    );
+    let (updated_smaller_path, max_cost_1) =
+        subtree_contraction_path(&smaller_subtree_leaf_nodes, tn, contraction_tree, true);
 
-    let (larger_indices, updated_larger_path) = subtree_contraction_path(
-        larger_subtree_leaf_nodes,
-        tn,
-        contraction_tree,
-        &mut new_max,
-        true,
-    );
+    let (updated_larger_path, max_cost_2) =
+        subtree_contraction_path(&larger_subtree_leaf_nodes, tn, contraction_tree, true);
+
+    let max_cost = max_cost_1.max(max_cost_2);
+
+    if max_cost > new_max {
+        new_max = max_cost;
+    }
 
     contraction_tree.remove_subtree(smaller_subtree_id);
     let smaller_partition_root = contraction_tree.add_subtree(
         &updated_smaller_path,
         smaller_subtree_parent_id,
-        &smaller_indices,
+        &smaller_subtree_leaf_nodes,
     );
 
     contraction_tree
@@ -189,7 +185,7 @@ pub(super) fn balance_partitions(
     let larger_partition_root = contraction_tree.add_subtree(
         &updated_larger_path,
         larger_subtree_parent_id,
-        &larger_indices,
+        &larger_subtree_leaf_nodes,
     );
 
     contraction_tree

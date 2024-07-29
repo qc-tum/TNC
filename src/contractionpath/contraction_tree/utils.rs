@@ -104,36 +104,30 @@ pub(super) fn subtensor_network(
     (local_tensors, local_contraction_path)
 }
 
-/// Generates a local contraction path for a subtree in a ContractionTree
+/// Generates a local contraction path for a subtree in a ContractionTree, returns the
 /// One issue of generating a contraction path for a subtree is that tensor ids do not follow a strict
 /// ordering. Hence, a reindexing is required to find the replace contraction path. This function can
 /// return the replace contraction path if `replace` is set to true.
 pub(super) fn subtree_contraction_path(
-    subtree_leaf_nodes: Vec<usize>,
+    subtree_leaf_nodes: &[usize],
     tn: &Tensor,
     contraction_tree: &mut ContractionTree,
-    new_max: &mut f64,
     replace: bool,
-) -> (Vec<usize>, Vec<ContractionIndex>) {
+) -> (Vec<ContractionIndex>, f64) {
     // Obtain the flattened list of Tensors corresponding to `indices`. Introduces a new indexing to find the replace contraction path.
-    let (indices, tensors): (Vec<_>, Vec<_>) = subtree_leaf_nodes
+    let tensors = subtree_leaf_nodes
         .iter()
         .map(|&e| {
-            (
-                e,
-                tn.nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
-                    .clone(),
-            )
+            tn.nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
+                .clone()
         })
-        .unzip();
+        .collect();
     // Obtain tensor network corresponding to subtree
     let tn_subtree = create_tensor_network(tensors, &tn.bond_dims(), None);
 
     let mut opt = Greedy::new(&tn_subtree, CostType::Flops);
     opt.optimize_path();
-    if opt.get_best_flops() > *new_max {
-        *new_max = opt.get_best_flops();
-    }
+
     let path_smaller_subtree = if replace {
         opt.get_best_replace_path()
     } else {
@@ -144,13 +138,13 @@ pub(super) fn subtree_contraction_path(
         .iter()
         .map(|e| {
             if let ContractionIndex::Pair(v1, v2) = e {
-                pair!(indices[*v1], indices[*v2])
+                pair!(subtree_leaf_nodes[*v1], subtree_leaf_nodes[*v2])
             } else {
                 panic!("Should only produce Pairs!")
             }
         })
         .collect_vec();
-    (indices, updated_smaller_path)
+    (updated_smaller_path, opt.get_best_flops())
 }
 
 /// Calculate partition contraction cast of all children at `rebalance_depth`
