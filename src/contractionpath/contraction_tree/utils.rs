@@ -153,6 +153,9 @@ pub(super) fn subtree_contraction_path(
     (indices, updated_smaller_path)
 }
 
+/// Calculate partition contraction cast of all children at `rebalance_depth`
+/// Returns a vector of tuples, where each tuple has the tensor_id of the child and its contraction cost.
+/// tensor_id is required to identify the partition if it is sorted.
 pub(super) fn calculate_partition_costs(
     contraction_tree: &ContractionTree,
     rebalance_depth: usize,
