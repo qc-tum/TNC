@@ -162,7 +162,6 @@ pub(super) fn calculate_partition_costs(
     tensor: &Tensor,
     sort: bool,
 ) -> Vec<(usize, f64)> {
-    // Create binary contraction tree.
     let children = &contraction_tree.partitions()[&rebalance_depth];
     assert!(children.len() > 1);
 
