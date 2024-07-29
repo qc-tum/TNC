@@ -97,7 +97,7 @@ pub fn to_dendogram_format(
                 .unwrap();
         }
     }
-    println!("Partition color: {:?}", partition_color);
+
     let mut get_coordinates = |node_id, node_map: &mut HashMap<usize, (f64, f64)>| -> (f64, f64) {
         if let Some((x, y)) = node_map.get(&node_id) {
             (*x, *y)
