@@ -383,6 +383,8 @@ impl ContractionTree {
     /// # Arguments
     /// * `node` - pointer to [`Node`] object
     /// * `path` - vec to store contraction path in
+    /// * `replace` - if set to `true` returns replace path, otherwise, returns in SSA format
+    /// * `hierarchy` - if set to `true` returns a nested contraction path, otherwise returns a flat contraction path
     fn to_contraction_path_recurse(
         node: &Node,
         path: &mut Vec<ContractionIndex>,
@@ -434,6 +436,10 @@ impl ContractionTree {
     }
 
     /// Populates given vector with contractions path of contraction tree starting at `node_id`.
+    /// # Arguments
+    /// * `node` - pointer to [`Node`] object
+    /// * `replace` - if set to `true` returns replace path, otherwise, returns in SSA format
+    /// * `hierarchy` - if set to `true` returns a nested contraction path, otherwise returns a flat contraction path
     pub fn to_flat_contraction_path(&self, node_id: usize, replace: bool) -> Vec<ContractionIndex> {
         let node = self.node(node_id);
         let mut path = Vec::new();
