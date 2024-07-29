@@ -19,7 +19,8 @@ use crate::{
 use super::{populate_subtree_tensor_map, ContractionTree};
 
 /// Uses recursive bipartitioning to identify a communication scheme for final tensors
-pub(super) fn tensor_bipartition(
+/// Returns root id of subtree, parallel contraction cost as f64, resultant tensor and prior contraction sequence
+fn tensor_bipartition_recursive(
     children_tensor: &[(usize, Tensor)],
     bond_dims: &HashMap<usize, u64>,
 ) -> (usize, f64, Tensor, Vec<ContractionIndex>) {
@@ -52,9 +53,11 @@ pub(super) fn tensor_bipartition(
         .cloned()
         .partition(|_| partition_iter.next() == Some(&0));
 
-    let (id_1, cost_1, t1, mut contraction_1) = tensor_bipartition(&children_1, bond_dims);
+    let (id_1, cost_1, t1, mut contraction_1) =
+        tensor_bipartition_recursive(&children_1, bond_dims);
 
-    let (id_2, cost_2, t2, mut contraction_2) = tensor_bipartition(&children_2, bond_dims);
+    let (id_2, cost_2, t2, mut contraction_2) =
+        tensor_bipartition_recursive(&children_2, bond_dims);
 
     let cost = cost_1.max(cost_2) + contract_cost_tensors(&t1, &t2);
     let tensor = &t1 ^ &t2;
@@ -63,6 +66,17 @@ pub(super) fn tensor_bipartition(
     let [id_1, id_2] = minmax(id_1, id_2);
     contraction_1.push(pair!(id_1, id_2));
     (id_1, cost, tensor, contraction_1)
+}
+
+/// Repeatedly bipartitions tensor network to obtain communication scheme
+/// Assumes that all tensors contracted do so in parallel
+pub(super) fn tensor_bipartition(
+    children_tensor: &[(usize, Tensor)],
+    bond_dims: &HashMap<usize, u64>,
+) -> (f64, Vec<ContractionIndex>) {
+    let (_, contraction_cost, _, contraction_path) =
+        tensor_bipartition_recursive(children_tensor, bond_dims);
+    (contraction_cost, contraction_path)
 }
 
 pub(super) fn balance_partitions(

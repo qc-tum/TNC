@@ -632,7 +632,7 @@ pub fn balance_partitions_iter(
             }
             CommunicationScheme::Bipartition => {
                 let children_tensors = children_tensors.iter().cloned().enumerate().collect_vec();
-                let (_, final_op_cost, _, final_contraction) =
+                let (final_op_cost, final_contraction) =
                     tensor_bipartition(&children_tensors, &bond_dims);
 
                 (final_op_cost, final_contraction)
