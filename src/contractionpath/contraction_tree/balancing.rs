@@ -105,24 +105,22 @@ pub(super) fn balance_partitions(
     // Get bigger subtree leaf nodes
     let mut larger_subtree_leaf_nodes = contraction_tree.leaf_ids(larger_subtree_id);
     // Find the leaf node in the smaller subtree that causes the biggest memory reduction in the bigger subtree
-    let mut max_overlap = None;
-    let mut smaller_subtree_id = partition_costs.len();
-    let mut rebalanced_node = 0;
-    for (subtree_id, _) in partition_costs.iter().take(partition_costs.len() - 1) {
-        let (potential_node, cost) = rebalance_node_largest_overlap(
-            random_balance,
-            contraction_tree,
-            &larger_subtree_leaf_nodes,
-            *subtree_id,
-            greedy_cost_fn,
-            tn,
-        );
-        if max_overlap.map(|ov| cost > ov).unwrap_or(true) {
-            max_overlap = Some(cost);
-            smaller_subtree_id = *subtree_id;
-            rebalanced_node = potential_node;
-        }
-    }
+    let (smaller_subtree_id, rebalanced_node, _) = partition_costs
+        .iter()
+        .take(partition_costs.len() - 1)
+        .map(|(subtree_root_id, _)| {
+            let (potential_node, cost) = rebalance_node_largest_overlap(
+                random_balance,
+                contraction_tree,
+                &larger_subtree_leaf_nodes,
+                *subtree_root_id,
+                greedy_cost_fn,
+                tn,
+            );
+            (*subtree_root_id, potential_node, cost)
+        })
+        .max_by(|(_, _, cost_a), (_, _, cost_b)| cost_a.total_cmp(cost_b))
+        .unwrap();
 
     let new_max = partition_costs
         .iter()
