@@ -92,7 +92,8 @@ pub(super) fn balance_partitions(
         // TODO: should not panic, but handle gracefully
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
     }
-
+    // Will cause strange errors (picking of same partition multiple times if this is not true.Better to panic here.)
+    assert!(partition_costs.len() > 1);
     // Use memory reduction to identify which leaf node to shift between partitions.
     let bond_dims = tn.bond_dims();
     // Obtain most expensive and cheapest partitions

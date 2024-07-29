@@ -163,7 +163,6 @@ pub(super) fn calculate_partition_costs(
     sort: bool,
 ) -> Vec<(usize, f64)> {
     let children = &contraction_tree.partitions()[&rebalance_depth];
-    assert!(children.len() > 1);
 
     // Identify the contraction cost of each partition
     let mut partition_costs = children
