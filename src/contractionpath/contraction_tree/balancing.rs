@@ -251,7 +251,7 @@ pub(super) fn find_potential_nodes(
 
 pub(super) fn rebalance_node_largest_overlap(
     random_balance: bool,
-    contraction_tree: &mut ContractionTree,
+    contraction_tree: &ContractionTree,
     larger_subtree_leaf_nodes: &[usize],
     smaller_subtree_id: usize,
     greedy_cost_fn: fn(&Tensor, &Tensor) -> f64,
