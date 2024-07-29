@@ -160,6 +160,7 @@ pub(super) fn balance_partitions(
         tn,
         contraction_tree,
         &mut new_max,
+        true,
     );
 
     let (larger_indices, updated_larger_path) = subtree_contraction_path(
@@ -167,6 +168,7 @@ pub(super) fn balance_partitions(
         tn,
         contraction_tree,
         &mut new_max,
+        true,
     );
 
     contraction_tree.remove_subtree(smaller_subtree_id);

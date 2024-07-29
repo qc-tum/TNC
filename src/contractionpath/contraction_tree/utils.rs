@@ -104,13 +104,18 @@ pub(super) fn subtensor_network(
     (local_tensors, local_contraction_path)
 }
 
+/// Generates a local contraction path for a subtree in a ContractionTree
+/// One issue of generating a contraction path for a subtree is that tensor ids do not follow a strict
+/// ordering. Hence, a reindexing is required to find the replace contraction path. This function can
+/// return the replace contraction path if `replace` is set to true.
 pub(super) fn subtree_contraction_path(
     subtree_leaf_nodes: Vec<usize>,
     tn: &Tensor,
     contraction_tree: &mut ContractionTree,
     new_max: &mut f64,
+    replace: bool,
 ) -> (Vec<usize>, Vec<ContractionIndex>) {
-    // Obtain the flattened list of Tensors corresponding to `indices`
+    // Obtain the flattened list of Tensors corresponding to `indices`. Introduces a new indexing to find the replace contraction path.
     let (indices, tensors): (Vec<_>, Vec<_>) = subtree_leaf_nodes
         .iter()
         .map(|&e| {
@@ -129,7 +134,11 @@ pub(super) fn subtree_contraction_path(
     if opt.get_best_flops() > *new_max {
         *new_max = opt.get_best_flops();
     }
-    let path_smaller_subtree = opt.get_best_replace_path();
+    let path_smaller_subtree = if replace {
+        opt.get_best_replace_path()
+    } else {
+        opt.get_best_path().clone()
+    };
 
     let updated_smaller_path = path_smaller_subtree
         .iter()
