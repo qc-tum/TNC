@@ -49,11 +49,11 @@ pub fn parallel_tree_contraction_cost(
 ) -> (f64, f64, Tensor) {
     let left_child_id = contraction_tree.node(node_id).left_child_id();
     let right_child_id = contraction_tree.node(node_id).right_child_id();
-    if left_child_id.is_some() && right_child_id.is_some() {
+    if let (Some(left_child_id), Some(right_child_id)) = (left_child_id, right_child_id) {
         let (left_op_cost, left_mem_cost, t1) =
-            parallel_tree_contraction_cost(contraction_tree, left_child_id.unwrap(), tn);
+            parallel_tree_contraction_cost(contraction_tree, left_child_id, tn);
         let (right_op_cost, right_mem_cost, t2) =
-            parallel_tree_contraction_cost(contraction_tree, right_child_id.unwrap(), tn);
+            parallel_tree_contraction_cost(contraction_tree, right_child_id, tn);
         let current_tensor = &t1 ^ &t2;
         let contraction_cost = contract_cost_tensors(&t1, &t2);
         let current_mem_cost = contract_size_tensors(&t1, &t2);
