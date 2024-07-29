@@ -147,7 +147,7 @@ pub(super) fn balance_partitions(
     // Get smaller subtree leaf nodes
     let mut smaller_subtree_leaf_nodes = contraction_tree.leaf_ids(smaller_subtree_id);
 
-    // Always check that a node is moved over.
+    // Always check that a node can be moved over.
     assert!(!smaller_subtree_leaf_nodes.contains(&rebalanced_node));
     assert!(larger_subtree_leaf_nodes.contains(&rebalanced_node));
 
