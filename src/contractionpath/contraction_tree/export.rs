@@ -190,7 +190,7 @@ pub fn to_dendogram_format(
     }
 
     let scaling_factor = height / dendogram_entries.last().unwrap().cost;
-    for entry in dendogram_entries.iter_mut() {
+    for entry in &mut dendogram_entries {
         entry.y = entry.cost * scaling_factor;
     }
 
