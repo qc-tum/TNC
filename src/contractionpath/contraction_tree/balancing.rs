@@ -162,11 +162,7 @@ pub(super) fn balance_partitions(
     let (updated_larger_path, max_cost_2) =
         subtree_contraction_path(&larger_subtree_leaf_nodes, tn, contraction_tree, true);
 
-    let max_cost = max_cost_1.max(max_cost_2);
-
-    if max_cost > new_max {
-        new_max = max_cost;
-    }
+    new_max = new_max.max(max_cost_1).max(max_cost_2);
 
     contraction_tree.remove_subtree(smaller_subtree_id);
     let smaller_partition_root = contraction_tree.add_subtree(
