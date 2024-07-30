@@ -149,23 +149,24 @@ pub fn to_dendogram_format(
             &intermediate_tensors[&node_2_id],
         );
         // Check that child tensors both exist in partitions and they are in the same partitions
-        let color = if id_to_partition.contains_key(&node_1_id)
-            && id_to_partition.contains_key(&node_2_id)
-            && id_to_partition[&node_1_id] == id_to_partition[&node_2_id]
-        {
-            // If both child node are present in one partition, this happens in serial.
-            parent_cost += tree_weights[&node_1_id];
-            parent_cost += tree_weights[&node_2_id];
-            let partition = id_to_partition[&node_1_id];
-            // Attribute this intermediate node to particular partition.
-            id_to_partition.try_insert(parent_id, partition).unwrap();
-            partition_color[&id_to_partition[&node_1_id]].clone()
-        } else {
-            // Otherwise, this happens in parallel
-            let child_cost = tree_weights[&node_1_id];
-            let child_cost = child_cost.max(tree_weights[&node_2_id]);
-            parent_cost += child_cost;
-            communication_color.clone()
+        let color = match (
+            id_to_partition.get(&node_1_id),
+            id_to_partition.get(&node_2_id),
+        ) {
+            (Some(&partition_1), Some(&partition_2)) if partition_1 == partition_2 => {
+                // If both child node are present in one partition, this happens in serial
+                parent_cost += tree_weights[&node_1_id];
+                parent_cost += tree_weights[&node_2_id];
+                // Attribute this intermediate node to particular partition.
+                id_to_partition.try_insert(parent_id, partition_1).unwrap();
+                partition_color[&partition_1].clone()
+            }
+            _ => {
+                // Otherwise, this happens in parallel
+                let child_cost = tree_weights[&node_1_id].max(tree_weights[&node_2_id]);
+                parent_cost += child_cost;
+                communication_color.clone()
+            }
         };
         node_to_position
             .try_insert(parent_id, ((x1 + x2) / 2f64, parent_cost))
