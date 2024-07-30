@@ -39,7 +39,7 @@ pub struct DendogramEntry {
     y: f64,
     cost: f64,
     color: String,
-    children: (usize, usize),
+    children: Option<(usize, usize)>,
 }
 
 pub fn to_dendogram_format(
@@ -118,7 +118,7 @@ pub fn to_dendogram_format(
                 y,
                 cost: 0f64,
                 color: partition_color[&id_to_partition[&node_id]].clone(),
-                children: (node_id, node_id),
+                children: None,
             });
             next_leaf_x += x_spacing;
             (x, y)
@@ -176,7 +176,7 @@ pub fn to_dendogram_format(
             y: 0f64,
             cost: parent_cost,
             color,
-            children: (node_1_id, node_2_id),
+            children: Some((node_1_id, node_2_id)),
         });
         tree_weights.try_insert(parent_id, parent_cost).unwrap();
         intermediate_tensors
@@ -213,12 +213,12 @@ pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
         y,
         cost,
         color,
-        children: (node_1_id, node_2_id),
+        children,
     } in dendogram_entries
     {
         id_position.try_insert(id, (x, y)).unwrap();
 
-        if node_1_id != node_2_id {
+        if let Some((node_1_id, node_2_id)) = children {
             let (x1, _) = id_position[node_1_id];
             let (x2, _) = id_position[node_2_id];
             tikz_picture.push_str(&format!(
