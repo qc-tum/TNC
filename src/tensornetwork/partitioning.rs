@@ -47,7 +47,7 @@ pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) ->
                     hyperedges.push(*id as u32);
                     length += 1;
                 }
-                Vertex::Open => continue,
+                Vertex::Open => (),
             }
         }
         hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
@@ -141,7 +141,7 @@ pub fn communication_partitioning(
                     }
                     length += 1;
                 }
-                Vertex::Open => continue,
+                Vertex::Open => (),
             }
         }
         hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
