@@ -105,11 +105,11 @@ pub fn to_dendogram_format(
         if let Some((x, y)) = node_map.get(&node_id) {
             (*x, *y)
         } else {
-            if !contraction_tree.node(node_id).is_leaf() {
-                panic!(
-                    "Contraction relies on Node id {node_id:?} but it does not yet exist in tree",
-                );
-            }
+            assert!(
+                contraction_tree.node(node_id).is_leaf(),
+                "Contraction relies on Node id {node_id} but it does not yet exist in tree",
+            );
+
             let (x, y) = (next_leaf_x, 0f64);
             node_map.try_insert(node_id, (x, y)).unwrap();
             dendogram_entries.push(DendogramEntry {
@@ -281,11 +281,11 @@ pub fn to_dendogram(
         if let Some((x, y)) = node_map.get(&node_id) {
             (*x, *y)
         } else {
-            if !contraction_tree.node(node_id).is_leaf() {
-                panic!(
-                    "Contraction relies on Node id {node_id:?} but it does not yet exist in tree",
-                );
-            }
+            assert!(
+                contraction_tree.node(node_id).is_leaf(),
+                "Contraction relies on Node id {node_id} but it does not yet exist in tree",
+            );
+
             let (x, y) = (last_leaf_x, 0f64);
             node_map.try_insert(node_id, (x, y)).unwrap();
             last_leaf_x += x_spacing;
