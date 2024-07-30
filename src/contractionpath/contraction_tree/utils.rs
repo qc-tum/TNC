@@ -111,7 +111,7 @@ pub(super) fn subtensor_network(
 pub(super) fn subtree_contraction_path(
     subtree_leaf_nodes: &[usize],
     tn: &Tensor,
-    contraction_tree: &mut ContractionTree,
+    contraction_tree: &ContractionTree,
     replace: bool,
 ) -> (Vec<ContractionIndex>, f64) {
     // Obtain the flattened list of Tensors corresponding to `indices`. Introduces a new indexing to find the replace contraction path.
