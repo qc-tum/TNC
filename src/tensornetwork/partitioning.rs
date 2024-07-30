@@ -73,8 +73,8 @@ pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) ->
         .collect::<Vec<usize>>()
 }
 
-/// Partitions input tensor network using `KaHyPar` library.
-/// Returns a `Vec<ContractionIndex>` of length equal to the number of input tensors minus one.
+/// Repeatedly partitions a tensor network to identify a communication scheme.
+/// Returns a `Vec<ContractionIndex>` of length equal to the number of input tensors minus one, acts as a commnuication scheme.
 ///
 /// # Arguments
 ///
