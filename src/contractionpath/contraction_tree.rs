@@ -645,7 +645,7 @@ pub fn balance_partitions_iter(
             }
         };
 
-        path.extend(final_contraction.clone());
+        path.extend(final_contraction);
         let new_max_cost = max_cost + final_op_cost;
 
         max_costs.push(new_max_cost);
@@ -653,8 +653,8 @@ pub fn balance_partitions_iter(
         if new_max_cost < best_cost {
             best_cost = new_max_cost;
             best_contraction = i;
-            best_tn = new_tn.clone();
-            best_contraction_path = path.clone();
+            best_tn = new_tn;
+            best_contraction_path = path;
         }
 
         to_dendogram(
