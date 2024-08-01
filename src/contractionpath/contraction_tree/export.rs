@@ -1,8 +1,6 @@
 use std::{
-    cell::RefCell,
     collections::HashMap,
     fs,
-    io::Write,
     process::{Command, Stdio},
 };
 
@@ -41,7 +39,7 @@ pub struct DendogramEntry {
     y: f64,
     cost: f64,
     color: String,
-    children: (usize, usize),
+    children: Option<(usize, usize)>,
 }
 
 pub fn to_dendogram_format(
@@ -67,65 +65,82 @@ pub fn to_dendogram_format(
         .map(|subtree_root_id| contraction_tree.leaf_ids(*subtree_root_id))
         .collect_vec();
 
-    let id_to_partition = RefCell::new(HashMap::new());
+    let mut id_to_partition = HashMap::new();
     let mut partition_color = HashMap::new();
     let mut colors = COLORS.iter();
     let communication_color = String::from(*colors.next().unwrap());
     let mut intermediate_tensors = HashMap::new();
 
-    let dendogram_entries = RefCell::new(Vec::new());
+    let mut dendogram_entries = Vec::new();
     let mut tree_weights = HashMap::new();
 
     for (i, partition) in partitions.iter().enumerate() {
         partition_color
-            .entry(i)
-            .or_insert(String::from(*colors.next().unwrap()));
+            .try_insert(i, String::from(*colors.next().unwrap()))
+            .unwrap();
         for &leaf_id in partition {
-            id_to_partition
-                .borrow_mut()
-                .entry(leaf_id)
-                .or_insert_with(|| i);
-            tree_weights.entry(leaf_id).or_insert_with(|| 0f64);
-            intermediate_tensors.entry(leaf_id).or_insert_with(|| {
-                tensor_network
-                    .nested_tensor(
-                        contraction_tree
-                            .node(leaf_id)
-                            .tensor_index
-                            .as_ref()
-                            .unwrap(),
-                    )
-                    .clone()
-            });
+            id_to_partition.try_insert(leaf_id, i).unwrap();
+            tree_weights.try_insert(leaf_id, 0f64).unwrap();
+            intermediate_tensors
+                .try_insert(leaf_id, {
+                    tensor_network
+                        .nested_tensor(
+                            contraction_tree
+                                .node(leaf_id)
+                                .tensor_index
+                                .as_ref()
+                                .unwrap(),
+                        )
+                        .clone()
+                })
+                .unwrap();
         }
     }
-    let mut get_coordinates = |node_id, node_map: &mut HashMap<usize, (f64, f64)>| -> (f64, f64) {
+
+    let mut get_coordinates = |node_id,
+                               node_map: &mut HashMap<usize, (f64, f64)>,
+                               dendogram_entries: &mut Vec<DendogramEntry>,
+                               id_to_partition: &HashMap<usize, usize>|
+     -> (f64, f64) {
         if let Some((x, y)) = node_map.get(&node_id) {
             (*x, *y)
         } else {
-            if !contraction_tree.node(node_id).is_leaf() {
-                panic!(
-                    "Contraction relies on Node id {node_id:?} but it does not yet exist in tree",
-                );
-            }
+            assert!(
+                contraction_tree.node(node_id).is_leaf(),
+                "Contraction relies on Node id {node_id} but it does not yet exist in tree",
+            );
+
             let (x, y) = (next_leaf_x, 0f64);
-            node_map.entry(node_id).or_insert((x, y));
-            dendogram_entries.borrow_mut().push(DendogramEntry {
+            node_map.try_insert(node_id, (x, y)).unwrap();
+            dendogram_entries.push(DendogramEntry {
                 id: node_id,
                 x,
                 y,
                 cost: 0f64,
-                color: partition_color[&id_to_partition.borrow()[&node_id]].clone(),
-                children: (node_id, node_id),
+                color: partition_color[&id_to_partition[&node_id]].clone(),
+                children: None,
             });
             next_leaf_x += x_spacing;
             (x, y)
         }
     };
 
-    let mut update = |&node_1_id, &node_2_id| {
-        let (x1, _) = get_coordinates(node_1_id, &mut node_to_position);
-        let (x2, _) = get_coordinates(node_2_id, &mut node_to_position);
+    let mut update = |&node_1_id,
+                      &node_2_id,
+                      dendogram_entries: &mut Vec<DendogramEntry>,
+                      id_to_partition: &mut HashMap<usize, usize>| {
+        let (x1, _) = get_coordinates(
+            node_1_id,
+            &mut node_to_position,
+            dendogram_entries,
+            id_to_partition,
+        );
+        let (x2, _) = get_coordinates(
+            node_2_id,
+            &mut node_to_position,
+            dendogram_entries,
+            id_to_partition,
+        );
 
         let parent_id = contraction_tree.node(node_1_id).parent_id().unwrap();
         let parent_tensor = &intermediate_tensors[&node_1_id] ^ &intermediate_tensors[&node_2_id];
@@ -134,57 +149,55 @@ pub fn to_dendogram_format(
             &intermediate_tensors[&node_2_id],
         );
         // Check that child tensors both exist in partitions and they are in the same partitions
-        let color = if id_to_partition.borrow().contains_key(&node_1_id)
-            && id_to_partition.borrow().contains_key(&node_2_id)
-            && id_to_partition.borrow()[&node_1_id] == id_to_partition.borrow()[&node_2_id]
-        {
-            // If both child node are present in one partition, this happens in serial.
-            parent_cost += tree_weights[&node_1_id];
-            parent_cost += tree_weights[&node_2_id];
-            let partition = id_to_partition.borrow()[&node_1_id];
-            // Attribute this intermediate node to particular partition.
-            id_to_partition
-                .borrow_mut()
-                .entry(parent_id)
-                .or_insert_with(|| partition);
-            partition_color[&id_to_partition.borrow()[&node_1_id]].clone()
-        } else {
-            // Otherwise, this happens in parallel
-            let child_cost = tree_weights[&node_1_id];
-            let child_cost = child_cost.max(tree_weights[&node_2_id]);
-            parent_cost += child_cost;
-            communication_color.clone()
+        let color = match (
+            id_to_partition.get(&node_1_id),
+            id_to_partition.get(&node_2_id),
+        ) {
+            (Some(&partition_1), Some(&partition_2)) if partition_1 == partition_2 => {
+                // If both child node are present in one partition, this happens in serial
+                parent_cost += tree_weights[&node_1_id];
+                parent_cost += tree_weights[&node_2_id];
+                // Attribute this intermediate node to particular partition.
+                id_to_partition.try_insert(parent_id, partition_1).unwrap();
+                partition_color[&partition_1].clone()
+            }
+            _ => {
+                // Otherwise, this happens in parallel
+                let child_cost = tree_weights[&node_1_id].max(tree_weights[&node_2_id]);
+                parent_cost += child_cost;
+                communication_color.clone()
+            }
         };
         node_to_position
-            .entry(parent_id)
-            .or_insert_with(|| ((x1 + x2) / 2f64, parent_cost));
-        dendogram_entries.borrow_mut().push(DendogramEntry {
+            .try_insert(parent_id, ((x1 + x2) / 2f64, parent_cost))
+            .unwrap();
+        dendogram_entries.push(DendogramEntry {
             id: parent_id,
             x: (x1 + x2) / 2f64,
             y: 0f64,
             cost: parent_cost,
             color,
-            children: (node_1_id, node_2_id),
+            children: Some((node_1_id, node_2_id)),
         });
-        tree_weights.entry(parent_id).or_insert_with(|| parent_cost);
+        tree_weights.try_insert(parent_id, parent_cost).unwrap();
         intermediate_tensors
-            .entry(parent_id)
-            .or_insert_with(|| parent_tensor);
+            .try_insert(parent_id, parent_tensor)
+            .unwrap();
     };
 
     while let Some(ContractionIndex::Pair(i, j)) = path_iter.next() {
-        update(i, j);
+        update(i, j, &mut dendogram_entries, &mut id_to_partition);
     }
 
-    let scaling_factor = height / dendogram_entries.borrow().last().unwrap().cost;
-    for entry in dendogram_entries.borrow_mut().iter_mut() {
+    let scaling_factor = height / dendogram_entries.last().unwrap().cost;
+    for entry in &mut dendogram_entries {
         entry.y = entry.cost * scaling_factor;
     }
 
-    dendogram_entries.into_inner()
+    dendogram_entries
 }
 
-pub fn to_pdf(dendogram_entries: Vec<DendogramEntry>, svg_name: String) {
+pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
     let mut tikz_picture = String::from(
         r#"% tikzpic.tex
 \documentclass[crop,tikz]{standalone}% 'crop' is the default for v1.0, before it was 'preview'
@@ -201,12 +214,12 @@ pub fn to_pdf(dendogram_entries: Vec<DendogramEntry>, svg_name: String) {
         y,
         cost,
         color,
-        children: (node_1_id, node_2_id),
-    } in dendogram_entries.iter()
+        children,
+    } in dendogram_entries
     {
-        id_position.entry(id).or_insert_with(|| (x, y));
+        id_position.try_insert(id, (x, y)).unwrap();
 
-        if node_1_id != node_2_id {
+        if let Some((node_1_id, node_2_id)) = children {
             let (x1, _) = id_position[node_1_id];
             let (x2, _) = id_position[node_2_id];
             tikz_picture.push_str(&format!(
@@ -233,14 +246,14 @@ pub fn to_pdf(dendogram_entries: Vec<DendogramEntry>, svg_name: String) {
 \end{document}
 "#,
     );
-    to_pdflatex(tikz_picture, svg_name);
+    compile_tex(pdf_name, &tikz_picture);
 }
 
 pub fn to_dendogram(
     contraction_tree: &ContractionTree,
     tn: &Tensor,
     cost_function: fn(&Tensor, &Tensor) -> f64,
-    svg_name: String,
+    pdf_name: &str,
 ) {
     let length = 80f64;
     let x_spacing = length / tn.total_num_tensors() as f64;
@@ -268,13 +281,13 @@ pub fn to_dendogram(
         if let Some((x, y)) = node_map.get(&node_id) {
             (*x, *y)
         } else {
-            if !contraction_tree.node(node_id).is_leaf() {
-                panic!(
-                    "Contraction relies on Node id {node_id:?} but it does not yet exist in tree",
-                );
-            }
+            assert!(
+                contraction_tree.node(node_id).is_leaf(),
+                "Contraction relies on Node id {node_id} but it does not yet exist in tree",
+            );
+
             let (x, y) = (last_leaf_x, 0f64);
-            node_map.entry(node_id).or_insert((x, y));
+            node_map.try_insert(node_id, (x, y)).unwrap();
             last_leaf_x += x_spacing;
             tikz_picture.push_str(&format!(
                 r#"    \node[label=below:{{{node_id}}}] at ({x}, {y}) ({node_id}) {{}};
@@ -298,8 +311,8 @@ pub fn to_dendogram(
         }
         let scaled_height = parent_cost / scaling_factor * height;
         node_to_position
-            .entry(parent_id)
-            .or_insert(((x1 + x2) / 2f64, scaled_height));
+            .try_insert(parent_id, ((x1 + x2) / 2f64, scaled_height))
+            .unwrap();
         tikz_picture.push_str(&format!(
             r#"    \node[label={{[shift={{(-0.4,-0.1)}}]{}}}, label=below:{{{parent_id}}}] at ({}, {scaled_height}) ({parent_id}) {{}};
 "#,
@@ -330,23 +343,20 @@ pub fn to_dendogram(
 \end{document}
 "#,
     );
-    to_pdflatex(tikz_picture, svg_name);
+    compile_tex(pdf_name, &tikz_picture);
 }
 
-fn to_pdflatex(tikz_picture: String, svg_name: String) {
-    let mut pdf_output = Command::new("pdflatex")
-        .arg("-quiet")
-        .arg(format!("-jobname={svg_name}"))
-        .stdin(Stdio::piped())
+/// Compiles the `tex_code` using `pdflatex` and saves the output as `pdf_name`.
+fn compile_tex(pdf_name: &str, tex_code: &str) {
+    fs::write("final.tex", tex_code).unwrap();
+
+    let compilation_status = Command::new("pdflatex")
+        .arg(format!("-jobname={pdf_name}"))
+        .arg("final.tex")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()
+        .status()
         .unwrap();
-    fs::write("final.txt", tikz_picture.clone()).expect("Unable to write out .gv file");
-    let mut pdf_run = pdf_output.stdin.take().expect("Failed to open stdin");
-    std::thread::spawn(move || {
-        pdf_run
-            .write_all(tikz_picture.as_bytes())
-            .expect("Failed to write to stdin");
-    });
+
+    assert!(compilation_status.success());
 }

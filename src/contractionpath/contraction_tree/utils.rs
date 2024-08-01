@@ -49,11 +49,11 @@ pub fn parallel_tree_contraction_cost(
 ) -> (f64, f64, Tensor) {
     let left_child_id = contraction_tree.node(node_id).left_child_id();
     let right_child_id = contraction_tree.node(node_id).right_child_id();
-    if left_child_id.is_some() && right_child_id.is_some() {
+    if let (Some(left_child_id), Some(right_child_id)) = (left_child_id, right_child_id) {
         let (left_op_cost, left_mem_cost, t1) =
-            parallel_tree_contraction_cost(contraction_tree, left_child_id.unwrap(), tn);
+            parallel_tree_contraction_cost(contraction_tree, left_child_id, tn);
         let (right_op_cost, right_mem_cost, t2) =
-            parallel_tree_contraction_cost(contraction_tree, right_child_id.unwrap(), tn);
+            parallel_tree_contraction_cost(contraction_tree, right_child_id, tn);
         let current_tensor = &t1 ^ &t2;
         let contraction_cost = contract_cost_tensors(&t1, &t2);
         let current_mem_cost = contract_size_tensors(&t1, &t2);
@@ -104,55 +104,57 @@ pub(super) fn subtensor_network(
     (local_tensors, local_contraction_path)
 }
 
+/// Generates a local contraction path for a subtree in a ContractionTree, returns the
+/// One issue of generating a contraction path for a subtree is that tensor ids do not follow a strict ordering. Hence, a reindexing is required to find the replace contraction path. This function can return the replace contraction path if `replace` is set to true.
 pub(super) fn subtree_contraction_path(
-    subtree_leaf_nodes: Vec<usize>,
+    subtree_leaf_nodes: &[usize],
     tn: &Tensor,
-    contraction_tree: &mut ContractionTree,
-    new_max: &mut f64,
-) -> (Vec<usize>, Vec<ContractionIndex>) {
-    // Obtain the flattened list of Tensors corresponding to `indices`
-    let (indices, tensors): (Vec<_>, Vec<_>) = subtree_leaf_nodes
+    contraction_tree: &ContractionTree,
+    replace: bool,
+) -> (Vec<ContractionIndex>, f64) {
+    // Obtain the flattened list of Tensors corresponding to `indices`. Introduces a new indexing to find the replace contraction path.
+    let tensors = subtree_leaf_nodes
         .iter()
         .map(|&e| {
-            (
-                e,
-                tn.nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
-                    .clone(),
-            )
+            tn.nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
+                .clone()
         })
-        .unzip();
+        .collect();
     // Obtain tensor network corresponding to subtree
     let tn_subtree = create_tensor_network(tensors, &tn.bond_dims(), None);
 
     let mut opt = Greedy::new(&tn_subtree, CostType::Flops);
     opt.optimize_path();
-    if opt.get_best_flops() > *new_max {
-        *new_max = opt.get_best_flops();
-    }
-    let path_smaller_subtree = opt.get_best_replace_path();
+
+    let path_smaller_subtree = if replace {
+        opt.get_best_replace_path()
+    } else {
+        opt.get_best_path().clone()
+    };
 
     let updated_smaller_path = path_smaller_subtree
         .iter()
         .map(|e| {
             if let ContractionIndex::Pair(v1, v2) = e {
-                pair!(indices[*v1], indices[*v2])
+                pair!(subtree_leaf_nodes[*v1], subtree_leaf_nodes[*v2])
             } else {
                 panic!("Should only produce Pairs!")
             }
         })
         .collect_vec();
-    (indices, updated_smaller_path)
+    (updated_smaller_path, opt.get_best_flops())
 }
 
+/// Calculate partition contraction cast of all children at `rebalance_depth`
+/// Returns a vector of tuples, where each tuple has the tensor_id of the child and its contraction cost.
+/// tensor_id is required to identify the partition if it is sorted.
 pub(super) fn calculate_partition_costs(
     contraction_tree: &ContractionTree,
     rebalance_depth: usize,
     tensor: &Tensor,
     sort: bool,
 ) -> Vec<(usize, f64)> {
-    // Create binary contraction tree.
     let children = &contraction_tree.partitions()[&rebalance_depth];
-    assert!(children.len() > 1);
 
     // Identify the contraction cost of each partition
     let mut partition_costs = children

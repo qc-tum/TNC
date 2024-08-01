@@ -19,7 +19,8 @@ use crate::{
 use super::{populate_subtree_tensor_map, ContractionTree};
 
 /// Uses recursive bipartitioning to identify a communication scheme for final tensors
-pub(super) fn tensor_bipartition(
+/// Returns root id of subtree, parallel contraction cost as f64, resultant tensor and prior contraction sequence
+fn tensor_bipartition_recursive(
     children_tensor: &[(usize, Tensor)],
     bond_dims: &HashMap<usize, u64>,
 ) -> (usize, f64, Tensor, Vec<ContractionIndex>) {
@@ -52,9 +53,11 @@ pub(super) fn tensor_bipartition(
         .cloned()
         .partition(|_| partition_iter.next() == Some(&0));
 
-    let (id_1, cost_1, t1, mut contraction_1) = tensor_bipartition(&children_1, bond_dims);
+    let (id_1, cost_1, t1, mut contraction_1) =
+        tensor_bipartition_recursive(&children_1, bond_dims);
 
-    let (id_2, cost_2, t2, mut contraction_2) = tensor_bipartition(&children_2, bond_dims);
+    let (id_2, cost_2, t2, mut contraction_2) =
+        tensor_bipartition_recursive(&children_2, bond_dims);
 
     let cost = cost_1.max(cost_2) + contract_cost_tensors(&t1, &t2);
     let tensor = &t1 ^ &t2;
@@ -63,6 +66,17 @@ pub(super) fn tensor_bipartition(
     let [id_1, id_2] = minmax(id_1, id_2);
     contraction_1.push(pair!(id_1, id_2));
     (id_1, cost, tensor, contraction_1)
+}
+
+/// Repeatedly bipartitions tensor network to obtain communication scheme
+/// Assumes that all tensors contracted do so in parallel
+pub(super) fn tensor_bipartition(
+    children_tensor: &[(usize, Tensor)],
+    bond_dims: &HashMap<usize, u64>,
+) -> (f64, Vec<ContractionIndex>) {
+    let (_, contraction_cost, _, contraction_path) =
+        tensor_bipartition_recursive(children_tensor, bond_dims);
+    (contraction_cost, contraction_path)
 }
 
 pub(super) fn balance_partitions(
@@ -78,7 +92,8 @@ pub(super) fn balance_partitions(
         // TODO: should not panic, but handle gracefully
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
     }
-
+    // Will cause strange errors (picking of same partition multiple times if this is not true.Better to panic here.)
+    assert!(partition_costs.len() > 1);
     // Use memory reduction to identify which leaf node to shift between partitions.
     let bond_dims = tn.bond_dims();
     // Obtain most expensive and cheapest partitions
@@ -91,38 +106,32 @@ pub(super) fn balance_partitions(
     // Get bigger subtree leaf nodes
     let mut larger_subtree_leaf_nodes = contraction_tree.leaf_ids(larger_subtree_id);
     // Find the leaf node in the smaller subtree that causes the biggest memory reduction in the bigger subtree
-    let mut max_overlap = 0f64;
-    let mut smaller_subtree_id = partition_costs.len();
-    let mut rebalanced_node = 0;
-    for (subtree_id, _) in partition_costs.iter().take(partition_costs.len() - 1) {
-        let (potential_node, cost) = rebalance_node_largest_overlap(
-            random_balance,
-            contraction_tree,
-            &larger_subtree_leaf_nodes,
-            *subtree_id,
-            greedy_cost_fn,
-            tn,
-        );
-        if cost > max_overlap {
-            max_overlap = cost;
-            smaller_subtree_id = *subtree_id;
-            rebalanced_node = potential_node;
-        }
-    }
-
-    let new_max = partition_costs
+    let (smaller_subtree_id, rebalanced_node, _) = partition_costs
         .iter()
-        .filter(|(subtree_id, _)| {
-            *subtree_id != larger_subtree_id && *subtree_id != smaller_subtree_id
+        .take(partition_costs.len() - 1)
+        .map(|(subtree_root_id, _)| {
+            let (potential_node, cost) = rebalance_node_largest_overlap(
+                random_balance,
+                contraction_tree,
+                &larger_subtree_leaf_nodes,
+                *subtree_root_id,
+                greedy_cost_fn,
+                tn,
+            );
+            (*subtree_root_id, potential_node, cost)
         })
-        .collect::<Vec<&(usize, f64)>>();
+        .max_by(|(_, _, cost_a), (_, _, cost_b)| cost_a.total_cmp(cost_b))
+        .unwrap();
 
-    let mut new_max = if !new_max.is_empty() {
-        let (_, new_max) = new_max.last().unwrap();
-        *new_max
-    } else {
-        0f64
-    };
+    let mut new_max = partition_costs
+        .iter()
+        .filter(|&&(subtree_id, _)| {
+            subtree_id != smaller_subtree_id && subtree_id != larger_subtree_id
+        })
+        .map(|(_, cost)| *cost)
+        .last()
+        .unwrap_or_default();
+
     // Remove the updated partitions from the `ContractionTree`
     contraction_tree
         .partitions
@@ -139,7 +148,7 @@ pub(super) fn balance_partitions(
     // Get smaller subtree leaf nodes
     let mut smaller_subtree_leaf_nodes = contraction_tree.leaf_ids(smaller_subtree_id);
 
-    // Always check that a node is moved over.
+    // Always check that a node can be moved over.
     assert!(!smaller_subtree_leaf_nodes.contains(&rebalanced_node));
     assert!(larger_subtree_leaf_nodes.contains(&rebalanced_node));
 
@@ -147,25 +156,19 @@ pub(super) fn balance_partitions(
     smaller_subtree_leaf_nodes.push(rebalanced_node);
     larger_subtree_leaf_nodes.retain(|&leaf| leaf != rebalanced_node);
 
-    let (smaller_indices, updated_smaller_path) = subtree_contraction_path(
-        smaller_subtree_leaf_nodes,
-        tn,
-        contraction_tree,
-        &mut new_max,
-    );
+    let (updated_smaller_path, max_cost_1) =
+        subtree_contraction_path(&smaller_subtree_leaf_nodes, tn, contraction_tree, true);
 
-    let (larger_indices, updated_larger_path) = subtree_contraction_path(
-        larger_subtree_leaf_nodes,
-        tn,
-        contraction_tree,
-        &mut new_max,
-    );
+    let (updated_larger_path, max_cost_2) =
+        subtree_contraction_path(&larger_subtree_leaf_nodes, tn, contraction_tree, true);
+
+    new_max = new_max.max(max_cost_1).max(max_cost_2);
 
     contraction_tree.remove_subtree(smaller_subtree_id);
     let smaller_partition_root = contraction_tree.add_subtree(
         &updated_smaller_path,
         smaller_subtree_parent_id,
-        &smaller_indices,
+        &smaller_subtree_leaf_nodes,
     );
 
     contraction_tree
@@ -178,7 +181,7 @@ pub(super) fn balance_partitions(
     let larger_partition_root = contraction_tree.add_subtree(
         &updated_larger_path,
         larger_subtree_parent_id,
-        &larger_indices,
+        &larger_subtree_leaf_nodes,
     );
 
     contraction_tree
@@ -243,7 +246,7 @@ pub(super) fn find_potential_nodes(
 
 pub(super) fn rebalance_node_largest_overlap(
     random_balance: bool,
-    contraction_tree: &mut ContractionTree,
+    contraction_tree: &ContractionTree,
     larger_subtree_leaf_nodes: &[usize],
     smaller_subtree_id: usize,
     greedy_cost_fn: fn(&Tensor, &Tensor) -> f64,

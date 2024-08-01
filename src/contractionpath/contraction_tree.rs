@@ -383,6 +383,8 @@ impl ContractionTree {
     /// # Arguments
     /// * `node` - pointer to [`Node`] object
     /// * `path` - vec to store contraction path in
+    /// * `replace` - if set to `true` returns replace path, otherwise, returns in SSA format
+    /// * `hierarchy` - if set to `true` returns a nested contraction path, otherwise returns a flat contraction path
     fn to_contraction_path_recurse(
         node: &Node,
         path: &mut Vec<ContractionIndex>,
@@ -434,6 +436,10 @@ impl ContractionTree {
     }
 
     /// Populates given vector with contractions path of contraction tree starting at `node_id`.
+    /// # Arguments
+    /// * `node` - pointer to [`Node`] object
+    /// * `replace` - if set to `true` returns replace path, otherwise, returns in SSA format
+    /// * `hierarchy` - if set to `true` returns a nested contraction path, otherwise returns a flat contraction path
     pub fn to_flat_contraction_path(&self, node_id: usize, replace: bool) -> Vec<ContractionIndex> {
         let node = self.node(node_id);
         let mut path = Vec::new();
@@ -571,7 +577,7 @@ pub fn balance_partitions_iter(
         &contraction_tree,
         tensor,
         dendogram_cost_function,
-        output_file.clone() + "_0",
+        &format!("{output_file}_0"),
     );
 
     let mut new_tn;
@@ -632,14 +638,14 @@ pub fn balance_partitions_iter(
             }
             CommunicationScheme::Bipartition => {
                 let children_tensors = children_tensors.iter().cloned().enumerate().collect_vec();
-                let (_, final_op_cost, _, final_contraction) =
+                let (final_op_cost, final_contraction) =
                     tensor_bipartition(&children_tensors, &bond_dims);
 
                 (final_op_cost, final_contraction)
             }
         };
 
-        path.extend(final_contraction.clone());
+        path.extend(final_contraction);
         let new_max_cost = max_cost + final_op_cost;
 
         max_costs.push(new_max_cost);
@@ -647,15 +653,15 @@ pub fn balance_partitions_iter(
         if new_max_cost < best_cost {
             best_cost = new_max_cost;
             best_contraction = i;
-            best_tn = new_tn.clone();
-            best_contraction_path = path.clone();
+            best_tn = new_tn;
+            best_contraction_path = path;
         }
 
         to_dendogram(
             &contraction_tree,
             tensor,
             dendogram_cost_function,
-            output_file.clone() + &format!("_{}", i),
+            &format!("{output_file}_{i}"),
         );
     }
 

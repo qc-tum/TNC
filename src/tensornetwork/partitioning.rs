@@ -47,7 +47,7 @@ pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) ->
                     hyperedges.push(*id as u32);
                     length += 1;
                 }
-                Vertex::Open => continue,
+                Vertex::Open => (),
             }
         }
         hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
@@ -73,19 +73,19 @@ pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) ->
         .collect::<Vec<usize>>()
 }
 
-/// Bipartitions input tensor network using `KaHyPar` library.
-/// Returns a `Vec<ContractionIndex>` of length equal to the number of input tensors minus one.
+/// Repeatedly partitions a tensor network to identify a communication scheme.
+/// Returns a `Vec<ContractionIndex>` of length equal to the number of input tensors minus one, acts as a commnuication scheme.
 ///
 /// # Arguments
 ///
 /// * `tensors` - &[`Tensor`] to be partitionined
-/// * `tensor_weights` - HashMap mapping between tensor_id to time-to-solution of intermediate node
+/// * `bond_dims` - bond_dims for tensors
+/// * `k` - number of partitions
 /// * `config_file` - `KaHyPar` config file name
 /// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
 ///
 pub fn communication_partitioning(
     tensors: &[(usize, Tensor)],
-    // tensor_weights: &[(usize, f64)],
     bond_dims: &HashMap<usize, u64>,
     k: i32,
     config_file: String,
@@ -105,16 +105,11 @@ pub fn communication_partitioning(
     let mut objective = 0;
 
     let mut hyperedge_weights = vec![];
-    // let vertex_weights = tensor_weights
-    //     .iter()
-    //     .map(|(_, cost)| *cost as i32)
-    //     .collect_vec();
 
     let mut hyperedge_indices = vec![0];
     let mut hyperedges = vec![];
     // Bidirectional mapping to a new index as KaHyPar indexes from 0.
     let mut edge_to_virtual_edge = HashMap::new();
-    let mut virtual_edge_to_edge = HashMap::new();
     // New index that starts from 0
     let mut edge_count = 0;
 
@@ -141,13 +136,12 @@ pub fn communication_partitioning(
                         hyperedges.push(edge_to_virtual_edge[id] as u32);
                     } else {
                         edge_to_virtual_edge.insert(id, edge_count);
-                        virtual_edge_to_edge.insert(edge_count, id);
                         hyperedges.push(edge_count as u32);
                         edge_count += 1;
                     }
                     length += 1;
                 }
-                Vertex::Open => continue,
+                Vertex::Open => (),
             }
         }
         hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
