@@ -1,11 +1,13 @@
+use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
 use crate::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use crate::mpi::communication::CommunicationScheme;
 use crate::pair;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 use balancing::{balance_partitions, tensor_bipartition};
-use export::to_dendogram;
+use export::{to_dendogram, to_dendogram_format, to_pdf};
 use itertools::Itertools;
+use log::info;
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
@@ -573,12 +575,8 @@ pub fn balance_partitions_iter(
     let mut max_costs = Vec::with_capacity(iterations + 1);
     max_costs.push(max_cost + final_op_cost);
 
-    to_dendogram(
-        &contraction_tree,
-        tensor,
-        dendogram_cost_function,
-        &format!("{output_file}_0"),
-    );
+    let dendogram_entries = to_dendogram_format(&contraction_tree, tensor, dendogram_cost_function);
+    to_pdf(dendogram_entries, output_file.clone() + &format!("_{}", 0));
 
     let mut new_tn;
     let mut best_contraction = 0;
@@ -588,6 +586,10 @@ pub fn balance_partitions_iter(
     let mut best_tn = tensor.clone();
 
     for i in 1..=iterations {
+        info!(
+            "Balancing iteration {} with communication scheme {:?}",
+            i, communication_scheme
+        );
         (max_cost, path, new_tn) = balance_partitions(
             tensor,
             &mut contraction_tree,
@@ -601,16 +603,22 @@ pub fn balance_partitions_iter(
 
         partition_costs =
             calculate_partition_costs(&contraction_tree, rebalance_depth, tensor, true);
-        children_tensors = new_tn
-            .tensors()
+
+        /// Ensures that children tensors are mapped to their respective partition costs
+        children_tensors = partition_costs
             .iter()
-            .map(|tensor| {
-                let ext_edges = tensor.external_edges();
-                let mut new_tensor = Tensor::new(ext_edges);
-                new_tensor.insert_bond_dims(&tensor.bond_dims());
-                new_tensor
-            })
-            .collect_vec();
+            .map(|(tensor_id, _)| contraction_tree.tensor(*tensor_id, tensor))
+            .collect();
+        // children_tensors = new_tn
+        //     .tensors()
+        //     .iter()
+        //     .map(|tensor| {
+        //         let ext_edges = tensor.external_edges();
+        //         let mut new_tensor = Tensor::new(ext_edges);
+        //         new_tensor.insert_bond_dims(&tensor.bond_dims());
+        //         new_tensor
+        //     })
+        //     .collect_vec();
 
         let (final_op_cost, final_contraction) = match communication_scheme {
             CommunicationScheme::Greedy => {
@@ -643,6 +651,42 @@ pub fn balance_partitions_iter(
 
                 (final_op_cost, final_contraction)
             }
+            CommunicationScheme::WeightedBranchBound => {
+                let mut communication_tensors = Tensor::default();
+                communication_tensors.push_tensors(
+                    children_tensors.clone(),
+                    Some(&bond_dims),
+                    None,
+                );
+
+                let latency_map = HashMap::from_iter(
+                    partition_costs
+                        .iter()
+                        .enumerate()
+                        .map(|(id, &(_, partition_cost))| (id, partition_cost)),
+                );
+
+                let mut opt = WeightedBranchBound::new(
+                    &communication_tensors,
+                    None,
+                    20f64,
+                    latency_map,
+                    CostType::Flops,
+                );
+                opt.optimize_path();
+                let final_contraction = opt.get_best_replace_path();
+                let contraction_tree = ContractionTree::from_contraction_path(
+                    &communication_tensors,
+                    &final_contraction,
+                );
+                // let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
+                let (final_op_cost, _, _) = parallel_tree_contraction_cost(
+                    &contraction_tree,
+                    contraction_tree.root_id().unwrap(),
+                    &communication_tensors,
+                );
+                (final_op_cost, final_contraction)
+            }
         };
 
         path.extend(final_contraction);
@@ -657,12 +701,9 @@ pub fn balance_partitions_iter(
             best_contraction_path = path;
         }
 
-        to_dendogram(
-            &contraction_tree,
-            tensor,
-            dendogram_cost_function,
-            &format!("{output_file}_{i}"),
-        );
+        let dendogram_entries =
+            to_dendogram_format(&contraction_tree, tensor, dendogram_cost_function);
+        to_pdf(dendogram_entries, output_file.clone() + &format!("_{}", i));
     }
 
     (best_contraction, best_tn, best_contraction_path, max_costs)
