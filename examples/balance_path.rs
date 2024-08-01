@@ -1,3 +1,4 @@
+use log::info;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
@@ -26,7 +27,7 @@ fn main() {
     let single_qubit_probability = 0.4;
     let two_qubit_probability = 0.4;
     let connectivity = ConnectivityLayout::Osprey;
-    let num_partitions = 8;
+    let num_partitions = 4;
 
     let tensor = random_circuit(
         num_qubits,
@@ -52,18 +53,41 @@ fn main() {
     let path = opt.get_best_replace_path();
 
     let rebalance_depth = 1;
-    let (_num, mut new_tn, contraction_path, _costs) = balance_partitions_iter(
-        &partitioned_tn,
-        &path,
-        BalanceSettings {
-            random_balance: false,
-            rebalance_depth,
-            iterations: 30,
-            output_file: String::from("output/rebalance_trial"),
-            dendogram_cost_function: contract_cost_tensors,
-            greedy_cost_function: greedy_cost_fn,
-            communication_scheme: CommunicationScheme::Greedy,
-        },
+    let mut best_cost = f64::MAX;
+    let mut best_iteration = 0;
+    let mut best_method = String::new();
+    for communication_scheme in [
+        // CommunicationScheme::Greedy,
+        // CommunicationScheme::Bipartition,
+        CommunicationScheme::WeightedBranchBound,
+    ] {
+        let (num, mut _new_tn, _contraction_path, costs) = balance_partitions_iter(
+            &partitioned_tn,
+            &path,
+            BalanceSettings {
+                random_balance: false,
+                rebalance_depth,
+                iterations: 120,
+                output_file: format!("output/{:?}_trial", communication_scheme),
+                dendogram_cost_function: contract_cost_tensors,
+                greedy_cost_function: greedy_cost_fn,
+                communication_scheme,
+            },
+        );
+        info!(
+            "Best iteration for {:?} is {} at {}",
+            communication_scheme, num, costs[num]
+        );
+        if costs[num] < best_cost {
+            best_cost = costs[num];
+            best_method = format!("{:?}", communication_scheme);
+            best_iteration = num;
+        }
+    }
+    info!(
+        "Best scheme: {:?} with {} at {}",
+        best_method, best_cost, best_iteration
     );
-    contract_tensor_network(&mut new_tn, &contraction_path);
+
+    // contract_tensor_network(&mut new_tn, &contraction_path);
 }

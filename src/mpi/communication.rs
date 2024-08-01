@@ -27,11 +27,13 @@ where
     bincode::deserialize(data).unwrap()
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum CommunicationScheme {
     /// Uses Greedy scheme to find contraction path for communication
     Greedy,
     /// Uses repeated bipartitioning to identify communication path
     Bipartition,
+    WeightedBranchBound,
 }
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
