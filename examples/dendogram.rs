@@ -32,5 +32,5 @@ fn main() {
 
     let dendogram_entries =
         to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
-    to_pdf(dendogram_entries, String::from("new_method"));
+    to_pdf(&String::from("new_method"), &dendogram_entries);
 }
