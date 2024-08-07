@@ -223,7 +223,7 @@ pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
             let (x1, _) = id_position[node_1_id];
             let (x2, _) = id_position[node_2_id];
             tikz_picture.push_str(&format!(
-                r#"    \node[circle, scale=0.7, fill={color}, label={{[shift={{(-0.4,-0.1)}}]{cost}}}, label=below:{{{id}}}] at ({x}, {y}) ({id}) {{}};
+                r#"    \node[circle, scale=0.3, fill={color}, label={{[shift={{(-0.4,-0.1)}}]{cost}}}, label=below:{{{id}}}] at ({x}, {y}) ({id}) {{}};
     "#,
             ));
             tikz_picture.push_str(&format!(
@@ -236,7 +236,7 @@ pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
             ));
         } else {
             tikz_picture.push_str(&format!(
-                r#"    \node[circle, scale=0.7, fill={color}, label=below:{{{id}}}] at ({x}, {y}) ({id}) {{}};
+                r#"    \node[circle, scale=0.3, fill={color}, label=below:{{{id}}}] at ({x}, {y}) ({id}) {{}};
             "#,
             ));
         }
