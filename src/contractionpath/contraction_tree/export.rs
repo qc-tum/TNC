@@ -34,12 +34,12 @@ const COLORS: [&str; 19] = [
 
 #[derive(Debug)]
 pub struct DendogramEntry {
-    id: usize,
-    x: f64,
-    y: f64,
-    cost: f64,
-    color: String,
-    children: Option<(usize, usize)>,
+    pub id: usize,
+    pub x: f64,
+    pub y: f64,
+    pub cost: f64,
+    pub color: String,
+    pub children: Option<(usize, usize)>,
 }
 
 pub fn to_dendogram_format(
