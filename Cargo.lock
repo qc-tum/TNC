@@ -245,7 +245,9 @@ checksum = "a21f936df1771bf62b77f047b726c4625ff2e8aa607c01ec06e5a05bd8463401"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
+ "wasm-bindgen",
  "windows-targets 0.52.6",
 ]
 
@@ -1610,11 +1612,12 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.120"
+version = "1.0.122"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e0d21c9a8cae1235ad58a00c11cb40d4b1e5c784f1ef2c537876ed6ffd8b7c5"
+checksum = "784b6203951c57ff748476b126ccb5e8e2959a5c19e5c617ab1956be3dbc68da"
 dependencies = [
  "itoa",
+ "memchr",
  "ryu",
  "serde",
 ]
@@ -1800,6 +1803,7 @@ version = "0.1.0"
 dependencies = [
  "antlr-rust",
  "bincode",
+ "chrono",
  "criterion",
  "flexi_logger",
  "float-cmp",
@@ -1814,7 +1818,9 @@ dependencies = [
  "num-complex",
  "permutation",
  "rand",
+ "regex",
  "serde",
+ "serde_json",
  "static_init",
  "tetra",
 ]
