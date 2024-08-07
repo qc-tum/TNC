@@ -40,11 +40,13 @@ use super::tensordata::TensorData;
 /// contract_tensor_network(&mut r_tn, &opt_path);
 /// ```
 pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionIndex]) {
-    debug!("Contracting tensor");
+    debug!(len = tn.tensors().len(); "Start contracting tensor network");
     for contract_index in contract_path {
         match contract_index {
             ContractionIndex::Pair(i, j) => {
+                debug!(i, j; "Contracting tensors");
                 tn.contract_tensors(*i, *j);
+                debug!(i, j; "Finished contracting tensors");
             }
             ContractionIndex::Path(i, inner_contract_path) => {
                 contract_tensor_network(tn.get_mut_tensor(*i), inner_contract_path);
@@ -52,6 +54,7 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
             }
         }
     }
+    debug!("Completed tensor network contraction");
 
     tn.tensors.retain(|x| {
         !x.tensor_data().approx_eq(&TensorData::Uncontracted, 1e-12) || x.is_composite()
