@@ -15,8 +15,6 @@ const COLORS: [&str; 19] = [
     "blue",
     "brown",
     "cyan",
-    "darkgray",
-    "gray",
     "green",
     "lightgray",
     "lime",
@@ -30,6 +28,8 @@ const COLORS: [&str; 19] = [
     "violet",
     "white",
     "yellow",
+    "darkgray",
+    "gray",
 ];
 
 #[derive(Debug)]
