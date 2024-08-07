@@ -121,7 +121,6 @@ pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize) {
         dendogram_entry.x *= width_scaling;
         dendogram_entry.y *= height_scaling;
     }
-    println!("Dendogram entries: {:?}", dendogram_entries);
     to_pdf("logs_to_pdf", &dendogram_entries);
 }
 
