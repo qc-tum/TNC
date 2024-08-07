@@ -5,7 +5,7 @@ use crate::pair;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 use balancing::{balance_partitions, tensor_bipartition};
-use export::{to_dendogram, to_dendogram_format, to_pdf};
+use export::{to_dendogram_format, to_pdf};
 use itertools::Itertools;
 use log::info;
 use std::cell::{Ref, RefCell};
