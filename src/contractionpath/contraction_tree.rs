@@ -581,7 +581,10 @@ pub fn balance_partitions_iter(
     max_costs.push(max_cost + final_op_cost);
 
     let dendogram_entries = to_dendogram_format(&contraction_tree, tensor, dendogram_cost_function);
-    to_pdf(dendogram_entries, output_file.clone() + &format!("_{}", 0));
+    to_pdf(
+        &(output_file.clone() + &format!("_{}", 0)),
+        &dendogram_entries,
+    );
 
     let mut new_tn;
     let mut best_contraction = 0;
@@ -708,7 +711,10 @@ pub fn balance_partitions_iter(
 
         let dendogram_entries =
             to_dendogram_format(&contraction_tree, tensor, dendogram_cost_function);
-        to_pdf(dendogram_entries, output_file.clone() + &format!("_{}", i));
+        to_pdf(
+            &(output_file.clone() + &format!("_{}", i)),
+            &dendogram_entries,
+        );
     }
 
     (best_contraction, best_tn, best_contraction_path, max_costs)
