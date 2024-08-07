@@ -1,4 +1,6 @@
-use log::info;
+use flexi_logger::{json_format, Duplicate, FileSpec, Logger};
+use log::{info, LevelFilter};
+use mpi::Rank;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
@@ -16,6 +18,21 @@ use tensorcontraction::tensornetwork::partitioning::partition_config::Partitioni
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::tensornetwork::tensor::Tensor;
 
+/// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
+fn setup_logging_mpi(rank: Rank) {
+    let _logger = Logger::with(LevelFilter::Debug)
+        .format(json_format)
+        .log_to_file(
+            FileSpec::default()
+                .discriminant(format!("rank{}", rank))
+                .suppress_timestamp()
+                .suffix("log.json"),
+        )
+        .duplicate_to_stdout(Duplicate::Info)
+        .start()
+        .unwrap();
+}
+
 fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
     t1.size() as f64 + t2.size() as f64 - (t1 ^ t2).size() as f64
 }
@@ -29,6 +46,8 @@ fn main() {
     let two_qubit_probability = 0.4;
     let connectivity = ConnectivityLayout::Osprey;
     let num_partitions = 4;
+
+    setup_logging_mpi(0);
 
     let tensor = random_circuit(
         num_qubits,
@@ -54,8 +73,8 @@ fn main() {
     let mut best_iteration = 0;
     let mut best_method = String::new();
     for communication_scheme in [
-        // CommunicationScheme::Greedy,
-        // CommunicationScheme::Bipartition,
+        CommunicationScheme::Greedy,
+        CommunicationScheme::Bipartition,
         CommunicationScheme::WeightedBranchBound,
     ] {
         let (num, mut _new_tn, _contraction_path, costs) = balance_partitions_iter(
