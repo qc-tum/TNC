@@ -387,9 +387,10 @@ pub fn logs_to_tree(
         .collect::<Vec<usize>>();
 
     // Sort communication by time to ensure no violation of data dependencies
-    communication_path
+    let communication_path = communication_path
         .iter_mut()
-        .sorted_by(|pair1, pair2| pair1.2.partial_cmp(&pair2.2).unwrap());
+        .sorted_by(|pair1, pair2| pair1.2.partial_cmp(&pair2.2).unwrap())
+        .collect::<Vec<_>>();
 
     for (rank1, rank2, cost) in communication_path.iter() {
         let left_child = Rc::clone(&partition_root_nodes[*rank1]);
