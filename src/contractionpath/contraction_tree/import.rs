@@ -37,10 +37,9 @@ const COLORS: [&str; 19] = [
     "gray",
 ];
 
-pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize) {
+pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize, output: String) {
     let height = 120f64;
     let width = 80f64;
-
     let (contraction_tree, tensor_position, tensor_color) = logs_to_tree(filename, suffix, ranks);
 
     let flat_contraction_path =
@@ -144,14 +143,19 @@ pub fn logs_to_tree(
 
     // Tracks the color of each node
     let mut tensor_color: HashMap<usize, String> = HashMap::new();
+    let mut logging_start = chrono::DateTime::<chrono::FixedOffset>::default();
 
     for rank in 0..ranks {
-        let LogToSubtreeResult(nodes, mut local_communication_path) = log_to_subtree(
-            filename.clone() + &format!("_rank{}.", rank) + &suffix,
-            &mut tensor_cost,
-            &mut tensor_count,
-            rank,
-        );
+        let LogToSubtreeResult(nodes, mut local_communication_path, contraction_start) =
+            log_to_subtree(
+                filename.clone() + &format!("_rank{}.", rank) + &suffix,
+                &mut tensor_cost,
+                &mut tensor_count,
+                rank,
+            );
+        if rank == 0 {
+            logging_start = contraction_start;
+        }
         let color = COLORS[rank + 1];
         nodes.keys().for_each(|&key| {
             tensor_color.insert(key, String::from(color));
@@ -170,7 +174,11 @@ pub fn logs_to_tree(
     // Sort communication by time to ensure no violation of data dependencies
     let communication_path = communication_path
         .iter_mut()
-        .sorted_by(|pair1, pair2| pair1.2.partial_cmp(&pair2.2).unwrap())
+        .sorted_by(|pair1, pair2| {
+            let time1 = (pair1.2 - logging_start).num_nanoseconds().unwrap() as f64;
+            let time2 = (pair2.2 - logging_start).num_nanoseconds().unwrap() as f64;
+            time1.partial_cmp(&time2).unwrap()
+        })
         .collect::<Vec<_>>();
 
     for (rank1, rank2, cost) in communication_path.iter() {
@@ -197,9 +205,9 @@ pub fn logs_to_tree(
         remaining_nodes
             .try_insert(tensor_count, Rc::clone(&new_node_ref))
             .expect("SSA {tensor_count} already exists");
-
+        let cost = (*timestamp - logging_start).num_nanoseconds().unwrap() as f64;
         tensor_cost
-            .try_insert(tensor_count, *cost)
+            .try_insert(tensor_count, cost)
             .expect("SSA {tensor_count} already exists");
         tensor_color
             .try_insert(tensor_count, String::from(COLORS[0]))
@@ -220,7 +228,11 @@ pub fn logs_to_tree(
     )
 }
 
-struct LogToSubtreeResult(HashMap<usize, Rc<RefCell<Node>>>, Vec<(usize, usize, f64)>);
+struct LogToSubtreeResult(
+    HashMap<usize, Rc<RefCell<Node>>>,
+    Vec<(usize, usize, chrono::DateTime<chrono::FixedOffset>)>,
+    chrono::DateTime<chrono::FixedOffset>,
+);
 
 fn log_to_subtree(
     filename: String,
@@ -285,10 +297,16 @@ fn log_to_subtree(
             }
             1 => {
                 let contraction_time = contraction_timing(&json_value, contraction_start);
+
                 // Tracking contractions due to communication here
                 if !is_local_contraction {
+                    let contraction_timestamp = DateTime::parse_from_str(
+                        json_value["timestamp"].as_str().unwrap(),
+                        "%Y-%m-%d %H:%M:%S%.6f %z",
+                    )
+                    .unwrap();
                     // Don't create any new nodes, simply track communication and contraction time
-                    communication_path.push((rank, sender, contraction_time));
+                    communication_path.push((rank, sender, contraction_timestamp));
                     continue;
                 }
                 // Tracking local contractions here.
@@ -358,7 +376,7 @@ fn log_to_subtree(
         }
     }
 
-    LogToSubtreeResult(remaining_nodes, communication_path)
+    LogToSubtreeResult(remaining_nodes, communication_path, contraction_start)
 }
 
 fn new_intermediate_node(
