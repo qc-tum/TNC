@@ -44,7 +44,9 @@ pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize, output: Strin
 
     let flat_contraction_path =
         contraction_tree.to_flat_contraction_path(contraction_tree.root_id().unwrap(), false);
+
     let leaf_nodes = contraction_tree.leaf_ids(contraction_tree.root_id().unwrap());
+
     let num_leaf_nodes = leaf_nodes.len();
     let mut dendogram_entries = Vec::new();
 
@@ -115,7 +117,7 @@ pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize, output: Strin
 
     let width_scaling = width / num_leaf_nodes as f64;
     let height_scaling = height / dendogram_entries.last().unwrap().cost;
-    
+
     for dendogram_entry in dendogram_entries.iter_mut() {
         dendogram_entry.x *= width_scaling;
         dendogram_entry.y *= height_scaling;
