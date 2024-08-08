@@ -181,7 +181,7 @@ pub fn logs_to_tree(
         })
         .collect::<Vec<_>>();
 
-    for (rank1, rank2, cost) in communication_path.iter() {
+    for (rank1, rank2, timestamp) in communication_path.iter() {
         let left_child = Rc::clone(&partition_root_nodes[*rank1]);
         let right_child = Rc::clone(&partition_root_nodes[*rank2]);
         let new_node = Node::new(
