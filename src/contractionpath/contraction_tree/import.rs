@@ -292,7 +292,6 @@ fn log_to_subtree(
                         "%Y-%m-%d %H:%M:%S%.6f %z",
                     )
                     .unwrap();
-                    println!("Contraction start: {:?}", contraction_start)
                 }
             }
             1 => {
