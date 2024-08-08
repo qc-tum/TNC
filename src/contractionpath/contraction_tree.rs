@@ -650,42 +650,6 @@ pub fn balance_partitions_iter(
 
                 (final_op_cost, final_contraction)
             }
-            CommunicationScheme::WeightedBranchBound => {
-                let mut communication_tensors = Tensor::default();
-                communication_tensors.push_tensors(
-                    children_tensors.clone(),
-                    Some(&bond_dims),
-                    None,
-                );
-
-                let latency_map = HashMap::from_iter(
-                    partition_costs
-                        .iter()
-                        .enumerate()
-                        .map(|(id, &(_, partition_cost))| (id, partition_cost)),
-                );
-
-                let mut opt = WeightedBranchBound::new(
-                    &communication_tensors,
-                    None,
-                    20f64,
-                    latency_map,
-                    CostType::Flops,
-                );
-                opt.optimize_path();
-                let final_contraction = opt.get_best_replace_path();
-                let contraction_tree = ContractionTree::from_contraction_path(
-                    &communication_tensors,
-                    &final_contraction,
-                );
-                // let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
-                let (final_op_cost, _, _) = parallel_tree_contraction_cost(
-                    &contraction_tree,
-                    contraction_tree.root_id().unwrap(),
-                    &communication_tensors,
-                );
-                (final_op_cost, final_contraction)
-            }
         };
 
         path.extend(final_contraction);

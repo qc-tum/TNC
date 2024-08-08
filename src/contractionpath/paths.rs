@@ -6,7 +6,6 @@ use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 pub mod branchbound;
 pub mod greedy;
-pub mod weighted_branchbound;
 //pub mod parallel_greedy;
 
 pub trait OptimizePath {
