@@ -18,7 +18,7 @@ fn main() {
     let partitioning = find_partitioning(
         &tensor,
         3,
-        String::from("tests/cut_kKaHyPar_sea20.ini"),
+        String::from("partition_config/cut_kKaHyPar_sea20.ini"),
         true,
     );
 

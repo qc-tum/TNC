@@ -245,8 +245,12 @@ mod tests {
             Some(&tn.bond_dims()),
             None,
         );
-        let partitioning =
-            find_partitioning(&tn, 3, String::from("tests/km1_kKaHyPar_sea20.ini"), true);
+        let partitioning = find_partitioning(
+            &tn,
+            3,
+            String::from("partition_config/km1_kKaHyPar_sea20.ini"),
+            true,
+        );
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);
         let partitioned_tn = partition_tensor_network(&tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.tensors().len(), 3);

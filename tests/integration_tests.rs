@@ -29,7 +29,7 @@ fn test_partitioned_contraction_random() {
     let partitioning = find_partitioning(
         &r_tn,
         12,
-        String::from("tests/km1_kKaHyPar_sea20.ini"),
+        String::from("partition_config/km1_kKaHyPar_sea20.ini"),
         true,
     );
     let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
@@ -55,7 +55,7 @@ fn test_partitioned_contraction() {
     let partitioning = find_partitioning(
         &r_tn,
         12,
-        String::from("tests/km1_kKaHyPar_sea20.ini"),
+        String::from("partition_config/km1_kKaHyPar_sea20.ini"),
         true,
     );
     let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
@@ -81,7 +81,7 @@ fn test_partitioned_contraction_mixed() {
     let partitioning = find_partitioning(
         &r_tn,
         12,
-        String::from("tests/km1_kKaHyPar_sea20.ini"),
+        String::from("partition_config/km1_kKaHyPar_sea20.ini"),
         true,
     );
     let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
@@ -108,7 +108,7 @@ fn test_partitioned_contraction_need_mpi() {
         let partitioning = find_partitioning(
             &r_tn,
             size,
-            String::from("tests/km1_kKaHyPar_sea20.ini"),
+            String::from("partition_config/km1_kKaHyPar_sea20.ini"),
             true,
         );
         let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);

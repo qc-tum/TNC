@@ -26,7 +26,7 @@ fn tensor_bipartition_recursive(
 ) -> (usize, f64, Tensor, Vec<ContractionIndex>) {
     let k = 2;
     let min = true;
-    let config_file = String::from("tests/cut_kKaHyPar_sea20.ini");
+    let config_file = String::from("partition_config/cut_kKaHyPar_sea20.ini");
 
     if children_tensor.len() == 1 {
         return (
