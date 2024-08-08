@@ -287,7 +287,7 @@ mod tests {
         assert_eq!(opt.best_flops, 4540f64);
         assert_eq!(opt.best_size, 538f64);
         assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
+        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
     }
 
     #[test]
@@ -301,7 +301,7 @@ mod tests {
         assert_eq!(opt.best_path, path![(1, 5), (0, 6), (2, 7), (3, 8), (4, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),
-            path![(1, 5), (0, 1), (0, 2), (0, 3), (0, 4)]
+            path![(1, 5), (0, 1), (2, 0), (3, 2), (4, 3)]
         );
     }
 }
