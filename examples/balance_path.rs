@@ -75,7 +75,6 @@ fn main() {
     for communication_scheme in [
         CommunicationScheme::Greedy,
         CommunicationScheme::Bipartition,
-        CommunicationScheme::WeightedBranchBound,
     ] {
         let (num, mut _new_tn, _contraction_path, costs) = balance_partitions_iter(
             &partitioned_tn,

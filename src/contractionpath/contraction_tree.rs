@@ -1,4 +1,3 @@
-use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
 use crate::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use crate::mpi::communication::CommunicationScheme;
 use crate::pair;
