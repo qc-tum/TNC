@@ -115,12 +115,12 @@ pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize, output: Strin
 
     let width_scaling = width / num_leaf_nodes as f64;
     let height_scaling = height / dendogram_entries.last().unwrap().cost;
-
+    
     for dendogram_entry in dendogram_entries.iter_mut() {
         dendogram_entry.x *= width_scaling;
         dendogram_entry.y *= height_scaling;
     }
-    to_pdf("logs_to_pdf", &dendogram_entries);
+    to_pdf(&output, &dendogram_entries);
 }
 
 pub fn logs_to_tree(
