@@ -1,0 +1,331 @@
+use std::collections::{BinaryHeap, HashMap};
+
+use itertools::Itertools;
+
+use crate::{
+    contractionpath::{
+        candidates::Candidate,
+        contraction_cost::{contract_cost_tensors, contract_size_tensors},
+        ssa_ordering, ssa_replace_ordering,
+    },
+    tensornetwork::tensor::Tensor,
+    types::ContractionIndex,
+};
+
+use super::{CostType, OptimizePath};
+
+/// A struct with an [`OptimizePath`] implementation that explores possible pair contractions in a depth-first manner.
+pub struct WeightedBranchBound<'a> {
+    tn: &'a Tensor,
+    nbranch: Option<u32>,
+    cutoff_flops_factor: f64,
+    minimize: CostType,
+    best_flops: f64,
+    best_size: f64,
+    best_path: Vec<ContractionIndex>,
+    best_progress: HashMap<usize, f64>,
+    result_cache: HashMap<(usize, usize), usize>,
+    flop_cache: HashMap<usize, f64>,
+    size_cache: HashMap<usize, f64>,
+    comm_cache: HashMap<usize, f64>,
+    tensor_cache: HashMap<usize, Tensor>,
+}
+
+impl<'a> WeightedBranchBound<'a> {
+    pub fn new(
+        tn: &'a Tensor,
+        nbranch: Option<u32>,
+        cutoff_flops_factor: f64,
+        latency_map: HashMap<usize, f64>,
+        minimize: CostType,
+    ) -> Self {
+        Self {
+            tn,
+            nbranch,
+            cutoff_flops_factor,
+            minimize,
+            best_flops: f64::INFINITY,
+            best_size: f64::INFINITY,
+            best_path: Vec::new(),
+            best_progress: HashMap::new(),
+            result_cache: HashMap::new(),
+            flop_cache: HashMap::new(),
+            size_cache: HashMap::new(),
+            comm_cache: latency_map,
+            tensor_cache: HashMap::new(),
+        }
+    }
+
+    fn assess_candidate(
+        &mut self,
+        i: usize,
+        j: usize,
+        flops: f64,
+        size: f64,
+        remaining: &[u32],
+    ) -> Option<Candidate> {
+        let flops_12: f64;
+        let size_12: f64;
+        let k12: usize;
+        let k12_tensor: Tensor;
+        let mut current_flops = flops;
+        let mut current_size = size;
+        if self.result_cache.contains_key(&(i, j)) {
+            k12 = self.result_cache[&(i, j)];
+            flops_12 = self.flop_cache[&k12];
+            size_12 = self.size_cache[&k12];
+        } else {
+            k12 = self.tensor_cache.len();
+            flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
+            size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
+            k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
+            self.result_cache.entry((i, j)).or_insert_with(|| k12);
+            self.flop_cache.entry(k12).or_insert_with(|| flops_12);
+            self.size_cache.entry(k12).or_insert_with(|| size_12);
+            self.tensor_cache
+                .entry(k12)
+                .or_insert_with(|| k12_tensor.clone());
+        }
+        current_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
+        self.comm_cache.entry(k12).or_insert_with(|| current_flops);
+        current_size = current_size.max(size_12);
+
+        if current_flops > self.best_flops && current_size > self.best_size {
+            return None;
+        }
+        let best_flops = *self
+            .best_progress
+            .entry(remaining.len())
+            .or_insert(current_flops);
+
+        if current_flops < best_flops {
+            self.best_progress.insert(remaining.len(), current_flops);
+        } else if current_flops > self.cutoff_flops_factor * best_flops {
+            return None;
+        }
+
+        Some(Candidate {
+            flop_cost: current_flops,
+            size_cost: current_size,
+            parent_ids: (i, j),
+            child_id: k12,
+        })
+    }
+
+    /// Explores possible pair contractions in a depth-first
+    /// recursive manner like the `optimal` approach, but with extra heuristic early pruning of branches
+    /// as well sieving by `memory_limit` and the best path found so far. A rust implementation of
+    /// the Python based `opt_einsum` implementation. Found at <https://github.com/dgasmith/opt_einsum>.
+    fn branch_iterate(
+        &mut self,
+        path: Vec<(usize, usize, usize)>,
+        remaining: Vec<u32>,
+        flops: f64,
+        size: f64,
+    ) {
+        if remaining.len() == 1 {
+            match self.minimize {
+                CostType::Flops => {
+                    if self.best_flops > flops {
+                        self.best_flops = flops;
+                        self.best_size = size;
+                        self.best_path = ssa_ordering(&path, self.tn.tensors().len());
+                    }
+                }
+                CostType::Size => {
+                    if self.best_size > size {
+                        self.best_flops = flops;
+                        self.best_size = size;
+                        self.best_path = ssa_ordering(&path, self.tn.tensors().len());
+                    }
+                }
+            }
+            return;
+        }
+
+        let mut candidates = BinaryHeap::<Candidate>::new();
+        for i in remaining.iter().copied().combinations(2) {
+            let candidate =
+                self.assess_candidate(i[0] as usize, i[1] as usize, flops, size, &remaining);
+            if let Some(new_candidate) = candidate {
+                candidates.push(new_candidate);
+            }
+        }
+        let bi = 0;
+        let mut new_remaining;
+        let mut new_path: Vec<(usize, usize, usize)>;
+        while self.nbranch.is_none() || bi < self.nbranch.unwrap() {
+            let Some(Candidate {
+                flop_cost,
+                size_cost,
+                parent_ids,
+                child_id,
+            }) = candidates.pop()
+            else {
+                break;
+            };
+            new_remaining = remaining.clone();
+            new_remaining.retain(|e| *e != parent_ids.0 as u32 && *e != parent_ids.1 as u32);
+            new_remaining.push(child_id as u32);
+            new_path = path.clone();
+            new_path.push((parent_ids.0, parent_ids.1, child_id));
+            WeightedBranchBound::branch_iterate(
+                self,
+                new_path,
+                new_remaining,
+                flop_cost,
+                size_cost,
+            );
+        }
+    }
+}
+
+impl<'a> OptimizePath for WeightedBranchBound<'a> {
+    fn optimize_path(&mut self) {
+        if self.tn.is_leaf() {
+            return;
+        }
+        let tensors = self.tn.tensors().clone();
+        self.flop_cache.clear();
+        self.size_cache.clear();
+        self.result_cache.clear();
+        self.tensor_cache.clear();
+        let mut sub_tensor_contraction = Vec::new();
+        // Get the initial space requirements for uncontracted tensors
+        for (index, mut tensor) in tensors.into_iter().enumerate() {
+            // Check that tensor has sub-tensors and doesn't have external legs set
+            if !tensor.tensors().is_empty() && tensor.legs().is_empty() {
+                let mut bb = WeightedBranchBound::new(
+                    &tensor,
+                    self.nbranch,
+                    self.cutoff_flops_factor,
+                    self.comm_cache.clone(),
+                    self.minimize,
+                );
+                bb.optimize_path();
+                sub_tensor_contraction
+                    .push(ContractionIndex::Path(index, bb.get_best_path().clone()));
+                tensor.set_legs(tensor.external_edges());
+            }
+            self.size_cache
+                .entry(index)
+                .or_insert_with(|| tensor.shape().iter().product::<u64>() as f64);
+
+            self.tensor_cache.entry(index).or_insert_with(|| tensor);
+        }
+        let remaining = (0u32..self.tn.tensors().len() as u32).collect();
+        WeightedBranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64);
+        sub_tensor_contraction.extend_from_slice(&self.best_path);
+        self.best_path = sub_tensor_contraction;
+    }
+
+    fn get_best_flops(&self) -> f64 {
+        self.best_flops
+    }
+
+    fn get_best_size(&self) -> f64 {
+        self.best_size
+    }
+
+    fn get_best_path(&self) -> &Vec<ContractionIndex> {
+        &self.best_path
+    }
+
+    fn get_best_replace_path(&self) -> Vec<ContractionIndex> {
+        ssa_replace_ordering(&self.best_path, self.tn.tensors().len())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use crate::contractionpath::paths::branchbound::BranchBound;
+    use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
+    use crate::contractionpath::paths::CostType;
+    use crate::contractionpath::paths::OptimizePath;
+    use crate::path;
+    use crate::tensornetwork::create_tensor_network;
+    use crate::tensornetwork::tensor::Tensor;
+
+    fn setup_simple() -> (Tensor, HashMap<usize, f64>) {
+        (
+            create_tensor_network(
+                vec![
+                    Tensor::new(vec![4, 3, 2]),
+                    Tensor::new(vec![0, 1, 3, 2]),
+                    Tensor::new(vec![4, 5, 6]),
+                ],
+                &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
+                None,
+            ),
+            HashMap::from([(0, 20f64), (1, 40f64), (2, 85f64)]),
+        )
+    }
+
+    fn setup_complex() -> (Tensor, HashMap<usize, f64>) {
+        (
+            create_tensor_network(
+                vec![
+                    Tensor::new(vec![4, 3, 2]),
+                    Tensor::new(vec![0, 1, 3, 2]),
+                    Tensor::new(vec![4, 5, 6]),
+                    Tensor::new(vec![6, 8, 9]),
+                    Tensor::new(vec![10, 8, 9]),
+                    Tensor::new(vec![5, 1, 0]),
+                ],
+                &[
+                    (0, 27),
+                    (1, 18),
+                    (2, 12),
+                    (3, 15),
+                    (4, 5),
+                    (5, 3),
+                    (6, 18),
+                    (7, 22),
+                    (8, 45),
+                    (9, 65),
+                    (10, 5),
+                    (11, 17),
+                ]
+                .into(),
+                None,
+            ),
+            HashMap::from([
+                (0, 120f64),
+                (1, 0f64),
+                (2, 15f64),
+                (3, 15f64),
+                (4, 85f64),
+                (5, 15f64),
+            ]),
+        )
+    }
+
+    #[test]
+    fn test_contract_order_simple() {
+        let (tn, latency_costs) = setup_simple();
+        let mut opt = WeightedBranchBound::new(&tn, None, 20f64, latency_costs, CostType::Flops);
+        opt.optimize_path();
+        println!("Best path: {:?}", opt.get_best_path());
+        assert_eq!(opt.best_flops, 4580f64);
+        assert_eq!(opt.best_size, 538f64);
+        assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3)]);
+        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
+    }
+
+    #[test]
+    fn test_contract_order_complex() {
+        let (tn, latency_costs) = setup_complex();
+        let mut opt = WeightedBranchBound::new(&tn, None, 20f64, latency_costs, CostType::Flops);
+        opt.optimize_path();
+
+        assert_eq!(opt.best_flops, 2120615.0f64);
+        assert_eq!(opt.best_size, 89478f64);
+        assert_eq!(opt.best_path, path![(3, 4), (2, 6), (1, 5), (0, 8), (7, 9)]);
+        assert_eq!(
+            opt.get_best_replace_path(),
+            path![(3, 4), (2, 3), (1, 5), (0, 1), (0, 2)]
+        );
+    }
+}
