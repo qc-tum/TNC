@@ -46,14 +46,8 @@ pub(super) fn ssa_replace_ordering(
     for tup in path {
         match tup {
             ContractionIndex::Pair(t0, t1) => {
-                let mut new_t0 = *hs.get(t0).unwrap_or(t0);
-                let mut new_t1 = *hs.get(t1).unwrap_or(t1);
-
-                // We always want to replace the tensor with lower index, so put that
-                // in left position
-                if new_t0 > new_t1 {
-                    (new_t1, new_t0) = (new_t0, new_t1);
-                }
+                let new_t0 = *hs.get(t0).unwrap_or(t0);
+                let new_t1 = *hs.get(t1).unwrap_or(t1);
 
                 hs.try_insert(n, new_t0).unwrap();
                 replace_path.push(pair!(new_t0, new_t1));

@@ -228,7 +228,7 @@ impl<'a> Greedy<'a> {
                     let mut id1 = remaining_tensors[&k1_hash];
                     let mut id2 = remaining_tensors[&k2_hash];
 
-                    if id1 > id2 {
+                    if tensor_mem_size[&k2_hash] > tensor_mem_size[&k1_hash] {
                         (id1, id2) = (id2, id1);
                     }
 
