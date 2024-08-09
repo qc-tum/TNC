@@ -80,7 +80,7 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
 
     let mut par_part_group = c.benchmark_group("MPI Naive");
 
-    let universe = unsafe { MPI_UNIVERSE.read() };
+    let universe = MPI_UNIVERSE.read();
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
@@ -124,7 +124,7 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
 
     let mut par_part_group = c.benchmark_group("MPI Partition");
 
-    let universe = unsafe { MPI_UNIVERSE.read() };
+    let universe = MPI_UNIVERSE.read();
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
