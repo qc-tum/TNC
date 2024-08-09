@@ -127,7 +127,6 @@ fn main() {
                     .suffix("opt.log.json"),
             )
             .format(json_format)
-            // .write_mode(WriteMode::Async)
             .append(),
         )
         .unwrap();
@@ -164,7 +163,6 @@ fn main() {
                     .suffix("unopt.log.json"),
             )
             .format(json_format)
-            // .write_mode(WriteMode::Async)
             .append(),
         )
         .unwrap();
