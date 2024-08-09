@@ -11,6 +11,7 @@ use tensorcontraction::mpi::communication::CommunicationScheme;
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
+use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::tensornetwork::tensor::Tensor;
 
@@ -39,12 +40,8 @@ fn main() {
 
     // println!("Tensor: {:?}", tensor.total_num_tensors());
     // Find vec of partitions
-    let partitioning = find_partitioning(
-        &tensor,
-        num_partitions,
-        String::from("partition_config/cut_kKaHyPar_sea20.ini"),
-        true,
-    );
+    let partitioning =
+        find_partitioning(&tensor, num_partitions, PartitioningStrategy::MinCut, true);
 
     let partitioned_tn = partition_tensor_network(&tensor, &partitioning);
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);

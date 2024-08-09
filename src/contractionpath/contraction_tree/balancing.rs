@@ -12,7 +12,10 @@ use crate::{
         contraction_tree::utils::{subtensor_network, subtree_contraction_path},
     },
     pair,
-    tensornetwork::{partitioning::communication_partitioning, tensor::Tensor},
+    tensornetwork::{
+        partitioning::{communication_partitioning, partition_config::PartitioningStrategy},
+        tensor::Tensor,
+    },
     types::ContractionIndex,
 };
 
@@ -26,7 +29,6 @@ fn tensor_bipartition_recursive(
 ) -> (usize, f64, Tensor, Vec<ContractionIndex>) {
     let k = 2;
     let min = true;
-    let config_file = String::from("partition_config/cut_kKaHyPar_sea20.ini");
 
     if children_tensor.len() == 1 {
         return (
@@ -45,7 +47,13 @@ fn tensor_bipartition_recursive(
         return (t1, contraction.size() as f64, tensor, vec![pair!(t1, t2)]);
     }
 
-    let partitioning = communication_partitioning(children_tensor, bond_dims, k, config_file, min);
+    let partitioning = communication_partitioning(
+        children_tensor,
+        bond_dims,
+        k,
+        PartitioningStrategy::MinCut,
+        min,
+    );
 
     let mut partition_iter = partitioning.iter();
     let (children_1, children_2): (Vec<_>, Vec<_>) = children_tensor

@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use partition_config::{to_c_string, PartitioningStrategy};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::iter::zip;
@@ -6,6 +7,8 @@ use std::iter::zip;
 use super::tensor::Tensor;
 use crate::types::Vertex;
 use kahypar_sys::{partition, KaHyParContext};
+
+pub mod partition_config;
 
 /// Partitions input tensor network using `KaHyPar` library.
 /// Returns a `Vec<usize>` of length equal to the number of input tensors storing final partitioning results.
@@ -18,12 +21,27 @@ use kahypar_sys::{partition, KaHyParContext};
 /// * `config_file` - `KaHyPar` config file name
 /// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
 ///
-pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
+pub fn find_partitioning(
+    tn: &Tensor,
+    k: i32,
+    partitioning_strategy: PartitioningStrategy,
+    min: bool,
+) -> Vec<usize> {
     assert!(k > 1, "Partitioning only valid for more than one process");
-    let config_file = CString::new(config_file).unwrap();
     let num_vertices = tn.tensors().len() as u32;
     let mut context = KaHyParContext::new();
-    context.configure(config_file);
+
+    match partitioning_strategy {
+        PartitioningStrategy::MinCut => {
+            context.configure_from_str(to_c_string(partitioning_strategy))
+        }
+        PartitioningStrategy::CommunityFinding => {
+            context.configure_from_str(to_c_string(partitioning_strategy))
+        }
+        PartitioningStrategy::File(filename) => {
+            context.configure_from_file(CString::new(filename).expect("Unable to parse string"))
+        }
+    }
 
     let x = if min { 1 } else { -1 };
 
@@ -88,16 +106,25 @@ pub fn communication_partitioning(
     tensors: &[(usize, Tensor)],
     bond_dims: &HashMap<usize, u64>,
     k: i32,
-    config_file: String,
+    partitioning_strategy: PartitioningStrategy,
     min: bool,
 ) -> Vec<usize> {
     assert!(k > 1, "Partitioning only valid for more than one process");
 
-    let config_file = CString::new(config_file).unwrap();
     let num_vertices = tensors.len() as u32;
 
     let mut context = KaHyParContext::new();
-    context.configure(config_file);
+    match partitioning_strategy {
+        PartitioningStrategy::MinCut => {
+            context.configure_from_str(to_c_string(partitioning_strategy))
+        }
+        PartitioningStrategy::CommunityFinding => {
+            context.configure_from_str(to_c_string(partitioning_strategy))
+        }
+        PartitioningStrategy::File(filename) => {
+            context.configure_from_file(CString::new(filename).expect("Unable to parse string"))
+        }
+    }
 
     let x = if min { 1 } else { -1 };
 
@@ -190,8 +217,10 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
+    use crate::tensornetwork::{
+        create_tensor_network, partitioning::partition_config::PartitioningStrategy,
+    };
 
     use super::{find_partitioning, partition_tensor_network};
 
@@ -245,12 +274,7 @@ mod tests {
             Some(&tn.bond_dims()),
             None,
         );
-        let partitioning = find_partitioning(
-            &tn,
-            3,
-            String::from("partition_config/km1_kKaHyPar_sea20.ini"),
-            true,
-        );
+        let partitioning = find_partitioning(&tn, 3, PartitioningStrategy::MinCut, true);
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);
         let partitioned_tn = partition_tensor_network(&tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.tensors().len(), 3);

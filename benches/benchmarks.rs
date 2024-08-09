@@ -12,6 +12,7 @@ use tensorcontraction::mpi::communication::{
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
 
+use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::{
     path,
@@ -54,7 +55,7 @@ pub fn partitioned_contraction_benchmark(c: &mut Criterion) {
     for k in [10, 15, 20, 25] {
         let r_tn = random_circuit(k, 5, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
         let partitioning =
-            find_partitioning(&r_tn, 5, String::from("tests/km1_kKaHyPar_sea20.ini"), true);
+            find_partitioning(&r_tn, 5, PartitioningStrategy::CommunityFinding, true);
         let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
 
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
@@ -79,7 +80,7 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
 
     let mut par_part_group = c.benchmark_group("MPI Naive");
 
-    let universe = MPI_UNIVERSE.read();
+    let universe = unsafe { MPI_UNIVERSE.read() };
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
@@ -88,12 +89,8 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
     for k in [25, 30] {
         let (partitioned_tn, path) = if rank == 0 {
             let r_tn = random_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
-            let partitioning = find_partitioning(
-                &r_tn,
-                size,
-                String::from("tests/km1_kKaHyPar_sea20.ini"),
-                true,
-            );
+            let partitioning =
+                find_partitioning(&r_tn, size, PartitioningStrategy::CommunityFinding, true);
             let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
 
             let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
@@ -127,7 +124,7 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
 
     let mut par_part_group = c.benchmark_group("MPI Partition");
 
-    let universe = MPI_UNIVERSE.read();
+    let universe = unsafe { MPI_UNIVERSE.read() };
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
@@ -137,12 +134,8 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
     for k in [30, 35, 45] {
         let (partitioned_tn, path) = if rank == 0 {
             let r_tn = random_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
-            let partitioning = find_partitioning(
-                &r_tn,
-                size,
-                String::from("tests/km1_kKaHyPar_sea20.ini"),
-                true,
-            );
+            let partitioning =
+                find_partitioning(&r_tn, size, PartitioningStrategy::CommunityFinding, true);
             let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
 
             let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
