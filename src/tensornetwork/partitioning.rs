@@ -1,7 +1,6 @@
 use itertools::Itertools;
-use partition_config::{to_c_string, PartitioningStrategy};
+use partition_config::PartitioningStrategy;
 use std::collections::HashMap;
-use std::ffi::CString;
 use std::iter::zip;
 
 use super::tensor::Tensor;
@@ -18,7 +17,7 @@ pub mod partition_config;
 ///
 /// * `tn` - [`Tensor`] to be partitionined
 /// * `k` - imbalance parameter for `KaHyPar`
-/// * `config_file` - `KaHyPar` config file name
+/// * `partition_strategy` - The strategy to pass to `KaHyPar`
 /// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
 ///
 pub fn find_partitioning(
@@ -30,18 +29,7 @@ pub fn find_partitioning(
     assert!(k > 1, "Partitioning only valid for more than one process");
     let num_vertices = tn.tensors().len() as u32;
     let mut context = KaHyParContext::new();
-
-    match partitioning_strategy {
-        PartitioningStrategy::MinCut => {
-            context.configure_from_str(to_c_string(partitioning_strategy))
-        }
-        PartitioningStrategy::CommunityFinding => {
-            context.configure_from_str(to_c_string(partitioning_strategy))
-        }
-        PartitioningStrategy::File(filename) => {
-            context.configure_from_file(CString::new(filename).expect("Unable to parse string"))
-        }
-    }
+    partitioning_strategy.apply(&mut context);
 
     let x = if min { 1 } else { -1 };
 
@@ -99,7 +87,7 @@ pub fn find_partitioning(
 /// * `tensors` - &[`Tensor`] to be partitionined
 /// * `bond_dims` - bond_dims for tensors
 /// * `k` - number of partitions
-/// * `config_file` - `KaHyPar` config file name
+/// * `partitioning_strategy` - The strategy to pass to `KaHyPar`
 /// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
 ///
 pub fn communication_partitioning(
@@ -110,21 +98,9 @@ pub fn communication_partitioning(
     min: bool,
 ) -> Vec<usize> {
     assert!(k > 1, "Partitioning only valid for more than one process");
-
     let num_vertices = tensors.len() as u32;
-
     let mut context = KaHyParContext::new();
-    match partitioning_strategy {
-        PartitioningStrategy::MinCut => {
-            context.configure_from_str(to_c_string(partitioning_strategy))
-        }
-        PartitioningStrategy::CommunityFinding => {
-            context.configure_from_str(to_c_string(partitioning_strategy))
-        }
-        PartitioningStrategy::File(filename) => {
-            context.configure_from_file(CString::new(filename).expect("Unable to parse string"))
-        }
-    }
+    partitioning_strategy.apply(&mut context);
 
     let x = if min { 1 } else { -1 };
 
