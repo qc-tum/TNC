@@ -49,7 +49,7 @@ fn main() {
     let size = world.size();
     let rank = world.rank();
     let root = world.process_at_rank(0);
-    let mut logger = setup_logging_mpi(rank);
+    let logger = setup_logging_mpi(rank);
     info!(rank, size; "Running basic_usage");
 
     let seed = 23;
@@ -94,7 +94,7 @@ fn main() {
         to_pdf("unoptimized_path", &dendogram_entries);
         let rebalance_depth = 1;
         let communication_scheme = CommunicationScheme::Greedy;
-        let (num, partitioned_tn, path, costs) = balance_partitions_iter(
+        let (num, partitioned_tn, path, _costs) = balance_partitions_iter(
             &unopt_partitioned_tn,
             &unopt_path,
             BalanceSettings {

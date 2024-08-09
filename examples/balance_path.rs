@@ -13,7 +13,6 @@ use tensorcontraction::contractionpath::paths::{CostType, OptimizePath};
 use tensorcontraction::mpi::communication::CommunicationScheme;
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
-use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::tensornetwork::tensor::Tensor;
