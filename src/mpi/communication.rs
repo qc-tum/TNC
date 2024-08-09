@@ -11,6 +11,13 @@ use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 use crate::types::{ContractionIndex, EdgeIndex};
 
+pub enum CommunicationScheme {
+    /// Uses Greedy scheme to find contraction path for communication
+    Greedy,
+    /// Uses repeated bipartitioning to identify communication path
+    Bipartition,
+}
+
 /// Serializes data to a byte array.
 fn serialize<S>(value: &S) -> Vec<u8>
 where

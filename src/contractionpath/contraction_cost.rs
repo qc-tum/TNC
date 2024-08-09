@@ -20,7 +20,7 @@ use crate::types::ContractionIndex;
 /// let vec2 = Vec::from([2,3,4]);
 /// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 270286f64);
+/// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 350350f64);
 /// ```
 pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
     contract_cost_tensors(tn.tensor(i), tn.tensor(j))
@@ -44,7 +44,7 @@ pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
 /// let vec2 = Vec::from([2,3,4]);
 /// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 270286f64);
+/// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 350350f64);
 /// ```
 pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     let final_dims = t_1 ^ t_2;
@@ -56,14 +56,12 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
         .map(|e| bond_dims[e] as f64)
         .product::<f64>();
 
-    (single_loop_cost - 1f64) * 2f64
-        + single_loop_cost
-            * 6f64
-            * final_dims
-                .legs
-                .iter()
-                .map(|e| bond_dims[e] as f64)
-                .product::<f64>()
+    ((single_loop_cost - 1f64) * 2f64 + single_loop_cost * 6f64)
+        * final_dims
+            .legs
+            .iter()
+            .map(|e| bond_dims[e] as f64)
+            .product::<f64>()
 }
 
 /// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
@@ -172,10 +170,10 @@ mod tests {
     fn test_contract_path_cost() {
         let tn = setup_simple();
         let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 1), (0, 2)]);
-        assert_eq!(op_cost, 3694f64);
+        assert_eq!(op_cost, 4540f64);
         assert_eq!(mem_cost, 538f64);
         let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 2), (0, 1)]);
-        assert_eq!(op_cost, 38110f64);
+        assert_eq!(op_cost, 49296f64);
         assert_eq!(mem_cost, 1176f64);
     }
 }
