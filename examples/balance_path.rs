@@ -57,7 +57,6 @@ fn main() {
         connectivity,
     );
 
-    // println!("Tensor: {:?}", tensor.total_num_tensors());
     // Find vec of partitions
     let partitioning =
         find_partitioning(&tensor, num_partitions, PartitioningStrategy::MinCut, true);
@@ -67,41 +66,47 @@ fn main() {
     opt.optimize_path();
     let path = opt.get_best_replace_path();
 
+    #[derive(Debug, Clone, Copy)]
+    struct Candidate {
+        pub cost: f64,
+        _iteration: usize,
+        _method: CommunicationScheme,
+    }
+
     let rebalance_depth = 1;
-    let mut best_cost = f64::MAX;
-    let mut best_iteration = 0;
-    let mut best_method = String::new();
+    let mut best = None;
     for communication_scheme in [
         CommunicationScheme::Greedy,
         CommunicationScheme::Bipartition,
     ] {
-        let (num, mut _new_tn, _contraction_path, costs) = balance_partitions_iter(
+        let (num, _new_tn, _contraction_path, costs) = balance_partitions_iter(
             &partitioned_tn,
             &path,
             BalanceSettings {
                 random_balance: false,
                 rebalance_depth,
                 iterations: 120,
-                output_file: format!("output/{:?}_trial", communication_scheme),
+                output_file: format!("output/{communication_scheme:?}_trial"),
                 dendogram_cost_function: contract_cost_tensors,
                 greedy_cost_function: greedy_cost_fn,
                 communication_scheme,
             },
         );
-        info!(
-            "Best iteration for {:?} is {} at {}",
-            communication_scheme, num, costs[num]
-        );
-        if costs[num] < best_cost {
-            best_cost = costs[num];
-            best_method = format!("{:?}", communication_scheme);
-            best_iteration = num;
+        let candidate = Candidate {
+            cost: costs[num],
+            _iteration: num,
+            _method: communication_scheme,
+        };
+        info!("Candidate: {candidate:?}");
+
+        if best
+            .map(|best: Candidate| best.cost > candidate.cost)
+            .unwrap_or(true)
+        {
+            best = Some(candidate);
         }
     }
-    info!(
-        "Best scheme: {:?} with {} at {}",
-        best_method, best_cost, best_iteration
-    );
+    info!("Best scheme: {best:?}");
 
     // contract_tensor_network(&mut new_tn, &contraction_path);
 }
