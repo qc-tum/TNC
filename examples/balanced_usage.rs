@@ -17,6 +17,7 @@ use tensorcontraction::mpi::communication::{
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
+use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::tensornetwork::tensor::Tensor;
 
@@ -71,12 +72,7 @@ fn main() {
         );
 
         let unopt_partitioned_tn = if size > 1 {
-            let partitioning = find_partitioning(
-                &r_tn,
-                size,
-                String::from("tests/km1_kKaHyPar_sea20.ini"),
-                true,
-            );
+            let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
             debug!(tn_size = partitioning.len(); "TN size");
             debug!(partitioning:serde; "Partitioning created");
             partition_tensor_network(&r_tn, &partitioning)
