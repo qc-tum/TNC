@@ -11,12 +11,28 @@ use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 use crate::types::{ContractionIndex, EdgeIndex};
 
+pub enum CommunicationScheme {
+    /// Uses Greedy scheme to find contraction path for communication
+    Greedy,
+    /// Uses repeated bipartitioning to identify communication path
+    Bipartition,
+}
+
 /// Serializes data to a byte array.
-fn serialize<S>(data: &S) -> Vec<u8>
+fn serialize<S>(value: &S) -> Vec<u8>
 where
     S: serde::Serialize,
 {
-    bincode::serialize(data).unwrap()
+    bincode::serialize(value).unwrap()
+}
+
+/// Serializes data into a writer.
+fn serialize_into<W, S>(writer: W, value: &S)
+where
+    W: std::io::Write,
+    S: serde::Serialize,
+{
+    bincode::serialize_into(writer, value).unwrap();
 }
 
 /// Deserializes data from a byte array.
@@ -27,11 +43,13 @@ where
     bincode::deserialize(data).unwrap()
 }
 
-pub enum CommunicationScheme {
-    /// Uses Greedy scheme to find contraction path for communication
-    Greedy,
-    /// Uses repeated bipartitioning to identify communication path
-    Bipartition,
+/// Deserializes data from a reader.
+fn deserialize_from<R, D>(reader: R) -> D
+where
+    R: std::io::Read,
+    D: serde::de::DeserializeOwned,
+{
+    bincode::deserialize_from(reader).unwrap()
 }
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
@@ -91,25 +109,26 @@ pub fn broadcast_path(
 fn send_leaf_tensor(tensor: &Tensor, receiver: Rank, world: &SimpleCommunicator) {
     assert!(tensor.is_leaf());
 
-    // Send legs
+    // Serialize legs and data into a buffer
     let legs = tensor.legs();
-    world.process_at_rank(receiver).send(legs);
-
-    // Send data
     let tensor_data = tensor.tensor_data();
-    world
-        .process_at_rank(receiver)
-        .send(&serialize(&*tensor_data));
+    let mut send_buffer = Vec::new();
+    serialize_into(&mut send_buffer, legs);
+    serialize_into(&mut send_buffer, &*tensor_data);
+
+    // Send the buffer
+    world.process_at_rank(receiver).send(&send_buffer);
 }
 
 /// Receives a leaf tensor from `sender` via MPI.
 fn receive_leaf_tensor(sender: Rank, world: &SimpleCommunicator) -> Tensor {
-    // Receive legs
-    let (legs, _status) = world.process_at_rank(sender).receive_vec::<EdgeIndex>();
+    // Receive the buffer
+    let (buffer, _status) = world.process_at_rank(sender).receive_vec::<u8>();
 
-    // Receive data
-    let (raw_data, _status) = world.process_at_rank(sender).receive_vec::<u8>();
-    let tensor_data: TensorData = deserialize(&raw_data);
+    // Deserialize legs and data
+    let mut buffer = &buffer[..];
+    let legs: Vec<EdgeIndex> = deserialize_from(&mut buffer);
+    let tensor_data: TensorData = deserialize_from(&mut buffer);
 
     // Create tensor
     let mut new_tensor = Tensor::new(legs);
