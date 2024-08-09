@@ -1,7 +1,7 @@
 use flexi_logger::writers::FileLogWriter;
 use flexi_logger::{json_format, Duplicate, FileSpec, Logger, LoggerHandle};
 use log::{debug, info, LevelFilter};
-use mpi::traits::{Communicator, CommunicatorCollectives};
+use mpi::traits::Communicator;
 use mpi::Rank;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -117,7 +117,6 @@ fn main() {
     } else {
         Default::default()
     };
-    world.barrier();
 
     logger
         .reset_flw(
@@ -156,7 +155,6 @@ fn main() {
         info!("{local_tn:?}");
     }
 
-    world.barrier();
     logger
         .reset_flw(
             &FileLogWriter::builder(
@@ -170,7 +168,7 @@ fn main() {
             .append(),
         )
         .unwrap();
-    world.barrier();
+
     // Distribute tensor network and contract
     let local_tn = if size > 1 {
         let (mut local_tn, local_path) =
