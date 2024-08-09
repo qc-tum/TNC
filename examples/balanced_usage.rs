@@ -27,7 +27,7 @@ fn setup_logging_mpi(rank: Rank) -> LoggerHandle {
         .format(json_format)
         .log_to_file(
             FileSpec::default()
-                .discriminant(format!("rank{}", rank))
+                .discriminant(format!("rank{rank}"))
                 .suppress_timestamp()
                 .suffix("log.json")
                 .directory("logs/run2"),
@@ -50,7 +50,7 @@ fn main() {
     let rank = world.rank();
     let root = world.process_at_rank(0);
     let logger = setup_logging_mpi(rank);
-    info!(rank, size; "Running basic_usage");
+    info!(rank, size; "Logging setup");
 
     let seed = 23;
     let qubits = 30;
@@ -101,13 +101,13 @@ fn main() {
                 random_balance: false,
                 rebalance_depth,
                 iterations: 40,
-                output_file: format!("output/{:?}_trial", communication_scheme),
+                output_file: format!("output/{communication_scheme:?}_trial"),
                 dendogram_cost_function: contract_cost_tensors,
                 greedy_cost_function: greedy_cost_fn,
                 communication_scheme,
             },
         );
-        info!(num; "Best balancing iteration");
+        info!(num; "Found best balancing iteration");
         let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
         let dendogram_entries =
             to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);

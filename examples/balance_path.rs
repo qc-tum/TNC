@@ -23,7 +23,7 @@ fn setup_logging_mpi(rank: Rank) {
         .format(json_format)
         .log_to_file(
             FileSpec::default()
-                .discriminant(format!("rank{}", rank))
+                .discriminant(format!("rank{rank}"))
                 .suppress_timestamp()
                 .suffix("log.json"),
         )
