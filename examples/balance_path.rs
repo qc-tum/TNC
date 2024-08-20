@@ -99,10 +99,7 @@ fn main() {
         };
         info!("Candidate: {candidate:?}");
 
-        if best
-            .map(|best: Candidate| best.cost > candidate.cost)
-            .unwrap_or(true)
-        {
+        if best.map_or(true, |best: Candidate| best.cost > candidate.cost) {
             best = Some(candidate);
         }
     }
