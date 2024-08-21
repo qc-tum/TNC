@@ -51,8 +51,8 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let vec = Vec::from([1,2,3]);
-    /// let tensor = Tensor::new(vec);
+    /// let legs = vec![1,2,3];
+    /// let tensor = Tensor::new(legs);
     /// ```
     pub fn new(legs: Vec<EdgeIndex>) -> Self {
         Self {
@@ -66,7 +66,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let vec = Vec::from([1,2,3]);
+    /// let vec = vec![1, 2, 3];
     /// let tensor = Tensor::new(vec.clone()) ;
     /// assert_eq!(tensor.legs(), &vec);
     /// ```
@@ -87,8 +87,8 @@ impl Tensor {
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// # use std::collections::HashMap;
-    /// let mut v1 = Tensor::new(vec![0,1]);
-    /// let mut v2 = Tensor::new(vec![1,2]);
+    /// let mut v1 = Tensor::new(vec![0, 1]);
+    /// let mut v2 = Tensor::new(vec![1, 2]);
     /// let bond_dims = HashMap::from([
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
@@ -112,10 +112,10 @@ impl Tensor {
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// # use std::collections::HashMap;
-    /// let mut v1 = Tensor::new(vec![0,1]);
-    /// let mut v2 = Tensor::new(vec![1,2]);
-    /// let mut v3 = Tensor::new(vec![2,3]);
-    /// let mut v4 = Tensor::new(vec![3,4]);
+    /// let mut v1 = Tensor::new(vec![0, 1]);
+    /// let mut v2 = Tensor::new(vec![1, 2]);
+    /// let mut v3 = Tensor::new(vec![2, 3]);
+    /// let mut v4 = Tensor::new(vec![3, 4]);
     /// let bond_dims = HashMap::from([
     /// (0, 17), (1, 19), (2, 8), (3, 2), (4, 1)
     /// ]);
@@ -127,7 +127,7 @@ impl Tensor {
     /// nested_tn.push_tensors(vec![tn1, tn2], Some(&bond_dims), None);
     /// v3.insert_bond_dims(&bond_dims);
     ///
-    /// assert_eq!(nested_tn.nested_tensor(&[1,0]).legs(), v3.legs());
+    /// assert_eq!(nested_tn.nested_tensor(&[1, 0]).legs(), v3.legs());
     ///
     /// ```
     pub fn nested_tensor(&self, nested_indices: &[usize]) -> &Tensor {
@@ -156,15 +156,15 @@ impl Tensor {
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// # use std::collections::HashMap;
-    /// let mut v1 = Tensor::new(vec![0,1]);
-    /// let mut v2 = Tensor::new(vec![1,2]);
+    /// let mut v1 = Tensor::new(vec![0, 1]);
+    /// let mut v2 = Tensor::new(vec![1, 2]);
     /// let bond_dims = HashMap::from([
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
     /// let mut tn = Tensor::default();
-    /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
+    /// tn.push_tensors(vec![v1, v2], Some(&bond_dims), None);
     /// tn.insert_bond_dims(&bond_dims);
-    /// let mut ref_tensor = Tensor::new(vec![0,1]);
+    /// let mut ref_tensor = Tensor::new(vec![0, 1]);
     /// ref_tensor.insert_bond_dims(&bond_dims);
     /// assert_eq!(tn.tensor(0).legs(), ref_tensor.legs());
     /// ```
@@ -180,12 +180,12 @@ impl Tensor {
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use tensorcontraction::tensornetwork::create_tensor_network;
     /// # use std::collections::HashMap;
-    /// let v1 = Tensor::new(vec![0,1]);
-    /// let v2 = Tensor::new(vec![1,2]);
+    /// let v1 = Tensor::new(vec![0, 1]);
+    /// let v2 = Tensor::new(vec![1, 2]);
     /// let bond_dims = HashMap::from([
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
-    /// let tn = create_tensor_network(vec![v1,v2], &bond_dims, None);
+    /// let tn = create_tensor_network(vec![v1, v2], &bond_dims, None);
     /// assert_eq!(*tn.bond_dims(), bond_dims);
     /// ```
     pub fn bond_dims(&self) -> RwLockReadGuard<HashMap<EdgeIndex, u64>> {
@@ -200,12 +200,12 @@ impl Tensor {
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use tensorcontraction::tensornetwork::create_tensor_network;
     /// # use std::collections::HashMap;
-    /// let v1 = Tensor::new(vec![0,1]);
-    /// let v2 = Tensor::new(vec![1,2]);
+    /// let v1 = Tensor::new(vec![0, 1]);
+    /// let v2 = Tensor::new(vec![1, 2]);
     /// let bond_dims = HashMap::from([
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
-    /// let mut tn = create_tensor_network(vec![v1,v2], &bond_dims, None);
+    /// let mut tn = create_tensor_network(vec![v1, v2], &bond_dims, None);
     /// tn.insert_bond_dims(&HashMap::from([(1, 12), (0, 5)]));
     /// assert_eq!(*tn.bond_dims(), HashMap::from([(0, 5), (1, 12), (2, 8)]) );
     /// ```
@@ -225,8 +225,8 @@ impl Tensor {
     /// # use tensorcontraction::tensornetwork::create_tensor_network;
     /// # use tensorcontraction::types::*;
     /// # use std::collections::HashMap;
-    /// let v1 = Tensor::new(vec![0,1]);
-    /// let v2 = Tensor::new(vec![1,2]);
+    /// let v1 = Tensor::new(vec![0, 1]);
+    /// let v2 = Tensor::new(vec![1, 2]);
     /// let bond_dims = HashMap::from([
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
@@ -249,11 +249,11 @@ impl Tensor {
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use std::collections::HashMap;
-    /// let vec = Vec::from([0, 1, 2]);
+    /// let legs = vec![0, 1, 2];
     /// let bond_dims = HashMap::from([
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
-    /// let mut tensor = Tensor::new(vec.clone()) ;
+    /// let mut tensor = Tensor::new(legs);
     /// tensor.insert_bond_dims(&bond_dims);
     ///
     /// assert_eq!(tensor.shape(), vec![17, 19, 8]);
@@ -268,8 +268,8 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let vec = Vec::from([1,2,3]);
-    /// let tensor = Tensor::new(vec.clone()) ;
+    /// let legs = vec![1, 2, 3];
+    /// let tensor = Tensor::new(legs);
     /// assert_eq!(tensor.dims(), 3);
     /// ```
     pub fn dims(&self) -> usize {
@@ -283,7 +283,7 @@ impl Tensor {
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// use std::collections::HashMap;
-    /// let mut tensor = Tensor::new(Vec::from([1,2,3]));
+    /// let mut tensor = Tensor::new(vec![1, 2, 3]);
     /// let bond_dims = HashMap::from([(1, 5),
     /// (2, 15),
     /// (3, 8)]);
@@ -304,7 +304,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor = Tensor::new(Vec::from([1,2,3]));
+    /// let tensor = Tensor::new(vec![1, 2, 3]);
     /// assert_eq!(tensor.contains_leg(2), true);
     /// assert_eq!(tensor.contains_leg(4), false);
     /// ```
@@ -317,7 +317,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor = Tensor::new(Vec::from([1,2,3]));
+    /// let tensor = Tensor::new(vec![1, 2, 3]);
     /// assert_eq!(tensor.is_leaf(), true);
     /// ```
     pub fn is_leaf(&self) -> bool {
@@ -329,7 +329,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let mut tensor = Tensor::new(Vec::from([1,2,3]));
+    /// let mut tensor = Tensor::new(vec![1, 2, 3]);
     /// assert_eq!(tensor.is_composite(), false);
     /// ```
     pub fn is_composite(&self) -> bool {
@@ -509,9 +509,7 @@ impl Tensor {
         }
     }
 
-    //TODO: Implement docstring once comparison of data tensors done
     /// Getter for tensor data.
-    ///
     pub fn tensor_data(&self) -> Ref<TensorData> {
         self.tensordata.borrow()
     }
@@ -523,7 +521,7 @@ impl Tensor {
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
-    /// let mut tensor = Tensor::new(vec![0,1]);
+    /// let mut tensor = Tensor::new(vec![0, 1]);
     /// let tensordata = TensorData::Gate((String::from("X"), vec![]));
     /// tensor.set_tensor_data(tensordata);
     /// ```
@@ -538,10 +536,10 @@ impl Tensor {
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// use std::collections::HashMap;
-    /// let tensor1 = Tensor::new(vec![1,2,3]);
-    /// let tensor2 = Tensor::new(vec![4,2,5]);
+    /// let tensor1 = Tensor::new(vec![1, 2, 3]);
+    /// let tensor2 = Tensor::new(vec![4, 2, 5]);
     /// let diff_tensor = &tensor1 - &tensor2;
-    /// assert_eq!(diff_tensor.legs(), &vec![1,3]);
+    /// assert_eq!(diff_tensor.legs(), &[1, 3]);
     /// ```
     #[must_use]
     pub fn difference(&self, other: &Self) -> Self {
@@ -562,10 +560,10 @@ impl Tensor {
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// use std::collections::HashMap;
-    /// let tensor1 = Tensor::new(vec![1,2,3]);
-    /// let tensor2 = Tensor::new(vec![4,2,5]);
+    /// let tensor1 = Tensor::new(vec![1, 2, 3]);
+    /// let tensor2 = Tensor::new(vec![4, 2, 5]);
     /// let union_tensor = &tensor1 | &tensor2;
-    /// assert_eq!(union_tensor.legs(), &vec![1,2,3,4,5]);
+    /// assert_eq!(union_tensor.legs(), &[1, 2, 3, 4, 5]);
     /// ```
     #[must_use]
     pub fn union(&self, other: &Self) -> Self {
@@ -586,10 +584,10 @@ impl Tensor {
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// use std::collections::HashMap;
-    /// let tensor1 = Tensor::new(vec![1,2,3]);
-    /// let tensor2 = Tensor::new(vec![4,2,5]);
+    /// let tensor1 = Tensor::new(vec![1, 2, 3]);
+    /// let tensor2 = Tensor::new(vec![4, 2, 5]);
     /// let intersection_tensor = &tensor1 & &tensor2;
-    /// assert_eq!(intersection_tensor.legs(), &vec![2]);
+    /// assert_eq!(intersection_tensor.legs(), &[2]);
     /// ```
     #[must_use]
     pub fn intersection(&self, other: &Self) -> Self {
@@ -610,10 +608,10 @@ impl Tensor {
     /// ```
     /// use tensorcontraction::tensornetwork::tensor::Tensor;
     /// use std::collections::HashMap;
-    /// let tensor1 = Tensor::new(vec![1,2,3]);
-    /// let tensor2 = Tensor::new(vec![4,2,5]);
+    /// let tensor1 = Tensor::new(vec![1, 2, 3]);
+    /// let tensor2 = Tensor::new(vec![4, 2, 5]);
     /// let sym_dif_tensor = &tensor1 ^ &tensor2;
-    /// assert_eq!(sym_dif_tensor.legs(), &vec![1,3,4,5]);
+    /// assert_eq!(sym_dif_tensor.legs(), &[1, 3, 4, 5]);
     /// ```
     #[must_use]
     pub fn symmetric_difference(&self, other: &Self) -> Self {
