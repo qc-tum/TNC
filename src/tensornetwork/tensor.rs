@@ -370,7 +370,7 @@ impl Tensor {
     /// * `tensor` - new `Tensor` to be added
     /// * `bond_dims` - `HashMap<usize, u64>` mapping edge id to bond dimension
     pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&HashMap<usize, u64>>) {
-        // In the case of pushing to an empty tensor, avoid unnecessary heirarchies
+        // In the case of pushing to an empty tensor, avoid unnecessary hierarchies
         if self.tensors().is_empty() && self.legs().is_empty() {
             let Self {
                 legs,
@@ -397,20 +397,21 @@ impl Tensor {
             return;
         }
 
-        if self.tensors().is_empty() && !self.legs().is_empty() {
-            let mut new_self = self.clone();
+        if self.is_leaf() && !self.legs.is_empty() {
+            let old_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
-            self.update_tensor_edges(&mut new_self);
+            self.update_tensor_edges(&old_self);
             self.set_tensor_data(TensorData::Uncontracted);
-            self.tensors.push(new_self);
+            self.tensors.push(old_self);
         }
 
         if let Some(bond_dims) = bond_dims {
             self.add_bond_dims(bond_dims);
         };
 
-        self.update_tensor_edges(&mut tensor);
+        tensor.bond_dims = Arc::clone(&self.bond_dims);
+        self.update_tensor_edges(&tensor);
         self.update_external_edges(&tensor.external_hyperedge);
 
         self.tensors.push(tensor);
@@ -430,14 +431,14 @@ impl Tensor {
         external_hyperedge: Option<&HashMap<EdgeIndex, usize>>,
     ) {
         // Case that tensor is not empty but has no subtensors.
-        if self.tensors().is_empty() && !self.legs().is_empty() {
-            let mut new_self = self.clone();
+        if self.is_leaf() && !self.legs().is_empty() {
+            let old_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
             // Don't clone large data is needed.
-            self.update_tensor_edges(&mut new_self);
+            self.update_tensor_edges(&old_self);
             self.set_tensor_data(TensorData::Uncontracted);
-            self.tensors.push(new_self);
+            self.tensors.push(old_self);
         }
 
         if let Some(bond_dims) = bond_dims {
@@ -445,7 +446,8 @@ impl Tensor {
         };
 
         for mut tensor in tensors {
-            self.update_tensor_edges(&mut tensor);
+            tensor.bond_dims = Arc::clone(&self.bond_dims);
+            self.update_tensor_edges(&tensor);
             self.tensors.push(tensor);
         }
 
@@ -480,8 +482,7 @@ impl Tensor {
     /// Internal method to update edges in tensornetwork after new tensor is added.
     /// If existing edges are introduced, assume that a contraction occurs between them
     /// Otherwise, introduce a new open vertex in edges
-    pub(super) fn update_tensor_edges(&mut self, tensor: &mut Self) {
-        tensor.bond_dims = Arc::clone(&self.bond_dims);
+    pub(super) fn update_tensor_edges(&mut self, tensor: &Self) {
         let shared_bond_dims = self.bond_dims.read().unwrap();
 
         // Index is current length as tensor is pushed after.

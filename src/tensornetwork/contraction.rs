@@ -48,7 +48,7 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
             }
             ContractionIndex::Path(i, inner_contract_path) => {
                 contract_tensor_network(tn.get_mut_tensor(*i), inner_contract_path);
-                tn.update_tensor_edges(&mut tn.tensor(*i).clone());
+                tn.update_tensor_edges(&tn.tensor(*i).clone());
             }
         }
     }
