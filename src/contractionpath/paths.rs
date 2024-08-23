@@ -1,5 +1,6 @@
 use rand::Rng;
-use std::collections::{BinaryHeap, HashMap};
+use rustc_hash::FxHashMap;
+use std::collections::BinaryHeap;
 
 use crate::contractionpath::candidates::Candidate;
 use crate::tensornetwork::tensor::Tensor;
@@ -48,7 +49,7 @@ pub(crate) trait RNGChooser {
     fn choose<R>(
         &self,
         queue: &mut BinaryHeap<Candidate>,
-        remaining_tensors: &HashMap<u64, usize>,
+        remaining_tensors: &FxHashMap<u64, usize>,
         nbranch: usize,
         temperature: f64,
         rel_temperature: bool,

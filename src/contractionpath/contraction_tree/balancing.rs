@@ -1,10 +1,11 @@
-use std::{cmp::minmax, collections::HashMap};
+use std::cmp::minmax;
 
 use itertools::Itertools;
 use rand::{
     distributions::{Distribution, WeightedIndex},
     thread_rng,
 };
+use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
@@ -25,7 +26,7 @@ use super::{populate_subtree_tensor_map, ContractionTree};
 /// Returns root id of subtree, parallel contraction cost as f64, resultant tensor and prior contraction sequence
 fn tensor_bipartition_recursive(
     children_tensor: &[(usize, Tensor)],
-    bond_dims: &HashMap<usize, u64>,
+    bond_dims: &FxHashMap<usize, u64>,
 ) -> (usize, f64, Tensor, Vec<ContractionIndex>) {
     let k = 2;
     let min = true;
@@ -80,7 +81,7 @@ fn tensor_bipartition_recursive(
 /// Assumes that all tensors contracted do so in parallel
 pub(super) fn tensor_bipartition(
     children_tensor: &[(usize, Tensor)],
-    bond_dims: &HashMap<usize, u64>,
+    bond_dims: &FxHashMap<usize, u64>,
 ) -> (f64, Vec<ContractionIndex>) {
     let (_, contraction_cost, _, contraction_path) =
         tensor_bipartition_recursive(children_tensor, bond_dims);
@@ -225,9 +226,9 @@ pub(super) fn find_potential_nodes(
     smaller_subtree_root: usize,
     tn: &Tensor,
     cost_function: fn(&Tensor, &Tensor) -> f64,
-) -> HashMap<usize, f64> {
+) -> FxHashMap<usize, f64> {
     // Get a map that maps nodes to their tensors.
-    let mut node_tensor_map = HashMap::new();
+    let mut node_tensor_map = FxHashMap::default();
     populate_subtree_tensor_map(
         contraction_tree,
         smaller_subtree_root,

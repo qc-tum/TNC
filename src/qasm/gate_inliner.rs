@@ -1,4 +1,6 @@
-use std::{collections::HashMap, iter::zip, mem::take};
+use std::{iter::zip, mem::take};
+
+use rustc_hash::FxHashMap;
 
 use super::{
     ast::{Expr, GateCallData, GateDeclarationData, Program, Statement},
@@ -8,12 +10,12 @@ use super::{
 /// Struct to inline gate calls with previous gate declarations.
 #[derive(Debug, Default)]
 pub struct GateInliner {
-    definitions: HashMap<String, GateDeclarationData>,
+    definitions: FxHashMap<String, GateDeclarationData>,
 }
 
 impl GateInliner {
     // Traverses an expression and replaces all variables with the expressions given by the context.
-    fn replace_vars(expr: &mut Expr, context: &HashMap<&String, &Expr>) {
+    fn replace_vars(expr: &mut Expr, context: &FxHashMap<&String, &Expr>) {
         match expr {
             Expr::Variable(x) => {
                 *expr = (**context.get(x).expect("Unknown variable name in gate call")).clone();
@@ -31,8 +33,8 @@ impl GateInliner {
     fn get_body(call: &GateCallData, callee: &GateDeclarationData) -> Vec<Statement> {
         if let Some(body) = &callee.body {
             // Map the names in the declaration to the actual values passed in the call
-            let name_to_expr: HashMap<_, _> = zip(&callee.params, &call.args).collect();
-            let name_to_qreg: HashMap<_, _> = zip(&callee.qubits, &call.qargs).collect();
+            let name_to_expr = zip(&callee.params, &call.args).collect::<FxHashMap<_, _>>();
+            let name_to_qreg = zip(&callee.qubits, &call.qargs).collect::<FxHashMap<_, _>>();
 
             let mut statements = Vec::with_capacity(body.len());
             for statement in body {
@@ -146,7 +148,7 @@ impl GateInliner {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use rustc_hash::FxHashMap;
 
     use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement, UnOp};
 
@@ -289,7 +291,7 @@ mod tests {
         let expr_a = Expr::Int(2);
         let expr_b = Expr::Unary(UnOp::Neg, Box::new(Expr::Int(4)));
         let expr_c = Expr::Int(42);
-        let mut context = HashMap::new();
+        let mut context = FxHashMap::default();
         context.insert(&a, &expr_a);
         context.insert(&b, &expr_b);
         context.insert(&c, &expr_c);

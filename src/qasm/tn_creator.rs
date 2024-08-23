@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use itertools::Itertools;
 use num_complex::Complex64;
+use rustc_hash::FxHashMap;
 
 use crate::tensornetwork::{create_tensor_network, tensor::Tensor};
 
@@ -26,7 +25,10 @@ impl TensorNetworkCreator {
 
     /// Given the quantum arguments to a gate call, applies the broadcast rules and
     /// returns the list of quantum arguments for each single call.
-    fn broadcast(qargs: &[Argument], register_sizes: &HashMap<String, u32>) -> Vec<Vec<Argument>> {
+    fn broadcast(
+        qargs: &[Argument],
+        register_sizes: &FxHashMap<String, u32>,
+    ) -> Vec<Vec<Argument>> {
         // Get the size of all register arguments (i.e. those without qubit index specified)
         let sizes = qargs
             .iter()
@@ -77,8 +79,8 @@ impl TensorNetworkCreator {
     /// have been inlined and all expressions have been simplified to literals.
     pub fn create_tensornetwork(&mut self, program: &Program) -> Tensor {
         // Map qubits to the last open edge on the corresponding wire
-        let mut wires = HashMap::new();
-        let mut register_sizes = HashMap::new();
+        let mut wires = FxHashMap::default();
+        let mut register_sizes = FxHashMap::default();
         let mut tensors = Vec::new();
         let ket0 = Self::ket0();
 
@@ -141,7 +143,7 @@ impl TensorNetworkCreator {
 
         let bond_dims = (0..self.edge_counter)
             .map(|e| (e, 2u64))
-            .collect::<HashMap<usize, u64>>();
+            .collect::<FxHashMap<_, _>>();
 
         create_tensor_network(tensors, &bond_dims, None)
     }
@@ -149,7 +151,7 @@ impl TensorNetworkCreator {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use rustc_hash::FxHashMap;
 
     use crate::qasm::ast::Argument;
 
@@ -157,7 +159,7 @@ mod tests {
 
     #[test]
     fn broadcasting_2qargs() {
-        let mut register_sizes = HashMap::new();
+        let mut register_sizes = FxHashMap::default();
         register_sizes.insert(String::from("a"), 3);
         register_sizes.insert(String::from("b"), 3);
 
@@ -202,7 +204,7 @@ mod tests {
 
     #[test]
     fn broadcasting_1qarg() {
-        let mut register_sizes = HashMap::new();
+        let mut register_sizes = FxHashMap::default();
         register_sizes.insert(String::from("a"), 2);
 
         let a = Argument(String::from("a"), None);

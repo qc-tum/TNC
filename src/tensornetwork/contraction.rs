@@ -1,6 +1,7 @@
-use std::{collections::HashMap, ops::RangeBounds};
+use std::ops::RangeBounds;
 
 use log::debug;
+use rustc_hash::FxHashMap;
 use tetra::{contract, Tensor as DataTensor};
 
 use crate::{
@@ -67,7 +68,7 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
 pub(crate) trait TensorContraction {
     /// Internal method to permute tensor
     fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor;
-    fn get_mut_edges(&mut self) -> &mut HashMap<EdgeIndex, Vec<Vertex>>;
+    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, Vec<Vertex>>;
     fn get_data(&self) -> DataTensor;
     fn swap(&mut self, i: usize, j: usize);
     fn drain<R>(&mut self, range: R)
@@ -82,7 +83,7 @@ impl TensorContraction for Tensor {
     }
 
     // Internal method to update edges
-    fn get_mut_edges(&mut self) -> &mut HashMap<EdgeIndex, Vec<Vertex>> {
+    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, Vec<Vertex>> {
         &mut self.edges
     }
 
@@ -160,7 +161,7 @@ mod tests {
     };
 
     use num_complex::Complex64;
-    use std::collections::HashMap;
+    use rustc_hash::FxHashMap;
     use tetra::Layout;
 
     fn setup() -> (
@@ -489,7 +490,7 @@ mod tests {
         // tout is of shape [3, 5, 7, 6]
         let mut t23 = Tensor::new(vec![0, 5, 2, 4]);
 
-        let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
+        let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
 
         t1.insert_bond_dims(&bond_dims);
         t2.insert_bond_dims(&bond_dims);
@@ -498,7 +499,7 @@ mod tests {
         t12.insert_bond_dims(&bond_dims);
         t23.insert_bond_dims(&bond_dims);
 
-        let edges_before_contraction = HashMap::<_, _>::from_iter([
+        let edges_before_contraction = FxHashMap::from_iter([
             (0, vec![Vertex::Closed(0), Vertex::Closed(2)]),
             (1, vec![Vertex::Closed(0), Vertex::Open]),
             (2, vec![Vertex::Closed(0), Vertex::Closed(1)]),
@@ -507,7 +508,7 @@ mod tests {
             (5, vec![Vertex::Closed(2), Vertex::Open]),
         ]);
 
-        let edges_after_contraction_1 = HashMap::<_, _>::from_iter([
+        let edges_after_contraction_1 = FxHashMap::from_iter([
             (0, vec![Vertex::Closed(0), Vertex::Closed(2)]),
             (1, vec![Vertex::Closed(0), Vertex::Open]),
             (3, vec![Vertex::Closed(0), Vertex::Closed(2)]),
@@ -515,7 +516,7 @@ mod tests {
             (5, vec![Vertex::Closed(2), Vertex::Open]),
         ]);
 
-        let edges_after_contraction_2 = HashMap::<_, _>::from_iter([
+        let edges_after_contraction_2 = FxHashMap::from_iter([
             (0, vec![Vertex::Closed(0), Vertex::Closed(1)]),
             (1, vec![Vertex::Closed(0), Vertex::Open]),
             (2, vec![Vertex::Closed(0), Vertex::Closed(1)]),
@@ -580,7 +581,7 @@ mod tests {
         let mut t3 = Tensor::new(vec![0, 5, 3]);
         // tout is of shape [5, 6, 2]
         let mut tout = Tensor::new(vec![5, 4, 1]);
-        let bond_dims = HashMap::from([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
+        let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
 
         t1.insert_bond_dims(&bond_dims);
         t2.insert_bond_dims(&bond_dims);
@@ -588,7 +589,7 @@ mod tests {
 
         tout.insert_bond_dims(&bond_dims);
 
-        let edges_before_contraction = HashMap::<_, _>::from_iter([
+        let edges_before_contraction = FxHashMap::from_iter([
             (0, vec![Vertex::Closed(0), Vertex::Closed(2)]),
             (1, vec![Vertex::Closed(0), Vertex::Open]),
             (2, vec![Vertex::Closed(0), Vertex::Closed(1)]),
@@ -597,7 +598,7 @@ mod tests {
             (5, vec![Vertex::Closed(2), Vertex::Open]),
         ]);
 
-        let edges_after_contraction = HashMap::<_, _>::from_iter([
+        let edges_after_contraction = FxHashMap::from_iter([
             (1, vec![Vertex::Closed(0), Vertex::Open]),
             (4, vec![Vertex::Closed(0), Vertex::Open]),
             (5, vec![Vertex::Closed(0), Vertex::Open]),
@@ -654,7 +655,7 @@ mod tests {
             None,
         ));
         let mut t3 = Tensor::default();
-        let bond_dims = HashMap::from([(0, 3), (1, 2)]);
+        let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2)]);
         t3.push_tensors(vec![t1, t2], Some(&bond_dims), None);
         let contract_path = path![(0, 1)];
 
