@@ -1,11 +1,11 @@
 use std::{
     cmp::{max, min},
-    collections::{BinaryHeap, HashSet},
+    collections::BinaryHeap,
 };
 
 use itertools::Itertools;
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     contractionpath::{
@@ -103,7 +103,7 @@ impl<'a> Greedy<'a> {
     /// Returns Tensor obtained after contracting k1 and k2.
     fn get_candidate(
         output: &Tensor,
-        edge_tensor_counts: &FxHashMap<usize, HashSet<usize>>,
+        edge_tensor_counts: &FxHashMap<usize, FxHashSet<usize>>,
         k1: &Tensor,
         k2: &Tensor,
     ) -> Tensor {
@@ -128,7 +128,7 @@ impl<'a> Greedy<'a> {
 
     fn update_ref_counts(
         dim_to_tensors: &FxHashMap<usize, Vec<Tensor>>,
-        dim_tensor_counts: &mut FxHashMap<usize, HashSet<usize>>,
+        dim_tensor_counts: &mut FxHashMap<usize, FxHashSet<usize>>,
         dims: &Tensor,
     ) {
         for &dim in dims.legs() {
@@ -539,9 +539,9 @@ fn populate_edge_to_tensors(
 
 fn populate_edge_tensor_counts(
     bond_dim_to_tensors: &FxHashMap<usize, Vec<Tensor>>,
-) -> FxHashMap<usize, HashSet<usize>> {
+) -> FxHashMap<usize, FxHashSet<usize>> {
     // Get dims that are contracted
-    let mut bond_dim_tensor_counts = FxHashMap::<usize, HashSet<usize>>::default();
+    let mut bond_dim_tensor_counts = FxHashMap::<_, FxHashSet<_>>::default();
     for i in 2..=3 {
         for (bond_dim, tensor_legs) in bond_dim_to_tensors {
             if tensor_legs.len() >= i {
