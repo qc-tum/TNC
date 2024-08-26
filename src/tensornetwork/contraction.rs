@@ -113,12 +113,10 @@ impl TensorContraction for Tensor {
         let tensor_a = std::mem::take(&mut self.tensors[tensor_a_loc]);
         let tensor_b = std::mem::take(&mut self.tensors[tensor_b_loc]);
 
-        let tensor_a_legs = tensor_a.legs();
-        let tensor_b_legs = tensor_b.legs();
         let mut tensor_symmetric_difference = &tensor_b ^ &tensor_a;
 
         let edges = self.get_mut_edges();
-        for leg in tensor_b_legs {
+        for leg in &tensor_b.legs {
             edges.entry(*leg).and_modify(|e| {
                 e.retain(|v| {
                     if let &Vertex::Closed(tensor_loc) = v {
@@ -138,25 +136,11 @@ impl TensorContraction for Tensor {
             edges.retain(|_, edge| edge != &vec![Vertex::Closed(tensor_a_loc)]);
         }
 
-        let out_indices = tensor_symmetric_difference
-            .legs
-            .iter()
-            .map(|e| *e as u32)
-            .collect::<Vec<_>>();
-        let a_indices = tensor_a_legs
-            .iter()
-            .map(|e| *e as u32)
-            .collect::<Vec<u32>>();
-        let b_indices = tensor_b_legs
-            .iter()
-            .map(|e| *e as u32)
-            .collect::<Vec<u32>>();
-
         tensor_symmetric_difference.set_tensor_data(TensorData::Matrix(contract(
-            &out_indices,
-            &a_indices,
+            &tensor_symmetric_difference.legs,
+            &tensor_a.legs,
             &tensor_a.get_data(),
-            &b_indices,
+            &tensor_b.legs,
             &tensor_b.get_data(),
         )));
         self.tensors[tensor_a_loc] = tensor_symmetric_difference;
