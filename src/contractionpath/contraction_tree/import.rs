@@ -323,7 +323,7 @@ fn log_to_subtree(
                     })
                     .collect::<Vec<_>>();
 
-                for tensor_id in ij.iter().cloned() {
+                for &tensor_id in &ij {
                     if !replace_to_ssa.contains_key(&tensor_id) {
                         let leaf_node =
                             Node::new(*tensor_count, Weak::new(), Weak::new(), Weak::new(), None);
