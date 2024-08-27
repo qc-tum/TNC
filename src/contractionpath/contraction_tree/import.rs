@@ -141,14 +141,7 @@ pub fn logs_to_tree(
     let mut logging_start = chrono::DateTime::<chrono::FixedOffset>::default();
 
     for rank in 0..ranks {
-        let LogToSubtreeResult(nodes, mut local_communication_path, contraction_start) =
-            log_to_subtree(
-                filename.clone() + &format!("_rank{}.", rank) + &suffix,
-                &mut tensor_cost,
-                &mut tensor_count,
-                rank,
-            );
-        if rank == 0 {
+        if contraction_start < logging_start {
             logging_start = contraction_start;
         }
         let color = COLORS[rank + 1];
