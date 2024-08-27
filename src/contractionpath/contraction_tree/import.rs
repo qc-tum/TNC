@@ -141,6 +141,16 @@ pub fn logs_to_tree(
     let mut logging_start = chrono::DateTime::<chrono::FixedOffset>::default();
 
     for rank in 0..ranks {
+        let LogToSubtreeResult {
+            remaining_nodes: nodes,
+            communication_path: mut local_communication_path,
+            contraction_start,
+        } = log_to_subtree(
+            format!("{filename}_rank{rank}.{suffix}"),
+            &mut tensor_cost,
+            &mut tensor_count,
+            rank,
+        );
         if contraction_start < logging_start {
             logging_start = contraction_start;
         }
@@ -214,6 +224,15 @@ pub fn logs_to_tree(
         tensor_cost,
         tensor_color,
     )
+}
+
+struct LogToSubtreeResult {
+    // Dict of remaining nodes to process, keeps track of intermediate tensors
+    remaining_nodes: HashMap<usize, Rc<RefCell<Node>>>,
+    // Keeps track of communication with time stamps
+    communication_path: Vec<(usize, usize, chrono::DateTime<chrono::FixedOffset>)>,
+    // Start of contraction for reference
+    contraction_start: chrono::DateTime<chrono::FixedOffset>,
 }
 
 /// Processes the log of a single rank. Extracts subtree information corresponding to the single rank and returns it
@@ -363,7 +382,11 @@ fn log_to_subtree(
         }
     }
 
-    LogToSubtreeResult(remaining_nodes, communication_path, contraction_start)
+    LogToSubtreeResult {
+        remaining_nodes,
+        communication_path,
+        contraction_start,
+    }
 }
 
 fn new_intermediate_node(
