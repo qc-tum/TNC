@@ -147,7 +147,7 @@ pub fn logs_to_tree(
             communication_path: mut local_communication_path,
             contraction_start,
         } = log_to_subtree(
-            format!("{filename}_rank{rank}.{suffix}"),
+            &format!("{filename}_rank{rank}.{suffix}"),
             &mut tensor_cost,
             &mut tensor_count,
             rank,
@@ -239,7 +239,7 @@ struct LogToSubtreeResult {
 /// Processes the log of a single rank. Extracts subtree information corresponding to the single rank and returns it
 /// as a LogToSubtreeResult object.
 fn log_to_subtree(
-    filename: String,
+    filename: &str,
     tensor_cost: &mut HashMap<usize, f64>,
     tensor_count: &mut usize,
     rank: usize,
