@@ -133,7 +133,7 @@ pub fn logs_to_tree(
     let mut partition_root_nodes = Vec::new();
 
     // Hashmap of all nodes
-    let mut remaining_nodes = HashMap::new();
+    let mut remaining_nodes = FxHashMap::default();
     // Tracks all communication taking place, only lists receiving rank for each instance to prevent doubles.
     let mut communication_path = Vec::new();
 
@@ -219,7 +219,7 @@ pub fn logs_to_tree(
     (
         ContractionTree {
             nodes: remaining_nodes,
-            partitions: HashMap::from([(0, partition_tensor_ids)]),
+            partitions: FxHashMap::from_iter([(0, partition_tensor_ids)]),
             root,
         },
         tensor_cost,
