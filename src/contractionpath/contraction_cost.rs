@@ -15,10 +15,10 @@ use crate::types::ContractionIndex;
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
 /// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_cost_in_tn;
-/// # use std::collections::HashMap;
-/// let vec1 = Vec::from([0,1,2]);
-/// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// # use rustc_hash::FxHashMap;
+/// let vec1 = Vec::from([0, 1, 2]);
+/// let vec2 = Vec::from([2, 3, 4]);
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 350350f64);
 /// ```
@@ -39,10 +39,10 @@ pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
 /// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
-/// # use std::collections::HashMap;
-/// let vec1 = Vec::from([0,1,2]);
-/// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// # use rustc_hash::FxHashMap;
+/// let vec1 = Vec::from([0, 1, 2]);
+/// let vec2 = Vec::from([2, 3, 4]);
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 350350f64);
 /// ```
@@ -77,10 +77,10 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
 /// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size_in_tn;
-/// # use std::collections::HashMap;
-/// let vec1 = Vec::from([0,1,2]);
-/// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// # use rustc_hash::FxHashMap;
+/// let vec1 = Vec::from([0, 1, 2]);
+/// let vec2 = Vec::from([2, 3, 4]);
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_size_in_tn(&tn, 0, 1), 6607f64);
 /// ```
@@ -101,10 +101,10 @@ pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
 /// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors;
-/// # use std::collections::HashMap;
-/// let vec1 = Vec::from([0,1,2]);
-/// let vec2 = Vec::from([2,3,4]);
-/// let bond_dims = HashMap::<usize, u64>::from([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// # use rustc_hash::FxHashMap;
+/// let vec1 = Vec::from([0, 1, 2]);
+/// let vec2 = Vec::from([2, 3, 4]);
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1)), 6607f64);
 /// ```
@@ -149,6 +149,8 @@ pub fn contract_path_cost(inputs: &[Tensor], contract_path: &[ContractionIndex])
 
 #[cfg(test)]
 mod tests {
+    use rustc_hash::FxHashMap;
+
     use crate::contractionpath::contraction_cost::contract_path_cost;
     use crate::path;
     use crate::tensornetwork::create_tensor_network;
@@ -161,7 +163,7 @@ mod tests {
                 Tensor::new(vec![0, 1, 3, 2]),
                 Tensor::new(vec![4, 5, 6]),
             ],
-            &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
+            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
             None,
         )
     }

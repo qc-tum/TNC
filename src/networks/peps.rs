@@ -355,7 +355,9 @@ pub fn peps(
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, iter::zip};
+    use std::iter::zip;
+
+    use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::tensor::Tensor;
 
@@ -380,7 +382,7 @@ mod tests {
             Tensor::new(vec![7, 13, 14, 19]),
             Tensor::new(vec![8, 14, 20]),
         ];
-        let bond_dims = HashMap::from([
+        let bond_dims = FxHashMap::from_iter([
             (0, 4),
             (1, 4),
             (2, 4),
@@ -441,7 +443,7 @@ mod tests {
             Tensor::new(vec![7, 28, 34, 35, 40]),
             Tensor::new(vec![8, 29, 35, 41]),
         ];
-        let bond_dims = HashMap::from([
+        let bond_dims = FxHashMap::from_iter([
             (0, 4),
             (1, 4),
             (2, 4),
@@ -536,7 +538,7 @@ mod tests {
             Tensor::new(vec![28, 46, 47, 52]),
             Tensor::new(vec![29, 47, 53]),
         ];
-        let bond_dims = HashMap::from([
+        let bond_dims = FxHashMap::from_iter([
             (0, 4),
             (1, 4),
             (2, 4),
@@ -643,7 +645,7 @@ mod tests {
             Tensor::new(vec![28, 46, 47, 52]),
             Tensor::new(vec![29, 47, 53]),
         ];
-        let bond_dims = HashMap::from([
+        let bond_dims = FxHashMap::from_iter([
             (0, 4),
             (1, 4),
             (2, 4),
@@ -727,7 +729,7 @@ mod tests {
             Tensor::new(vec![2, 9, 10]),
             Tensor::new(vec![3, 9, 11]),
         ];
-        let bond_dims = HashMap::from([
+        let bond_dims = FxHashMap::from_iter([
             (0, 4),
             (1, 4),
             (2, 4),
@@ -765,7 +767,7 @@ mod tests {
 
         let mut ref_tensor = Tensor::default();
         let tensors = vec![Tensor::new(vec![0, 2]), Tensor::new(vec![1, 2])];
-        let bond_dims = HashMap::from([(0, 4), (1, 4), (2, 10)]);
+        let bond_dims = FxHashMap::from_iter([(0, 4), (1, 4), (2, 10)]);
         ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
 
         let new_peps = peps(length, depth, physical_dim, virtual_dim, layers);

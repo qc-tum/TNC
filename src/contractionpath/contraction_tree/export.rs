@@ -1,10 +1,10 @@
 use std::{
-    collections::HashMap,
     fs,
     process::{Command, Stdio},
 };
 
 use itertools::Itertools;
+use rustc_hash::FxHashMap;
 
 use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
@@ -53,7 +53,7 @@ pub fn to_dendogram_format(
     let x_spacing = length / tensor_network.total_num_tensors() as f64;
     let mut next_leaf_x = x_spacing;
 
-    let mut node_to_position: HashMap<usize, (f64, f64)> = HashMap::new();
+    let mut node_to_position = FxHashMap::default();
 
     let root_id = contraction_tree.root_id().unwrap();
     let path = contraction_tree.to_flat_contraction_path(root_id, false);
@@ -65,14 +65,14 @@ pub fn to_dendogram_format(
         .map(|subtree_root_id| contraction_tree.leaf_ids(*subtree_root_id))
         .collect_vec();
 
-    let mut id_to_partition = HashMap::new();
-    let mut partition_color = HashMap::new();
+    let mut id_to_partition = FxHashMap::default();
+    let mut partition_color = FxHashMap::default();
     let mut colors = COLORS.iter();
     let communication_color = String::from(*colors.next().unwrap());
-    let mut intermediate_tensors = HashMap::new();
+    let mut intermediate_tensors = FxHashMap::default();
 
     let mut dendogram_entries = Vec::new();
-    let mut tree_weights = HashMap::new();
+    let mut tree_weights = FxHashMap::default();
 
     for (i, partition) in partitions.iter().enumerate() {
         partition_color
@@ -98,9 +98,9 @@ pub fn to_dendogram_format(
     }
 
     let mut get_coordinates = |node_id,
-                               node_map: &mut HashMap<usize, (f64, f64)>,
+                               node_map: &mut FxHashMap<usize, (f64, f64)>,
                                dendogram_entries: &mut Vec<DendogramEntry>,
-                               id_to_partition: &HashMap<usize, usize>|
+                               id_to_partition: &FxHashMap<usize, usize>|
      -> (f64, f64) {
         if let Some((x, y)) = node_map.get(&node_id) {
             (*x, *y)
@@ -128,7 +128,7 @@ pub fn to_dendogram_format(
     let mut update = |&node_1_id,
                       &node_2_id,
                       dendogram_entries: &mut Vec<DendogramEntry>,
-                      id_to_partition: &mut HashMap<usize, usize>| {
+                      id_to_partition: &mut FxHashMap<usize, usize>| {
         let (x1, _) = get_coordinates(
             node_1_id,
             &mut node_to_position,
@@ -207,7 +207,7 @@ pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
 "#,
     );
 
-    let mut id_position = HashMap::new();
+    let mut id_position = FxHashMap::default();
     for DendogramEntry {
         id,
         x,
@@ -259,7 +259,7 @@ pub fn to_dendogram(
     let x_spacing = length / tn.total_num_tensors() as f64;
     let mut last_leaf_x = x_spacing;
     let height = 60f64;
-    let mut node_to_position: HashMap<usize, (f64, f64)> = HashMap::new();
+    let mut node_to_position = FxHashMap::default();
     let root_id = contraction_tree.root_id().unwrap();
     let path = contraction_tree.to_flat_contraction_path(root_id, false);
 
@@ -275,7 +275,7 @@ pub fn to_dendogram(
     );
 
     let mut get_coordinates = |node_id,
-                               node_map: &mut HashMap<usize, (f64, f64)>,
+                               node_map: &mut FxHashMap<usize, (f64, f64)>,
                                tikz_picture: &mut String|
      -> (f64, f64) {
         if let Some((x, y)) = node_map.get(&node_id) {

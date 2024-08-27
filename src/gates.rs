@@ -2,19 +2,19 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use num_complex::Complex64;
 use permutation::Permutation;
+use rustc_hash::FxHashSet;
 use tetra::Tensor as DataTensor;
 
 use std::{
     borrow::Borrow,
-    collections::HashSet,
     f64::consts::FRAC_1_SQRT_2,
     hash::{Hash, Hasher},
     sync::RwLock,
 };
 
 lazy_static! {
-    static ref GATES: RwLock<HashSet<Box<dyn Gate>>> = {
-        let mut gates = HashSet::new();
+    static ref GATES: RwLock<FxHashSet<Box<dyn Gate>>> = {
+        let mut gates = FxHashSet::default();
         gates.insert(Box::new(X) as _);
         gates.insert(Box::new(Y) as _);
         gates.insert(Box::new(Z) as _);

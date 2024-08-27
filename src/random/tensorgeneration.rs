@@ -6,7 +6,7 @@ use num_complex::Complex64;
 use rand::distributions::{Distribution, Uniform};
 use rand::prelude::SliceRandom;
 use rand::Rng;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::ops::RangeInclusive;
 use tetra::Tensor as DataTensor;
 
@@ -20,13 +20,12 @@ use tetra::Tensor as DataTensor;
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
 /// # use tensorcontraction::random::tensorgeneration::random_tensor_with_rng;
 /// let legs = 4;
 /// let (tensor, hs) = random_tensor_with_rng(legs, &mut rand::thread_rng());
 /// assert_eq!(tensor.legs().len(), legs);
 /// ```
-pub fn random_tensor_with_rng<R>(n: usize, rng: &mut R) -> (Tensor, HashMap<usize, u64>)
+pub fn random_tensor_with_rng<R>(n: usize, rng: &mut R) -> (Tensor, FxHashMap<usize, u64>)
 where
     R: Rng + ?Sized,
 {
@@ -34,7 +33,7 @@ where
     let bond_dims = (0..n).map(|_| rng.sample(range));
     let edges = 0..n;
     let hs = edges.zip(bond_dims).collect_vec();
-    let mut bond_dims = HashMap::new();
+    let mut bond_dims = FxHashMap::default();
     for (i, j) in hs {
         bond_dims.insert(i, j);
     }
@@ -50,14 +49,13 @@ where
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
 /// # use tensorcontraction::random::tensorgeneration::random_tensor;
 /// let legs = 4;
 /// let (tensor, hs) = random_tensor(legs);
 /// assert_eq!(tensor.legs().len(), legs);
 /// ```
 #[must_use]
-pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
+pub fn random_tensor(n: usize) -> (Tensor, FxHashMap<usize, u64>) {
     random_tensor_with_rng(n, &mut rand::thread_rng())
 }
 
@@ -73,10 +71,7 @@ pub fn random_tensor(n: usize) -> (Tensor, HashMap<usize, u64>) {
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::random::tensorgeneration::{random_tensor, random_sparse_tensor_data_with_rng};
-/// # use std::collections::HashMap;
-///
+/// # use tensorcontraction::random::tensorgeneration::random_sparse_tensor_data_with_rng;
 /// let shape = vec![5, 4, 3];
 /// random_sparse_tensor_data_with_rng(&shape, None, &mut rand::thread_rng());
 /// ```
@@ -125,12 +120,7 @@ where
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::tensordata::TensorData;
 /// # use tensorcontraction::random::tensorgeneration::random_sparse_tensor_data;
-/// # use tensorcontraction::random::tensorgeneration::random_sparse_tensor_data_with_rng;
-/// # use std::collections::HashMap;
-///
 /// let shape = vec![5,4,3];
 /// let r_tensor = random_sparse_tensor_data(&shape, None);
 /// ```
@@ -151,9 +141,7 @@ pub fn random_sparse_tensor_data(shape: &[u64], sparsity: Option<f32>) -> Tensor
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
 /// # use tensorcontraction::random::tensorgeneration::random_tensor_network_with_rng;
-///
 /// let r_tn = random_tensor_network_with_rng(4, 5, &mut rand::thread_rng());
 ///
 /// ```
@@ -204,7 +192,7 @@ where
         return random_tensor_network_with_rng(n, cycles, rng);
     }
     let bond_die = Uniform::from(2..4);
-    let mut bond_dims = HashMap::new();
+    let mut bond_dims = FxHashMap::default();
     for i in 0..=index {
         bond_dims.entry(i).or_insert_with(|| bond_die.sample(rng));
     }
@@ -232,9 +220,7 @@ where
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::random::tensorgeneration::{random_tensor_network};
-///
+/// # use tensorcontraction::random::tensorgeneration::random_tensor_network;
 /// let r_tn = random_tensor_network(4, 5);
 ///
 /// ```
@@ -245,8 +231,8 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> Tensor {
 
 pub fn create_filled_tensor_network<R>(
     tensors: Vec<Tensor>,
-    bond_dims: &HashMap<usize, u64>,
-    external_legs: Option<&HashMap<usize, usize>>,
+    bond_dims: &FxHashMap<usize, u64>,
+    external_legs: Option<&FxHashMap<usize, usize>>,
     rng: &mut R,
 ) -> Tensor
 where

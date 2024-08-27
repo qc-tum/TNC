@@ -1,10 +1,11 @@
 use std::{
     cmp::{max, min},
-    collections::{BinaryHeap, HashMap, HashSet},
+    collections::BinaryHeap,
 };
 
 use itertools::Itertools;
 use rand::{rngs::StdRng, Rng, SeedableRng};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     contractionpath::{
@@ -23,7 +24,7 @@ pub struct Greedy<'a> {
     pub(crate) best_flops: f64,
     pub(crate) best_size: f64,
     pub(crate) best_path: Vec<ContractionIndex>,
-    best_progress: HashMap<usize, f64>,
+    best_progress: FxHashMap<usize, f64>,
 }
 
 struct SimpleChooser;
@@ -32,7 +33,7 @@ impl RNGChooser for SimpleChooser {
     fn choose<R: Rng + ?Sized>(
         &self,
         queue: &mut BinaryHeap<Candidate>,
-        remaining_tensors: &HashMap<u64, usize>,
+        remaining_tensors: &FxHashMap<u64, usize>,
         _nbranch: usize,
         mut _temperature: f64,
         _rel_temperature: bool,
@@ -69,7 +70,7 @@ impl<'a> Greedy<'a> {
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
             best_path: Vec::new(),
-            best_progress: HashMap::<usize, f64>::new(),
+            best_progress: FxHashMap::default(),
         }
     }
 
@@ -102,7 +103,7 @@ impl<'a> Greedy<'a> {
     /// Returns Tensor obtained after contracting k1 and k2.
     fn get_candidate(
         output: &Tensor,
-        edge_tensor_counts: &HashMap<usize, HashSet<usize>>,
+        edge_tensor_counts: &FxHashMap<usize, FxHashSet<usize>>,
         k1: &Tensor,
         k2: &Tensor,
     ) -> Tensor {
@@ -126,8 +127,8 @@ impl<'a> Greedy<'a> {
     }
 
     fn update_ref_counts(
-        dim_to_tensors: &HashMap<usize, Vec<Tensor>>,
-        dim_tensor_counts: &mut HashMap<usize, HashSet<usize>>,
+        dim_to_tensors: &FxHashMap<usize, Vec<Tensor>>,
+        dim_tensor_counts: &mut FxHashMap<usize, FxHashSet<usize>>,
         dims: &Tensor,
     ) {
         for &dim in dims.legs() {
@@ -190,7 +191,7 @@ impl<'a> Greedy<'a> {
         let mut tensor_mem_size = ssa_id_to_tensor
             .values()
             .map(|tensor| (calculate_hash(tensor), tensor.size() as f64))
-            .collect::<HashMap<_, _>>();
+            .collect::<FxHashMap<_, _>>();
 
         let mut queue = BinaryHeap::new();
         // Fill queue with all possible contraction combinations of contractions
@@ -479,15 +480,15 @@ fn populate_remaining_tensors(
     inputs: &[Tensor],
     next_ssa_id: &mut usize,
 ) -> (
-    HashMap<u64, usize>,
-    HashMap<usize, Tensor>,
+    FxHashMap<u64, usize>,
+    FxHashMap<usize, Tensor>,
     Vec<usize>,
     Vec<(usize, usize, usize)>,
     usize,
 ) {
     let mut ssa_path = Vec::new();
-    let mut remaining_tensors = HashMap::new();
-    let mut ssa_id_to_tensor = HashMap::new();
+    let mut remaining_tensors = FxHashMap::default();
+    let mut ssa_id_to_tensor = FxHashMap::default();
 
     let mut scalar_tensors = Vec::new();
 
@@ -516,15 +517,15 @@ fn populate_remaining_tensors(
 
 fn populate_edge_to_tensors(
     inputs: &[Tensor],
-    remaining_tensors: &HashMap<u64, usize>,
+    remaining_tensors: &FxHashMap<u64, usize>,
     output_dims: &Tensor,
-) -> HashMap<usize, Vec<Tensor>> {
+) -> FxHashMap<usize, Vec<Tensor>> {
     // Dictionary that maps leg id to tensor
     let remaining_inputs = remaining_tensors
         .values()
         .map(|&e| inputs.get(e).unwrap())
         .collect::<Vec<_>>();
-    let mut bond_dim_to_tensors = HashMap::<usize, Vec<Tensor>>::new();
+    let mut bond_dim_to_tensors = FxHashMap::<usize, Vec<Tensor>>::default();
     for key in remaining_inputs {
         for dim in (key - output_dims).legs() {
             bond_dim_to_tensors
@@ -537,10 +538,10 @@ fn populate_edge_to_tensors(
 }
 
 fn populate_edge_tensor_counts(
-    bond_dim_to_tensors: &HashMap<usize, Vec<Tensor>>,
-) -> HashMap<usize, HashSet<usize>> {
+    bond_dim_to_tensors: &FxHashMap<usize, Vec<Tensor>>,
+) -> FxHashMap<usize, FxHashSet<usize>> {
     // Get dims that are contracted
-    let mut bond_dim_tensor_counts: HashMap<usize, HashSet<usize>> = HashMap::new();
+    let mut bond_dim_tensor_counts = FxHashMap::<_, FxHashSet<_>>::default();
     for i in 2..=3 {
         for (bond_dim, tensor_legs) in bond_dim_to_tensors {
             if tensor_legs.len() >= i {
@@ -618,9 +619,10 @@ impl<'a> OptimizePath for Greedy<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::hash::Hash;
     use std::iter::zip;
+
+    use rustc_hash::FxHashMap;
 
     use crate::contractionpath::paths::greedy::Greedy;
     use crate::contractionpath::paths::CostType;
@@ -639,7 +641,7 @@ mod tests {
                 Tensor::new(vec![0, 1, 3, 2]),
                 Tensor::new(vec![4, 5, 6]),
             ],
-            &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
+            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
             None,
         )
     }
@@ -654,7 +656,7 @@ mod tests {
                 Tensor::new(vec![10, 8, 9]),
                 Tensor::new(vec![5, 1, 0]),
             ],
-            &[
+            &FxHashMap::from_iter([
                 (0, 27),
                 (1, 18),
                 (2, 12),
@@ -667,8 +669,7 @@ mod tests {
                 (9, 65),
                 (10, 5),
                 (11, 17),
-            ]
-            .into(),
+            ]),
             None,
         )
     }
@@ -683,7 +684,7 @@ mod tests {
                 Tensor::new(vec![10, 8, 9]),
                 Tensor::new(vec![5, 1, 0]),
             ],
-            &[
+            &FxHashMap::from_iter([
                 (0, 5),
                 (1, 2),
                 (2, 6),
@@ -696,8 +697,7 @@ mod tests {
                 (9, 65),
                 (10, 5),
                 (11, 17),
-            ]
-            .into(),
+            ]),
             None,
         )
     }
@@ -710,7 +710,7 @@ mod tests {
                 Tensor::new(vec![0, 1, 5]),
                 Tensor::new(vec![1, 6]),
             ],
-            &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
+            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
             None,
         )
     }
@@ -722,7 +722,7 @@ mod tests {
                 Tensor::new(vec![1]),
                 Tensor::new(vec![2]),
             ],
-            &[(0, 3), (1, 2), (2, 2)].into(),
+            &FxHashMap::from_iter([(0, 3), (1, 2), (2, 2)]),
             None,
         )
     }
@@ -735,14 +735,14 @@ mod tests {
                 Tensor::new(vec![1]),
                 Tensor::new(vec![1]),
             ],
-            &[(0, 5), (1, 4)].into(),
+            &FxHashMap::from_iter([(0, 5), (1, 4)]),
             None,
         )
     }
 
     fn map_zip<'a, K, V, T>(
-        a: &'a HashMap<K, V>,
-        b: &'a HashMap<K, T>,
+        a: &'a FxHashMap<K, V>,
+        b: &'a FxHashMap<K, T>,
     ) -> impl Iterator<Item = (&'a K, (&'a V, &'a T))>
     where
         K: Eq + Hash,
@@ -758,14 +758,15 @@ mod tests {
         let mut next_ssa_id = tensors.len();
         let (remaining_tensors, ssa_id_to_tensor, scalar_tensors, ssa_path, next_ssa_id) =
             populate_remaining_tensors(tensors, &mut next_ssa_id);
-        let bond_dims = HashMap::from([(0, 5), (6, 4), (3, 8), (2, 6), (1, 2), (5, 3), (4, 1)]);
+        let bond_dims =
+            FxHashMap::from_iter([(0, 5), (6, 4), (3, 8), (2, 6), (1, 2), (5, 3), (4, 1)]);
         let ref_remaining_tensors =
-            HashMap::from([(8653979201402620513, 3), (13850888498708788536, 2)]);
+            FxHashMap::from_iter([(8653979201402620513, 3), (13850888498708788536, 2)]);
         let mut t1 = Tensor::new(vec![0, 1, 5]);
         let mut t2 = Tensor::new(vec![1, 6]);
         t1.insert_bond_dims(&bond_dims);
         t2.insert_bond_dims(&bond_dims);
-        let ref_ssa_id_to_tensor = HashMap::from([(2, t1), (3, t2)]);
+        let ref_ssa_id_to_tensor = FxHashMap::from_iter([(2, t1), (3, t2)]);
         let ref_scalar_tensors = vec![4];
         let ref_ssa_path = vec![(0, 1, 4)];
         let ref_next_ssa_id = 5;
@@ -785,17 +786,18 @@ mod tests {
         let tensors = tn.tensors();
 
         let remaining_tensors =
-            HashMap::from([(8653979201402620513, 3), (13850888498708788536, 2)]);
+            FxHashMap::from_iter([(8653979201402620513, 3), (13850888498708788536, 2)]);
         let output_dims = Tensor::default();
         let edge_to_tensors = populate_edge_to_tensors(tensors, &remaining_tensors, &output_dims);
 
-        let bond_dims = HashMap::from([(0, 5), (6, 4), (3, 8), (2, 6), (1, 2), (5, 3), (4, 1)]);
+        let bond_dims =
+            FxHashMap::from_iter([(0, 5), (6, 4), (3, 8), (2, 6), (1, 2), (5, 3), (4, 1)]);
         let mut t1 = Tensor::new(vec![0, 1, 5]);
         let mut t2 = Tensor::new(vec![1, 6]);
         t1.insert_bond_dims(&bond_dims);
         t2.insert_bond_dims(&bond_dims);
 
-        let ref_edge_to_tensors = HashMap::from([
+        let ref_edge_to_tensors = FxHashMap::from_iter([
             (0, vec![&t1]),
             (1, vec![&t1, &t2]),
             (5, vec![&t1]),

@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use itertools::Itertools;
+use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
@@ -86,7 +85,7 @@ pub(super) fn subtensor_network(
         .iter()
         .enumerate()
         .map(|(local_idx, leaf_id)| (leaf_id, local_idx))
-        .collect::<HashMap<_, _>>();
+        .collect::<FxHashMap<_, _>>();
 
     let contraction_path = contraction_tree.to_flat_contraction_path(node_id, true);
 
