@@ -116,6 +116,8 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     to_pdf(output, &dendogram_entries);
 }
 
+/// Reads logging results and reconstructs construction operations, indicating timings for contraction and communication.
+/// Prints "filename" pdf with dendogram of the overall contraction operation.
 pub fn logs_to_tree(
     filename: &str,
     suffix: &str,
@@ -221,12 +223,8 @@ pub fn logs_to_tree(
     )
 }
 
-struct LogToSubtreeResult(
-    HashMap<usize, Rc<RefCell<Node>>>,
-    Vec<(usize, usize, chrono::DateTime<chrono::FixedOffset>)>,
-    chrono::DateTime<chrono::FixedOffset>,
-);
-
+/// Processes the log of a single rank. Extracts subtree information corresponding to the single rank and returns it
+/// as a LogToSubtreeResult object.
 fn log_to_subtree(
     filename: String,
     tensor_cost: &mut HashMap<usize, f64>,
