@@ -58,7 +58,7 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
             if contraction_tree.node(*i).is_leaf() {
                 tensor_x_position
                     .try_insert(*i, next_x)
-                    .expect("Tensor {i} already there.");
+                    .unwrap_or_else(|_| panic!("Tensor {i} already in position dict."));
                 dendogram_entries.push(DendogramEntry {
                     id: *i,
                     x: tensor_x_position[i],
@@ -73,7 +73,7 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
             if contraction_tree.node(*j).is_leaf() {
                 tensor_x_position
                     .try_insert(*j, next_x)
-                    .expect("Tensor {j} already there.");
+                    .unwrap_or_else(|_| panic!("Tensor {j} already in position dict."));
                 dendogram_entries.push(DendogramEntry {
                     id: *j,
                     x: tensor_x_position[j],
@@ -101,7 +101,7 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
                 });
                 tensor_x_position
                     .try_insert(parent_id, new_x)
-                    .expect("Tensor {parent_id} already there.");
+                    .unwrap_or_else(|_| panic!("Tensor {parent_id} already in position dict."));
             }
         }
     }
@@ -197,14 +197,14 @@ pub fn logs_to_tree(
 
         remaining_nodes
             .try_insert(tensor_count, Rc::clone(&new_node_ref))
-            .expect("SSA {tensor_count} already exists");
+            .unwrap_or_else(|_| panic!("SSA {tensor_count} already in tensor cost dict"));
         let cost = (*timestamp - logging_start).num_nanoseconds().unwrap() as f64;
         tensor_cost
             .try_insert(tensor_count, cost)
-            .expect("SSA {tensor_count} already exists");
+            .unwrap_or_else(|_| panic!("SSA {tensor_count} already in tensor cost dict"));
         tensor_color
             .try_insert(tensor_count, String::from(COLORS[0]))
-            .expect("Tensor count already in dict");
+            .unwrap_or_else(|_| panic!("Tensor count {tensor_count} already in dict"));
         partition_root_nodes[*rank1] = Rc::clone(&new_node_ref);
         tensor_count += 1;
     }
@@ -322,13 +322,15 @@ fn log_to_subtree(
 
                         replace_to_ssa
                             .try_insert(tensor_id, *tensor_count)
-                            .expect("SSA {i} already exists");
+                            .unwrap_or_else(|_| panic!("SSA {tensor_id} already exists"));
                         tensor_cost
                             .try_insert(*tensor_count, 0f64)
-                            .expect("SSA {i} already exists");
+                            .unwrap_or_else(|_| panic!("SSA {tensor_id} already exists"));
                         remaining_nodes
                             .try_insert(*tensor_count, Rc::clone(&leaf_node_ref))
-                            .expect("SSA {i} already exists");
+                            .unwrap_or_else(|_| {
+                                panic!("SSA {tensor_id} already in remaining nodes")
+                            });
                         *tensor_count += 1;
                     }
                 }
@@ -347,7 +349,9 @@ fn log_to_subtree(
 
                 remaining_nodes
                     .try_insert(*tensor_count, Rc::clone(&intermediate_node_ref))
-                    .expect("SSA {tensor_count} already exists");
+                    .unwrap_or_else(|_| {
+                        panic!("SSA {tensor_count} already exists in remaining nodes")
+                    });
 
                 *tensor_count += 1;
             }
