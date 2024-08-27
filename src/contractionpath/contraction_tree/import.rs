@@ -102,15 +102,6 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
                 tensor_x_position
                     .try_insert(parent_id, new_x)
                     .expect("Tensor {parent_id} already there.");
-            } else {
-                println!(
-                    "Final contraction: {:?}",
-                    contraction_tree.node(*i).parent_id()
-                );
-                println!(
-                    "Final contraction: {:?}",
-                    contraction_tree.node(*j).parent_id()
-                );
             }
         }
     }
