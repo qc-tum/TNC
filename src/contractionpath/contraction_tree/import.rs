@@ -288,8 +288,6 @@ fn log_to_subtree(
                 }
             }
             1 => {
-                let contraction_time = contraction_timing(&json_value, contraction_start);
-
                 // Tracking contractions due to communication here
                 if !is_local_contraction {
                     let contraction_timestamp = DateTime::parse_from_str(
@@ -301,6 +299,8 @@ fn log_to_subtree(
                     communication_path.push((rank, sender, contraction_timestamp));
                     continue;
                 }
+
+                let contraction_time = contraction_timing(&json_value, contraction_start);
                 // Tracking local contractions here.
                 let ij: Vec<usize> = ["i", "j"]
                     .iter()
