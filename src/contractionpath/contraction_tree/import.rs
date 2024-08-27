@@ -1,4 +1,4 @@
-use chrono::DateTime;
+use chrono::{DateTime, Timelike};
 use itertools::Itertools;
 use regex::RegexSet;
 use std::{
@@ -177,8 +177,8 @@ pub fn logs_to_tree(
     let communication_path = communication_path
         .iter_mut()
         .sorted_by(|pair1, pair2| {
-            let time1 = (pair1.2 - logging_start).num_nanoseconds().unwrap() as f64;
-            let time2 = (pair2.2 - logging_start).num_nanoseconds().unwrap() as f64;
+            let time1 = pair1.2.nanosecond() as f64;
+            let time2 = pair2.2.nanosecond() as f64;
             time1.partial_cmp(&time2).unwrap()
         })
         .collect::<Vec<_>>();
