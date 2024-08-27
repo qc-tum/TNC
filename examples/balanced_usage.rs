@@ -117,7 +117,7 @@ fn main() {
     } else {
         Default::default()
     };
-
+    logger.flush();
     logger
         .reset_flw(
             &FileLogWriter::builder(
@@ -126,8 +126,7 @@ fn main() {
                     .suppress_timestamp()
                     .suffix("opt.log.json"),
             )
-            .format(json_format)
-            .append(),
+            .format(json_format),
         )
         .unwrap();
 
