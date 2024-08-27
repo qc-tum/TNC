@@ -37,7 +37,7 @@ const COLORS: [&str; 19] = [
     "gray",
 ];
 
-pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize, output: String) {
+pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     let height = 120f64;
     let width = 80f64;
     let (contraction_tree, tensor_position, tensor_color) = logs_to_tree(filename, suffix, ranks);
@@ -122,12 +122,12 @@ pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize, output: Strin
         dendogram_entry.x *= width_scaling;
         dendogram_entry.y *= height_scaling;
     }
-    to_pdf(&output, &dendogram_entries);
+    to_pdf(output, &dendogram_entries);
 }
 
 pub fn logs_to_tree(
-    filename: String,
-    suffix: String,
+    filename: &str,
+    suffix: &str,
     ranks: usize,
 ) -> (ContractionTree, HashMap<usize, f64>, HashMap<usize, String>) {
     // Maps node id in contraction tree to a position in pdf
