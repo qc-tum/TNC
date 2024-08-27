@@ -551,7 +551,7 @@ impl Tensor {
             }
         }
         let mut new_tn = Self::new(new_legs);
-        new_tn.insert_bond_dims(&self.bond_dims());
+        new_tn.bond_dims = Arc::clone(&self.bond_dims);
         new_tn
     }
 
@@ -575,7 +575,7 @@ impl Tensor {
             }
         }
         let mut new_tn = Self::new(new_legs);
-        new_tn.insert_bond_dims(&self.bond_dims());
+        new_tn.bond_dims = Arc::clone(&self.bond_dims);
         new_tn
     }
 
@@ -599,7 +599,7 @@ impl Tensor {
             }
         }
         let mut new_tn = Self::new(new_legs);
-        new_tn.insert_bond_dims(&self.bond_dims());
+        new_tn.bond_dims = Arc::clone(&self.bond_dims);
         new_tn
     }
 
@@ -628,7 +628,7 @@ impl Tensor {
             }
         }
         let mut new_tn = Self::new(new_legs);
-        new_tn.insert_bond_dims(&self.bond_dims());
+        new_tn.bond_dims = Arc::clone(&self.bond_dims);
         new_tn
     }
 
