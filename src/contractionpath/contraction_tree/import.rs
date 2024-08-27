@@ -266,7 +266,6 @@ fn log_to_subtree(
         r"Completed tensor network contraction",
         // Identifies communication between partitions
         r"Receiving tensor",
-        r".*",
     ];
     // true while local contractions are occurring
     let mut is_local_contraction = true;
@@ -285,8 +284,8 @@ fn log_to_subtree(
         let log = json_value["text"].as_str().unwrap();
         let matches: Vec<_> = set.matches(log).into_iter().collect();
 
-        match matches[0] {
-            0 => {
+        match matches[..] {
+            [0] => {
                 // Tracks contraction starting from first local contraction
                 // Does no reset timer when communicating.
                 if is_local_contraction {
@@ -297,7 +296,7 @@ fn log_to_subtree(
                     .unwrap();
                 }
             }
-            1 => {
+            [1] => {
                 // Tracking contractions due to communication here
                 if !is_local_contraction {
                     let contraction_timestamp = DateTime::parse_from_str(
@@ -365,11 +364,11 @@ fn log_to_subtree(
 
                 *tensor_count += 1;
             }
-            2 => {
+            [2] => {
                 // No longer local contraction after this point
                 is_local_contraction = false;
             }
-            3 => {
+            [3] => {
                 // Parse sending rank from log
                 sender = json_value["kv"]
                     .get("sender")
