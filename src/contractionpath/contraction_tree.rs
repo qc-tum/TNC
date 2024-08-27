@@ -6,6 +6,7 @@ use crate::types::ContractionIndex;
 use balancing::{balance_partitions, tensor_bipartition};
 use export::{to_dendogram_format, to_pdf};
 use itertools::Itertools;
+use log::info;
 use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
 use std::rc::{Rc, Weak};

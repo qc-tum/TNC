@@ -1,6 +1,7 @@
 use chrono::{DateTime, Timelike};
 use itertools::Itertools;
 use regex::RegexSet;
+use rustc_hash::FxHashMap;
 use std::{
     cell::RefCell,
     collections::HashMap,
