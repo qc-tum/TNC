@@ -79,7 +79,7 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
                     x: tensor_x_position[j],
                     y: 0f64,
                     cost: 0f64,
-                    color: tensor_color[i].clone(),
+                    color: tensor_color[j].clone(),
                     children: None,
                 });
                 next_x += 1f64;
