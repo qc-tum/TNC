@@ -1,6 +1,7 @@
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::BinaryHeap;
 
 use itertools::Itertools;
+use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
@@ -23,11 +24,11 @@ pub struct BranchBound<'a> {
     best_flops: f64,
     best_size: f64,
     best_path: Vec<ContractionIndex>,
-    best_progress: HashMap<usize, f64>,
-    result_cache: HashMap<(usize, usize), usize>,
-    flop_cache: HashMap<usize, f64>,
-    size_cache: HashMap<usize, f64>,
-    tensor_cache: HashMap<usize, Tensor>,
+    best_progress: FxHashMap<usize, f64>,
+    result_cache: FxHashMap<(usize, usize), usize>,
+    flop_cache: FxHashMap<usize, f64>,
+    size_cache: FxHashMap<usize, f64>,
+    tensor_cache: FxHashMap<usize, Tensor>,
 }
 
 impl<'a> BranchBound<'a> {
@@ -45,11 +46,11 @@ impl<'a> BranchBound<'a> {
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
             best_path: Vec::new(),
-            best_progress: HashMap::new(),
-            result_cache: HashMap::new(),
-            flop_cache: HashMap::new(),
-            size_cache: HashMap::new(),
-            tensor_cache: HashMap::new(),
+            best_progress: FxHashMap::default(),
+            result_cache: FxHashMap::default(),
+            flop_cache: FxHashMap::default(),
+            size_cache: FxHashMap::default(),
+            tensor_cache: FxHashMap::default(),
         }
     }
 
@@ -228,6 +229,8 @@ impl<'a> OptimizePath for BranchBound<'a> {
 
 #[cfg(test)]
 mod tests {
+    use rustc_hash::FxHashMap;
+
     use crate::contractionpath::paths::branchbound::BranchBound;
     use crate::contractionpath::paths::CostType;
     use crate::contractionpath::paths::OptimizePath;
@@ -242,7 +245,7 @@ mod tests {
                 Tensor::new(vec![0, 1, 3, 2]),
                 Tensor::new(vec![4, 5, 6]),
             ],
-            &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
+            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
             None,
         )
     }
@@ -257,7 +260,7 @@ mod tests {
                 Tensor::new(vec![10, 8, 9]),
                 Tensor::new(vec![5, 1, 0]),
             ],
-            &[
+            &FxHashMap::from_iter([
                 (0, 27),
                 (1, 18),
                 (2, 12),
@@ -270,8 +273,7 @@ mod tests {
                 (9, 65),
                 (10, 5),
                 (11, 17),
-            ]
-            .into(),
+            ]),
             None,
         )
     }

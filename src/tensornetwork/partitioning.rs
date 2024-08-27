@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use partition_config::PartitioningStrategy;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::iter::zip;
 
 use super::tensor::Tensor;
@@ -92,7 +92,7 @@ pub fn find_partitioning(
 ///
 pub fn communication_partitioning(
     tensors: &[(usize, Tensor)],
-    bond_dims: &HashMap<usize, u64>,
+    bond_dims: &FxHashMap<usize, u64>,
     k: i32,
     partitioning_strategy: PartitioningStrategy,
     min: bool,
@@ -112,7 +112,7 @@ pub fn communication_partitioning(
     let mut hyperedge_indices = vec![0];
     let mut hyperedges = vec![];
     // Bidirectional mapping to a new index as KaHyPar indexes from 0.
-    let mut edge_to_virtual_edge = HashMap::new();
+    let mut edge_to_virtual_edge = FxHashMap::default();
     // New index that starts from 0
     let mut edge_count = 0;
 
@@ -179,7 +179,7 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
         .copied()
         .collect::<Vec<usize>>();
     let partition_dict =
-        zip(partition_ids.iter().copied(), 0..partition_ids.len()).collect::<HashMap<_, _>>();
+        zip(partition_ids.iter().copied(), 0..partition_ids.len()).collect::<FxHashMap<_, _>>();
     let mut partitions = vec![Tensor::default(); partition_ids.len()];
 
     for (partition_id, tensor) in zip(partitioning.iter(), tn.tensors.iter()) {
@@ -193,6 +193,8 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
 
 #[cfg(test)]
 mod tests {
+    use rustc_hash::FxHashMap;
+
     use crate::tensornetwork::tensor::Tensor;
     use crate::tensornetwork::{
         create_tensor_network, partitioning::partition_config::PartitioningStrategy,
@@ -210,7 +212,7 @@ mod tests {
                 Tensor::new(vec![10, 8, 9]),
                 Tensor::new(vec![5, 1, 0]),
             ],
-            &[
+            &FxHashMap::from_iter([
                 (0, 27),
                 (1, 18),
                 (2, 12),
@@ -223,8 +225,7 @@ mod tests {
                 (9, 65),
                 (10, 5),
                 (11, 17),
-            ]
-            .into(),
+            ]),
             None,
         )
     }
