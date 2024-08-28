@@ -4,8 +4,7 @@ use regex::RegexSet;
 use rustc_hash::FxHashMap;
 use std::{
     cell::RefCell,
-    collections::HashMap,
-    fs::{self},
+    fs,
     rc::{Rc, Weak},
 };
 
@@ -52,7 +51,7 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     let mut dendogram_entries = Vec::new();
 
     let mut next_x = 0f64;
-    let mut tensor_x_position = HashMap::new();
+    let mut tensor_x_position = FxHashMap::default();
 
     for contraction_index in flat_contraction_path.iter() {
         if let ContractionIndex::Pair(i, j) = contraction_index {
@@ -123,9 +122,13 @@ pub fn logs_to_tree(
     filename: &str,
     suffix: &str,
     ranks: usize,
-) -> (ContractionTree, HashMap<usize, f64>, HashMap<usize, String>) {
+) -> (
+    ContractionTree,
+    FxHashMap<usize, f64>,
+    FxHashMap<usize, String>,
+) {
     // Maps node id in contraction tree to a position in pdf
-    let mut tensor_cost = HashMap::new();
+    let mut tensor_cost = FxHashMap::default();
     // Counter to keep track of total number of intermediate + leaf nodes between ranks.
     let mut tensor_count = 0;
 
@@ -138,7 +141,7 @@ pub fn logs_to_tree(
     let mut communication_path = Vec::new();
 
     // Tracks the color of each node
-    let mut tensor_color: HashMap<usize, String> = HashMap::new();
+    let mut tensor_color = FxHashMap::default();
     let mut logging_start = chrono::DateTime::<chrono::FixedOffset>::default();
 
     for rank in 0..ranks {
@@ -229,7 +232,7 @@ pub fn logs_to_tree(
 
 struct LogToSubtreeResult {
     // Dict of remaining nodes to process, keeps track of intermediate tensors
-    remaining_nodes: HashMap<usize, Rc<RefCell<Node>>>,
+    remaining_nodes: FxHashMap<usize, Rc<RefCell<Node>>>,
     // Keeps track of communication with time stamps
     communication_path: Vec<(usize, usize, chrono::DateTime<chrono::FixedOffset>)>,
     // Start of contraction for reference
@@ -240,16 +243,16 @@ struct LogToSubtreeResult {
 /// as a LogToSubtreeResult object.
 fn log_to_subtree(
     filename: &str,
-    tensor_cost: &mut HashMap<usize, f64>,
+    tensor_cost: &mut FxHashMap<usize, f64>,
     tensor_count: &mut usize,
     rank: usize,
 ) -> LogToSubtreeResult {
     let file = fs::read_to_string(filename).expect("Should have been able to read the file");
     // Keeps track of nodes representing intermediate tensors when going through logs.
-    let mut remaining_nodes = HashMap::new();
+    let mut remaining_nodes = FxHashMap::default();
 
     // Hashmap that maps local tensor id to node id in overall contraction tree
-    let mut replace_to_ssa = HashMap::new();
+    let mut replace_to_ssa = FxHashMap::default();
 
     // Stores starting time for contraction
     let mut contraction_start = DateTime::<chrono::FixedOffset>::default();
@@ -390,8 +393,8 @@ fn log_to_subtree(
 }
 
 fn new_intermediate_node(
-    remaining_nodes: &HashMap<usize, Rc<RefCell<Node>>>,
-    replace_to_ssa: &HashMap<usize, usize>,
+    remaining_nodes: &FxHashMap<usize, Rc<RefCell<Node>>>,
+    replace_to_ssa: &FxHashMap<usize, usize>,
     ij: &[usize],
     tensor_count: &usize,
 ) -> Rc<RefCell<Node>> {
