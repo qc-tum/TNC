@@ -8,7 +8,7 @@ use rand::SeedableRng;
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
 use tensorcontraction::contractionpath::contraction_tree::export::{to_dendogram_format, to_pdf};
 use tensorcontraction::contractionpath::contraction_tree::{
-    balance_partitions_iter, BalanceSettings, ContractionTree,
+    balance_partitions_iter, BalanceSettings, ContractionTree, DendogramSettings,
 };
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
@@ -101,11 +101,13 @@ fn main() {
                 random_balance: false,
                 rebalance_depth,
                 iterations: 40,
-                output_file: format!("output/{communication_scheme:?}_trial"),
-                dendogram_cost_function: contract_cost_tensors,
                 greedy_cost_function: greedy_cost_fn,
                 communication_scheme,
             },
+            Some(DendogramSettings {
+                output_file: format!("output/{communication_scheme:?}_trial"),
+                cost_function: contract_cost_tensors,
+            }),
         );
         info!(num; "Found best balancing iteration");
         let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);

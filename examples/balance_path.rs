@@ -6,7 +6,7 @@ use rand::SeedableRng;
 
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
 use tensorcontraction::contractionpath::contraction_tree::{
-    balance_partitions_iter, BalanceSettings,
+    balance_partitions_iter, BalanceSettings, DendogramSettings,
 };
 use tensorcontraction::contractionpath::paths::greedy::Greedy;
 use tensorcontraction::contractionpath::paths::{CostType, OptimizePath};
@@ -86,11 +86,13 @@ fn main() {
                 random_balance: false,
                 rebalance_depth,
                 iterations: 120,
-                output_file: format!("output/{communication_scheme:?}_trial"),
-                dendogram_cost_function: contract_cost_tensors,
                 greedy_cost_function: greedy_cost_fn,
                 communication_scheme,
             },
+            Some(DendogramSettings {
+                output_file: format!("output/{communication_scheme:?}_trial"),
+                cost_function: contract_cost_tensors,
+            }),
         );
         let candidate = Candidate {
             cost: costs[num],
