@@ -358,7 +358,7 @@ fn log_to_subtree(
                 replace_to_ssa.remove(&ij[1]);
 
                 remaining_nodes
-                    .try_insert(*tensor_count, Rc::clone(&intermediate_node_ref))
+                    .try_insert(*tensor_count, intermediate_node_ref)
                     .unwrap_or_else(|_| {
                         panic!("SSA {tensor_count} already exists in remaining nodes")
                     });
