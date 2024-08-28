@@ -11,6 +11,7 @@ use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 use crate::types::{ContractionIndex, EdgeIndex};
 
+#[derive(Debug, Copy, Clone)]
 pub enum CommunicationScheme {
     /// Uses Greedy scheme to find contraction path for communication
     Greedy,

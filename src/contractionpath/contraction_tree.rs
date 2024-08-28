@@ -4,8 +4,9 @@ use crate::pair;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 use balancing::{balance_partitions, tensor_bipartition};
-use export::to_dendogram;
+use export::{to_dendogram_format, to_pdf};
 use itertools::Itertools;
+use log::info;
 use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
 use std::rc::{Rc, Weak};
@@ -16,6 +17,7 @@ use super::paths::validate_path;
 
 mod balancing;
 pub mod export;
+pub mod import;
 mod utils;
 
 type NodeRef = Rc<RefCell<Node>>;
@@ -68,6 +70,11 @@ impl Node {
 
     fn is_leaf(&self) -> bool {
         self.left_child.upgrade().is_none() && self.right_child.upgrade().is_none()
+    }
+
+    fn add_parent(&mut self, parent: WeakNodeRef) {
+        assert!(parent.upgrade().is_some(), "Parent is already deallocated");
+        self.parent = parent;
     }
 
     fn add_child(&mut self, child: WeakNodeRef) {
@@ -523,14 +530,19 @@ fn populate_subtree_tensor_map(
     }
 }
 
+#[derive(Debug)]
 pub struct BalanceSettings {
     pub random_balance: bool,
     pub rebalance_depth: usize,
     pub iterations: usize,
-    pub output_file: String,
-    pub dendogram_cost_function: fn(&Tensor, &Tensor) -> f64,
     pub greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
     pub communication_scheme: CommunicationScheme,
+}
+
+#[derive(Debug)]
+pub struct DendogramSettings {
+    pub output_file: String,
+    pub cost_function: fn(&Tensor, &Tensor) -> f64,
 }
 
 pub fn balance_partitions_iter(
@@ -540,11 +552,10 @@ pub fn balance_partitions_iter(
         random_balance,
         rebalance_depth,
         iterations,
-        output_file,
-        dendogram_cost_function,
         greedy_cost_function,
         communication_scheme,
     }: BalanceSettings,
+    dendogram_settings: Option<DendogramSettings>,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
     let bond_dims = tensor.bond_dims();
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor, path);
@@ -573,12 +584,11 @@ pub fn balance_partitions_iter(
     let mut max_costs = Vec::with_capacity(iterations + 1);
     max_costs.push(max_cost + final_op_cost);
 
-    to_dendogram(
-        &contraction_tree,
-        tensor,
-        dendogram_cost_function,
-        &format!("{output_file}_0"),
-    );
+    if let Some(settings) = &dendogram_settings {
+        let dendogram_entries =
+            to_dendogram_format(&contraction_tree, tensor, settings.cost_function);
+        to_pdf(&format!("{}_0", settings.output_file), &dendogram_entries);
+    }
 
     let mut new_tn;
     let mut best_contraction = 0;
@@ -588,6 +598,7 @@ pub fn balance_partitions_iter(
     let mut best_tn = tensor.clone();
 
     for i in 1..=iterations {
+        info!("Balancing iteration {i} with communication scheme {communication_scheme:?}");
         (max_cost, path, new_tn) = balance_partitions(
             tensor,
             &mut contraction_tree,
@@ -601,16 +612,12 @@ pub fn balance_partitions_iter(
 
         partition_costs =
             calculate_partition_costs(&contraction_tree, rebalance_depth, tensor, true);
-        children_tensors = new_tn
-            .tensors()
+
+        // Ensures that children tensors are mapped to their respective partition costs
+        children_tensors = partition_costs
             .iter()
-            .map(|tensor| {
-                let ext_edges = tensor.external_edges();
-                let mut new_tensor = Tensor::new(ext_edges);
-                new_tensor.insert_bond_dims(&tensor.bond_dims());
-                new_tensor
-            })
-            .collect_vec();
+            .map(|(tensor_id, _)| contraction_tree.tensor(*tensor_id, tensor))
+            .collect();
 
         let (final_op_cost, final_contraction) = match communication_scheme {
             CommunicationScheme::Greedy => {
@@ -657,12 +664,11 @@ pub fn balance_partitions_iter(
             best_contraction_path = path;
         }
 
-        to_dendogram(
-            &contraction_tree,
-            tensor,
-            dendogram_cost_function,
-            &format!("{output_file}_{i}"),
-        );
+        if let Some(settings) = &dendogram_settings {
+            let dendogram_entries =
+                to_dendogram_format(&contraction_tree, tensor, settings.cost_function);
+            to_pdf(&format!("{}_{i}", settings.output_file), &dendogram_entries);
+        }
     }
 
     (best_contraction, best_tn, best_contraction_path, max_costs)

@@ -15,8 +15,6 @@ const COLORS: [&str; 19] = [
     "blue",
     "brown",
     "cyan",
-    "darkgray",
-    "gray",
     "green",
     "lightgray",
     "lime",
@@ -30,16 +28,18 @@ const COLORS: [&str; 19] = [
     "violet",
     "white",
     "yellow",
+    "darkgray",
+    "gray",
 ];
 
 #[derive(Debug)]
 pub struct DendogramEntry {
-    id: usize,
-    x: f64,
-    y: f64,
-    cost: f64,
-    color: String,
-    children: Option<(usize, usize)>,
+    pub id: usize,
+    pub x: f64,
+    pub y: f64,
+    pub cost: f64,
+    pub color: String,
+    pub children: Option<(usize, usize)>,
 }
 
 pub fn to_dendogram_format(
@@ -223,7 +223,7 @@ pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
             let (x1, _) = id_position[node_1_id];
             let (x2, _) = id_position[node_2_id];
             tikz_picture.push_str(&format!(
-                r#"    \node[circle, scale=0.7, fill={color}, label={{[shift={{(-0.4,-0.1)}}]{cost}}}, label=below:{{{id}}}] at ({x}, {y}) ({id}) {{}};
+                r#"    \node[circle, scale=0.3, fill={color}, label={{[shift={{(-0.4,-0.1)}}]{cost}}}, label=below:{{{id}}}] at ({x}, {y}) ({id}) {{}};
     "#,
             ));
             tikz_picture.push_str(&format!(
@@ -236,7 +236,7 @@ pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
             ));
         } else {
             tikz_picture.push_str(&format!(
-                r#"    \node[circle, scale=0.7, fill={color}, label=below:{{{id}}}] at ({x}, {y}) ({id}) {{}};
+                r#"    \node[circle, scale=0.3, fill={color}, label=below:{{{id}}}] at ({x}, {y}) ({id}) {{}};
             "#,
             ));
         }

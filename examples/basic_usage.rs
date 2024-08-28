@@ -4,6 +4,9 @@ use mpi::traits::Communicator;
 use mpi::Rank;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
+use tensorcontraction::contractionpath::contraction_tree::export::{to_dendogram_format, to_pdf};
+use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
     broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
@@ -21,7 +24,7 @@ fn setup_logging_mpi(rank: Rank) {
         .format(json_format)
         .log_to_file(
             FileSpec::default()
-                .discriminant(format!("rank{}", rank))
+                .discriminant(format!("rank{rank}"))
                 .suppress_timestamp()
                 .suffix("log.json"),
         )
@@ -39,11 +42,11 @@ fn main() {
     let rank = world.rank();
     let root = world.process_at_rank(0);
     setup_logging_mpi(rank);
-    info!(rank, size; "Running basic_usage");
+    info!(rank, size; "Logging setup");
 
     let seed = 23;
     let qubits = 5;
-    let depth = 2;
+    let depth = 30;
     let single_qubit_probability = 0.4;
     let two_qubit_probability = 0.4;
     let connectivity = ConnectivityLayout::Osprey;
@@ -59,10 +62,10 @@ fn main() {
             &mut rng,
             connectivity,
         );
-        debug!("Tensors: {}", r_tn.total_num_tensors());
 
         let partitioned_tn = if size > 1 {
             let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
+            debug!(tn_size = partitioning.len(); "TN size");
             debug!(partitioning:serde; "Partitioning created");
             partition_tensor_network(&r_tn, &partitioning)
         } else {
@@ -74,6 +77,10 @@ fn main() {
         opt.optimize_path();
         let path = opt.get_best_replace_path();
         debug!(path:serde; "Found contraction path");
+        let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
+        let dendogram_entries =
+            to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
+        to_pdf("from_path", &dendogram_entries);
         (partitioned_tn, path)
     } else {
         Default::default()

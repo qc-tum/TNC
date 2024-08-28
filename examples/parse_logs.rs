@@ -1,0 +1,13 @@
+use tensorcontraction::contractionpath::contraction_tree::import::logs_to_pdf;
+
+fn main() {
+    let filename = "balanced_usage";
+    let suffix = "opt.log.json";
+    let ranks = 4;
+    logs_to_pdf(filename, suffix, ranks, "opt");
+
+    let filename = "balanced_usage";
+    let suffix = "unopt.log.json";
+    let ranks = 4;
+    logs_to_pdf(filename, suffix, ranks, "unopt");
+}
