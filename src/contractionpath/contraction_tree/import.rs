@@ -269,7 +269,7 @@ fn log_to_subtree(
         // When all local contractions are done
         r"Completed tensor network contraction",
         // Identifies communication between partitions
-        r"Receiving tensor",
+        r"Finish receiving tensor",
     ];
     // true while local contractions are occurring
     let mut is_local_contraction = true;
