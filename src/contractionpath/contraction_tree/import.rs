@@ -146,8 +146,8 @@ pub fn logs_to_tree(
 
     for rank in 0..ranks {
         let LogToSubtreeResult {
-            remaining_nodes: nodes,
-            communication_path: mut local_communication_path,
+            nodes,
+            mut local_communication_path,
             contraction_start,
         } = log_to_subtree(
             &format!("{filename}_rank{rank}.{suffix}"),
@@ -232,9 +232,9 @@ pub fn logs_to_tree(
 
 struct LogToSubtreeResult {
     // Dict of remaining nodes to process, keeps track of intermediate tensors
-    remaining_nodes: FxHashMap<usize, Rc<RefCell<Node>>>,
+    nodes: FxHashMap<usize, Rc<RefCell<Node>>>,
     // Keeps track of communication with time stamps
-    communication_path: Vec<(usize, usize, chrono::DateTime<chrono::FixedOffset>)>,
+    local_communication_path: Vec<(usize, usize, chrono::DateTime<chrono::FixedOffset>)>,
     // Start of contraction for reference
     contraction_start: chrono::DateTime<chrono::FixedOffset>,
 }
@@ -386,8 +386,8 @@ fn log_to_subtree(
     }
 
     LogToSubtreeResult {
-        remaining_nodes,
-        communication_path,
+        nodes: remaining_nodes,
+        local_communication_path: communication_path,
         contraction_start,
     }
 }
