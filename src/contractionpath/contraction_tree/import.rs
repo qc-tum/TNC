@@ -37,6 +37,12 @@ const COLORS: [&str; 19] = [
     "gray",
 ];
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum Direction {
+    Send,
+    Recv,
+}
+
 pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     let height = 120f64;
     let width = 80f64;
@@ -131,7 +137,7 @@ pub fn logs_to_tree(
     ContractionTree,
     FxHashMap<usize, f64>,
     FxHashMap<usize, String>,
-    FxHashMap<(usize, usize), (f64, f64)>,
+    FxHashMap<(Direction, usize, usize), (f64, f64)>,
 ) {
     // Maps node id in contraction tree to a position in pdf
     let mut tensor_cost = FxHashMap::default();
@@ -182,19 +188,6 @@ pub fn logs_to_tree(
         .map(|(k, v)| (*k, (*v - logging_start).num_microseconds().unwrap() as f64))
         .collect::<FxHashMap<usize, f64>>();
 
-    let mut communication_logging = communication_logging
-        .iter()
-        .map(|(k, &(v1, v2))| {
-            (
-                *k,
-                (
-                    (v1 - logging_start).num_microseconds().unwrap() as f64,
-                    (v2 - logging_start).num_microseconds().unwrap() as f64,
-                ),
-            )
-        })
-        .collect::<FxHashMap<(usize, usize, usize), (f64, f64)>>();
-
     let partition_tensor_ids = partition_root_nodes
         .iter()
         .map(|node| node.borrow().id)
@@ -215,17 +208,37 @@ pub fn logs_to_tree(
         let left_child = Rc::clone(&partition_root_nodes[*rank1]);
         let right_child = Rc::clone(&partition_root_nodes[*rank2]);
 
-        let send_timestamps = communication_logging.remove(&(0, *rank1, *rank2));
-        let recv_timestamps = communication_logging.remove(&(1, *rank1, *rank2));
-        if let (Some((timestamp1, _)), Some((_, timestamp2))) = (send_timestamps, recv_timestamps) {
+        let send_timestamps = communication_logging.remove(&(Direction::Send, *rank1, *rank2));
+
+        if let Some((timestamp1, timestamp2)) = send_timestamps {
             communication_data.insert(
                 (
+                    Direction::Send,
                     left_child.as_ref().borrow().id(),
                     right_child.as_ref().borrow().id(),
                 ),
-                (timestamp1, timestamp2),
+                (
+                    (timestamp1 - logging_start).num_microseconds().unwrap() as f64,
+                    (timestamp2 - logging_start).num_microseconds().unwrap() as f64,
+                ),
             );
         };
+
+        let recv_timestamps = communication_logging.remove(&(Direction::Recv, *rank1, *rank2));
+        if let Some((timestamp1, timestamp2)) = recv_timestamps {
+            communication_data.insert(
+                (
+                    Direction::Recv,
+                    left_child.as_ref().borrow().id(),
+                    right_child.as_ref().borrow().id(),
+                ),
+                (
+                    (timestamp1 - logging_start).num_microseconds().unwrap() as f64,
+                    (timestamp2 - logging_start).num_microseconds().unwrap() as f64,
+                ),
+            );
+        };
+
         let new_node = Node::new(
             tensor_count,
             Rc::downgrade(&left_child),
@@ -278,7 +291,7 @@ struct LogToSubtreeResult {
     local_communication_path: Vec<(usize, usize, chrono::DateTime<chrono::FixedOffset>)>,
     // Keeps track of communication time stamps
     communication_timestamps: FxHashMap<
-        (usize, usize, usize),
+        (Direction, usize, usize),
         (
             chrono::DateTime<chrono::FixedOffset>,
             chrono::DateTime<chrono::FixedOffset>,
@@ -458,7 +471,8 @@ fn log_to_subtree(
                     "%Y-%m-%d %H:%M:%S%.6f %z",
                 )
                 .unwrap();
-                communication_timestamps.insert((0, rank, sender), (recv_start, recv_end));
+                communication_timestamps
+                    .insert((Direction::Recv, rank, sender), (recv_start, recv_end));
             }
             [5] => {
                 // Parse sending rank from log
@@ -480,7 +494,8 @@ fn log_to_subtree(
                     "%Y-%m-%d %H:%M:%S%.6f %z",
                 )
                 .unwrap();
-                communication_timestamps.insert((1, receiver, rank), (send_start, send_end));
+                communication_timestamps
+                    .insert((Direction::Send, receiver, rank), (send_start, send_end));
             }
             _ => {}
         }
