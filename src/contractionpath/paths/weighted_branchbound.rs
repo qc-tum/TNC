@@ -239,11 +239,9 @@ impl<'a> OptimizePath for WeightedBranchBound<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
 
     use rustc_hash::FxHashMap;
 
-    use crate::contractionpath::paths::branchbound::BranchBound;
     use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
     use crate::contractionpath::paths::CostType;
     use crate::contractionpath::paths::OptimizePath;
