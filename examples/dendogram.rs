@@ -29,5 +29,5 @@ fn main() {
 
     let dendogram_entries =
         to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
-    to_pdf("new_method", &dendogram_entries);
+    to_pdf("new_method", &dendogram_entries, None);
 }

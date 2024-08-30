@@ -587,7 +587,11 @@ pub fn balance_partitions_iter(
     if let Some(settings) = &dendogram_settings {
         let dendogram_entries =
             to_dendogram_format(&contraction_tree, tensor, settings.cost_function);
-        to_pdf(&format!("{}_0", settings.output_file), &dendogram_entries);
+        to_pdf(
+            &format!("{}_0", settings.output_file),
+            &dendogram_entries,
+            None,
+        );
     }
 
     let mut new_tn;
@@ -667,7 +671,11 @@ pub fn balance_partitions_iter(
         if let Some(settings) = &dendogram_settings {
             let dendogram_entries =
                 to_dendogram_format(&contraction_tree, tensor, settings.cost_function);
-            to_pdf(&format!("{}_{i}", settings.output_file), &dendogram_entries);
+            to_pdf(
+                &format!("{}_{i}", settings.output_file),
+                &dendogram_entries,
+                None,
+            );
         }
     }
 

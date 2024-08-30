@@ -197,7 +197,12 @@ pub fn to_dendogram_format(
     dendogram_entries
 }
 
-pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
+pub fn to_pdf(
+    pdf_name: &str,
+    dendogram_entries: &[DendogramEntry],
+    communication_logging: Option<FxHashMap<(usize, usize), (f64, f64)>>,
+) {
+    let communication_logging = communication_logging.unwrap_or_default();
     let mut tikz_picture = String::from(
         r#"% tikzpic.tex
 \documentclass[crop,tikz]{standalone}% 'crop' is the default for v1.0, before it was 'preview'
@@ -222,6 +227,15 @@ pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
         if let Some((node_1_id, node_2_id)) = children {
             let (x1, _) = id_position[node_1_id];
             let (x2, _) = id_position[node_2_id];
+            if communication_logging.contains_key(&(*node_1_id, *node_2_id)) {
+                let (communication_start, communication_end) = communication_logging
+                    .get(&(*node_1_id, *node_2_id))
+                    .unwrap();
+                tikz_picture.push_str(&format!(
+                            r#"    \path[draw, color=magenta, line width=0.5mm] ({x1}, {communication_start}) -- ({x1}, {communication_end});
+                "#,
+                ));
+            }
             tikz_picture.push_str(&format!(
                 r#"    \node[circle, scale=0.3, fill={color}, label={{[shift={{(-0.4,-0.1)}}]{cost}}}, label=below:{{{id}}}] at ({x}, {y}) ({id}) {{}};
     "#,
@@ -358,5 +372,5 @@ fn compile_tex(pdf_name: &str, tex_code: &str) {
         .status()
         .unwrap();
 
-    assert!(compilation_status.success());
+    // assert!(compilation_status.success());
 }

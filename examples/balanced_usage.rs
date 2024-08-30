@@ -91,7 +91,7 @@ fn main() {
             &unopt_partitioned_tn,
             contract_cost_tensors,
         );
-        to_pdf("unoptimized_path", &dendogram_entries);
+        to_pdf("path_unoptimized", &dendogram_entries, None);
         let rebalance_depth = 1;
         let communication_scheme = CommunicationScheme::Greedy;
         let (num, partitioned_tn, path, _costs) = balance_partitions_iter(
@@ -113,7 +113,7 @@ fn main() {
         let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
         let dendogram_entries =
             to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
-        to_pdf("optimized_path", &dendogram_entries);
+        to_pdf("path_optimized", &dendogram_entries, None);
 
         (partitioned_tn, path, unopt_partitioned_tn, unopt_path)
     } else {
