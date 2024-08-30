@@ -163,8 +163,7 @@ fn main() {
                     .suppress_timestamp()
                     .suffix("unopt.log.json"),
             )
-            .format(json_format)
-            .append(),
+            .format(json_format),
         )
         .unwrap();
 
