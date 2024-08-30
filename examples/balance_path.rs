@@ -74,9 +74,8 @@ fn main() {
     }
 
     let rebalance_depth = 1;
-    let mut best_cost = f64::MAX;
-    let mut best_iteration = 0;
-    let mut best_method = String::new();
+    let mut best = None;
+
     for communication_scheme in [
         CommunicationScheme::Greedy,
         CommunicationScheme::Bipartition,
