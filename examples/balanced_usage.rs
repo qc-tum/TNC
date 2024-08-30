@@ -1,7 +1,7 @@
 use flexi_logger::writers::FileLogWriter;
 use flexi_logger::{json_format, Duplicate, FileSpec, Logger, LoggerHandle};
 use log::{debug, info, LevelFilter};
-use mpi::traits::{Communicator, CommunicatorCollectives};
+use mpi::traits::Communicator;
 use mpi::Rank;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
