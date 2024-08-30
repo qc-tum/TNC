@@ -386,5 +386,5 @@ fn compile_tex(pdf_name: &str, tex_code: &str) {
         .status()
         .unwrap();
 
-    // assert!(compilation_status.success());
+    assert!(compilation_status.success());
 }
