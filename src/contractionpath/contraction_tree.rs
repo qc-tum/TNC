@@ -659,7 +659,7 @@ pub fn balance_partitions_iter(
                     None,
                 );
 
-                let latency_map = HashMap::from_iter(
+                let latency_map = FxHashMap::from_iter(
                     partition_costs
                         .iter()
                         .enumerate()
