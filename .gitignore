@@ -1,8 +1,10 @@
 /target
 src/qasm/.antlr
+/.vscode
 
 *.pdf
 *.gv
 *.aux
 *.log
 *.log.json
+*.data

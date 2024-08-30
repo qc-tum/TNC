@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::fs;
 use std::ops::RangeInclusive;
 use std::path::PathBuf;
@@ -6,6 +5,7 @@ use std::path::PathBuf;
 use antlr_rust::common_token_stream::CommonTokenStream;
 use antlr_rust::tree::{ParseTree, ParseTreeVisitorCompat, Visitable};
 use antlr_rust::InputStream;
+use rustc_hash::FxHashSet;
 
 use super::qasm2lexer::Qasm2Lexer;
 use super::qasm2parser::Qasm2ParserContextType;
@@ -75,7 +75,7 @@ fn parse_includes(code: &str) -> Vec<IncludeInstruction> {
 /// "qelib1.inc" will directly be replaced by the corresponding code. This does only
 /// resolve includes in the original file, not in the included files.
 pub fn expand_includes(code: &mut String) {
-    let mut already_included = HashSet::new();
+    let mut already_included = FxHashSet::default();
     let includes = parse_includes(code);
 
     for include in includes.iter().rev() {

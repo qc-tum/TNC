@@ -1,5 +1,6 @@
 use rand::{distributions::WeightedIndex, prelude::*};
-use std::collections::{BinaryHeap, HashMap};
+use rustc_hash::FxHashMap;
+use std::collections::BinaryHeap;
 
 use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
@@ -23,7 +24,7 @@ impl RNGChooser for ThermalChooser {
     fn choose<R>(
         &self,
         queue: &mut BinaryHeap<Candidate>,
-        remaining_tensors: &HashMap<u64, usize>,
+        remaining_tensors: &FxHashMap<u64, usize>,
         nbranch: usize,
         mut temperature: f64,
         rel_temperature: bool,
@@ -184,6 +185,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
 mod tests {
     use rand::rngs::StdRng;
     use rand::SeedableRng;
+    use rustc_hash::FxHashMap;
 
     use crate::contractionpath::paths::CostType;
     // use rand::distributions::{Distribution, Uniform};
@@ -202,7 +204,7 @@ mod tests {
                 Tensor::new(vec![0, 1, 3, 2]),
                 Tensor::new(vec![4, 5, 6]),
             ],
-            &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
+            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
             None,
         )
     }
@@ -217,7 +219,7 @@ mod tests {
                 Tensor::new(vec![10, 8, 9]),
                 Tensor::new(vec![5, 1, 0]),
             ],
-            &[
+            &FxHashMap::from_iter([
                 (0, 27),
                 (1, 18),
                 (2, 12),
@@ -230,8 +232,7 @@ mod tests {
                 (9, 65),
                 (10, 5),
                 (11, 17),
-            ]
-            .into(),
+            ]),
             None,
         )
     }

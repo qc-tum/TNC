@@ -1,13 +1,13 @@
 use tensorcontraction::contractionpath::contraction_tree::import::logs_to_pdf;
 
 fn main() {
-    let filename = String::from("balanced_usage");
-    let suffix = String::from("opt.log.json");
+    let filename = "balanced_usage";
+    let suffix = "opt.log.json";
     let ranks = 4;
-    logs_to_pdf(filename, suffix, ranks, String::from("opt"));
+    logs_to_pdf(filename, suffix, ranks, "contraction_optimized");
 
-    let filename = String::from("balanced_usage");
-    let suffix = String::from("unopt.log.json");
+    let filename = "balanced_usage";
+    let suffix = "unopt.log.json";
     let ranks = 4;
-    logs_to_pdf(filename, suffix, ranks, String::from("unopt"));
+    logs_to_pdf(filename, suffix, ranks, "contraction_unoptimized");
 }

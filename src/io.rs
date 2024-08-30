@@ -1,8 +1,9 @@
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 use hdf5::{File, Result};
 use num_complex::Complex64;
 
+use rustc_hash::FxHashMap;
 use tetra::Tensor as DataTensor;
 
 use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
@@ -44,7 +45,7 @@ fn read_tensor(file: &File) -> Result<Tensor> {
         let bond_ids = tensor.attr("bids").unwrap().read_1d::<usize>()?;
         let tensor_dataset = gr.dataset(&tensor_name).unwrap().read_dyn::<Complex64>()?;
         let tensor_shape = tensor_dataset.shape().to_vec();
-        let mut bond_dims = HashMap::<usize, u64>::new();
+        let mut bond_dims = FxHashMap::default();
         for (&bond_id, &bond_dim) in std::iter::zip(&bond_ids, &tensor_shape) {
             bond_dims.entry(bond_id).or_insert(bond_dim as u64);
         }
@@ -88,7 +89,7 @@ fn read_data(file: &File) -> Result<DataTensor> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, iter::zip};
+    use std::iter::zip;
 
     use float_cmp::assert_approx_eq;
     use hdf5::{AttributeBuilder, File, Result};
@@ -98,6 +99,7 @@ mod tests {
         distributions::{Alphanumeric, DistString},
         thread_rng,
     };
+    use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
 
@@ -193,7 +195,7 @@ mod tests {
             ],
             None,
         ));
-        ref_tn.push_tensor(ref_tensor, Some(&HashMap::from([(0, 2), (1, 2)])));
+        ref_tn.push_tensor(ref_tensor, Some(&FxHashMap::from_iter([(0, 2), (1, 2)])));
         ref_tn.set_legs(vec![0, 1]);
         assert!(tensor.approx_eq(&ref_tn, 1e-12));
     }

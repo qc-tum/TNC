@@ -2,6 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, BatchSize, Benchmark
 use mpi::environment::Universe;
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::{rngs::StdRng, SeedableRng};
+use rustc_hash::FxHashMap;
 use static_init::dynamic;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
@@ -12,6 +13,7 @@ use tensorcontraction::mpi::communication::{
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
 
+use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::{
     path,
@@ -32,8 +34,8 @@ pub fn multiplication_benchmark(c: &mut Criterion) {
         let n = 64;
         let t1 = Tensor::new(vec![0, 1]);
         let t2 = Tensor::new(vec![2, 1, 3, 4]);
-        let bond_dims = [(0, n), (1, k), (2, n), (3, n), (4, n)];
-        let r_tn = create_filled_tensor_network(vec![t1, t2], &bond_dims.into(), None, &mut rng);
+        let bond_dims = FxHashMap::from_iter([(0, n), (1, k), (2, n), (3, n), (4, n)]);
+        let r_tn = create_filled_tensor_network(vec![t1, t2], &bond_dims, None, &mut rng);
 
         mul_group.bench_function(BenchmarkId::from_parameter(k), |b| {
             b.iter_batched_ref(
@@ -54,7 +56,7 @@ pub fn partitioned_contraction_benchmark(c: &mut Criterion) {
     for k in [10, 15, 20, 25] {
         let r_tn = random_circuit(k, 5, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
         let partitioning =
-            find_partitioning(&r_tn, 5, String::from("tests/km1_kKaHyPar_sea20.ini"), true);
+            find_partitioning(&r_tn, 5, PartitioningStrategy::CommunityFinding, true);
         let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
 
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
@@ -88,12 +90,8 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
     for k in [25, 30] {
         let (partitioned_tn, path) = if rank == 0 {
             let r_tn = random_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
-            let partitioning = find_partitioning(
-                &r_tn,
-                size,
-                String::from("tests/km1_kKaHyPar_sea20.ini"),
-                true,
-            );
+            let partitioning =
+                find_partitioning(&r_tn, size, PartitioningStrategy::CommunityFinding, true);
             let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
 
             let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
@@ -137,12 +135,8 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
     for k in [30, 35, 45] {
         let (partitioned_tn, path) = if rank == 0 {
             let r_tn = random_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
-            let partitioning = find_partitioning(
-                &r_tn,
-                size,
-                String::from("tests/km1_kKaHyPar_sea20.ini"),
-                true,
-            );
+            let partitioning =
+                find_partitioning(&r_tn, size, PartitioningStrategy::CommunityFinding, true);
             let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
 
             let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);

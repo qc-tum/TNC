@@ -8,8 +8,8 @@ use balancing::{balance_partitions, tensor_bipartition};
 use export::{to_dendogram_format, to_pdf};
 use itertools::Itertools;
 use log::info;
+use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
-use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 use utils::{calculate_partition_costs, parallel_tree_contraction_cost};
 
@@ -93,8 +93,8 @@ impl Node {
 /// Struct representing the full contraction path of a given Tensor object
 #[derive(Default, Debug, Clone)]
 pub struct ContractionTree {
-    nodes: HashMap<usize, NodeRef>,
-    partitions: HashMap<usize, Vec<usize>>,
+    nodes: FxHashMap<usize, NodeRef>,
+    partitions: FxHashMap<usize, Vec<usize>>,
     root: WeakNodeRef,
 }
 
@@ -108,7 +108,7 @@ impl ContractionTree {
         self.root.upgrade().map(|node| node.borrow().id)
     }
 
-    pub const fn partitions(&self) -> &HashMap<usize, Vec<usize>> {
+    pub const fn partitions(&self) -> &FxHashMap<usize, Vec<usize>> {
         &self.partitions
     }
 
@@ -117,11 +117,11 @@ impl ContractionTree {
     fn from_contraction_path_recurse(
         tensor: &Tensor,
         path: &[ContractionIndex],
-        nodes: &mut HashMap<usize, NodeRef>,
-        partitions: &mut HashMap<usize, Vec<usize>>,
+        nodes: &mut FxHashMap<usize, NodeRef>,
+        partitions: &mut FxHashMap<usize, Vec<usize>>,
         prefix: &[usize],
     ) {
-        let mut scratch = HashMap::new();
+        let mut scratch = FxHashMap::default();
 
         // Obtain tree structure from composite tensors
         for contr in path {
@@ -191,8 +191,8 @@ impl ContractionTree {
     #[must_use]
     pub fn from_contraction_path(tensor: &Tensor, path: &[ContractionIndex]) -> Self {
         validate_path(path);
-        let mut nodes = HashMap::new();
-        let mut partitions = HashMap::new();
+        let mut nodes = FxHashMap::default();
+        let mut partitions = FxHashMap::default();
         Self::from_contraction_path_recurse(tensor, path, &mut nodes, &mut partitions, &Vec::new());
         let root = Rc::downgrade(&nodes[&(nodes.len() - 1)]);
         Self {
@@ -258,7 +258,7 @@ impl ContractionTree {
         assert!(self.nodes.contains_key(&parent_id));
         let mut index = 0;
         // Utilize a scratch hashmap to store intermediate tensor information
-        let mut scratch = HashMap::new();
+        let mut scratch = FxHashMap::default();
 
         // Fill scratch with initial tensor inputs
         for &tensor_index in tensor_indices {
@@ -302,8 +302,8 @@ impl ContractionTree {
     fn tree_weights_recurse(
         node: &Node,
         tn: &Tensor,
-        weights: &mut HashMap<usize, f64>,
-        scratch: &mut HashMap<usize, Tensor>,
+        weights: &mut FxHashMap<usize, f64>,
+        scratch: &mut FxHashMap<usize, Tensor>,
         cost_function: fn(&Tensor, &Tensor) -> f64,
     ) {
         if node.is_leaf() {
@@ -344,9 +344,9 @@ impl ContractionTree {
         node_id: usize,
         tn: &Tensor,
         cost_function: fn(&Tensor, &Tensor) -> f64,
-    ) -> HashMap<usize, f64> {
-        let mut weights = HashMap::new();
-        let mut scratch = HashMap::new();
+    ) -> FxHashMap<usize, f64> {
+        let mut weights = FxHashMap::default();
+        let mut scratch = FxHashMap::default();
         let node = self.node(node_id);
         Self::tree_weights_recurse(&node, tn, &mut weights, &mut scratch, cost_function);
         weights
@@ -372,7 +372,7 @@ impl ContractionTree {
         assert!(self.node(node_id).is_leaf());
 
         // Get a map that maps leaf nodes to corresponding tensor objects.
-        let mut node_tensor_map = HashMap::new();
+        let mut node_tensor_map = FxHashMap::default();
         populate_subtree_tensor_map(self, subtree_root, &mut node_tensor_map, tn);
         let node = self.node(node_id);
         let tensor_index = node.tensor_index.as_ref().unwrap();
@@ -502,7 +502,7 @@ impl ContractionTree {
 fn populate_subtree_tensor_map(
     contraction_tree: &ContractionTree,
     node_id: usize,
-    node_tensor_map: &mut HashMap<usize, Tensor>,
+    node_tensor_map: &mut FxHashMap<usize, Tensor>,
     tn: &Tensor,
 ) -> Tensor {
     let node = contraction_tree.node(node_id);
@@ -531,14 +531,19 @@ fn populate_subtree_tensor_map(
     }
 }
 
+#[derive(Debug)]
 pub struct BalanceSettings {
     pub random_balance: bool,
     pub rebalance_depth: usize,
     pub iterations: usize,
-    pub output_file: String,
-    pub dendogram_cost_function: fn(&Tensor, &Tensor) -> f64,
     pub greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
     pub communication_scheme: CommunicationScheme,
+}
+
+#[derive(Debug)]
+pub struct DendogramSettings {
+    pub output_file: String,
+    pub cost_function: fn(&Tensor, &Tensor) -> f64,
 }
 
 pub fn balance_partitions_iter(
@@ -548,11 +553,10 @@ pub fn balance_partitions_iter(
         random_balance,
         rebalance_depth,
         iterations,
-        output_file,
-        dendogram_cost_function,
         greedy_cost_function,
         communication_scheme,
     }: BalanceSettings,
+    dendogram_settings: Option<DendogramSettings>,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
     let bond_dims = tensor.bond_dims();
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor, path);
@@ -581,11 +585,11 @@ pub fn balance_partitions_iter(
     let mut max_costs = Vec::with_capacity(iterations + 1);
     max_costs.push(max_cost + final_op_cost);
 
-    let dendogram_entries = to_dendogram_format(&contraction_tree, tensor, dendogram_cost_function);
-    to_pdf(
-        &(output_file.clone() + &format!("_{}", 0)),
-        &dendogram_entries,
-    );
+    if let Some(settings) = &dendogram_settings {
+        let dendogram_entries =
+            to_dendogram_format(&contraction_tree, tensor, settings.cost_function);
+        to_pdf(&format!("{}_0", settings.output_file), &dendogram_entries);
+    }
 
     let mut new_tn;
     let mut best_contraction = 0;
@@ -595,10 +599,7 @@ pub fn balance_partitions_iter(
     let mut best_tn = tensor.clone();
 
     for i in 1..=iterations {
-        info!(
-            "Balancing iteration {} with communication scheme {:?}",
-            i, communication_scheme
-        );
+        info!("Balancing iteration {i} with communication scheme {communication_scheme:?}");
         (max_cost, path, new_tn) = balance_partitions(
             tensor,
             &mut contraction_tree,
@@ -700,12 +701,11 @@ pub fn balance_partitions_iter(
             best_contraction_path = path;
         }
 
-        let dendogram_entries =
-            to_dendogram_format(&contraction_tree, tensor, dendogram_cost_function);
-        to_pdf(
-            &(output_file.clone() + &format!("_{}", i)),
-            &dendogram_entries,
-        );
+        if let Some(settings) = &dendogram_settings {
+            let dendogram_entries =
+                to_dendogram_format(&contraction_tree, tensor, settings.cost_function);
+            to_pdf(&format!("{}_{i}", settings.output_file), &dendogram_entries);
+        }
     }
 
     (best_contraction, best_tn, best_contraction_path, max_costs)
@@ -713,8 +713,6 @@ pub fn balance_partitions_iter(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use utils::tree_contraction_cost;
 
     use crate::contractionpath::contraction_cost::contract_cost_tensors;
@@ -735,7 +733,7 @@ mod tests {
                     Tensor::new(vec![0, 1, 3, 2]),
                     Tensor::new(vec![4, 5, 6]),
                 ],
-                &[(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)].into(),
+                &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
                 None,
             ),
             path![(0, 1), (0, 2)].to_vec(),
@@ -753,7 +751,7 @@ mod tests {
                     Tensor::new(vec![10, 8, 9]),
                     Tensor::new(vec![5, 1, 0]),
                 ],
-                &[
+                &FxHashMap::from_iter([
                     (0, 27),
                     (1, 18),
                     (2, 12),
@@ -765,8 +763,7 @@ mod tests {
                     (8, 45),
                     (9, 65),
                     (10, 5),
-                ]
-                .into(),
+                ]),
                 None,
             ),
             path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
@@ -784,7 +781,7 @@ mod tests {
                     Tensor::new(vec![10, 8, 9]),
                     Tensor::new(vec![5, 1, 0]),
                 ],
-                &[
+                &FxHashMap::from_iter([
                     (0, 27),
                     (1, 18),
                     (2, 12),
@@ -797,8 +794,7 @@ mod tests {
                     (9, 65),
                     (10, 5),
                     (11, 17),
-                ]
-                .into(),
+                ]),
                 None,
             ),
             path![(0, 1), (0, 2), (0, 3), (0, 4), (0, 5)].to_vec(),
@@ -1005,16 +1001,16 @@ mod tests {
         let (tensor, path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
         let ref_weights =
-            HashMap::from([(1, 0f64), (0, 0f64), (2, 0f64), (3, 3820f64), (4, 4540f64)]);
+            FxHashMap::from_iter([(1, 0f64), (0, 0f64), (2, 0f64), (3, 3820f64), (4, 4540f64)]);
         let weights = tree.tree_weights(4, &tensor, contract_cost_tensors);
 
         assert_eq!(weights, ref_weights);
-        let ref_weights = HashMap::from([(1, 0f64), (0, 0f64), (3, 3820f64)]);
+        let ref_weights = FxHashMap::from_iter([(1, 0f64), (0, 0f64), (3, 3820f64)]);
         let weights = tree.tree_weights(3, &tensor, contract_cost_tensors);
         assert_eq!(weights, ref_weights);
 
         assert_eq!(weights, ref_weights);
-        let ref_weights = HashMap::from([(2, 0f64)]);
+        let ref_weights = FxHashMap::from_iter([(2, 0f64)]);
         let weights = tree.tree_weights(2, &tensor, contract_cost_tensors);
         assert_eq!(weights, ref_weights);
     }
@@ -1023,7 +1019,7 @@ mod tests {
     fn test_tree_weights_complex() {
         let (tensor, path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
-        let ref_weights = HashMap::from([
+        let ref_weights = FxHashMap::from_iter([
             (0, 0f64),
             (1, 0f64),
             (2, 0f64),
@@ -1094,10 +1090,10 @@ mod tests {
     fn test_populate_subtree_tensor_map_simple() {
         let (tensor, ref_path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        let mut node_tensor_map = HashMap::new();
+        let mut node_tensor_map = FxHashMap::default();
         populate_subtree_tensor_map(&tree, 4, &mut node_tensor_map, &tensor);
 
-        let ref_node_tensor_map = HashMap::from([
+        let ref_node_tensor_map = FxHashMap::from_iter([
             (0, Tensor::new(vec![4, 3, 2])),
             (1, Tensor::new(vec![0, 1, 3, 2])),
             (2, Tensor::new(vec![4, 5, 6])),
@@ -1114,10 +1110,10 @@ mod tests {
     fn test_populate_subtree_tensor_map_complex() {
         let (tensor, ref_path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        let mut node_tensor_map = HashMap::new();
+        let mut node_tensor_map = FxHashMap::default();
         populate_subtree_tensor_map(&tree, 10, &mut node_tensor_map, &tensor);
 
-        let ref_node_tensor_map = HashMap::from([
+        let ref_node_tensor_map = FxHashMap::from_iter([
             (0, Tensor::new(vec![4, 3, 2])),
             (1, Tensor::new(vec![0, 1, 3, 2])),
             (2, Tensor::new(vec![4, 5, 6])),

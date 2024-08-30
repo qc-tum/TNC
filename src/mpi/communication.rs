@@ -11,6 +11,15 @@ use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 use crate::types::{ContractionIndex, EdgeIndex};
 
+#[derive(Debug, Copy, Clone)]
+pub enum CommunicationScheme {
+    /// Uses Greedy scheme to find contraction path for communication
+    Greedy,
+    /// Uses repeated bipartitioning to identify communication path
+    Bipartition,
+    WeightedBranchBound,
+}
+
 /// Serializes data to a byte array.
 fn serialize<S>(value: &S) -> Vec<u8>
 where
@@ -34,15 +43,6 @@ where
     D: serde::de::DeserializeOwned,
 {
     bincode::deserialize(data).unwrap()
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum CommunicationScheme {
-    /// Uses Greedy scheme to find contraction path for communication
-    Greedy,
-    /// Uses repeated bipartitioning to identify communication path
-    Bipartition,
-    WeightedBranchBound,
 }
 
 /// Deserializes data from a reader.

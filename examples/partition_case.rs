@@ -2,7 +2,7 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
 use tensorcontraction::contractionpath::contraction_tree::{
-    balance_partitions_iter, BalanceSettings,
+    balance_partitions_iter, BalanceSettings, DendogramSettings,
 };
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
@@ -11,6 +11,7 @@ use tensorcontraction::mpi::communication::{
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
+use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 
 use mpi::traits::Communicator;
@@ -47,12 +48,7 @@ fn main() {
             ConnectivityLayout::Osprey,
         );
         let partitioned_tn = if size > 1 {
-            let partitioning = find_partitioning(
-                &r_tn,
-                size,
-                String::from("tests/km1_kKaHyPar_sea20.ini"),
-                true,
-            );
+            let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
             partition_tensor_network(&r_tn, &partitioning)
         } else {
             r_tn
@@ -70,11 +66,13 @@ fn main() {
                 random_balance: false,
                 rebalance_depth,
                 iterations: 10,
-                output_file: String::from("output/rebalance_trial"),
-                dendogram_cost_function: contract_cost_tensors,
                 greedy_cost_function: greedy_cost_fn,
                 communication_scheme: CommunicationScheme::Greedy,
             },
+            Some(DendogramSettings {
+                output_file: String::from("output/rebalance_trial"),
+                cost_function: contract_cost_tensors,
+            }),
         );
 
         (partitioned_tn, path)

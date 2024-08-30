@@ -2,7 +2,7 @@ use super::connectivity::{Connectivity, ConnectivityLayout};
 use rand::distributions::Uniform;
 use rand::prelude::Distribution;
 use rand::{thread_rng, Rng};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::contractionpath::paths::OptimizePath;
 use crate::contractionpath::paths::{greedy::Greedy, CostType};
@@ -37,17 +37,17 @@ where
         (0.0..=1.0).contains(&two_qubit_probability),
         "Probabilities should range from 0.0 to 1.0"
     );
-    let single_qubit_gate = HashMap::from([
+    let single_qubit_gate = FxHashMap::from_iter([
         (0, TensorData::Gate((String::from("sx"), Vec::new()))),
         (1, TensorData::Gate((String::from("sy"), Vec::new()))),
         (2, TensorData::Gate((String::from("sz"), Vec::new()))),
     ]);
 
-    let mut open_edges = HashMap::new();
+    let mut open_edges = FxHashMap::default();
 
     // Initialize tensornetwork of size `usize`
     let mut sycamore_tn = Tensor::default();
-    let mut sycamore_bonddims = HashMap::new();
+    let mut sycamore_bonddims = FxHashMap::default();
 
     let sycamore_connect = Connectivity::new(connectivity);
     // Filter connectivity map

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::{pair, types::ContractionIndex};
 pub mod candidates;
@@ -22,7 +22,7 @@ pub mod random_paths;
 /// Identical path using ssa format
 fn ssa_ordering(path: &[(usize, usize, usize)], mut n: usize) -> Vec<ContractionIndex> {
     let mut ssa_path = Vec::with_capacity(path.len());
-    let mut hs = HashMap::new();
+    let mut hs = FxHashMap::default();
     let path_len = n;
     for (u1, u2, u3) in path {
         let t1 = if *u1 >= path_len { hs[u1] } else { *u1 };
@@ -42,7 +42,7 @@ pub(super) fn ssa_replace_ordering(
     mut n: usize,
 ) -> Vec<ContractionIndex> {
     let mut replace_path = Vec::with_capacity(path.len());
-    let mut hs = HashMap::new();
+    let mut hs = FxHashMap::default();
     for tup in path {
         match tup {
             ContractionIndex::Pair(t0, t1) => {

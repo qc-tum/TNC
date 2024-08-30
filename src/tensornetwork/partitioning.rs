@@ -1,11 +1,13 @@
 use itertools::Itertools;
-use std::collections::HashMap;
-use std::ffi::CString;
+use partition_config::PartitioningStrategy;
+use rustc_hash::FxHashMap;
 use std::iter::zip;
 
 use super::tensor::Tensor;
 use crate::types::Vertex;
 use kahypar_sys::{partition, KaHyParContext};
+
+pub mod partition_config;
 
 /// Partitions input tensor network using `KaHyPar` library.
 /// Returns a `Vec<usize>` of length equal to the number of input tensors storing final partitioning results.
@@ -15,15 +17,19 @@ use kahypar_sys::{partition, KaHyParContext};
 ///
 /// * `tn` - [`Tensor`] to be partitionined
 /// * `k` - imbalance parameter for `KaHyPar`
-/// * `config_file` - `KaHyPar` config file name
+/// * `partition_strategy` - The strategy to pass to `KaHyPar`
 /// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
 ///
-pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) -> Vec<usize> {
+pub fn find_partitioning(
+    tn: &Tensor,
+    k: i32,
+    partitioning_strategy: PartitioningStrategy,
+    min: bool,
+) -> Vec<usize> {
     assert!(k > 1, "Partitioning only valid for more than one process");
-    let config_file = CString::new(config_file).unwrap();
     let num_vertices = tn.tensors().len() as u32;
     let mut context = KaHyParContext::new();
-    context.configure(config_file);
+    partitioning_strategy.apply(&mut context);
 
     let x = if min { 1 } else { -1 };
 
@@ -81,23 +87,20 @@ pub fn find_partitioning(tn: &Tensor, k: i32, config_file: String, min: bool) ->
 /// * `tensors` - &[`Tensor`] to be partitionined
 /// * `bond_dims` - bond_dims for tensors
 /// * `k` - number of partitions
-/// * `config_file` - `KaHyPar` config file name
+/// * `partitioning_strategy` - The strategy to pass to `KaHyPar`
 /// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
 ///
 pub fn communication_partitioning(
     tensors: &[(usize, Tensor)],
-    bond_dims: &HashMap<usize, u64>,
+    bond_dims: &FxHashMap<usize, u64>,
     k: i32,
-    config_file: String,
+    partitioning_strategy: PartitioningStrategy,
     min: bool,
 ) -> Vec<usize> {
     assert!(k > 1, "Partitioning only valid for more than one process");
-
-    let config_file = CString::new(config_file).unwrap();
     let num_vertices = tensors.len() as u32;
-
     let mut context = KaHyParContext::new();
-    context.configure(config_file);
+    partitioning_strategy.apply(&mut context);
 
     let x = if min { 1 } else { -1 };
 
@@ -109,7 +112,7 @@ pub fn communication_partitioning(
     let mut hyperedge_indices = vec![0];
     let mut hyperedges = vec![];
     // Bidirectional mapping to a new index as KaHyPar indexes from 0.
-    let mut edge_to_virtual_edge = HashMap::new();
+    let mut edge_to_virtual_edge = FxHashMap::default();
     // New index that starts from 0
     let mut edge_count = 0;
 
@@ -176,7 +179,7 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
         .copied()
         .collect::<Vec<usize>>();
     let partition_dict =
-        zip(partition_ids.iter().copied(), 0..partition_ids.len()).collect::<HashMap<_, _>>();
+        zip(partition_ids.iter().copied(), 0..partition_ids.len()).collect::<FxHashMap<_, _>>();
     let mut partitions = vec![Tensor::default(); partition_ids.len()];
 
     for (partition_id, tensor) in zip(partitioning.iter(), tn.tensors.iter()) {
@@ -190,8 +193,12 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensornetwork::create_tensor_network;
+    use rustc_hash::FxHashMap;
+
     use crate::tensornetwork::tensor::Tensor;
+    use crate::tensornetwork::{
+        create_tensor_network, partitioning::partition_config::PartitioningStrategy,
+    };
 
     use super::{find_partitioning, partition_tensor_network};
 
@@ -205,7 +212,7 @@ mod tests {
                 Tensor::new(vec![10, 8, 9]),
                 Tensor::new(vec![5, 1, 0]),
             ],
-            &[
+            &FxHashMap::from_iter([
                 (0, 27),
                 (1, 18),
                 (2, 12),
@@ -218,8 +225,7 @@ mod tests {
                 (9, 65),
                 (10, 5),
                 (11, 17),
-            ]
-            .into(),
+            ]),
             None,
         )
     }
@@ -245,8 +251,7 @@ mod tests {
             Some(&tn.bond_dims()),
             None,
         );
-        let partitioning =
-            find_partitioning(&tn, 3, String::from("tests/km1_kKaHyPar_sea20.ini"), true);
+        let partitioning = find_partitioning(&tn, 3, PartitioningStrategy::MinCut, true);
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);
         let partitioned_tn = partition_tensor_network(&tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.tensors().len(), 3);

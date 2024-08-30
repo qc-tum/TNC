@@ -8,7 +8,7 @@ use rand::SeedableRng;
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
 use tensorcontraction::contractionpath::contraction_tree::export::{to_dendogram_format, to_pdf};
 use tensorcontraction::contractionpath::contraction_tree::{
-    balance_partitions_iter, BalanceSettings, ContractionTree,
+    balance_partitions_iter, BalanceSettings, ContractionTree, DendogramSettings,
 };
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
@@ -17,6 +17,7 @@ use tensorcontraction::mpi::communication::{
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
+use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::tensornetwork::tensor::Tensor;
 
@@ -26,7 +27,7 @@ fn setup_logging_mpi(rank: Rank) -> LoggerHandle {
         .format(json_format)
         .log_to_file(
             FileSpec::default()
-                .discriminant(format!("rank{}", rank))
+                .discriminant(format!("rank{rank}"))
                 .suppress_timestamp()
                 .suffix("log.json")
                 .directory("logs/run2"),
@@ -48,8 +49,8 @@ fn main() {
     let size = world.size();
     let rank = world.rank();
     let root = world.process_at_rank(0);
-    let mut logger = setup_logging_mpi(rank);
-    info!(rank, size; "Running basic_usage");
+    let logger = setup_logging_mpi(rank);
+    info!(rank, size; "Logging setup");
 
     let seed = 23;
     let qubits = 30;
@@ -71,12 +72,7 @@ fn main() {
         );
 
         let unopt_partitioned_tn = if size > 1 {
-            let partitioning = find_partitioning(
-                &r_tn,
-                size,
-                String::from("tests/km1_kKaHyPar_sea20.ini"),
-                true,
-            );
+            let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
             debug!(tn_size = partitioning.len(); "TN size");
             debug!(partitioning:serde; "Partitioning created");
             partition_tensor_network(&r_tn, &partitioning)
@@ -98,20 +94,22 @@ fn main() {
         to_pdf("unoptimized_path", &dendogram_entries);
         let rebalance_depth = 1;
         let communication_scheme = CommunicationScheme::Greedy;
-        let (num, partitioned_tn, path, costs) = balance_partitions_iter(
+        let (num, partitioned_tn, path, _costs) = balance_partitions_iter(
             &unopt_partitioned_tn,
             &unopt_path,
             BalanceSettings {
                 random_balance: false,
                 rebalance_depth,
                 iterations: 40,
-                output_file: format!("output/{:?}_trial", communication_scheme),
-                dendogram_cost_function: contract_cost_tensors,
                 greedy_cost_function: greedy_cost_fn,
                 communication_scheme,
             },
+            Some(DendogramSettings {
+                output_file: format!("output/{communication_scheme:?}_trial"),
+                cost_function: contract_cost_tensors,
+            }),
         );
-        info!(num; "Best balancing iteration");
+        info!(num; "Found best balancing iteration");
         let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
         let dendogram_entries =
             to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
@@ -121,8 +119,7 @@ fn main() {
     } else {
         Default::default()
     };
-    world.barrier();
-
+    logger.flush();
     logger
         .reset_flw(
             &FileLogWriter::builder(
@@ -131,9 +128,7 @@ fn main() {
                     .suppress_timestamp()
                     .suffix("opt.log.json"),
             )
-            .format(json_format)
-            // .write_mode(WriteMode::Async)
-            .append(),
+            .format(json_format),
         )
         .unwrap();
 
@@ -160,7 +155,6 @@ fn main() {
         info!("{local_tn:?}");
     }
 
-    world.barrier();
     logger
         .reset_flw(
             &FileLogWriter::builder(
@@ -170,11 +164,10 @@ fn main() {
                     .suffix("unopt.log.json"),
             )
             .format(json_format)
-            // .write_mode(WriteMode::Async)
             .append(),
         )
         .unwrap();
-    world.barrier();
+
     // Distribute tensor network and contract
     let local_tn = if size > 1 {
         let (mut local_tn, local_path) =

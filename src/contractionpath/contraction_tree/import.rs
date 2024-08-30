@@ -1,10 +1,10 @@
-use chrono::DateTime;
+use chrono::{DateTime, Timelike};
 use itertools::Itertools;
 use regex::RegexSet;
+use rustc_hash::FxHashMap;
 use std::{
     cell::RefCell,
-    collections::HashMap,
-    fs::{self},
+    fs,
     rc::{Rc, Weak},
 };
 
@@ -37,7 +37,7 @@ const COLORS: [&str; 19] = [
     "gray",
 ];
 
-pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize, output: String) {
+pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     let height = 120f64;
     let width = 80f64;
     let (contraction_tree, tensor_position, tensor_color) = logs_to_tree(filename, suffix, ranks);
@@ -51,14 +51,14 @@ pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize, output: Strin
     let mut dendogram_entries = Vec::new();
 
     let mut next_x = 0f64;
-    let mut tensor_x_position = HashMap::new();
+    let mut tensor_x_position = FxHashMap::default();
 
     for contraction_index in flat_contraction_path.iter() {
         if let ContractionIndex::Pair(i, j) = contraction_index {
             if contraction_tree.node(*i).is_leaf() {
                 tensor_x_position
                     .try_insert(*i, next_x)
-                    .expect("Tensor {i} already there.");
+                    .unwrap_or_else(|_| panic!("Tensor {i} already in position dict."));
                 dendogram_entries.push(DendogramEntry {
                     id: *i,
                     x: tensor_x_position[i],
@@ -73,13 +73,13 @@ pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize, output: Strin
             if contraction_tree.node(*j).is_leaf() {
                 tensor_x_position
                     .try_insert(*j, next_x)
-                    .expect("Tensor {j} already there.");
+                    .unwrap_or_else(|_| panic!("Tensor {j} already in position dict."));
                 dendogram_entries.push(DendogramEntry {
                     id: *j,
                     x: tensor_x_position[j],
                     y: 0f64,
                     cost: 0f64,
-                    color: tensor_color[i].clone(),
+                    color: tensor_color[j].clone(),
                     children: None,
                 });
                 next_x += 1f64;
@@ -101,16 +101,7 @@ pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize, output: Strin
                 });
                 tensor_x_position
                     .try_insert(parent_id, new_x)
-                    .expect("Tensor {parent_id} already there.");
-            } else {
-                println!(
-                    "Final contraction: {:?}",
-                    contraction_tree.node(*i).parent_id()
-                );
-                println!(
-                    "Final contraction: {:?}",
-                    contraction_tree.node(*j).parent_id()
-                );
+                    .unwrap_or_else(|_| panic!("Tensor {parent_id} already in position dict."));
             }
         }
     }
@@ -122,16 +113,22 @@ pub fn logs_to_pdf(filename: String, suffix: String, ranks: usize, output: Strin
         dendogram_entry.x *= width_scaling;
         dendogram_entry.y *= height_scaling;
     }
-    to_pdf(&output, &dendogram_entries);
+    to_pdf(output, &dendogram_entries);
 }
 
+/// Reads logging results and reconstructs construction operations, indicating timings for contraction and communication.
+/// Prints "filename" pdf with dendogram of the overall contraction operation.
 pub fn logs_to_tree(
-    filename: String,
-    suffix: String,
+    filename: &str,
+    suffix: &str,
     ranks: usize,
-) -> (ContractionTree, HashMap<usize, f64>, HashMap<usize, String>) {
+) -> (
+    ContractionTree,
+    FxHashMap<usize, f64>,
+    FxHashMap<usize, String>,
+) {
     // Maps node id in contraction tree to a position in pdf
-    let mut tensor_cost = HashMap::new();
+    let mut tensor_cost = FxHashMap::default();
     // Counter to keep track of total number of intermediate + leaf nodes between ranks.
     let mut tensor_count = 0;
 
@@ -139,23 +136,26 @@ pub fn logs_to_tree(
     let mut partition_root_nodes = Vec::new();
 
     // Hashmap of all nodes
-    let mut remaining_nodes = HashMap::new();
+    let mut remaining_nodes = FxHashMap::default();
     // Tracks all communication taking place, only lists receiving rank for each instance to prevent doubles.
     let mut communication_path = Vec::new();
 
     // Tracks the color of each node
-    let mut tensor_color: HashMap<usize, String> = HashMap::new();
+    let mut tensor_color = FxHashMap::default();
     let mut logging_start = chrono::DateTime::<chrono::FixedOffset>::default();
 
     for rank in 0..ranks {
-        let LogToSubtreeResult(nodes, mut local_communication_path, contraction_start) =
-            log_to_subtree(
-                filename.clone() + &format!("_rank{}.", rank) + &suffix,
-                &mut tensor_cost,
-                &mut tensor_count,
-                rank,
-            );
-        if rank == 0 {
+        let LogToSubtreeResult {
+            remaining_nodes: nodes,
+            communication_path: mut local_communication_path,
+            contraction_start,
+        } = log_to_subtree(
+            &format!("{filename}_rank{rank}.{suffix}"),
+            &mut tensor_cost,
+            &mut tensor_count,
+            rank,
+        );
+        if contraction_start < logging_start {
             logging_start = contraction_start;
         }
         let color = COLORS[rank + 1];
@@ -177,8 +177,8 @@ pub fn logs_to_tree(
     let communication_path = communication_path
         .iter_mut()
         .sorted_by(|pair1, pair2| {
-            let time1 = (pair1.2 - logging_start).num_nanoseconds().unwrap() as f64;
-            let time2 = (pair2.2 - logging_start).num_nanoseconds().unwrap() as f64;
+            let time1 = pair1.2.nanosecond() as f64;
+            let time2 = pair2.2.nanosecond() as f64;
             time1.partial_cmp(&time2).unwrap()
         })
         .collect::<Vec<_>>();
@@ -206,14 +206,14 @@ pub fn logs_to_tree(
 
         remaining_nodes
             .try_insert(tensor_count, Rc::clone(&new_node_ref))
-            .expect("SSA {tensor_count} already exists");
+            .unwrap_or_else(|_| panic!("SSA {tensor_count} already in tensor cost dict"));
         let cost = (*timestamp - logging_start).num_nanoseconds().unwrap() as f64;
         tensor_cost
             .try_insert(tensor_count, cost)
-            .expect("SSA {tensor_count} already exists");
+            .unwrap_or_else(|_| panic!("SSA {tensor_count} already in tensor cost dict"));
         tensor_color
             .try_insert(tensor_count, String::from(COLORS[0]))
-            .expect("Tensor count already in dict");
+            .unwrap_or_else(|_| panic!("Tensor count {tensor_count} already in dict"));
         partition_root_nodes[*rank1] = Rc::clone(&new_node_ref);
         tensor_count += 1;
     }
@@ -222,7 +222,7 @@ pub fn logs_to_tree(
     (
         ContractionTree {
             nodes: remaining_nodes,
-            partitions: HashMap::from([(0, partition_tensor_ids)]),
+            partitions: FxHashMap::from_iter([(0, partition_tensor_ids)]),
             root,
         },
         tensor_cost,
@@ -230,24 +230,29 @@ pub fn logs_to_tree(
     )
 }
 
-struct LogToSubtreeResult(
-    HashMap<usize, Rc<RefCell<Node>>>,
-    Vec<(usize, usize, chrono::DateTime<chrono::FixedOffset>)>,
-    chrono::DateTime<chrono::FixedOffset>,
-);
+struct LogToSubtreeResult {
+    // Dict of remaining nodes to process, keeps track of intermediate tensors
+    remaining_nodes: FxHashMap<usize, Rc<RefCell<Node>>>,
+    // Keeps track of communication with time stamps
+    communication_path: Vec<(usize, usize, chrono::DateTime<chrono::FixedOffset>)>,
+    // Start of contraction for reference
+    contraction_start: chrono::DateTime<chrono::FixedOffset>,
+}
 
+/// Processes the log of a single rank. Extracts subtree information corresponding to the single rank and returns it
+/// as a LogToSubtreeResult object.
 fn log_to_subtree(
-    filename: String,
-    tensor_cost: &mut HashMap<usize, f64>,
+    filename: &str,
+    tensor_cost: &mut FxHashMap<usize, f64>,
     tensor_count: &mut usize,
     rank: usize,
 ) -> LogToSubtreeResult {
     let file = fs::read_to_string(filename).expect("Should have been able to read the file");
     // Keeps track of nodes representing intermediate tensors when going through logs.
-    let mut remaining_nodes = HashMap::new();
+    let mut remaining_nodes = FxHashMap::default();
 
     // Hashmap that maps local tensor id to node id in overall contraction tree
-    let mut replace_to_ssa = HashMap::new();
+    let mut replace_to_ssa = FxHashMap::default();
 
     // Stores starting time for contraction
     let mut contraction_start = DateTime::<chrono::FixedOffset>::default();
@@ -265,7 +270,6 @@ fn log_to_subtree(
         r"Completed tensor network contraction",
         // Identifies communication between partitions
         r"Receiving tensor",
-        r".*",
     ];
     // true while local contractions are occurring
     let mut is_local_contraction = true;
@@ -284,8 +288,8 @@ fn log_to_subtree(
         let log = json_value["text"].as_str().unwrap();
         let matches: Vec<_> = set.matches(log).into_iter().collect();
 
-        match matches[0] {
-            0 => {
+        match matches[..] {
+            [0] => {
                 // Tracks contraction starting from first local contraction
                 // Does no reset timer when communicating.
                 if is_local_contraction {
@@ -296,9 +300,7 @@ fn log_to_subtree(
                     .unwrap();
                 }
             }
-            1 => {
-                let contraction_time = contraction_timing(&json_value, contraction_start);
-
+            [1] => {
                 // Tracking contractions due to communication here
                 if !is_local_contraction {
                     let contraction_timestamp = DateTime::parse_from_str(
@@ -310,6 +312,8 @@ fn log_to_subtree(
                     communication_path.push((rank, sender, contraction_timestamp));
                     continue;
                 }
+
+                let contraction_time = contraction_timing(&json_value, contraction_start);
                 // Tracking local contractions here.
                 let ij: Vec<usize> = ["i", "j"]
                     .iter()
@@ -323,7 +327,7 @@ fn log_to_subtree(
                     })
                     .collect::<Vec<_>>();
 
-                for tensor_id in ij.iter().cloned() {
+                for &tensor_id in &ij {
                     if !replace_to_ssa.contains_key(&tensor_id) {
                         let leaf_node =
                             Node::new(*tensor_count, Weak::new(), Weak::new(), Weak::new(), None);
@@ -331,13 +335,15 @@ fn log_to_subtree(
 
                         replace_to_ssa
                             .try_insert(tensor_id, *tensor_count)
-                            .expect("SSA {i} already exists");
+                            .unwrap_or_else(|_| panic!("SSA {tensor_id} already exists"));
                         tensor_cost
                             .try_insert(*tensor_count, 0f64)
-                            .expect("SSA {i} already exists");
+                            .unwrap_or_else(|_| panic!("SSA {tensor_id} already exists"));
                         remaining_nodes
                             .try_insert(*tensor_count, Rc::clone(&leaf_node_ref))
-                            .expect("SSA {i} already exists");
+                            .unwrap_or_else(|_| {
+                                panic!("SSA {tensor_id} already in remaining nodes")
+                            });
                         *tensor_count += 1;
                     }
                 }
@@ -355,16 +361,18 @@ fn log_to_subtree(
                 replace_to_ssa.remove(&ij[1]);
 
                 remaining_nodes
-                    .try_insert(*tensor_count, Rc::clone(&intermediate_node_ref))
-                    .expect("SSA {tensor_count} already exists");
+                    .try_insert(*tensor_count, intermediate_node_ref)
+                    .unwrap_or_else(|_| {
+                        panic!("SSA {tensor_count} already exists in remaining nodes")
+                    });
 
                 *tensor_count += 1;
             }
-            2 => {
+            [2] => {
                 // No longer local contraction after this point
                 is_local_contraction = false;
             }
-            3 => {
+            [3] => {
                 // Parse sending rank from log
                 sender = json_value["kv"]
                     .get("sender")
@@ -377,12 +385,16 @@ fn log_to_subtree(
         }
     }
 
-    LogToSubtreeResult(remaining_nodes, communication_path, contraction_start)
+    LogToSubtreeResult {
+        remaining_nodes,
+        communication_path,
+        contraction_start,
+    }
 }
 
 fn new_intermediate_node(
-    remaining_nodes: &HashMap<usize, Rc<RefCell<Node>>>,
-    replace_to_ssa: &HashMap<usize, usize>,
+    remaining_nodes: &FxHashMap<usize, Rc<RefCell<Node>>>,
+    replace_to_ssa: &FxHashMap<usize, usize>,
     ij: &[usize],
     tensor_count: &usize,
 ) -> Rc<RefCell<Node>> {

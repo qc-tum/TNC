@@ -14,7 +14,9 @@ use tensorcontraction::mpi::communication::{
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
+use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
+use tensorcontraction::types::ContractionIndex;
 
 /// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
 fn setup_logging_mpi(rank: Rank) {
@@ -22,7 +24,7 @@ fn setup_logging_mpi(rank: Rank) {
         .format(json_format)
         .log_to_file(
             FileSpec::default()
-                .discriminant(format!("rank{}", rank))
+                .discriminant(format!("rank{rank}"))
                 .suppress_timestamp()
                 .suffix("log.json"),
         )
@@ -40,7 +42,7 @@ fn main() {
     let rank = world.rank();
     let root = world.process_at_rank(0);
     setup_logging_mpi(rank);
-    info!(rank, size; "Running basic_usage");
+    info!(rank, size; "Logging setup");
 
     let seed = 23;
     let qubits = 5;
@@ -62,18 +64,14 @@ fn main() {
         );
 
         let partitioned_tn = if size > 1 {
-            let partitioning = find_partitioning(
-                &r_tn,
-                size,
-                String::from("tests/km1_kKaHyPar_sea20.ini"),
-                true,
-            );
+            let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
             debug!(tn_size = partitioning.len(); "TN size");
             debug!(partitioning:serde; "Partitioning created");
             partition_tensor_network(&r_tn, &partitioning)
         } else {
             r_tn
         };
+
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
         opt.optimize_path();
@@ -92,13 +90,19 @@ fn main() {
     let local_tn = if size > 1 {
         let (mut local_tn, local_path) =
             scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
+        debug!(rank; "Local tn and path");
         contract_tensor_network(&mut local_tn, &local_path);
-
         let path = if rank == 0 {
-            broadcast_path(&path[(size as usize)..path.len()], &root, &world)
+            let communication_path = path
+                .iter()
+                .filter(|a| matches!(a, ContractionIndex::Pair(_, _)))
+                .cloned()
+                .collect::<Vec<ContractionIndex>>();
+            broadcast_path(&communication_path, &root, &world)
         } else {
             broadcast_path(&[], &root, &world)
         };
+
         intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
         local_tn
     } else {
