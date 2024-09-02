@@ -1,4 +1,4 @@
-use chrono::{DateTime, Timelike};
+use chrono::{DateTime, Timelike, Utc};
 use itertools::Itertools;
 use regex::RegexSet;
 use rustc_hash::FxHashMap;
@@ -142,7 +142,7 @@ pub fn logs_to_tree(
 
     // Tracks the color of each node
     let mut tensor_color = FxHashMap::default();
-    let mut logging_start = chrono::DateTime::<chrono::FixedOffset>::default();
+    let mut logging_start = chrono::DateTime::fixed_offset(&Utc::now());
 
     for rank in 0..ranks {
         let LogToSubtreeResult {
