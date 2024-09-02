@@ -1,9 +1,9 @@
 use crate::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
-use crate::mpi::communication::CommunicationScheme;
 use crate::pair;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
-use balancing::{balance_partitions, tensor_bipartition};
+use balancing::{balance_partitions, communication_schemes::tensor_bipartition};
+use balancing::{balancing_schemes::BalancingScheme, communication_schemes::CommunicationScheme};
 use export::{to_dendogram_format, to_pdf};
 use itertools::Itertools;
 use log::info;
@@ -15,7 +15,7 @@ use utils::{calculate_partition_costs, parallel_tree_contraction_cost};
 use super::contraction_cost::contract_path_cost;
 use super::paths::validate_path;
 
-mod balancing;
+pub mod balancing;
 pub mod export;
 pub mod import;
 mod utils;
@@ -537,6 +537,7 @@ pub struct BalanceSettings {
     pub iterations: usize,
     pub greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
     pub communication_scheme: CommunicationScheme,
+    pub balancing_scheme: BalancingScheme,
 }
 
 #[derive(Debug)]
@@ -554,6 +555,7 @@ pub fn balance_partitions_iter(
         iterations,
         greedy_cost_function,
         communication_scheme,
+        balancing_scheme,
     }: BalanceSettings,
     dendogram_settings: Option<DendogramSettings>,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
@@ -606,6 +608,7 @@ pub fn balance_partitions_iter(
             rebalance_depth,
             &partition_costs,
             greedy_cost_function,
+            balancing_scheme,
         );
         assert_eq!(partition_number, path.len(), "Tensors lost!");
         validate_path(&path);
