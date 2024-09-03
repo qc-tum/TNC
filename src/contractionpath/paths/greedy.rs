@@ -228,7 +228,7 @@ impl<'a> Greedy<'a> {
                     let mut id1 = remaining_tensors[&k1_hash];
                     let mut id2 = remaining_tensors[&k2_hash];
 
-                    if id1 > id2 {
+                    if tensor_mem_size[&k2_hash] > tensor_mem_size[&k1_hash] {
                         (id1, id2) = (id2, id1);
                     }
 
@@ -822,8 +822,8 @@ mod tests {
 
         assert_eq!(opt.best_flops, 4540f64);
         assert_eq!(opt.best_size, 538f64);
-        assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
+        assert_eq!(opt.best_path, path![(1, 0), (2, 3)]);
+        assert_eq!(opt.get_best_replace_path(), path![(1, 0), (2, 1)]);
     }
 
     #[test]
