@@ -73,17 +73,16 @@ fn main() {
 
         let unopt_partitioned_tn = if size > 1 {
             let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
-            debug!(tn_size = partitioning.len(); "TN size");
             debug!(partitioning:serde; "Partitioning created");
             partition_tensor_network(&r_tn, &partitioning)
         } else {
             r_tn
         };
         let mut opt = Greedy::new(&unopt_partitioned_tn, CostType::Flops);
-
         opt.optimize_path();
         let unopt_path = opt.get_best_replace_path();
         debug!(unopt_path:serde; "Found contraction path");
+
         let contraction_tree =
             ContractionTree::from_contraction_path(&unopt_partitioned_tn, &unopt_path);
         let dendogram_entries = to_dendogram_format(
@@ -110,6 +109,7 @@ fn main() {
             }),
         );
         info!(num; "Found best balancing iteration");
+
         let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
         let dendogram_entries =
             to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
