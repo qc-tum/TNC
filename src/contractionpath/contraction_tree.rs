@@ -707,7 +707,7 @@ mod tests {
                 &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
                 None,
             ),
-            path![(0, 1), (0, 2)].to_vec(),
+            path![(0, 1), (2, 0)].to_vec(),
         )
     }
 
@@ -768,7 +768,7 @@ mod tests {
                 ]),
                 None,
             ),
-            path![(0, 1), (0, 2), (0, 3), (0, 4), (0, 5)].to_vec(),
+            path![(0, 1), (2, 0), (3, 2), (4, 3), (5, 4)].to_vec(),
         )
     }
 
@@ -818,8 +818,8 @@ mod tests {
         )));
         let node4 = Rc::new(RefCell::new(Node::new(
             4,
-            Rc::downgrade(&node3),
             Rc::downgrade(&node2),
+            Rc::downgrade(&node3),
             Weak::new(),
             None,
         )));
@@ -949,7 +949,7 @@ mod tests {
         let (tn, path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tn, &path);
 
-        assert_eq!(tree.leaf_ids(4), vec![0, 1, 2]);
+        assert_eq!(tree.leaf_ids(4), vec![2, 0, 1]);
         assert_eq!(tree.leaf_ids(3), vec![0, 1]);
         assert_eq!(tree.leaf_ids(2), vec![2]);
     }
@@ -1069,7 +1069,7 @@ mod tests {
             (1, Tensor::new(vec![0, 1, 3, 2])),
             (2, Tensor::new(vec![4, 5, 6])),
             (3, Tensor::new(vec![4, 0, 1])),
-            (4, Tensor::new(vec![0, 1, 5, 6])),
+            (4, Tensor::new(vec![5, 6, 0, 1])),
         ]);
 
         for (key, value) in ref_node_tensor_map {
