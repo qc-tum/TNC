@@ -46,14 +46,8 @@ pub(super) fn ssa_replace_ordering(
     for tup in path {
         match tup {
             ContractionIndex::Pair(t0, t1) => {
-                let mut new_t0 = *hs.get(t0).unwrap_or(t0);
-                let mut new_t1 = *hs.get(t1).unwrap_or(t1);
-
-                // We always want to replace the tensor with lower index, so put that
-                // in left position
-                if new_t0 > new_t1 {
-                    (new_t1, new_t0) = (new_t0, new_t1);
-                }
+                let new_t0 = *hs.get(t0).unwrap_or(t0);
+                let new_t1 = *hs.get(t1).unwrap_or(t1);
 
                 hs.try_insert(n, new_t0).unwrap();
                 replace_path.push(pair!(new_t0, new_t1));
@@ -106,7 +100,7 @@ mod tests {
 
         assert_eq!(
             new_path,
-            path![(0, 3), (1, 2), (4, 6), (0, 5), (1, 4), (0, 1)]
+            path![(0, 3), (1, 2), (6, 4), (5, 0), (6, 1), (6, 5)]
         );
     }
 
@@ -129,13 +123,13 @@ mod tests {
             new_path,
             [
                 pair!(0, 3),
-                path!(1, [(1, 2), (0, 1)]),
+                path!(1, [(2, 1), (0, 2)]),
                 pair!(1, 2),
                 path!(6, [(0, 2), (1, 3), (0, 1)]),
-                pair!(4, 6),
-                pair!(0, 5),
-                pair!(1, 4),
-                pair!(0, 1),
+                pair!(6, 4),
+                pair!(5, 0),
+                pair!(6, 1),
+                pair!(6, 5),
             ]
         );
     }
