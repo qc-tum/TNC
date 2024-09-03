@@ -116,11 +116,11 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     let width_scaling = width / num_leaf_nodes as f64;
     let height_scaling = height / dendogram_entries.last().unwrap().cost;
 
-    for dendogram_entry in dendogram_entries.iter_mut() {
+    for dendogram_entry in &mut dendogram_entries {
         dendogram_entry.x *= width_scaling;
         dendogram_entry.y *= height_scaling;
     }
-    for (_, (start, end)) in communication_logging.iter_mut() {
+    for (_, (start, end)) in &mut communication_logging {
         *start *= height_scaling;
         *end *= height_scaling;
     }
@@ -170,9 +170,7 @@ pub fn logs_to_tree(
             &mut tensor_count,
             rank,
         );
-        if contraction_start < logging_start {
-            logging_start = contraction_start;
-        }
+        logging_start = logging_start.min(contraction_start);
         let color = COLORS[rank + 1];
         nodes.keys().for_each(|&key| {
             tensor_color.insert(key, String::from(color));
@@ -186,12 +184,12 @@ pub fn logs_to_tree(
     let mut tensor_cost = tensor_cost
         .iter()
         .map(|(k, v)| (*k, (*v - logging_start).num_microseconds().unwrap() as f64))
-        .collect::<FxHashMap<usize, f64>>();
+        .collect::<FxHashMap<_, _>>();
 
     let partition_tensor_ids = partition_root_nodes
         .iter()
         .map(|node| node.borrow().id)
-        .collect::<Vec<usize>>();
+        .collect::<Vec<_>>();
 
     // Sort communication by time to ensure no violation of data dependencies
     let communication_path = communication_path
@@ -204,12 +202,11 @@ pub fn logs_to_tree(
         .collect::<Vec<_>>();
 
     let mut communication_data = FxHashMap::default();
-    for (rank1, rank2, timestamp) in communication_path.iter() {
+    for (rank1, rank2, timestamp) in communication_path {
         let left_child = Rc::clone(&partition_root_nodes[*rank1]);
         let right_child = Rc::clone(&partition_root_nodes[*rank2]);
 
         let send_timestamps = communication_logging.remove(&(Direction::Send, *rank1, *rank2));
-
         if let Some((timestamp1, timestamp2)) = send_timestamps {
             communication_data.insert(
                 (
@@ -364,32 +361,19 @@ fn log_to_subtree(
                 // Tracks contraction starting from first local contraction
                 // Does no reset timer when communicating.
                 if is_local_contraction {
-                    contraction_start = DateTime::parse_from_str(
-                        json_value["timestamp"].as_str().unwrap(),
-                        "%Y-%m-%d %H:%M:%S%.6f %z",
-                    )
-                    .unwrap();
+                    contraction_start = parse_timestamp(&json_value);
                 }
             }
             [1] => {
                 // Tracking contractions due to communication here
                 if !is_local_contraction {
-                    let contraction_timestamp = DateTime::parse_from_str(
-                        json_value["timestamp"].as_str().unwrap(),
-                        "%Y-%m-%d %H:%M:%S%.6f %z",
-                    )
-                    .unwrap();
+                    let contraction_timestamp = parse_timestamp(&json_value);
                     // Don't create any new nodes, simply track communication and contraction time
                     communication_path.push((rank, sender, contraction_timestamp));
                     continue;
                 }
 
-                // let contraction_time = contraction_timing(&json_value, contraction_start);
-                let contraction_timestamp = DateTime::parse_from_str(
-                    json_value["timestamp"].as_str().unwrap(),
-                    "%Y-%m-%d %H:%M:%S%.6f %z",
-                )
-                .expect("Invalid contraction time");
+                let contraction_timestamp = parse_timestamp(&json_value);
                 // Tracking local contractions here.
                 let ij: Vec<usize> = ["i", "j"]
                     .iter()
@@ -456,18 +440,10 @@ fn log_to_subtree(
                     .to_string()
                     .parse::<usize>()
                     .unwrap();
-                recv_start = DateTime::parse_from_str(
-                    json_value["timestamp"].as_str().unwrap(),
-                    "%Y-%m-%d %H:%M:%S%.6f %z",
-                )
-                .unwrap();
+                recv_start = parse_timestamp(&json_value);
             }
             [4] => {
-                let recv_end = DateTime::parse_from_str(
-                    json_value["timestamp"].as_str().unwrap(),
-                    "%Y-%m-%d %H:%M:%S%.6f %z",
-                )
-                .unwrap();
+                let recv_end = parse_timestamp(&json_value);
                 communication_timestamps
                     .insert((Direction::Recv, rank, sender), (recv_start, recv_end));
             }
@@ -479,18 +455,10 @@ fn log_to_subtree(
                     .to_string()
                     .parse::<usize>()
                     .unwrap();
-                send_start = DateTime::parse_from_str(
-                    json_value["timestamp"].as_str().unwrap(),
-                    "%Y-%m-%d %H:%M:%S%.6f %z",
-                )
-                .unwrap();
+                send_start = parse_timestamp(&json_value);
             }
             [6] => {
-                let send_end = DateTime::parse_from_str(
-                    json_value["timestamp"].as_str().unwrap(),
-                    "%Y-%m-%d %H:%M:%S%.6f %z",
-                )
-                .unwrap();
+                let send_end = parse_timestamp(&json_value);
                 communication_timestamps
                     .insert((Direction::Send, receiver, rank), (send_start, send_end));
             }
@@ -536,11 +504,15 @@ fn contraction_timing(
     json_value: &serde_json::Value,
     contraction_start: DateTime<chrono::FixedOffset>,
 ) -> f64 {
-    let timestamp = DateTime::parse_from_str(
+    let timestamp = parse_timestamp(json_value);
+    (timestamp - contraction_start).num_microseconds().unwrap() as f64
+}
+
+/// Parses the timestamp of a log entry given as json.
+fn parse_timestamp(json_value: &serde_json::Value) -> DateTime<chrono::FixedOffset> {
+    DateTime::parse_from_str(
         json_value["timestamp"].as_str().unwrap(),
         "%Y-%m-%d %H:%M:%S%.6f %z",
     )
-    .expect("Invalid contraction time");
-
-    (timestamp - contraction_start).num_microseconds().unwrap() as f64
+    .unwrap()
 }
