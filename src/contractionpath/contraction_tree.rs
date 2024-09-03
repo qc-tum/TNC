@@ -524,8 +524,6 @@ fn populate_subtree_tensor_map(
 
 #[cfg(test)]
 mod tests {
-    use utils::tree_contraction_cost;
-
     use crate::contractionpath::contraction_cost::contract_cost_tensors;
     use crate::contractionpath::contraction_tree::{ContractionTree, Node};
     use crate::contractionpath::ssa_replace_ordering;
@@ -533,6 +531,7 @@ mod tests {
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
     use crate::types::ContractionIndex;
+    use utils::{parallel_tree_contraction_cost, tree_contraction_cost};
 
     use super::*;
 
