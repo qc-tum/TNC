@@ -285,16 +285,16 @@ pub fn logs_to_tree(
 }
 
 struct LogToSubtreeResult {
-    // Dict of remaining nodes to process, keeps track of intermediate tensors
+    /// Dict of remaining nodes to process, keeps track of intermediate tensors
     nodes: FxHashMap<usize, Rc<RefCell<Node>>>,
-    // Keeps track of communication with time stamps
+    /// Keeps track of communication with time stamps
     local_communication_path: Vec<(usize, usize, DateTime<chrono::FixedOffset>)>,
-    // Keeps track of communication time stamps
+    /// Keeps track of communication time stamps
     communication_timestamps: FxHashMap<
         (Direction, usize, usize),
         (DateTime<chrono::FixedOffset>, DateTime<chrono::FixedOffset>),
     >,
-    // Start of contraction for reference
+    /// Start of contraction for reference
     contraction_start: DateTime<chrono::FixedOffset>,
 }
 
