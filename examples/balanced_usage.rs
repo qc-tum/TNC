@@ -1,5 +1,6 @@
 use flexi_logger::writers::FileLogWriter;
 use flexi_logger::{json_format, Duplicate, FileSpec, Logger, LoggerHandle};
+use itertools::iproduct;
 use log::{debug, info, LevelFilter};
 use mpi::traits::Communicator;
 use mpi::Rank;
@@ -8,10 +9,13 @@ use rand::SeedableRng;
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
 use tensorcontraction::contractionpath::contraction_tree::balancing::balancing_schemes::BalancingScheme;
 use tensorcontraction::contractionpath::contraction_tree::balancing::communication_schemes::CommunicationScheme;
-use tensorcontraction::contractionpath::contraction_tree::export::{to_dendogram_format, to_pdf};
-use tensorcontraction::contractionpath::contraction_tree::{
-    balance_partitions_iter, BalanceSettings, ContractionTree, DendogramSettings,
+use tensorcontraction::contractionpath::contraction_tree::balancing::{
+    balance_partitions_iter, BalanceSettings,
 };
+use tensorcontraction::contractionpath::contraction_tree::export::{
+    to_dendogram_format, to_pdf, DendogramSettings,
+};
+use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
     broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
@@ -62,17 +66,7 @@ fn main() {
     let connectivity = ConnectivityLayout::Osprey;
     info!(seed, qubits, depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
 
-    // Setup tensor network
-    let (
-        mut bestworst_partitioned_tn,
-        bestworst_path,
-        mut tensor_partitioned_tn,
-        tensor_path,
-        mut tensors_partitioned_tn,
-        tensors_path,
-        mut unopt_partitioned_tn,
-        unopt_path,
-    ) = if rank == 0 {
+    let unopt_partitioned_tn = if rank == 0 {
         let r_tn = random_circuit(
             qubits,
             depth,
@@ -81,15 +75,15 @@ fn main() {
             &mut rng,
             connectivity,
         );
+        let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
+        debug!(tn_size = partitioning.len(); "TN size");
+        debug!(partitioning:serde; "Partitioning created");
+        partition_tensor_network(&r_tn, &partitioning)
+    } else {
+        Default::default()
+    };
 
-        let unopt_partitioned_tn = if size > 1 {
-            let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
-            debug!(tn_size = partitioning.len(); "TN size");
-            debug!(partitioning:serde; "Partitioning created");
-            partition_tensor_network(&r_tn, &partitioning)
-        } else {
-            r_tn
-        };
+    let unopt_path = if rank == 0 {
         let mut opt = Greedy::new(&unopt_partitioned_tn, CostType::Flops);
 
         opt.optimize_path();
@@ -102,269 +96,335 @@ fn main() {
             &unopt_partitioned_tn,
             contract_cost_tensors,
         );
-        to_pdf("unoptimized_path", &dendogram_entries);
-
-        // Using bestworst
-        let rebalance_depth = 1;
-        let communication_scheme = CommunicationScheme::Greedy;
-        let balancing_scheme = BalancingScheme::BestWorst;
-        let (num, bestworst_partitioned_tn, bestworst_path, _costs) = balance_partitions_iter(
-            &unopt_partitioned_tn,
-            &unopt_path,
-            BalanceSettings {
-                random_balance: false,
-                rebalance_depth,
-                iterations: 10,
-                greedy_cost_function: greedy_cost_fn,
-                communication_scheme,
-                balancing_scheme,
-            },
-            Some(DendogramSettings {
-                output_file: format!("output/{balancing_scheme:?}_{communication_scheme:?}_trial"),
-                cost_function: contract_cost_tensors,
-            }),
-        );
-        info!(num; "Found best balancing iteration");
-        let contraction_tree =
-            ContractionTree::from_contraction_path(&bestworst_partitioned_tn, &bestworst_path);
-        let dendogram_entries = to_dendogram_format(
-            &contraction_tree,
-            &bestworst_partitioned_tn,
-            contract_cost_tensors,
-        );
-        to_pdf("path_bestworst_optimized", &dendogram_entries);
-
-        // Using tensor
-        let rebalance_depth = 1;
-        let communication_scheme = CommunicationScheme::Greedy;
-        let balancing_scheme = BalancingScheme::Tensor;
-        let (num, tensor_partitioned_tn, tensor_path, _costs) = balance_partitions_iter(
-            &unopt_partitioned_tn,
-            &unopt_path,
-            BalanceSettings {
-                random_balance: false,
-                rebalance_depth,
-                iterations: 10,
-                greedy_cost_function: greedy_cost_fn,
-                communication_scheme,
-                balancing_scheme,
-            },
-            Some(DendogramSettings {
-                output_file: format!("output/{balancing_scheme:?}_{communication_scheme:?}_trial"),
-                cost_function: contract_cost_tensors,
-            }),
-        );
-        info!(num; "Found best balancing iteration");
-        let contraction_tree =
-            ContractionTree::from_contraction_path(&tensor_partitioned_tn, &tensor_path);
-        let dendogram_entries = to_dendogram_format(
-            &contraction_tree,
-            &tensor_partitioned_tn,
-            contract_cost_tensors,
-        );
-        to_pdf("path_tensor_optimized", &dendogram_entries);
-
-        // Using tensors
-        let rebalance_depth = 1;
-        let communication_scheme = CommunicationScheme::Greedy;
-        let balancing_scheme = BalancingScheme::Tensors;
-        let (num, tensors_partitioned_tn, tensors_path, _costs) = balance_partitions_iter(
-            &unopt_partitioned_tn,
-            &unopt_path,
-            BalanceSettings {
-                random_balance: false,
-                rebalance_depth,
-                iterations: 10,
-                greedy_cost_function: greedy_cost_fn,
-                communication_scheme,
-                balancing_scheme,
-            },
-            Some(DendogramSettings {
-                output_file: format!("output/{balancing_scheme:?}_{communication_scheme:?}_trial"),
-                cost_function: contract_cost_tensors,
-            }),
-        );
-        info!(num; "Found best balancing iteration");
-        let contraction_tree =
-            ContractionTree::from_contraction_path(&tensors_partitioned_tn, &tensors_path);
-        let dendogram_entries = to_dendogram_format(
-            &contraction_tree,
-            &tensor_partitioned_tn,
-            contract_cost_tensors,
-        );
-        to_pdf("path_tensors_optimized", &dendogram_entries);
-
-        (
-            bestworst_partitioned_tn,
-            bestworst_path,
-            tensor_partitioned_tn,
-            tensor_path,
-            tensors_partitioned_tn,
-            tensors_path,
-            unopt_partitioned_tn,
-            unopt_path,
-        )
+        to_pdf("path_Unoptimized", &dendogram_entries);
+        unopt_path
     } else {
         Default::default()
     };
+    let balancing_schemes = [BalancingScheme::BestWorst, BalancingScheme::Tensor];
+    let communication_schemes = [CommunicationScheme::Greedy];
+    let iterations = 15;
+    let rebalance_depth = 1;
 
-    let name = "bestworst";
+    for (balancing_scheme, communication_scheme) in
+        iproduct!(balancing_schemes, communication_schemes)
+    {
+        let name = format!("{balancing_scheme:?}_{communication_scheme:?}");
+        let (partitioned_tn, path) = if rank == 0 {
+            // Using bestworst
 
-    bench_run(
-        &logger,
-        rank,
-        size,
-        name,
-        bestworst_partitioned_tn,
-        &bestworst_path,
-        &world,
-        root,
-    );
+            let (num, partitioned_tn, path, _costs) = balance_partitions_iter(
+                &unopt_partitioned_tn,
+                &unopt_path,
+                BalanceSettings {
+                    random_balance: false,
+                    rebalance_depth,
+                    iterations,
+                    greedy_cost_function: greedy_cost_fn,
+                    communication_scheme,
+                    balancing_scheme,
+                },
+                Some(DendogramSettings {
+                    output_file: format!(
+                        "output/{balancing_scheme:?}_{communication_scheme:?}_trial"
+                    ),
+                    cost_function: contract_cost_tensors,
+                }),
+            );
+            info!(num; "Found best balancing iteration");
+            let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
+            let dendogram_entries =
+                to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
+            to_pdf(&format!("path_{name}"), &dendogram_entries);
+            (partitioned_tn, path)
+        } else {
+            Default::default()
+        };
 
-    let name = "tensor";
+        bench_run(
+            &logger,
+            rank,
+            size,
+            &name,
+            partitioned_tn,
+            &path,
+            &world,
+            root,
+        );
+    }
 
-    bench_run(
-        &logger,
-        rank,
-        size,
-        name,
-        tensor_partitioned_tn,
-        &tensor_path,
-        &world,
-        root,
-    );
+    // // Setup tensor network
+    // let (
+    //     mut bestworst_partitioned_tn,
+    //     bestworst_path,
+    //     mut tensor_partitioned_tn,
+    //     tensor_path,
+    //     mut tensors_partitioned_tn,
+    //     tensors_path,
+    //     mut unopt_partitioned_tn,
+    //     unopt_path,
+    // ) = if rank == 0 {
+    //     // Using bestworst
+    //     let rebalance_depth = 1;
+    //     let communication_scheme = CommunicationScheme::Greedy;
+    //     let balancing_scheme = BalancingScheme::BestWorst;
+    //     let (num, bestworst_partitioned_tn, bestworst_path, _costs) = balance_partitions_iter(
+    //         &unopt_partitioned_tn,
+    //         &unopt_path,
+    //         BalanceSettings {
+    //             random_balance: false,
+    //             rebalance_depth,
+    //             iterations: 10,
+    //             greedy_cost_function: greedy_cost_fn,
+    //             communication_scheme,
+    //             balancing_scheme,
+    //         },
+    //         Some(DendogramSettings {
+    //             output_file: format!("output/{balancing_scheme:?}_{communication_scheme:?}_trial"),
+    //             cost_function: contract_cost_tensors,
+    //         }),
+    //     );
+    //     info!(num; "Found best balancing iteration");
+    //     let contraction_tree =
+    //         ContractionTree::from_contraction_path(&bestworst_partitioned_tn, &bestworst_path);
+    //     let dendogram_entries = to_dendogram_format(
+    //         &contraction_tree,
+    //         &bestworst_partitioned_tn,
+    //         contract_cost_tensors,
+    //     );
+    //     to_pdf("path_bestworst_optimized", &dendogram_entries);
 
-    let name = "tensors";
+    //     // Using tensor
+    //     let rebalance_depth = 1;
+    //     let communication_scheme = CommunicationScheme::Greedy;
+    //     let balancing_scheme = BalancingScheme::Tensor;
+    //     let (num, tensor_partitioned_tn, tensor_path, _costs) = balance_partitions_iter(
+    //         &unopt_partitioned_tn,
+    //         &unopt_path,
+    //         BalanceSettings {
+    //             random_balance: false,
+    //             rebalance_depth,
+    //             iterations: 10,
+    //             greedy_cost_function: greedy_cost_fn,
+    //             communication_scheme,
+    //             balancing_scheme,
+    //         },
+    //         Some(DendogramSettings {
+    //             output_file: format!("output/{balancing_scheme:?}_{communication_scheme:?}_trial"),
+    //             cost_function: contract_cost_tensors,
+    //         }),
+    //     );
+    //     info!(num; "Found best balancing iteration");
+    //     let contraction_tree =
+    //         ContractionTree::from_contraction_path(&tensor_partitioned_tn, &tensor_path);
+    //     let dendogram_entries = to_dendogram_format(
+    //         &contraction_tree,
+    //         &tensor_partitioned_tn,
+    //         contract_cost_tensors,
+    //     );
+    //     to_pdf("path_tensor_optimized", &dendogram_entries);
 
-    bench_run(
-        &logger,
-        rank,
-        size,
-        name,
-        tensors_partitioned_tn,
-        &tensors_path,
-        &world,
-        root,
-    );
+    //     // Using tensors
+    //     let rebalance_depth = 1;
+    //     let communication_scheme = CommunicationScheme::Greedy;
+    //     let balancing_scheme = BalancingScheme::Tensors;
+    //     let (num, tensors_partitioned_tn, tensors_path, _costs) = balance_partitions_iter(
+    //         &unopt_partitioned_tn,
+    //         &unopt_path,
+    //         BalanceSettings {
+    //             random_balance: false,
+    //             rebalance_depth,
+    //             iterations: 10,
+    //             greedy_cost_function: greedy_cost_fn,
+    //             communication_scheme,
+    //             balancing_scheme,
+    //         },
+    //         Some(DendogramSettings {
+    //             output_file: format!("output/{balancing_scheme:?}_{communication_scheme:?}_trial"),
+    //             cost_function: contract_cost_tensors,
+    //         }),
+    //     );
+    //     info!(num; "Found best balancing iteration");
+    //     let contraction_tree =
+    //         ContractionTree::from_contraction_path(&tensors_partitioned_tn, &tensors_path);
+    //     let dendogram_entries = to_dendogram_format(
+    //         &contraction_tree,
+    //         &tensor_partitioned_tn,
+    //         contract_cost_tensors,
+    //     );
+    //     to_pdf("path_tensors_optimized", &dendogram_entries);
 
-    let name = "nop";
-    bench_run(
-        &logger,
-        rank,
-        size,
-        name,
-        unopt_partitioned_tn,
-        &unopt_path,
-        &world,
-        root,
-    );
-
-    // logger.flush();
-    // logger
-    //     .reset_flw(
-    //         &FileLogWriter::builder(
-    //             FileSpec::default()
-    //                 .discriminant(format!("rank{}", rank))
-    //                 .suppress_timestamp()
-    //                 .suffix("tensor_opt.log.json")
-    //                 .directory("logs/run2"),
-    //         )
-    //         .format(json_format),
+    //     (
+    //         bestworst_partitioned_tn,
+    //         bestworst_path,
+    //         tensor_partitioned_tn,
+    //         tensor_path,
+    //         tensors_partitioned_tn,
+    //         tensors_path,
+    //         unopt_partitioned_tn,
+    //         unopt_path,
     //     )
-    //     .unwrap();
+    // } else {
+    //     Default::default()
+    // };
+
+    // let name = "bestworst";
+
+    // bench_run(
+    //     &logger,
+    //     rank,
+    //     size,
+    //     name,
+    //     bestworst_partitioned_tn,
+    //     &bestworst_path,
+    //     &world,
+    //     root,
+    // );
+
+    // let name = "tensor";
+
+    // bench_run(
+    //     &logger,
+    //     rank,
+    //     size,
+    //     name,
+    //     tensor_partitioned_tn,
+    //     &tensor_path,
+    //     &world,
+    //     root,
+    // );
+
+    // let name = "tensors";
+
+    // bench_run(
+    //     &logger,
+    //     rank,
+    //     size,
+    //     name,
+    //     tensors_partitioned_tn,
+    //     &tensors_path,
+    //     &world,
+    //     root,
+    // );
+
+    // let name = "nop";
+    // bench_run(
+    //     &logger,
+    //     rank,
+    //     size,
+    //     name,
+    //     unopt_partitioned_tn,
+    //     &unopt_path,
+    //     &world,
+    //     root,
+    // );
+
+    // // logger.flush();
+    // // logger
+    // //     .reset_flw(
+    // //         &FileLogWriter::builder(
+    // //             FileSpec::default()
+    // //                 .discriminant(format!("rank{}", rank))
+    // //                 .suppress_timestamp()
+    // //                 .suffix("tensor_opt.log.json")
+    // //                 .directory("logs/run2"),
+    // //         )
+    // //         .format(json_format),
+    // //     )
+    // //     .unwrap();
+
+    // // // Distribute tensor network and contract
+    // // let _local_tn = if size > 1 {
+    // //     let (mut local_tn, local_path) =
+    // //         scatter_tensor_network(&tensor_partitioned_tn, &tensor_path, rank, size, &world);
+    // //     contract_tensor_network(&mut local_tn, &local_path);
+
+    // //     let path = if rank == 0 {
+    // //         broadcast_path(
+    // //             &tensor_path[(size as usize)..tensor_path.len()],
+    // //             &root,
+    // //             &world,
+    // //         )
+    // //     } else {
+    // //         broadcast_path(&[], &root, &world)
+    // //     };
+    // //     intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
+    // //     local_tn
+    // // } else {
+    // //     contract_tensor_network(&mut tensor_partitioned_tn, &tensor_path);
+    // //     tensor_partitioned_tn
+    // // };
+
+    // // logger.flush();
+    // // logger
+    // //     .reset_flw(
+    // //         &FileLogWriter::builder(
+    // //             FileSpec::default()
+    // //                 .discriminant(format!("rank{}", rank))
+    // //                 .suppress_timestamp()
+    // //                 .suffix("tensors_opt.log.json")
+    // //                 .directory("logs/run2"),
+    // //         )
+    // //         .format(json_format),
+    // //     )
+    // //     .unwrap();
+
+    // // // Distribute tensor network and contract
+    // // let _local_tn = if size > 1 {
+    // //     let (mut local_tn, local_path) =
+    // //         scatter_tensor_network(&tensors_partitioned_tn, &tensors_path, rank, size, &world);
+    // //     contract_tensor_network(&mut local_tn, &local_path);
+
+    // //     let path = if rank == 0 {
+    // //         broadcast_path(
+    // //             &tensors_path[(size as usize)..tensors_path.len()],
+    // //             &root,
+    // //             &world,
+    // //         )
+    // //     } else {
+    // //         broadcast_path(&[], &root, &world)
+    // //     };
+    // //     intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
+    // //     local_tn
+    // // } else {
+    // //     contract_tensor_network(&mut tensors_partitioned_tn, &tensors_path);
+    // //     tensors_partitioned_tn
+    // // };
+
+    // // logger
+    // //     .reset_flw(
+    // //         &FileLogWriter::builder(
+    // //             FileSpec::default()
+    // //                 .discriminant(format!("rank{}", rank))
+    // //                 .suppress_timestamp()
+    // //                 .suffix("bestworst_unopt.log.json")
+    // //                 .directory("logs/run2"),
+    // //         )
+    // //         .format(json_format),
+    // //     )
+    // //     .unwrap();
 
     // // Distribute tensor network and contract
-    // let _local_tn = if size > 1 {
-    //     let (mut local_tn, local_path) =
-    //         scatter_tensor_network(&tensor_partitioned_tn, &tensor_path, rank, size, &world);
-    //     contract_tensor_network(&mut local_tn, &local_path);
+    // // let local_tn = if size > 1 {
+    // //     let (mut local_tn, local_path) =
+    // //         scatter_tensor_network(&unopt_partitioned_tn, &unopt_path, rank, size, &world);
+    // //     contract_tensor_network(&mut local_tn, &local_path);
 
-    //     let path = if rank == 0 {
-    //         broadcast_path(
-    //             &tensor_path[(size as usize)..tensor_path.len()],
-    //             &root,
-    //             &world,
-    //         )
-    //     } else {
-    //         broadcast_path(&[], &root, &world)
-    //     };
-    //     intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
-    //     local_tn
-    // } else {
-    //     contract_tensor_network(&mut tensor_partitioned_tn, &tensor_path);
-    //     tensor_partitioned_tn
-    // };
-
-    // logger.flush();
-    // logger
-    //     .reset_flw(
-    //         &FileLogWriter::builder(
-    //             FileSpec::default()
-    //                 .discriminant(format!("rank{}", rank))
-    //                 .suppress_timestamp()
-    //                 .suffix("tensors_opt.log.json")
-    //                 .directory("logs/run2"),
-    //         )
-    //         .format(json_format),
-    //     )
-    //     .unwrap();
-
-    // // Distribute tensor network and contract
-    // let _local_tn = if size > 1 {
-    //     let (mut local_tn, local_path) =
-    //         scatter_tensor_network(&tensors_partitioned_tn, &tensors_path, rank, size, &world);
-    //     contract_tensor_network(&mut local_tn, &local_path);
-
-    //     let path = if rank == 0 {
-    //         broadcast_path(
-    //             &tensors_path[(size as usize)..tensors_path.len()],
-    //             &root,
-    //             &world,
-    //         )
-    //     } else {
-    //         broadcast_path(&[], &root, &world)
-    //     };
-    //     intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
-    //     local_tn
-    // } else {
-    //     contract_tensor_network(&mut tensors_partitioned_tn, &tensors_path);
-    //     tensors_partitioned_tn
-    // };
-
-    // logger
-    //     .reset_flw(
-    //         &FileLogWriter::builder(
-    //             FileSpec::default()
-    //                 .discriminant(format!("rank{}", rank))
-    //                 .suppress_timestamp()
-    //                 .suffix("bestworst_unopt.log.json")
-    //                 .directory("logs/run2"),
-    //         )
-    //         .format(json_format),
-    //     )
-    //     .unwrap();
-
-    // Distribute tensor network and contract
-    // let local_tn = if size > 1 {
-    //     let (mut local_tn, local_path) =
-    //         scatter_tensor_network(&unopt_partitioned_tn, &unopt_path, rank, size, &world);
-    //     contract_tensor_network(&mut local_tn, &local_path);
-
-    //     let path = if rank == 0 {
-    //         broadcast_path(
-    //             &bestworst_path[(size as usize)..bestworst_path.len()],
-    //             &root,
-    //             &world,
-    //         )
-    //     } else {
-    //         broadcast_path(&[], &root, &world)
-    //     };
-    //     intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
-    //     local_tn
-    // } else {
-    //     contract_tensor_network(&mut unopt_partitioned_tn, &unopt_path);
-    //     unopt_partitioned_tn
-    // };
+    // //     let path = if rank == 0 {
+    // //         broadcast_path(
+    // //             &bestworst_path[(size as usize)..bestworst_path.len()],
+    // //             &root,
+    // //             &world,
+    // //         )
+    // //     } else {
+    // //         broadcast_path(&[], &root, &world)
+    // //     };
+    // //     intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
+    // //     local_tn
+    // // } else {
+    // //     contract_tensor_network(&mut unopt_partitioned_tn, &unopt_path);
+    // //     unopt_partitioned_tn
+    // // };
 }
 
 fn bench_run(
@@ -373,7 +433,7 @@ fn bench_run(
     size: i32,
     name: &str,
     mut partitioned_tn: Tensor,
-    local_path: &[tensorcontraction::types::ContractionIndex],
+    path: &[tensorcontraction::types::ContractionIndex],
     world: &mpi::topology::SimpleCommunicator,
     root: mpi::topology::Process<'_>,
 ) {
@@ -384,7 +444,7 @@ fn bench_run(
                 FileSpec::default()
                     .discriminant(format!("rank{rank}"))
                     .suppress_timestamp()
-                    .suffix(format!("opt_{name}.log.json"))
+                    .suffix(format!("{name}.log.json"))
                     .directory("logs/run3"),
             )
             .format(json_format),
@@ -394,18 +454,18 @@ fn bench_run(
     // Distribute tensor network and contract
     let _local_tn = if size > 1 {
         let (mut local_tn, local_path) =
-            scatter_tensor_network(&partitioned_tn, local_path, rank, size, world);
+            scatter_tensor_network(&partitioned_tn, path, rank, size, world);
         contract_tensor_network(&mut local_tn, &local_path);
 
-        let path = if rank == 0 {
-            broadcast_path(&local_path[(size as usize)..local_path.len()], &root, world)
+        let communication_path = if rank == 0 {
+            broadcast_path(&path[(size as usize)..path.len()], &root, world)
         } else {
             broadcast_path(&[], &root, world)
         };
-        intermediate_reduce_tensor_network(&mut local_tn, &path, rank, world);
+        intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, world);
         local_tn
     } else {
-        contract_tensor_network(&mut partitioned_tn, local_path);
+        contract_tensor_network(&mut partitioned_tn, path);
         partitioned_tn
     };
 }
