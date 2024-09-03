@@ -27,6 +27,7 @@ use tensorcontraction::tensornetwork::partitioning::partition_config::Partitioni
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::tensornetwork::tensor::Tensor;
 
+static LOGGING_FOLDER: &str = "logs/runs3";
 /// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
 fn setup_logging_mpi(rank: Rank) -> LoggerHandle {
     Logger::with(LevelFilter::Debug)
@@ -36,7 +37,7 @@ fn setup_logging_mpi(rank: Rank) -> LoggerHandle {
                 .discriminant(format!("rank{rank}"))
                 .suppress_timestamp()
                 .suffix("log.json")
-                .directory("logs/run3"),
+                .directory(LOGGING_FOLDER),
         )
         .duplicate_to_stdout(Duplicate::Info)
         .start()
@@ -59,8 +60,8 @@ fn main() {
     info!(rank, size; "Logging setup");
 
     let seed = 23;
-    let qubits = 15;
-    let depth = 20;
+    let qubits = 30;
+    let depth = 40;
     let single_qubit_probability = 0.4;
     let two_qubit_probability = 0.4;
     let connectivity = ConnectivityLayout::Osprey;
@@ -101,9 +102,18 @@ fn main() {
     } else {
         Default::default()
     };
-    let balancing_schemes = [BalancingScheme::BestWorst, BalancingScheme::Tensor];
-    let communication_schemes = [CommunicationScheme::Greedy];
-    let iterations = 15;
+
+    // Experimental setup here.
+    let balancing_schemes = [
+        BalancingScheme::BestWorst,
+        BalancingScheme::Tensor,
+        BalancingScheme::Tensors,
+    ];
+    let communication_schemes = [
+        CommunicationScheme::Greedy,
+        // CommunicationScheme::Bipartition,
+    ];
+    let iterations = 30;
     let rebalance_depth = 1;
 
     for (balancing_scheme, communication_scheme) in
@@ -153,278 +163,18 @@ fn main() {
         );
     }
 
-    // // Setup tensor network
-    // let (
-    //     mut bestworst_partitioned_tn,
-    //     bestworst_path,
-    //     mut tensor_partitioned_tn,
-    //     tensor_path,
-    //     mut tensors_partitioned_tn,
-    //     tensors_path,
-    //     mut unopt_partitioned_tn,
-    //     unopt_path,
-    // ) = if rank == 0 {
-    //     // Using bestworst
-    //     let rebalance_depth = 1;
-    //     let communication_scheme = CommunicationScheme::Greedy;
-    //     let balancing_scheme = BalancingScheme::BestWorst;
-    //     let (num, bestworst_partitioned_tn, bestworst_path, _costs) = balance_partitions_iter(
-    //         &unopt_partitioned_tn,
-    //         &unopt_path,
-    //         BalanceSettings {
-    //             random_balance: false,
-    //             rebalance_depth,
-    //             iterations: 10,
-    //             greedy_cost_function: greedy_cost_fn,
-    //             communication_scheme,
-    //             balancing_scheme,
-    //         },
-    //         Some(DendogramSettings {
-    //             output_file: format!("output/{balancing_scheme:?}_{communication_scheme:?}_trial"),
-    //             cost_function: contract_cost_tensors,
-    //         }),
-    //     );
-    //     info!(num; "Found best balancing iteration");
-    //     let contraction_tree =
-    //         ContractionTree::from_contraction_path(&bestworst_partitioned_tn, &bestworst_path);
-    //     let dendogram_entries = to_dendogram_format(
-    //         &contraction_tree,
-    //         &bestworst_partitioned_tn,
-    //         contract_cost_tensors,
-    //     );
-    //     to_pdf("path_bestworst_optimized", &dendogram_entries);
+    let name = "Unoptimized";
 
-    //     // Using tensor
-    //     let rebalance_depth = 1;
-    //     let communication_scheme = CommunicationScheme::Greedy;
-    //     let balancing_scheme = BalancingScheme::Tensor;
-    //     let (num, tensor_partitioned_tn, tensor_path, _costs) = balance_partitions_iter(
-    //         &unopt_partitioned_tn,
-    //         &unopt_path,
-    //         BalanceSettings {
-    //             random_balance: false,
-    //             rebalance_depth,
-    //             iterations: 10,
-    //             greedy_cost_function: greedy_cost_fn,
-    //             communication_scheme,
-    //             balancing_scheme,
-    //         },
-    //         Some(DendogramSettings {
-    //             output_file: format!("output/{balancing_scheme:?}_{communication_scheme:?}_trial"),
-    //             cost_function: contract_cost_tensors,
-    //         }),
-    //     );
-    //     info!(num; "Found best balancing iteration");
-    //     let contraction_tree =
-    //         ContractionTree::from_contraction_path(&tensor_partitioned_tn, &tensor_path);
-    //     let dendogram_entries = to_dendogram_format(
-    //         &contraction_tree,
-    //         &tensor_partitioned_tn,
-    //         contract_cost_tensors,
-    //     );
-    //     to_pdf("path_tensor_optimized", &dendogram_entries);
-
-    //     // Using tensors
-    //     let rebalance_depth = 1;
-    //     let communication_scheme = CommunicationScheme::Greedy;
-    //     let balancing_scheme = BalancingScheme::Tensors;
-    //     let (num, tensors_partitioned_tn, tensors_path, _costs) = balance_partitions_iter(
-    //         &unopt_partitioned_tn,
-    //         &unopt_path,
-    //         BalanceSettings {
-    //             random_balance: false,
-    //             rebalance_depth,
-    //             iterations: 10,
-    //             greedy_cost_function: greedy_cost_fn,
-    //             communication_scheme,
-    //             balancing_scheme,
-    //         },
-    //         Some(DendogramSettings {
-    //             output_file: format!("output/{balancing_scheme:?}_{communication_scheme:?}_trial"),
-    //             cost_function: contract_cost_tensors,
-    //         }),
-    //     );
-    //     info!(num; "Found best balancing iteration");
-    //     let contraction_tree =
-    //         ContractionTree::from_contraction_path(&tensors_partitioned_tn, &tensors_path);
-    //     let dendogram_entries = to_dendogram_format(
-    //         &contraction_tree,
-    //         &tensor_partitioned_tn,
-    //         contract_cost_tensors,
-    //     );
-    //     to_pdf("path_tensors_optimized", &dendogram_entries);
-
-    //     (
-    //         bestworst_partitioned_tn,
-    //         bestworst_path,
-    //         tensor_partitioned_tn,
-    //         tensor_path,
-    //         tensors_partitioned_tn,
-    //         tensors_path,
-    //         unopt_partitioned_tn,
-    //         unopt_path,
-    //     )
-    // } else {
-    //     Default::default()
-    // };
-
-    // let name = "bestworst";
-
-    // bench_run(
-    //     &logger,
-    //     rank,
-    //     size,
-    //     name,
-    //     bestworst_partitioned_tn,
-    //     &bestworst_path,
-    //     &world,
-    //     root,
-    // );
-
-    // let name = "tensor";
-
-    // bench_run(
-    //     &logger,
-    //     rank,
-    //     size,
-    //     name,
-    //     tensor_partitioned_tn,
-    //     &tensor_path,
-    //     &world,
-    //     root,
-    // );
-
-    // let name = "tensors";
-
-    // bench_run(
-    //     &logger,
-    //     rank,
-    //     size,
-    //     name,
-    //     tensors_partitioned_tn,
-    //     &tensors_path,
-    //     &world,
-    //     root,
-    // );
-
-    // let name = "nop";
-    // bench_run(
-    //     &logger,
-    //     rank,
-    //     size,
-    //     name,
-    //     unopt_partitioned_tn,
-    //     &unopt_path,
-    //     &world,
-    //     root,
-    // );
-
-    // // logger.flush();
-    // // logger
-    // //     .reset_flw(
-    // //         &FileLogWriter::builder(
-    // //             FileSpec::default()
-    // //                 .discriminant(format!("rank{}", rank))
-    // //                 .suppress_timestamp()
-    // //                 .suffix("tensor_opt.log.json")
-    // //                 .directory("logs/run2"),
-    // //         )
-    // //         .format(json_format),
-    // //     )
-    // //     .unwrap();
-
-    // // // Distribute tensor network and contract
-    // // let _local_tn = if size > 1 {
-    // //     let (mut local_tn, local_path) =
-    // //         scatter_tensor_network(&tensor_partitioned_tn, &tensor_path, rank, size, &world);
-    // //     contract_tensor_network(&mut local_tn, &local_path);
-
-    // //     let path = if rank == 0 {
-    // //         broadcast_path(
-    // //             &tensor_path[(size as usize)..tensor_path.len()],
-    // //             &root,
-    // //             &world,
-    // //         )
-    // //     } else {
-    // //         broadcast_path(&[], &root, &world)
-    // //     };
-    // //     intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
-    // //     local_tn
-    // // } else {
-    // //     contract_tensor_network(&mut tensor_partitioned_tn, &tensor_path);
-    // //     tensor_partitioned_tn
-    // // };
-
-    // // logger.flush();
-    // // logger
-    // //     .reset_flw(
-    // //         &FileLogWriter::builder(
-    // //             FileSpec::default()
-    // //                 .discriminant(format!("rank{}", rank))
-    // //                 .suppress_timestamp()
-    // //                 .suffix("tensors_opt.log.json")
-    // //                 .directory("logs/run2"),
-    // //         )
-    // //         .format(json_format),
-    // //     )
-    // //     .unwrap();
-
-    // // // Distribute tensor network and contract
-    // // let _local_tn = if size > 1 {
-    // //     let (mut local_tn, local_path) =
-    // //         scatter_tensor_network(&tensors_partitioned_tn, &tensors_path, rank, size, &world);
-    // //     contract_tensor_network(&mut local_tn, &local_path);
-
-    // //     let path = if rank == 0 {
-    // //         broadcast_path(
-    // //             &tensors_path[(size as usize)..tensors_path.len()],
-    // //             &root,
-    // //             &world,
-    // //         )
-    // //     } else {
-    // //         broadcast_path(&[], &root, &world)
-    // //     };
-    // //     intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
-    // //     local_tn
-    // // } else {
-    // //     contract_tensor_network(&mut tensors_partitioned_tn, &tensors_path);
-    // //     tensors_partitioned_tn
-    // // };
-
-    // // logger
-    // //     .reset_flw(
-    // //         &FileLogWriter::builder(
-    // //             FileSpec::default()
-    // //                 .discriminant(format!("rank{}", rank))
-    // //                 .suppress_timestamp()
-    // //                 .suffix("bestworst_unopt.log.json")
-    // //                 .directory("logs/run2"),
-    // //         )
-    // //         .format(json_format),
-    // //     )
-    // //     .unwrap();
-
-    // // Distribute tensor network and contract
-    // // let local_tn = if size > 1 {
-    // //     let (mut local_tn, local_path) =
-    // //         scatter_tensor_network(&unopt_partitioned_tn, &unopt_path, rank, size, &world);
-    // //     contract_tensor_network(&mut local_tn, &local_path);
-
-    // //     let path = if rank == 0 {
-    // //         broadcast_path(
-    // //             &bestworst_path[(size as usize)..bestworst_path.len()],
-    // //             &root,
-    // //             &world,
-    // //         )
-    // //     } else {
-    // //         broadcast_path(&[], &root, &world)
-    // //     };
-    // //     intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
-    // //     local_tn
-    // // } else {
-    // //     contract_tensor_network(&mut unopt_partitioned_tn, &unopt_path);
-    // //     unopt_partitioned_tn
-    // // };
+    bench_run(
+        &logger,
+        rank,
+        size,
+        name,
+        unopt_partitioned_tn,
+        &unopt_path,
+        &world,
+        root,
+    );
 }
 
 fn bench_run(
@@ -445,7 +195,7 @@ fn bench_run(
                     .discriminant(format!("rank{rank}"))
                     .suppress_timestamp()
                     .suffix(format!("{name}.log.json"))
-                    .directory("logs/run3"),
+                    .directory(LOGGING_FOLDER),
             )
             .format(json_format),
         )
