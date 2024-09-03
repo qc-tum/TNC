@@ -1,9 +1,10 @@
-use std::iter::zip;
+use std::sync::{Arc, RwLock};
 
-use log::debug;
+use log::{debug, warn};
 use mpi::topology::{Process, SimpleCommunicator};
 use mpi::traits::{BufferMut, Communicator, Destination, Root, Source};
 use mpi::Rank;
+use rustc_hash::FxHashSet;
 
 use super::mpi_types::BondDim;
 use crate::tensornetwork::contraction::contract_tensor_network;
@@ -137,7 +138,18 @@ fn receive_leaf_tensor(sender: Rank, world: &SimpleCommunicator) -> Tensor {
     new_tensor
 }
 
-/// Partitions input Tensor `r_tn` into `size` partitions using `KaHyPar` and distributes the partitions to the various processes via `rank` via MPI.
+/// Returns the ranks that don't have any local contractions.
+fn get_idle_ranks(path: &[ContractionIndex], size: Rank) -> FxHashSet<Rank> {
+    let mut idle_ranks = (0..size).collect::<FxHashSet<_>>();
+    for pair in path {
+        if let ContractionIndex::Path(i, _) = pair {
+            idle_ranks.remove(&(*i as Rank));
+        }
+    }
+    idle_ranks
+}
+
+/// Distributes the partitioned tensor network to the various processes via MPI.
 pub fn scatter_tensor_network(
     r_tn: &Tensor,
     path: &[ContractionIndex],
@@ -164,30 +176,59 @@ pub fn scatter_tensor_network(
     // Distribute tensors
     debug!("Distributing paths and tensors");
     let (local_tn, local_path) = if rank == 0 {
-        let local_path = path[0].clone().get_data();
-        let local_tn = r_tn.tensor(0).clone();
+        // Get the idle ranks
+        let idle_ranks = get_idle_ranks(path, size);
+        if !idle_ranks.is_empty() {
+            warn!(idle_ranks:serde; "There are idle ranks");
+        }
 
         // Send the local paths to the other processes
-        for (i, contraction_path) in zip(1..size, path[1..size as usize].iter()) {
-            debug!(receiver = i, local_path:serde = contraction_path; "Sending local path");
-            match contraction_path {
-                ContractionIndex::Path(_, local) => {
-                    world.process_at_rank(i).send(&serialize(&local));
+        let mut local_path = Vec::new();
+        for contraction_path in path {
+            if let ContractionIndex::Path(i, local) = contraction_path {
+                if *i == 0 {
+                    // This is the path for the root process, no need to send it
+                    local_path = local.clone();
+                } else {
+                    debug!(receiver = i, local:serde = local; "Sending local path");
+                    world.process_at_rank(*i as Rank).send(&serialize(&local));
                 }
-                ContractionIndex::Pair(_, _) => panic!("Requires path"),
             }
+        }
+        // Send empty paths to non-participating ranks
+        for i in &idle_ranks {
+            debug!(receiver = i; "Sending empty local path");
+            world
+                .process_at_rank(*i)
+                .send(&serialize(&Vec::<ContractionIndex>::new()));
         }
         debug!("Sent all local paths");
 
         // Send the tensors to the other processes
-        for (i, tensor) in zip(1..size, r_tn.tensors()[1..size as usize].iter()) {
-            let num_tensors = tensor.tensors().len();
-            debug!(receiver = i, num_tensors; "Sending tensor count");
-            world.process_at_rank(i).send(&num_tensors);
-            debug!(receiver = i; "Sending tensors");
-            for inner_tensor in tensor.tensors() {
-                send_leaf_tensor(inner_tensor, i, world);
+        let local_tn = r_tn.tensor(0).clone();
+        for (i, tensor) in r_tn.tensors().iter().enumerate().skip(1) {
+            // Defining the tensor count as `1 + number of subtensors` discriminates
+            // between no tensor (0), leaf tensor (1) and composite tensor (2..).
+            let num_subtensors = tensor.tensors().len();
+            let tensor_count = num_subtensors + 1;
+            debug!(receiver = i, tensor_count; "Sending tensor count");
+            world.process_at_rank(i as Rank).send(&tensor_count);
+            debug!(receiver = i; "Sending tensor(s)");
+            if tensor.is_leaf() {
+                debug!(receiver = i, tensor:?; "Sending leaf tensor");
+                send_leaf_tensor(tensor, i as Rank, world);
+            } else {
+                debug!(receiver = i, tensor:?; "Sending composite tensor");
+                for inner_tensor in tensor.tensors() {
+                    send_leaf_tensor(inner_tensor, i as Rank, world);
+                }
             }
+        }
+        // Send zero tensors to non-participating ranks
+        let used_ranks = r_tn.tensors().len() as Rank;
+        for i in used_ranks..size {
+            debug!(receiver = i; "Sending zero tensor count");
+            world.process_at_rank(i).send(&0usize);
         }
         debug!("Sent all tensors");
         (local_tn, local_path)
@@ -200,12 +241,26 @@ pub fn scatter_tensor_network(
 
         // Receive tensors
         debug!(sender = 0; "Receiving tensor count");
+        let (tensor_count, _status) = world.process_at_rank(0).receive::<usize>();
         let mut local_tn = Tensor::default();
-        let (num_tensors, _status) = world.process_at_rank(0).receive::<usize>();
-        debug!(sender = 0, num_tensors; "Receiving tensors");
-        for _ in 0..num_tensors {
-            let new_tensor = receive_leaf_tensor(0, world);
-            local_tn.push_tensor(new_tensor, Some(&bond_dims));
+        debug!(sender = 0, tensor_count; "Receiving tensors");
+        match tensor_count {
+            // No tensor
+            0 => (),
+            // Leaf tensor
+            1 => {
+                let new_tensor = receive_leaf_tensor(0, world);
+                local_tn = new_tensor;
+                local_tn.bond_dims = Arc::new(RwLock::new(bond_dims));
+            }
+            // Composite tensor
+            _ => {
+                for _ in 0..tensor_count - 1 {
+                    let new_tensor = receive_leaf_tensor(0, world);
+                    local_tn.push_tensor(new_tensor, Some(&bond_dims));
+                }
+                // TODO: can use `push_tensors` to push all  at once?
+            }
         }
         debug!("Received all tensors");
         (local_tn, local_path)
@@ -227,8 +282,8 @@ pub fn intermediate_reduce_tensor_network(
     for pair in path {
         match pair {
             ContractionIndex::Pair(x, y) => {
-                let receiver: Rank = (*x).try_into().unwrap();
-                let sender: Rank = (*y).try_into().unwrap();
+                let receiver = *x as Rank;
+                let sender = *y as Rank;
                 final_rank = receiver;
                 if receiver == rank {
                     // Insert received tensor into local tensor
@@ -299,6 +354,18 @@ mod tests {
 
     use super::*;
     use crate::path;
+
+    #[test]
+    fn test_idle_ranks() {
+        let path = vec![
+            ContractionIndex::Path(2, vec![ContractionIndex::Pair(0, 1)]),
+            ContractionIndex::Pair(0, 2),
+            ContractionIndex::Pair(1, 3),
+            ContractionIndex::Pair(0, 1),
+        ];
+        let idle_ranks = get_idle_ranks(&path, 6);
+        assert_eq!(idle_ranks, [0, 1, 3, 4, 5].into_iter().collect());
+    }
 
     #[mpi_test(2)]
     fn test_sendrecv_contraction_index() {
