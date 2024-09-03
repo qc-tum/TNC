@@ -37,11 +37,11 @@ where
         (0.0..=1.0).contains(&two_qubit_probability),
         "Probabilities should range from 0.0 to 1.0"
     );
-    let single_qubit_gate = FxHashMap::from_iter([
-        (0, TensorData::Gate((String::from("sx"), Vec::new()))),
-        (1, TensorData::Gate((String::from("sy"), Vec::new()))),
-        (2, TensorData::Gate((String::from("sz"), Vec::new()))),
-    ]);
+    let single_qubit_gates = [
+        TensorData::Gate((String::from("sx"), Vec::new())),
+        TensorData::Gate((String::from("sy"), Vec::new())),
+        TensorData::Gate((String::from("sz"), Vec::new())),
+    ];
 
     let mut open_edges = FxHashMap::default();
 
@@ -72,7 +72,7 @@ where
 
     sycamore_tn.push_tensors(initial_state, Some(&sycamore_bonddims), None);
 
-    let die = Uniform::from(0..3);
+    let die = Uniform::from(0..single_qubit_gates.len());
     let mut intermediate_gates = Vec::new();
     for _ in 1..round {
         for i in 0..size {
@@ -80,7 +80,7 @@ where
             if rng.sample(uniform_prob) < single_qubit_probability {
                 sycamore_bonddims.insert(next_edge, 2);
                 let mut new_tensor = Tensor::new(vec![open_edges[&i], next_edge]);
-                new_tensor.set_tensor_data(single_qubit_gate[&die.sample(rng)].clone());
+                new_tensor.set_tensor_data(single_qubit_gates[die.sample(rng)].clone());
                 intermediate_gates.push(new_tensor);
                 open_edges.insert(i, next_edge);
                 next_edge += 1;
