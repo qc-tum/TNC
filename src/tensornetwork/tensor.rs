@@ -2,7 +2,6 @@ use core::ops::{BitAnd, BitOr, BitXor, Sub};
 use std::cell::{Ref, RefCell};
 use std::hash::{Hash, Hasher};
 use std::iter::zip;
-use std::ops::Index;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rustc_hash::FxHashMap;
@@ -647,15 +646,6 @@ impl Tensor {
             ext_edges.append(&mut vec![edge_index; count]);
         }
         ext_edges
-    }
-}
-
-/// Implementation of indexing for Tensor.
-impl Index<usize> for Tensor {
-    type Output = usize;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.legs[index]
     }
 }
 
