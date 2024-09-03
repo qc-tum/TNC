@@ -51,7 +51,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let legs = vec![1,2,3];
     /// let tensor = Tensor::new(legs);
     /// ```
@@ -66,7 +66,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let vec = vec![1, 2, 3];
     /// let tensor = Tensor::new(vec.clone()) ;
     /// assert_eq!(tensor.legs(), &vec);
@@ -268,7 +268,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let legs = vec![1, 2, 3];
     /// let tensor = Tensor::new(legs);
     /// assert_eq!(tensor.dims(), 3);
@@ -281,9 +281,9 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// use tensorcontraction::tensornetwork::tensordata::TensorData;
-    /// use rustc_hash::FxHashMap;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
+    /// # use rustc_hash::FxHashMap;
     /// let mut tensor = Tensor::new(vec![1, 2, 3]);
     /// let bond_dims = FxHashMap::from_iter([(1, 5),
     /// (2, 15),
@@ -304,7 +304,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let tensor = Tensor::new(vec![1, 2, 3]);
     /// assert_eq!(tensor.contains_leg(2), true);
     /// assert_eq!(tensor.contains_leg(4), false);
@@ -317,7 +317,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let tensor = Tensor::new(vec![1, 2, 3]);
     /// assert_eq!(tensor.is_leaf(), true);
     /// ```
@@ -329,7 +329,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let mut tensor = Tensor::new(vec![1, 2, 3]);
     /// assert_eq!(tensor.is_composite(), false);
     /// ```
