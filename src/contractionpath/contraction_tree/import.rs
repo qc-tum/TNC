@@ -156,7 +156,7 @@ pub fn logs_to_tree(
 
     // Tracks the color of each node
     let mut tensor_color = FxHashMap::default();
-    let mut logging_start = chrono::DateTime::fixed_offset(&Utc::now());
+    let mut logging_start = DateTime::fixed_offset(&Utc::now());
 
     for rank in 0..ranks {
         let LogToSubtreeResult {
@@ -288,24 +288,21 @@ struct LogToSubtreeResult {
     // Dict of remaining nodes to process, keeps track of intermediate tensors
     nodes: FxHashMap<usize, Rc<RefCell<Node>>>,
     // Keeps track of communication with time stamps
-    local_communication_path: Vec<(usize, usize, chrono::DateTime<chrono::FixedOffset>)>,
+    local_communication_path: Vec<(usize, usize, DateTime<chrono::FixedOffset>)>,
     // Keeps track of communication time stamps
     communication_timestamps: FxHashMap<
         (Direction, usize, usize),
-        (
-            chrono::DateTime<chrono::FixedOffset>,
-            chrono::DateTime<chrono::FixedOffset>,
-        ),
+        (DateTime<chrono::FixedOffset>, DateTime<chrono::FixedOffset>),
     >,
     // Start of contraction for reference
-    contraction_start: chrono::DateTime<chrono::FixedOffset>,
+    contraction_start: DateTime<chrono::FixedOffset>,
 }
 
 /// Processes the log of a single rank. Extracts subtree information corresponding to the single rank and returns it
 /// as a LogToSubtreeResult object.
 fn log_to_subtree(
     filename: &str,
-    tensor_cost: &mut FxHashMap<usize, chrono::DateTime<chrono::FixedOffset>>,
+    tensor_cost: &mut FxHashMap<usize, DateTime<chrono::FixedOffset>>,
     tensor_count: &mut usize,
     rank: usize,
 ) -> LogToSubtreeResult {
