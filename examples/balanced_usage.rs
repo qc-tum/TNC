@@ -27,7 +27,7 @@ use tensorcontraction::tensornetwork::partitioning::partition_config::Partitioni
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::tensornetwork::tensor::Tensor;
 
-static LOGGING_FOLDER: &str = "logs/runs3";
+static LOGGING_FOLDER: &str = "logs/run";
 /// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
 fn setup_logging_mpi(rank: Rank) -> LoggerHandle {
     Logger::with(LevelFilter::Debug)
@@ -60,14 +60,14 @@ fn main() {
     info!(rank, size; "Logging setup");
 
     let seed = 23;
-    let qubits = 30;
+    let qubits = 15;
     let depth = 40;
     let single_qubit_probability = 0.4;
     let two_qubit_probability = 0.4;
     let connectivity = ConnectivityLayout::Osprey;
-    info!(seed, qubits, depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
 
     let unopt_partitioned_tn = if rank == 0 {
+        info!(seed, qubits, depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
         let r_tn = random_circuit(
             qubits,
             depth,
@@ -97,7 +97,10 @@ fn main() {
             &unopt_partitioned_tn,
             contract_cost_tensors,
         );
-        to_pdf("path_Unoptimized", &dendogram_entries);
+        to_pdf(
+            &format!("{LOGGING_FOLDER}/path_Unoptimized"),
+            &dendogram_entries,
+        );
         unopt_path
     } else {
         Default::default()
@@ -105,8 +108,8 @@ fn main() {
 
     // Experimental setup here.
     let balancing_schemes = [
-        BalancingScheme::BestWorst,
-        BalancingScheme::Tensor,
+        // BalancingScheme::BestWorst,
+        // BalancingScheme::Tensor,
         BalancingScheme::Tensors,
     ];
     let communication_schemes = [
@@ -120,8 +123,9 @@ fn main() {
         iproduct!(balancing_schemes, communication_schemes)
     {
         let name = format!("{balancing_scheme:?}_{communication_scheme:?}");
+
         let (partitioned_tn, path) = if rank == 0 {
-            // Using bestworst
+            info!("Running: {name}");
 
             let (num, partitioned_tn, path, _costs) = balance_partitions_iter(
                 &unopt_partitioned_tn,
@@ -145,7 +149,7 @@ fn main() {
             let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
             let dendogram_entries =
                 to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
-            to_pdf(&format!("path_{name}"), &dendogram_entries);
+            to_pdf(&format!("{LOGGING_FOLDER}/path_{name}"), &dendogram_entries);
             (partitioned_tn, path)
         } else {
             Default::default()
