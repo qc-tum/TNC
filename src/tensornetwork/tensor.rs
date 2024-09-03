@@ -458,7 +458,9 @@ impl Tensor {
         external_hyperedge: Option<&FxHashMap<EdgeIndex, usize>>,
     ) {
         // Case that tensor is not empty but has no subtensors.
-        if self.is_leaf() && !self.legs().is_empty() {
+        if self.is_leaf()
+            && (!self.legs().is_empty() || !matches!(*self.tensor_data(), TensorData::Uncontracted))
+        {
             let old_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
