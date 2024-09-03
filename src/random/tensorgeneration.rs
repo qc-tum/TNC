@@ -7,7 +7,6 @@ use rand::distributions::{Distribution, Uniform};
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use rustc_hash::FxHashMap;
-use std::ops::RangeInclusive;
 use tetra::Tensor as DataTensor;
 
 /// Generates random [`Tensor`] object with `n` dimensions and corresponding `bond_dims`,
@@ -84,7 +83,7 @@ where
     R: Rng + ?Sized,
 {
     let sparsity = if let Some(sparsity) = sparsity {
-        assert!(RangeInclusive::new(0.0, 1.0).contains(&sparsity));
+        assert!((0.0..=1.0).contains(&sparsity));
         sparsity
     } else {
         0.5
