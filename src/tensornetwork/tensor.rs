@@ -348,6 +348,21 @@ impl Tensor {
         !self.tensors.is_empty()
     }
 
+    /// Returns true if Tensor is empty. This means, it doesn't have any subtensors,
+    /// has no legs and is doesn't have any data (e.g., is not a scalar).
+    ///
+    /// # Examples
+    /// ```
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// let tensor = Tensor::default();
+    /// assert_eq!(tensor.is_empty(), true);
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.tensors.is_empty()
+            && self.legs.is_empty()
+            && matches!(*self.tensor_data(), TensorData::Uncontracted)
+    }
+
     /// Comparison of two Tensors, returns true if Tensor objects are equivalent up to `epsilon` precision.
     /// Considers `legs`, `bond_dims`, `external_hyperedges` and `tensordata`.
     /// `edges` are not compared as different contraction ordering will result in
@@ -383,7 +398,7 @@ impl Tensor {
     /// * `bond_dims` - `FxHashMap<usize, u64>` mapping edge id to bond dimension
     pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&FxHashMap<usize, u64>>) {
         // In the case of pushing to an empty tensor, avoid unnecessary hierarchies
-        if self.tensors().is_empty() && self.legs().is_empty() {
+        if self.is_empty() {
             let Self {
                 legs,
                 tensors: _,
@@ -409,7 +424,7 @@ impl Tensor {
             return;
         }
 
-        if self.is_leaf() && !self.legs.is_empty() {
+        if self.is_leaf() {
             let old_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
