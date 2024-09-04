@@ -21,6 +21,7 @@ use crate::{
         },
         paths::validate_path,
     },
+    mpi::communication::extract_communication_path,
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
 };
@@ -56,11 +57,7 @@ pub fn balance_partitions_iter(
     let bond_dims = tensor.bond_dims();
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor, path);
     let mut path = path.to_owned();
-    let final_contraction = path
-        .iter()
-        .filter(|&e| matches!(e, ContractionIndex::Pair(..)))
-        .cloned()
-        .collect_vec();
+    let final_contraction = extract_communication_path(&path);
     let mut partition_costs =
         calculate_partition_costs(&contraction_tree, rebalance_depth, tensor, true);
 
