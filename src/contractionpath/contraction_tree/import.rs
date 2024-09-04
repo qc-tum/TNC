@@ -194,11 +194,7 @@ pub fn logs_to_tree(
     // Sort communication by time to ensure no violation of data dependencies
     let communication_path = communication_path
         .iter_mut()
-        .sorted_by(|pair1, pair2| {
-            let time1 = pair1.2.nanosecond() as f64;
-            let time2 = pair2.2.nanosecond() as f64;
-            time1.partial_cmp(&time2).unwrap()
-        })
+        .sorted_unstable()
         .collect::<Vec<_>>();
 
     let mut communication_data = FxHashMap::default();
