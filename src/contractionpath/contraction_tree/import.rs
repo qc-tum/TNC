@@ -1,4 +1,4 @@
-use chrono::{DateTime, Timelike};
+use chrono::{DateTime, Timelike, Utc};
 use itertools::Itertools;
 use regex::RegexSet;
 use rustc_hash::FxHashMap;
@@ -37,10 +37,17 @@ const COLORS: [&str; 19] = [
     "gray",
 ];
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum Direction {
+    Send,
+    Recv,
+}
+
 pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     let height = 120f64;
     let width = 80f64;
-    let (contraction_tree, tensor_position, tensor_color) = logs_to_tree(filename, suffix, ranks);
+    let (contraction_tree, tensor_position, tensor_color, mut communication_logging) =
+        logs_to_tree(filename, suffix, ranks);
 
     let flat_contraction_path =
         contraction_tree.to_flat_contraction_path(contraction_tree.root_id().unwrap(), false);
@@ -109,11 +116,15 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     let width_scaling = width / num_leaf_nodes as f64;
     let height_scaling = height / dendogram_entries.last().unwrap().cost;
 
-    for dendogram_entry in dendogram_entries.iter_mut() {
+    for dendogram_entry in &mut dendogram_entries {
         dendogram_entry.x *= width_scaling;
         dendogram_entry.y *= height_scaling;
     }
-    to_pdf(output, &dendogram_entries);
+    for (_, (start, end)) in &mut communication_logging {
+        *start *= height_scaling;
+        *end *= height_scaling;
+    }
+    to_pdf(output, &dendogram_entries, Some(communication_logging));
 }
 
 /// Reads logging results and reconstructs construction operations, indicating timings for contraction and communication.
@@ -126,6 +137,7 @@ pub fn logs_to_tree(
     ContractionTree,
     FxHashMap<usize, f64>,
     FxHashMap<usize, String>,
+    FxHashMap<(Direction, usize, usize), (f64, f64)>,
 ) {
     // Maps node id in contraction tree to a position in pdf
     let mut tensor_cost = FxHashMap::default();
@@ -137,17 +149,20 @@ pub fn logs_to_tree(
 
     // Hashmap of all nodes
     let mut remaining_nodes = FxHashMap::default();
+    // Hashmap of all communication timestamps
+    let mut communication_logging = FxHashMap::default();
     // Tracks all communication taking place, only lists receiving rank for each instance to prevent doubles.
     let mut communication_path = Vec::new();
 
     // Tracks the color of each node
     let mut tensor_color = FxHashMap::default();
-    let mut logging_start = chrono::DateTime::<chrono::FixedOffset>::default();
+    let mut logging_start = DateTime::fixed_offset(&Utc::now());
 
     for rank in 0..ranks {
         let LogToSubtreeResult {
-            remaining_nodes: nodes,
-            communication_path: mut local_communication_path,
+            nodes,
+            mut local_communication_path,
+            communication_timestamps,
             contraction_start,
         } = log_to_subtree(
             &format!("{filename}_rank{rank}.{suffix}"),
@@ -155,37 +170,68 @@ pub fn logs_to_tree(
             &mut tensor_count,
             rank,
         );
-        if contraction_start < logging_start {
-            logging_start = contraction_start;
-        }
+        logging_start = logging_start.min(contraction_start);
         let color = COLORS[rank + 1];
         nodes.keys().for_each(|&key| {
             tensor_color.insert(key, String::from(color));
         });
-
+        communication_logging.extend(communication_timestamps);
         remaining_nodes.extend(nodes);
         communication_path.append(&mut local_communication_path);
         partition_root_nodes.push(Rc::clone(&remaining_nodes[&(tensor_count - 1)]));
     }
 
+    let mut tensor_cost = tensor_cost
+        .iter()
+        .map(|(k, v)| (*k, (*v - logging_start).num_microseconds().unwrap() as f64))
+        .collect::<FxHashMap<_, _>>();
+
     let partition_tensor_ids = partition_root_nodes
         .iter()
         .map(|node| node.borrow().id)
-        .collect::<Vec<usize>>();
+        .collect::<Vec<_>>();
 
     // Sort communication by time to ensure no violation of data dependencies
     let communication_path = communication_path
         .iter_mut()
-        .sorted_by(|pair1, pair2| {
-            let time1 = pair1.2.nanosecond() as f64;
-            let time2 = pair2.2.nanosecond() as f64;
-            time1.partial_cmp(&time2).unwrap()
-        })
+        .sorted_unstable()
         .collect::<Vec<_>>();
 
-    for (rank1, rank2, timestamp) in communication_path.iter() {
+    let mut communication_data = FxHashMap::default();
+    for (rank1, rank2, timestamp) in communication_path {
         let left_child = Rc::clone(&partition_root_nodes[*rank1]);
         let right_child = Rc::clone(&partition_root_nodes[*rank2]);
+
+        let send_timestamps = communication_logging.remove(&(Direction::Send, *rank1, *rank2));
+        if let Some((timestamp1, timestamp2)) = send_timestamps {
+            communication_data.insert(
+                (
+                    Direction::Send,
+                    left_child.as_ref().borrow().id(),
+                    right_child.as_ref().borrow().id(),
+                ),
+                (
+                    (timestamp1 - logging_start).num_microseconds().unwrap() as f64,
+                    (timestamp2 - logging_start).num_microseconds().unwrap() as f64,
+                ),
+            );
+        };
+
+        let recv_timestamps = communication_logging.remove(&(Direction::Recv, *rank1, *rank2));
+        if let Some((timestamp1, timestamp2)) = recv_timestamps {
+            communication_data.insert(
+                (
+                    Direction::Recv,
+                    left_child.as_ref().borrow().id(),
+                    right_child.as_ref().borrow().id(),
+                ),
+                (
+                    (timestamp1 - logging_start).num_microseconds().unwrap() as f64,
+                    (timestamp2 - logging_start).num_microseconds().unwrap() as f64,
+                ),
+            );
+        };
+
         let new_node = Node::new(
             tensor_count,
             Rc::downgrade(&left_child),
@@ -207,7 +253,7 @@ pub fn logs_to_tree(
         remaining_nodes
             .try_insert(tensor_count, Rc::clone(&new_node_ref))
             .unwrap_or_else(|_| panic!("SSA {tensor_count} already in tensor cost dict"));
-        let cost = (*timestamp - logging_start).num_nanoseconds().unwrap() as f64;
+        let cost = (*timestamp - logging_start).num_microseconds().unwrap() as f64;
         tensor_cost
             .try_insert(tensor_count, cost)
             .unwrap_or_else(|_| panic!("SSA {tensor_count} already in tensor cost dict"));
@@ -227,23 +273,29 @@ pub fn logs_to_tree(
         },
         tensor_cost,
         tensor_color,
+        communication_data,
     )
 }
 
 struct LogToSubtreeResult {
-    // Dict of remaining nodes to process, keeps track of intermediate tensors
-    remaining_nodes: FxHashMap<usize, Rc<RefCell<Node>>>,
-    // Keeps track of communication with time stamps
-    communication_path: Vec<(usize, usize, chrono::DateTime<chrono::FixedOffset>)>,
-    // Start of contraction for reference
-    contraction_start: chrono::DateTime<chrono::FixedOffset>,
+    /// Dict of remaining nodes to process, keeps track of intermediate tensors
+    nodes: FxHashMap<usize, Rc<RefCell<Node>>>,
+    /// Keeps track of communication with time stamps
+    local_communication_path: Vec<(usize, usize, DateTime<chrono::FixedOffset>)>,
+    /// Keeps track of communication time stamps
+    communication_timestamps: FxHashMap<
+        (Direction, usize, usize),
+        (DateTime<chrono::FixedOffset>, DateTime<chrono::FixedOffset>),
+    >,
+    /// Start of contraction for reference
+    contraction_start: DateTime<chrono::FixedOffset>,
 }
 
 /// Processes the log of a single rank. Extracts subtree information corresponding to the single rank and returns it
 /// as a LogToSubtreeResult object.
 fn log_to_subtree(
     filename: &str,
-    tensor_cost: &mut FxHashMap<usize, f64>,
+    tensor_cost: &mut FxHashMap<usize, DateTime<chrono::FixedOffset>>,
     tensor_count: &mut usize,
     rank: usize,
 ) -> LogToSubtreeResult {
@@ -253,6 +305,9 @@ fn log_to_subtree(
 
     // Hashmap that maps local tensor id to node id in overall contraction tree
     let mut replace_to_ssa = FxHashMap::default();
+
+    // Hashmap that stores communication
+    let mut communication_timestamps = FxHashMap::default();
 
     // Stores starting time for contraction
     let mut contraction_start = DateTime::<chrono::FixedOffset>::default();
@@ -268,8 +323,14 @@ fn log_to_subtree(
         r"Finished contracting tensors",
         // When all local contractions are done
         r"Completed tensor network contraction",
-        // Identifies communication between partitions
-        r"Receiving tensor",
+        // Identifies start of receiving tensor
+        r"Start receiving tensor",
+        // Identifies end of receiving tensor
+        r"Finish receiving tensor",
+        // Identifies start of sending tensor
+        r"Start sending tensor",
+        // Identifies end of sending tensor
+        r"Finish sending tensor",
     ];
     // true while local contractions are occurring
     let mut is_local_contraction = true;
@@ -278,6 +339,9 @@ fn log_to_subtree(
 
     // Counter to track where tensors are being sent from.
     let mut sender = 0;
+    let mut receiver = 0;
+    let mut send_start = Default::default();
+    let mut recv_start = Default::default();
 
     for line in file.split("\n") {
         if line.is_empty() {
@@ -293,27 +357,19 @@ fn log_to_subtree(
                 // Tracks contraction starting from first local contraction
                 // Does no reset timer when communicating.
                 if is_local_contraction {
-                    contraction_start = DateTime::parse_from_str(
-                        json_value["timestamp"].as_str().unwrap(),
-                        "%Y-%m-%d %H:%M:%S%.6f %z",
-                    )
-                    .unwrap();
+                    contraction_start = parse_timestamp(&json_value);
                 }
             }
             [1] => {
                 // Tracking contractions due to communication here
                 if !is_local_contraction {
-                    let contraction_timestamp = DateTime::parse_from_str(
-                        json_value["timestamp"].as_str().unwrap(),
-                        "%Y-%m-%d %H:%M:%S%.6f %z",
-                    )
-                    .unwrap();
+                    let contraction_timestamp = parse_timestamp(&json_value);
                     // Don't create any new nodes, simply track communication and contraction time
                     communication_path.push((rank, sender, contraction_timestamp));
                     continue;
                 }
 
-                let contraction_time = contraction_timing(&json_value, contraction_start);
+                let contraction_timestamp = parse_timestamp(&json_value);
                 // Tracking local contractions here.
                 let ij: Vec<usize> = ["i", "j"]
                     .iter()
@@ -337,7 +393,7 @@ fn log_to_subtree(
                             .try_insert(tensor_id, *tensor_count)
                             .unwrap_or_else(|_| panic!("SSA {tensor_id} already exists"));
                         tensor_cost
-                            .try_insert(*tensor_count, 0f64)
+                            .try_insert(*tensor_count, DateTime::default())
                             .unwrap_or_else(|_| panic!("SSA {tensor_id} already exists"));
                         remaining_nodes
                             .try_insert(*tensor_count, Rc::clone(&leaf_node_ref))
@@ -350,7 +406,7 @@ fn log_to_subtree(
 
                 // Store contraction time of resultant tensor
                 tensor_cost
-                    .try_insert(*tensor_count, contraction_time)
+                    .try_insert(*tensor_count, contraction_timestamp)
                     .unwrap_or_else(|_| panic!("Tensor {} already inserted", *tensor_count));
 
                 let intermediate_node_ref =
@@ -380,14 +436,36 @@ fn log_to_subtree(
                     .to_string()
                     .parse::<usize>()
                     .unwrap();
+                recv_start = parse_timestamp(&json_value);
+            }
+            [4] => {
+                let recv_end = parse_timestamp(&json_value);
+                communication_timestamps
+                    .insert((Direction::Recv, rank, sender), (recv_start, recv_end));
+            }
+            [5] => {
+                // Parse sending rank from log
+                receiver = json_value["kv"]
+                    .get("receiver")
+                    .unwrap()
+                    .to_string()
+                    .parse::<usize>()
+                    .unwrap();
+                send_start = parse_timestamp(&json_value);
+            }
+            [6] => {
+                let send_end = parse_timestamp(&json_value);
+                communication_timestamps
+                    .insert((Direction::Send, receiver, rank), (send_start, send_end));
             }
             _ => {}
         }
     }
 
     LogToSubtreeResult {
-        remaining_nodes,
-        communication_path,
+        nodes: remaining_nodes,
+        local_communication_path: communication_path,
+        communication_timestamps,
         contraction_start,
     }
 }
@@ -422,11 +500,15 @@ fn contraction_timing(
     json_value: &serde_json::Value,
     contraction_start: DateTime<chrono::FixedOffset>,
 ) -> f64 {
-    let timestamp = DateTime::parse_from_str(
+    let timestamp = parse_timestamp(json_value);
+    (timestamp - contraction_start).num_microseconds().unwrap() as f64
+}
+
+/// Parses the timestamp of a log entry given as json.
+fn parse_timestamp(json_value: &serde_json::Value) -> DateTime<chrono::FixedOffset> {
+    DateTime::parse_from_str(
         json_value["timestamp"].as_str().unwrap(),
         "%Y-%m-%d %H:%M:%S%.6f %z",
     )
-    .expect("Invalid contraction time");
-
-    (timestamp - contraction_start).num_nanoseconds().unwrap() as f64
+    .unwrap()
 }

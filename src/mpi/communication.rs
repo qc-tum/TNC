@@ -287,16 +287,18 @@ pub fn intermediate_reduce_tensor_network(
                 final_rank = receiver;
                 if receiver == rank {
                     // Insert received tensor into local tensor
-                    debug!(sender; "Receiving tensor");
+                    debug!(sender; "Start receiving tensor");
                     let received_tensor = receive_leaf_tensor(sender, world);
+                    debug!(sender; "Finish receiving tensor");
                     local_tn.push_tensor(received_tensor, None);
 
                     // Contract tensors
                     contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
                 }
                 if sender == rank {
-                    debug!(receiver; "Sending tensor");
+                    debug!(receiver; "Start sending tensor");
                     send_leaf_tensor(local_tn, receiver, world);
+                    debug!(receiver; "Finish sending tensor");
                 }
             }
             ContractionIndex::Path(..) => panic!("Requires pair"),
