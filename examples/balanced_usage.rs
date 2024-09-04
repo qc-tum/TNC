@@ -150,7 +150,11 @@ fn main() {
             let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
             let dendogram_entries =
                 to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
-            to_pdf(&format!("{LOGGING_FOLDER}/path_{name}"), &dendogram_entries);
+            to_pdf(
+                &format!("{LOGGING_FOLDER}/path_{name}"),
+                &dendogram_entries,
+                None,
+            );
             (partitioned_tn, path)
         } else {
             Default::default()
