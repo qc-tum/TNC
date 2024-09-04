@@ -6,7 +6,8 @@ use tensorcontraction::contractionpath::contraction_tree::{
 };
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
-    broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network, CommunicationScheme,
+    broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
+    scatter_tensor_network, CommunicationScheme,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
@@ -86,7 +87,7 @@ fn main() {
         contract_tensor_network(&mut local_tn, &local_path);
 
         let path = if rank == 0 {
-            broadcast_path(&path[(size as usize)..path.len()], &root, &world)
+            broadcast_path(&extract_communication_path(&path), &root, &world)
         } else {
             broadcast_path(&[], &root, &world)
         };

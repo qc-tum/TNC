@@ -9,14 +9,14 @@ use tensorcontraction::contractionpath::contraction_tree::export::{to_dendogram_
 use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
-    broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
+    broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
+    scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
-use tensorcontraction::types::ContractionIndex;
 
 /// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
 fn setup_logging_mpi(rank: Rank) {
@@ -91,12 +91,7 @@ fn main() {
             scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
         contract_tensor_network(&mut local_tn, &local_path);
         let path = if rank == 0 {
-            let communication_path = path
-                .iter()
-                .filter(|a| matches!(a, ContractionIndex::Pair(_, _)))
-                .cloned()
-                .collect::<Vec<ContractionIndex>>();
-            broadcast_path(&communication_path, &root, &world)
+            broadcast_path(&extract_communication_path(&path), &root, &world)
         } else {
             broadcast_path(&[], &root, &world)
         };

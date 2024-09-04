@@ -76,6 +76,15 @@ where
     root.broadcast_into(data);
 }
 
+/// Extracts the communication path from the total contraction path.
+#[must_use]
+pub fn extract_communication_path(path: &[ContractionIndex]) -> Vec<ContractionIndex> {
+    path.iter()
+        .filter(|a| matches!(a, ContractionIndex::Pair(_, _)))
+        .cloned()
+        .collect()
+}
+
 /// Broadcast a contraction index `path` from `root` to all processes in `world`. For
 /// the receivers, `path` can just be an empty slice.
 #[must_use]
