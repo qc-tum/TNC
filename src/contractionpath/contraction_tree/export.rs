@@ -8,7 +8,10 @@ use rustc_hash::FxHashMap;
 
 use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
-use super::{import::Direction, ContractionTree};
+use super::{
+    import::{CommunicationEvent, Direction},
+    ContractionTree,
+};
 
 const COLORS: [&str; 19] = [
     "black",
@@ -200,7 +203,7 @@ pub fn to_dendogram_format(
 pub fn to_pdf(
     pdf_name: &str,
     dendogram_entries: &[DendogramEntry],
-    communication_logging: Option<FxHashMap<(Direction, usize, usize), (f64, f64)>>,
+    communication_logging: Option<FxHashMap<CommunicationEvent, (f64, f64)>>,
 ) {
     let communication_logging = communication_logging.unwrap_or_default();
     let mut tikz_picture = String::from(

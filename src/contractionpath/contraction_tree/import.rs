@@ -1,4 +1,4 @@
-use chrono::{DateTime, Timelike, Utc};
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use regex::RegexSet;
 use rustc_hash::FxHashMap;
@@ -37,7 +37,7 @@ const COLORS: [&str; 19] = [
     "gray",
 ];
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
     Send,
     Recv,
@@ -46,8 +46,12 @@ pub enum Direction {
 pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     let height = 120f64;
     let width = 80f64;
-    let (contraction_tree, tensor_position, tensor_color, mut communication_logging) =
-        logs_to_tree(filename, suffix, ranks);
+    let LogsToTreeResult {
+        tree: contraction_tree,
+        tensor_cost: tensor_position,
+        tensor_color,
+        communication_data: mut communication_logging,
+    } = logs_to_tree(filename, suffix, ranks);
 
     let flat_contraction_path =
         contraction_tree.to_flat_contraction_path(contraction_tree.root_id().unwrap(), false);
@@ -120,25 +124,28 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
         dendogram_entry.x *= width_scaling;
         dendogram_entry.y *= height_scaling;
     }
-    for (_, (start, end)) in &mut communication_logging {
+    for (start, end) in communication_logging.values_mut() {
         *start *= height_scaling;
         *end *= height_scaling;
     }
     to_pdf(output, &dendogram_entries, Some(communication_logging));
 }
 
+#[derive(Debug, Clone)]
+pub struct LogsToTreeResult {
+    /// The reconstructed contraction tree
+    tree: ContractionTree,
+    /// Maps node id in contraction tree to a position in pdf
+    tensor_cost: FxHashMap<usize, f64>,
+    /// Maps node id in contraction tree to a color
+    tensor_color: FxHashMap<usize, String>,
+    /// Stores communications between two ranks and their start and end times
+    communication_data: FxHashMap<(Direction, usize, usize), (f64, f64)>,
+}
+
 /// Reads logging results and reconstructs construction operations, indicating timings for contraction and communication.
 /// Prints "filename" pdf with dendogram of the overall contraction operation.
-pub fn logs_to_tree(
-    filename: &str,
-    suffix: &str,
-    ranks: usize,
-) -> (
-    ContractionTree,
-    FxHashMap<usize, f64>,
-    FxHashMap<usize, String>,
-    FxHashMap<(Direction, usize, usize), (f64, f64)>,
-) {
+pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeResult {
     // Maps node id in contraction tree to a position in pdf
     let mut tensor_cost = FxHashMap::default();
     // Counter to keep track of total number of intermediate + leaf nodes between ranks.
@@ -265,8 +272,8 @@ pub fn logs_to_tree(
     }
 
     let root = Rc::downgrade(&remaining_nodes[&(tensor_count - 1)]);
-    (
-        ContractionTree {
+    LogsToTreeResult {
+        tree: ContractionTree {
             nodes: remaining_nodes,
             partitions: FxHashMap::from_iter([(0, partition_tensor_ids)]),
             root,
@@ -274,19 +281,20 @@ pub fn logs_to_tree(
         tensor_cost,
         tensor_color,
         communication_data,
-    )
+    }
 }
 
+pub type CommunicationEvent = (Direction, usize, usize);
+pub type TimeRange = (DateTime<chrono::FixedOffset>, DateTime<chrono::FixedOffset>);
+
+#[derive(Debug, Clone)]
 struct LogToSubtreeResult {
     /// Dict of remaining nodes to process, keeps track of intermediate tensors
     nodes: FxHashMap<usize, Rc<RefCell<Node>>>,
     /// Keeps track of communication with time stamps
     local_communication_path: Vec<(usize, usize, DateTime<chrono::FixedOffset>)>,
     /// Keeps track of communication time stamps
-    communication_timestamps: FxHashMap<
-        (Direction, usize, usize),
-        (DateTime<chrono::FixedOffset>, DateTime<chrono::FixedOffset>),
-    >,
+    communication_timestamps: FxHashMap<CommunicationEvent, TimeRange>,
     /// Start of contraction for reference
     contraction_start: DateTime<chrono::FixedOffset>,
 }
