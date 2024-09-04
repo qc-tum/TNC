@@ -63,7 +63,7 @@ fn main() {
         let path = opt.get_best_replace_path();
 
         let rebalance_depth = 1;
-        let (_cost, _partitioned_tn, _path, _costs) = balance_partitions_iter(
+        let (_cost, partitioned_tn, path, _costs) = balance_partitions_iter(
             &partitioned_tn,
             &path,
             BalanceSettings {

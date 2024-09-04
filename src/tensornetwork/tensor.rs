@@ -2,7 +2,6 @@ use core::ops::{BitAnd, BitOr, BitXor, Sub};
 use std::cell::{Ref, RefCell};
 use std::hash::{Hash, Hasher};
 use std::iter::zip;
-use std::ops::Index;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rustc_hash::FxHashMap;
@@ -51,7 +50,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let legs = vec![1,2,3];
     /// let tensor = Tensor::new(legs);
     /// ```
@@ -66,16 +65,18 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let vec = vec![1, 2, 3];
     /// let tensor = Tensor::new(vec.clone()) ;
     /// assert_eq!(tensor.legs(), &vec);
     /// ```
+    #[inline]
     pub fn legs(&self) -> &Vec<EdgeIndex> {
         &self.legs
     }
 
     /// Internal method to set legs. Needs pub(crate) for contraction order finding for hierarchies.
+    #[inline]
     pub(crate) fn set_legs(&mut self, legs: Vec<EdgeIndex>) {
         self.legs = legs;
     }
@@ -101,6 +102,7 @@ impl Tensor {
     ///    assert_eq!(tensor.legs(), ref_tensor.legs());
     /// }
     /// ```
+    #[inline]
     pub fn tensors(&self) -> &Vec<Self> {
         &self.tensors
     }
@@ -169,6 +171,7 @@ impl Tensor {
     /// ref_tensor.insert_bond_dims(&bond_dims);
     /// assert_eq!(tn.tensor(0).legs(), ref_tensor.legs());
     /// ```
+    #[inline]
     pub fn tensor(&self, i: usize) -> &Self {
         &self.tensors[i]
     }
@@ -189,6 +192,7 @@ impl Tensor {
     /// let tn = create_tensor_network(vec![v1, v2], &bond_dims, None);
     /// assert_eq!(*tn.bond_dims(), bond_dims);
     /// ```
+    #[inline]
     pub fn bond_dims(&self) -> RwLockReadGuard<FxHashMap<EdgeIndex, u64>> {
         self.bond_dims.read().unwrap()
     }
@@ -240,6 +244,7 @@ impl Tensor {
     /// (2, vec![Vertex::Closed(1), Vertex::Open])
     /// ]));
     /// ```
+    #[inline]
     pub fn edges(&self) -> &FxHashMap<EdgeIndex, Vec<Vertex>> {
         &self.edges
     }
@@ -259,6 +264,7 @@ impl Tensor {
     ///
     /// assert_eq!(tensor.shape(), vec![17, 19, 8]);
     /// ```
+    #[inline]
     pub fn shape(&self) -> Vec<u64> {
         let bond_dims = self.bond_dims();
         self.legs.iter().map(|e| bond_dims[e]).collect()
@@ -268,11 +274,12 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let legs = vec![1, 2, 3];
     /// let tensor = Tensor::new(legs);
     /// assert_eq!(tensor.dims(), 3);
     /// ```
+    #[inline]
     pub fn dims(&self) -> usize {
         self.legs.len()
     }
@@ -281,9 +288,9 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// use tensorcontraction::tensornetwork::tensordata::TensorData;
-    /// use rustc_hash::FxHashMap;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
+    /// # use rustc_hash::FxHashMap;
     /// let mut tensor = Tensor::new(vec![1, 2, 3]);
     /// let bond_dims = FxHashMap::from_iter([(1, 5),
     /// (2, 15),
@@ -291,6 +298,7 @@ impl Tensor {
     /// tensor.insert_bond_dims(&bond_dims);
     /// assert_eq!(tensor.size(), 600);
     /// ```
+    #[inline]
     pub fn size(&self) -> u64 {
         let bond_dims = self.bond_dims();
         self.legs.iter().map(|e| bond_dims[e]).product()
@@ -304,11 +312,12 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let tensor = Tensor::new(vec![1, 2, 3]);
     /// assert_eq!(tensor.contains_leg(2), true);
     /// assert_eq!(tensor.contains_leg(4), false);
     /// ```
+    #[inline]
     pub fn contains_leg(&self, leg_id: EdgeIndex) -> bool {
         self.legs.contains(&leg_id)
     }
@@ -317,10 +326,11 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let tensor = Tensor::new(vec![1, 2, 3]);
     /// assert_eq!(tensor.is_leaf(), true);
     /// ```
+    #[inline]
     pub fn is_leaf(&self) -> bool {
         self.tensors.is_empty()
     }
@@ -329,12 +339,28 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// let mut tensor = Tensor::new(vec![1, 2, 3]);
     /// assert_eq!(tensor.is_composite(), false);
     /// ```
+    #[inline]
     pub fn is_composite(&self) -> bool {
         !self.tensors.is_empty()
+    }
+
+    /// Returns true if Tensor is empty. This means, it doesn't have any subtensors,
+    /// has no legs and is doesn't have any data (e.g., is not a scalar).
+    ///
+    /// # Examples
+    /// ```
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// let tensor = Tensor::default();
+    /// assert_eq!(tensor.is_empty(), true);
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.tensors.is_empty()
+            && self.legs.is_empty()
+            && matches!(*self.tensor_data(), TensorData::Uncontracted)
     }
 
     /// Comparison of two Tensors, returns true if Tensor objects are equivalent up to `epsilon` precision.
@@ -372,7 +398,7 @@ impl Tensor {
     /// * `bond_dims` - `FxHashMap<usize, u64>` mapping edge id to bond dimension
     pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&FxHashMap<usize, u64>>) {
         // In the case of pushing to an empty tensor, avoid unnecessary hierarchies
-        if self.tensors().is_empty() && self.legs().is_empty() {
+        if self.is_empty() {
             let Self {
                 legs,
                 tensors: _,
@@ -398,7 +424,7 @@ impl Tensor {
             return;
         }
 
-        if self.is_leaf() && !self.legs.is_empty() {
+        if self.is_leaf() {
             let old_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
@@ -432,7 +458,9 @@ impl Tensor {
         external_hyperedge: Option<&FxHashMap<EdgeIndex, usize>>,
     ) {
         // Case that tensor is not empty but has no subtensors.
-        if self.is_leaf() && !self.legs().is_empty() {
+        if self.is_leaf()
+            && (!self.legs().is_empty() || !matches!(*self.tensor_data(), TensorData::Uncontracted))
+        {
             let old_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
@@ -515,6 +543,7 @@ impl Tensor {
     }
 
     /// Getter for tensor data.
+    #[inline]
     pub fn tensor_data(&self) -> Ref<TensorData> {
         self.tensordata.borrow()
     }
@@ -530,6 +559,7 @@ impl Tensor {
     /// let tensordata = TensorData::Gate((String::from("X"), vec![]));
     /// tensor.set_tensor_data(tensordata);
     /// ```
+    #[inline]
     pub fn set_tensor_data(&mut self, tensordata: TensorData) {
         assert!(self.is_leaf(), "Cannot add data to composite tensor");
         *self.tensordata.get_mut() = tensordata;
@@ -650,17 +680,9 @@ impl Tensor {
     }
 }
 
-/// Implementation of indexing for Tensor.
-impl Index<usize> for Tensor {
-    type Output = usize;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.legs[index]
-    }
-}
-
 impl BitOr for &Tensor {
     type Output = Tensor;
+    #[inline]
     fn bitor(self, rhs: &Tensor) -> Tensor {
         self.union(rhs)
     }
@@ -668,6 +690,7 @@ impl BitOr for &Tensor {
 
 impl BitAnd for &Tensor {
     type Output = Tensor;
+    #[inline]
     fn bitand(self, rhs: &Tensor) -> Tensor {
         self.intersection(rhs)
     }
@@ -675,6 +698,7 @@ impl BitAnd for &Tensor {
 
 impl BitXor for &Tensor {
     type Output = Tensor;
+    #[inline]
     fn bitxor(self, rhs: &Tensor) -> Tensor {
         self.symmetric_difference(rhs)
     }
@@ -682,6 +706,7 @@ impl BitXor for &Tensor {
 
 impl Sub for &Tensor {
     type Output = Tensor;
+    #[inline]
     fn sub(self, rhs: &Tensor) -> Tensor {
         self.difference(rhs)
     }

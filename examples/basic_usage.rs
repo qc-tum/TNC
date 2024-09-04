@@ -65,7 +65,6 @@ fn main() {
 
         let partitioned_tn = if size > 1 {
             let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
-            debug!(tn_size = partitioning.len(); "TN size");
             debug!(partitioning:serde; "Partitioning created");
             partition_tensor_network(&r_tn, &partitioning)
         } else {
@@ -80,7 +79,7 @@ fn main() {
         let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
         let dendogram_entries =
             to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
-        to_pdf("from_path", &dendogram_entries);
+        to_pdf("from_path", &dendogram_entries, None);
         (partitioned_tn, path)
     } else {
         Default::default()
@@ -90,7 +89,6 @@ fn main() {
     let local_tn = if size > 1 {
         let (mut local_tn, local_path) =
             scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
-        debug!(rank; "Local tn and path");
         contract_tensor_network(&mut local_tn, &local_path);
         let path = if rank == 0 {
             let communication_path = path

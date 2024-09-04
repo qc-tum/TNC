@@ -26,7 +26,10 @@ pub fn find_partitioning(
     partitioning_strategy: PartitioningStrategy,
     min: bool,
 ) -> Vec<usize> {
-    assert!(k > 1, "Partitioning only valid for more than one process");
+    if k == 1 {
+        return vec![0; tn.tensors().len()];
+    }
+
     let num_vertices = tn.tensors().len() as u32;
     let mut context = KaHyParContext::new();
     partitioning_strategy.apply(&mut context);

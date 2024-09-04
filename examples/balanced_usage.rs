@@ -86,10 +86,10 @@ fn main() {
 
     let unopt_path = if rank == 0 {
         let mut opt = Greedy::new(&unopt_partitioned_tn, CostType::Flops);
-
         opt.optimize_path();
         let unopt_path = opt.get_best_replace_path();
         debug!(unopt_path:serde; "Found contraction path");
+
         let contraction_tree =
             ContractionTree::from_contraction_path(&unopt_partitioned_tn, &unopt_path);
         let dendogram_entries = to_dendogram_format(
@@ -100,6 +100,7 @@ fn main() {
         to_pdf(
             &format!("{LOGGING_FOLDER}/path_Unoptimized"),
             &dendogram_entries,
+            None,
         );
         unopt_path
     } else {

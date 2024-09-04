@@ -8,7 +8,10 @@ use rustc_hash::FxHashMap;
 
 use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
-use super::ContractionTree;
+use super::{
+    import::{CommunicationEvent, Direction},
+    ContractionTree,
+};
 
 const COLORS: [&str; 19] = [
     "black",
@@ -203,7 +206,12 @@ pub fn to_dendogram_format(
     dendogram_entries
 }
 
-pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
+pub fn to_pdf(
+    pdf_name: &str,
+    dendogram_entries: &[DendogramEntry],
+    communication_logging: Option<FxHashMap<CommunicationEvent, (f64, f64)>>,
+) {
+    let communication_logging = communication_logging.unwrap_or_default();
     let mut tikz_picture = String::from(
         r#"% tikzpic.tex
 \documentclass[crop,tikz]{standalone}% 'crop' is the default for v1.0, before it was 'preview'
@@ -228,6 +236,29 @@ pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
         if let Some((node_1_id, node_2_id)) = children {
             let (x1, _) = id_position[node_1_id];
             let (x2, _) = id_position[node_2_id];
+            let recv_timestamps =
+                communication_logging.get(&(Direction::Recv, *node_1_id, *node_2_id));
+            let send_timestamps =
+                communication_logging.get(&(Direction::Send, *node_1_id, *node_2_id));
+
+            if let (Some(&(send_start, send_end)), Some(&(recv_start, recv_end))) =
+                (send_timestamps, recv_timestamps)
+            {
+                tikz_picture.push_str(&format!(
+                r#"    \path[draw, color=magenta, line width=0.5mm] ({x1}, {recv_start}) -- ({x1}, {recv_end});
+    "#,
+                    ));
+                tikz_picture.push_str(&format!(
+                r#"    \path[draw, color=magenta, line width=0.5mm] ({x2}, {send_start}) -- ({x2}, {send_end});
+    "#,
+                        ));
+                let latest_start = recv_start.max(send_start);
+                tikz_picture.push_str(&format!(
+                r#"    \path[draw, color=orange, line width=1mm] ({x1}, {latest_start}) -- ({x1}, {recv_end});
+    "#,         
+    ));
+            }
+
             tikz_picture.push_str(&format!(
                 r#"    \node[circle, scale=0.3, fill={color}, label={{[shift={{(-0.4,-0.1)}}]{cost}}}, label=below:{{{id}}}] at ({x}, {y}) ({id}) {{}};
     "#,
