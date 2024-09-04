@@ -2,6 +2,7 @@ use flexi_logger::writers::FileLogWriter;
 use flexi_logger::{json_format, Duplicate, FileSpec, Logger, LoggerHandle};
 use itertools::iproduct;
 use log::{debug, info, LevelFilter};
+use mpi::topology::{Process, SimpleCommunicator};
 use mpi::traits::Communicator;
 use mpi::Rank;
 use rand::rngs::StdRng;
@@ -26,6 +27,7 @@ use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::tensornetwork::tensor::Tensor;
+use tensorcontraction::types::ContractionIndex;
 
 static LOGGING_FOLDER: &str = "logs/run";
 /// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
@@ -179,9 +181,9 @@ fn bench_run(
     logger: &LoggerHandle,
     name: &str,
     mut partitioned_tn: Tensor,
-    path: &[tensorcontraction::types::ContractionIndex],
-    world: &mpi::topology::SimpleCommunicator,
-    root: mpi::topology::Process<'_>,
+    path: &[ContractionIndex],
+    world: &SimpleCommunicator,
+    root: Process,
 ) {
     let rank = world.rank();
     let size = world.size();
