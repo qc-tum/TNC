@@ -142,9 +142,7 @@ fn main() {
                     balancing_scheme,
                 },
                 Some(DendogramSettings {
-                    output_file: format!(
-                        "output/{balancing_scheme:?}_{communication_scheme:?}_trial"
-                    ),
+                    output_file: format!("output/{name}_trial"),
                     cost_function: contract_cost_tensors,
                 }),
             );
