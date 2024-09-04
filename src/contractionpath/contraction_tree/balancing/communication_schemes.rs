@@ -11,6 +11,7 @@ use crate::tensornetwork::partitioning::communication_partitioning;
 use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 
 use std::cmp::minmax;
+use std::sync::RwLockReadGuard;
 
 use crate::types::ContractionIndex;
 
@@ -26,10 +27,7 @@ pub enum CommunicationScheme {
 
 pub(super) fn greedy_communication_scheme(
     children_tensors: &[Tensor],
-    bond_dims: &std::sync::RwLockReadGuard<
-        '_,
-        std::collections::HashMap<usize, u64, rustc_hash::FxBuildHasher>,
-    >,
+    bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
 ) -> (f64, Vec<ContractionIndex>) {
     let mut communication_tensors = Tensor::default();
     communication_tensors.push_tensors(children_tensors.to_vec(), Some(bond_dims), None);
@@ -50,10 +48,7 @@ pub(super) fn greedy_communication_scheme(
 
 pub(super) fn bipartition_communication_scheme(
     children_tensors: &[Tensor],
-    bond_dims: &std::sync::RwLockReadGuard<
-        '_,
-        std::collections::HashMap<usize, u64, rustc_hash::FxBuildHasher>,
-    >,
+    bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
 ) -> (f64, Vec<ContractionIndex>) {
     let children_tensors = children_tensors.iter().cloned().enumerate().collect_vec();
     let (final_op_cost, final_contraction) = tensor_bipartition(&children_tensors, bond_dims);

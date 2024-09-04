@@ -1,3 +1,5 @@
+use std::sync::RwLockReadGuard;
+
 use balancing_schemes::BalancingScheme;
 use communication_schemes::{
     bipartition_communication_scheme, greedy_communication_scheme, CommunicationScheme,
@@ -154,10 +156,7 @@ pub(super) fn communicate_partitions(
     contraction_tree: &ContractionTree,
     tensor: &Tensor,
     communication_scheme: &CommunicationScheme,
-    bond_dims: &std::sync::RwLockReadGuard<
-        '_,
-        std::collections::HashMap<usize, u64, rustc_hash::FxBuildHasher>,
-    >,
+    bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
 ) -> (f64, Vec<ContractionIndex>) {
     *children_tensors = partition_costs
         .iter()
