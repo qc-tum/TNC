@@ -160,24 +160,13 @@ fn main() {
             Default::default()
         };
 
-        bench_run(
-            &logger,
-            rank,
-            size,
-            &name,
-            partitioned_tn,
-            &path,
-            &world,
-            root,
-        );
+        bench_run(&logger, &name, partitioned_tn, &path, &world, root);
     }
 
     let name = "Unoptimized";
 
     bench_run(
         &logger,
-        rank,
-        size,
         name,
         unopt_partitioned_tn,
         &unopt_path,
@@ -188,14 +177,14 @@ fn main() {
 
 fn bench_run(
     logger: &LoggerHandle,
-    rank: i32,
-    size: i32,
     name: &str,
     mut partitioned_tn: Tensor,
     path: &[tensorcontraction::types::ContractionIndex],
     world: &mpi::topology::SimpleCommunicator,
     root: mpi::topology::Process<'_>,
 ) {
+    let rank = world.rank();
+    let size = world.size();
     logger.flush();
     logger
         .reset_flw(
