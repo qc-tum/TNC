@@ -7,8 +7,8 @@ use static_init::dynamic;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
 use tensorcontraction::mpi::communication::{
-    broadcast_path, intermediate_reduce_tensor_network, naive_reduce_tensor_network,
-    scatter_tensor_network,
+    broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
+    naive_reduce_tensor_network, scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
@@ -154,12 +154,19 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
                     scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
                 contract_tensor_network(&mut local_tn, &local_path);
 
-                let path = if rank == 0 {
-                    broadcast_path(&path[(size as usize)..path.len()], &root, &world)
+                let mut communication_path = if rank == 0 {
+                    extract_communication_path(&path)
                 } else {
-                    broadcast_path(&[], &root, &world)
+                    Default::default()
                 };
-                intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
+                broadcast_path(&mut communication_path, &root, &world);
+
+                intermediate_reduce_tensor_network(
+                    &mut local_tn,
+                    &communication_path,
+                    rank,
+                    &world,
+                );
                 local_tn
             });
         });

@@ -68,14 +68,22 @@ where
     root.broadcast_into(data);
 }
 
+/// Extracts the communication path from the total contraction path.
+#[must_use]
+pub fn extract_communication_path(path: &[ContractionIndex]) -> Vec<ContractionIndex> {
+    path.iter()
+        .filter(|a| matches!(a, ContractionIndex::Pair(_, _)))
+        .cloned()
+        .collect()
+}
+
 /// Broadcast a contraction index `path` from `root` to all processes in `world`. For
 /// the receivers, `path` can just be an empty slice.
-#[must_use]
 pub fn broadcast_path(
-    path: &[ContractionIndex],
+    path: &mut Vec<ContractionIndex>,
     root: &Process,
     world: &SimpleCommunicator,
-) -> Vec<ContractionIndex> {
+) {
     debug!(root=root.rank(), rank=world.rank(), path:serde; "Broadcasting path");
 
     // Serialize path
@@ -89,14 +97,11 @@ pub fn broadcast_path(
     broadcast_vec(&mut data, root, world);
 
     // Deserialize path
-    let path = if world.rank() == root.rank() {
-        path.to_vec()
-    } else {
-        deserialize(&data)
-    };
+    if world.rank() != root.rank() {
+        *path = deserialize(&data);
+    }
 
     debug!(path:serde; "Received broadcasted path");
-    path
 }
 
 /// Sends the leaf tensor `tensor` to `receiver` via MPI.
@@ -385,12 +390,12 @@ mod tests {
         ]
         .to_vec();
 
-        let contraction_indices = if rank == 0 {
-            let contraction_indices = &ref_contraction_indices;
-            broadcast_path(contraction_indices, &root_process, &world)
+        let mut contraction_indices = if rank == 0 {
+            ref_contraction_indices.clone()
         } else {
-            broadcast_path(&[], &root_process, &world)
+            Default::default()
         };
+        broadcast_path(&mut contraction_indices, &root_process, &world);
 
         assert_eq!(contraction_indices, ref_contraction_indices);
     }

@@ -19,7 +19,8 @@ use tensorcontraction::contractionpath::contraction_tree::export::{
 use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
-    broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
+    broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
+    scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
@@ -205,12 +206,14 @@ fn bench_run(
             scatter_tensor_network(&partitioned_tn, path, rank, size, world);
         contract_tensor_network(&mut local_tn, &local_path);
 
-        let communication_path = if rank == 0 {
-            broadcast_path(&path[(size as usize)..path.len()], &root, world)
+        let mut communication_path = if rank == 0 {
+            extract_communication_path(&path)
         } else {
-            broadcast_path(&[], &root, world)
+            Default::default()
         };
-        intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, world);
+        broadcast_path(&mut communication_path, &root, &world);
+
+        intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world);
         local_tn
     } else {
         contract_tensor_network(&mut partitioned_tn, path);
