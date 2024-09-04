@@ -202,7 +202,7 @@ fn bench_run(
         .unwrap();
 
     // Distribute tensor network and contract
-    let _local_tn = if size > 1 {
+    let local_tn = if size > 1 {
         let (mut local_tn, local_path) =
             scatter_tensor_network(&partitioned_tn, path, rank, size, world);
         contract_tensor_network(&mut local_tn, &local_path);
@@ -218,4 +218,6 @@ fn bench_run(
         contract_tensor_network(&mut partitioned_tn, path);
         partitioned_tn
     };
+
+    std::hint::black_box(local_tn);
 }
