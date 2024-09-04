@@ -86,12 +86,14 @@ fn main() {
             scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
         contract_tensor_network(&mut local_tn, &local_path);
 
-        let path = if rank == 0 {
-            broadcast_path(&extract_communication_path(&path), &root, &world)
+        let mut communication_path = if rank == 0 {
+            extract_communication_path(&path)
         } else {
-            broadcast_path(&[], &root, &world)
+            Default::default()
         };
-        intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
+        broadcast_path(&mut communication_path, &root, &world);
+
+        intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world);
         local_tn
     } else {
         contract_tensor_network(&mut partitioned_tn, &path);
