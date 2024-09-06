@@ -74,9 +74,12 @@ pub(crate) fn tensor_bipartition_recursive(
         );
     }
     if children_tensor.len() == 2 {
-        let t1 = children_tensor[0].0;
-        let t2 = children_tensor[1].0;
-        let [t1, t2] = minmax(t1, t2);
+        // Always ensure that the larger tensor size is on the left.
+        let (t1, t2) = if children_tensor[1].1.size() > children_tensor[0].1.size() {
+            (children_tensor[1].0, children_tensor[0].0)
+        } else {
+            (children_tensor[0].0, children_tensor[1].0)
+        };
         let tensor = &children_tensor[0].1 ^ &children_tensor[1].1;
         let contraction = &children_tensor[0].1 | &children_tensor[1].1;
         return (t1, contraction.size() as f64, tensor, vec![pair!(t1, t2)]);
@@ -106,7 +109,12 @@ pub(crate) fn tensor_bipartition_recursive(
     let tensor = &t1 ^ &t2;
 
     contraction_1.append(&mut contraction_2);
-    let [id_1, id_2] = minmax(id_1, id_2);
+    let (id_1, id_2) = if t2.size() > t1.size() {
+        (id_2, id_1)
+    } else {
+        (id_1, id_2)
+    };
+
     contraction_1.push(pair!(id_1, id_2));
     (id_1, cost, tensor, contraction_1)
 }
