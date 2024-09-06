@@ -113,7 +113,6 @@ pub fn balance_partitions_iter(
 
         // Ensures that children tensors are mapped to their respective partition costs
         let (final_op_cost, final_contraction) = communicate_partitions(
-            &mut children_tensors,
             &partition_costs,
             &contraction_tree,
             tensor,
@@ -148,22 +147,21 @@ pub fn balance_partitions_iter(
 }
 
 pub(super) fn communicate_partitions(
-    children_tensors: &mut Vec<Tensor>,
     partition_costs: &[(usize, f64)],
     contraction_tree: &ContractionTree,
     tensor: &Tensor,
     communication_scheme: &CommunicationScheme,
     bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
 ) -> (f64, Vec<ContractionIndex>) {
-    *children_tensors = partition_costs
+    let children_tensors = partition_costs
         .iter()
         .map(|(tensor_id, _)| contraction_tree.tensor(*tensor_id, tensor))
-        .collect();
+        .collect_vec();
 
     let (final_op_cost, final_contraction) = match *communication_scheme {
-        CommunicationScheme::Greedy => greedy_communication_scheme(&*children_tensors, bond_dims),
+        CommunicationScheme::Greedy => greedy_communication_scheme(&children_tensors, bond_dims),
         CommunicationScheme::Bipartition => {
-            bipartition_communication_scheme(&*children_tensors, bond_dims)
+            bipartition_communication_scheme(&children_tensors, bond_dims)
         }
     };
     (final_op_cost, final_contraction)
