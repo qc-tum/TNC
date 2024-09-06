@@ -145,7 +145,7 @@ pub(crate) fn best_tensor_balancing(
 }
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
-/// Chosen tensor maximizes the greedy_cost_function, which is typically memory reduction.
+/// Then identifies the tensor with the largest memory reduction when passed to the fastest subtree. Both slowest and fastest subtrees are updated.
 pub(crate) fn best_tensors_balancing(
     partition_costs: &[(usize, f64)],
     contraction_tree: &mut ContractionTree,
