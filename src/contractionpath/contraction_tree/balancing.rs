@@ -212,7 +212,7 @@ pub(super) fn balance_partitions(
             tn,
             rebalance_depth,
         ),
-        _ => Default::default(),
+        _ => panic!("Balancing Scheme not implemented"),
     };
 
     let mut updated_tn = Tensor::default();
