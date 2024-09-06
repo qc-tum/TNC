@@ -68,7 +68,7 @@ pub fn balance_partitions_iter(
 
     let children = &contraction_tree.partitions()[&rebalance_depth];
 
-    let mut children_tensors = children
+    let children_tensors = children
         .iter()
         .map(|e| contraction_tree.tensor(*e, tensor))
         .collect_vec();
