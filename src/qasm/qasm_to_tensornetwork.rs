@@ -5,10 +5,12 @@ use super::{
     include_resolver::expand_includes, parser::parse, tn_creator::TensorNetworkCreator,
 };
 
-/// Creates a tensor network from QASM2 code. All gates are inlined up to the known
-/// gates defined in [`crate::gates`]. Since all qubits are initialized to zero, this
-/// method adds a tensor for all initial states. The tensor network is not closed,
-/// i.e. for each wire in the circuit there is an unbounded leg.
+/// Creates a tensor network from QASM2 code.
+///
+/// All gates are inlined up to the known gates defined in [`crate::gates`]. Since
+/// all qubits are initialized to zero, this method adds a tensor for all initial
+/// states. The tensor network is not closed, i.e. for each wire in the circuit there
+/// is an unbounded leg.
 pub fn create_tensornetwork<S>(code: S) -> Tensor
 where
     S: Into<String>,
