@@ -19,7 +19,7 @@ impl BondDim {
 /// same.
 #[derive(Debug, Clone, PartialEq, Eq, Equivalence)]
 #[repr(transparent)]
-pub struct MessageBinaryBlob([u8; 128]);
+pub struct MessageBinaryBlob([u8; 48]);
 
 #[cfg(test)]
 mod tests {
