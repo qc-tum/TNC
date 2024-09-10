@@ -177,13 +177,13 @@ fn main() {
         contract_tensor_network(&mut local_tn, &local_path);
 
         let mut communication_path = if rank == 0 {
-            extract_communication_path(&path)
+            extract_communication_path(&unopt_path)
         } else {
             Default::default()
         };
         broadcast_path(&mut communication_path, &root, &world);
 
-        intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
+        intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world);
         local_tn
     } else {
         contract_tensor_network(&mut unopt_partitioned_tn, &unopt_path);
