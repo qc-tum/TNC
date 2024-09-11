@@ -115,7 +115,7 @@ pub fn balance_partitions_iter(
         let (final_op_cost, final_contraction) = communicate_partitions(
             &partition_costs,
             &contraction_tree,
-            tensor,
+            &new_tn,
             &communication_scheme,
         );
 
