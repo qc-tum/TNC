@@ -7,6 +7,7 @@ use mpi::Rank;
 use rustc_hash::FxHashSet;
 
 use super::mpi_types::BondDim;
+use crate::mpi::mpi_types::MessageBinaryBlob;
 use crate::tensornetwork::contraction::contract_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
@@ -35,6 +36,14 @@ where
     S: serde::Serialize,
 {
     bincode::serialize_into(writer, value).unwrap();
+}
+
+/// Returns the serialized size of the data (i.e., the number of bytes).
+fn serialized_size<S>(value: &S) -> u64
+where
+    S: serde::Serialize,
+{
+    bincode::serialized_size(value).unwrap()
 }
 
 /// Deserializes data from a byte array.
@@ -116,26 +125,57 @@ pub fn broadcast_path(
 fn send_leaf_tensor(tensor: &Tensor, receiver: Rank, world: &SimpleCommunicator) {
     assert!(tensor.is_leaf());
 
-    // Serialize legs and data into a buffer
+    // MPI uses an i32 to store the number of elements in a buffer. This means, we
+    // can send at most `i32::MAX * sizeof(datatype)`. Hence, if we only use byte
+    // arrays, we can send at most `i32::MAX` bytes (~2GB) which is not enough.
+    // Instead, we interpret the byte arrays as arrays of a artifical, larger data
+    // type, which allows us to send more bytes.
+
     let legs = tensor.legs();
     let tensor_data = tensor.tensor_data();
-    let mut send_buffer = Vec::new();
-    serialize_into(&mut send_buffer, legs);
-    serialize_into(&mut send_buffer, &*tensor_data);
+
+    // Get the total serialized size
+    let size = serialized_size(&legs) + serialized_size(&*tensor_data);
+    let size: usize = size.try_into().unwrap();
+
+    // Allocate a buffer of blobs
+    let element_size = std::mem::size_of::<MessageBinaryBlob>();
+    let elements = size.div_ceil(element_size);
+    let mut buffer = Vec::<MessageBinaryBlob>::with_capacity(elements);
+
+    // Get a bytes view of the buffer
+    let mut write_view = unsafe {
+        std::slice::from_raw_parts_mut(
+            buffer.as_mut_ptr() as *mut u8,
+            buffer.capacity() * element_size,
+        )
+    };
+
+    // Serialize legs and data into the buffer
+    serialize_into(&mut write_view, legs);
+    serialize_into(&mut write_view, &*tensor_data);
+    unsafe { buffer.set_len(buffer.capacity()) };
 
     // Send the buffer
-    world.process_at_rank(receiver).send(&send_buffer);
+    world.process_at_rank(receiver).send(&buffer);
 }
 
 /// Receives a leaf tensor from `sender` via MPI.
 fn receive_leaf_tensor(sender: Rank, world: &SimpleCommunicator) -> Tensor {
     // Receive the buffer
-    let (buffer, _status) = world.process_at_rank(sender).receive_vec::<u8>();
+    let (buffer, _status) = world
+        .process_at_rank(sender)
+        .receive_vec::<MessageBinaryBlob>();
+
+    // Get a bytes view of the buffer
+    let element_size = std::mem::size_of::<MessageBinaryBlob>();
+    let mut read_buffer = unsafe {
+        std::slice::from_raw_parts(buffer.as_ptr() as *const u8, buffer.len() * element_size)
+    };
 
     // Deserialize legs and data
-    let mut buffer = &buffer[..];
-    let legs: Vec<EdgeIndex> = deserialize_from(&mut buffer);
-    let tensor_data: TensorData = deserialize_from(&mut buffer);
+    let legs: Vec<EdgeIndex> = deserialize_from(&mut read_buffer);
+    let tensor_data: TensorData = deserialize_from(&mut read_buffer);
 
     // Create tensor
     let mut new_tensor = Tensor::new(legs);

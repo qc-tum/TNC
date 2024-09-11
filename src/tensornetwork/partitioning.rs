@@ -10,6 +10,7 @@ use kahypar_sys::{partition, KaHyParContext};
 pub mod partition_config;
 
 /// Partitions input tensor network using `KaHyPar` library.
+///
 /// Returns a `Vec<usize>` of length equal to the number of input tensors storing final partitioning results.
 /// The usize associated with each Tensor indicates its partionining.
 ///

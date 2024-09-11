@@ -312,6 +312,7 @@ fn peps_final(
 }
 
 /// Generates the structure for a PEPS with `length` x `depth` dimensions and with `layers` layers.
+///
 /// The `EdgeIndex` in the PEPS `bond_dims` for each layer is ordered as `physical bonds to previous layer,
 /// physical bonds to next layer, vertical virtual bonds, horizontal virtual bonds`.
 ///
