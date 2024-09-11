@@ -153,9 +153,10 @@ pub(super) fn communicate_partitions(
     communication_scheme: &CommunicationScheme,
     bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
 ) -> (f64, Vec<ContractionIndex>) {
-    let children_tensors = partition_costs
+    let children_tensors = tensor
+        .tensors()
         .iter()
-        .map(|(tensor_id, _)| contraction_tree.tensor(*tensor_id, tensor))
+        .map(|t| Tensor::new(t.external_edges()))
         .collect_vec();
 
     let (final_op_cost, final_contraction) = match *communication_scheme {
