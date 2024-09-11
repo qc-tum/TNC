@@ -2,8 +2,8 @@ use mpi::traits::Equivalence;
 
 #[derive(Default, Debug, Clone, Equivalence, PartialEq)]
 pub(super) struct BondDim {
-    pub(super) bond_id: usize,
-    pub(super) bond_size: u64,
+    pub bond_id: usize,
+    pub bond_size: u64,
 }
 
 impl BondDim {
@@ -11,6 +11,15 @@ impl BondDim {
         Self { bond_id, bond_size }
     }
 }
+
+/// An artificial data type to send more data in a single MPI message.
+///
+/// MPI messages can only contain [`i32::MAX`] elements. To send more data, we can
+/// increase the size of an element while keeping the total number of elements the
+/// same.
+#[derive(Debug, Clone, PartialEq, Eq, Equivalence)]
+#[repr(transparent)]
+pub struct MessageBinaryBlob([u8; 48]);
 
 #[cfg(test)]
 mod tests {
