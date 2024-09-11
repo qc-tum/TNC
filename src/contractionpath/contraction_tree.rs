@@ -617,11 +617,11 @@ pub fn balance_partitions_iter(
         partition_costs =
             calculate_partition_costs(&contraction_tree, rebalance_depth, tensor, true);
 
-        // Ensures that children tensors are mapped to their respective partition costs
-        children_tensors = partition_costs
+        children_tensors = new_tn
+            .tensors()
             .iter()
-            .map(|(tensor_id, _)| contraction_tree.tensor(*tensor_id, tensor))
-            .collect();
+            .map(|t| Tensor::new(t.external_edges()))
+            .collect_vec();
 
         let (final_op_cost, final_contraction) = match communication_scheme {
             CommunicationScheme::Greedy => {
