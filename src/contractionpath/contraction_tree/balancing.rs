@@ -117,7 +117,6 @@ pub fn balance_partitions_iter(
             &contraction_tree,
             tensor,
             &communication_scheme,
-            &bond_dims,
         );
 
         path.extend(final_contraction);
@@ -151,8 +150,8 @@ pub(super) fn communicate_partitions(
     contraction_tree: &ContractionTree,
     tensor: &Tensor,
     communication_scheme: &CommunicationScheme,
-    bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
 ) -> (f64, Vec<ContractionIndex>) {
+    let bond_dims = tensor.bond_dims();
     let children_tensors = tensor
         .tensors()
         .iter()
@@ -160,9 +159,9 @@ pub(super) fn communicate_partitions(
         .collect_vec();
 
     let (final_op_cost, final_contraction) = match *communication_scheme {
-        CommunicationScheme::Greedy => greedy_communication_scheme(&children_tensors, bond_dims),
+        CommunicationScheme::Greedy => greedy_communication_scheme(&children_tensors, &bond_dims),
         CommunicationScheme::Bipartition => {
-            bipartition_communication_scheme(&children_tensors, bond_dims)
+            bipartition_communication_scheme(&children_tensors, &bond_dims)
         }
     };
     (final_op_cost, final_contraction)
