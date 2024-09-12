@@ -13,8 +13,8 @@ use super::{
     ContractionTree,
 };
 
-const COLORS: [&str; 19] = [
-    "black",
+pub(super) const COMMUNICATION_COLOR: &str = "black";
+pub(super) const COLORS: [&str; 18] = [
     "blue",
     "brown",
     "cyan",
@@ -70,17 +70,14 @@ pub fn to_dendogram_format(
 
     let mut id_to_partition = FxHashMap::default();
     let mut partition_color = FxHashMap::default();
-    let mut colors = COLORS.iter();
-    let communication_color = String::from(*colors.next().unwrap());
+    let communication_color = String::from(COMMUNICATION_COLOR);
     let mut intermediate_tensors = FxHashMap::default();
 
     let mut dendogram_entries = Vec::new();
     let mut tree_weights = FxHashMap::default();
 
-    for (i, partition) in partitions.iter().enumerate() {
-        partition_color
-            .try_insert(i, String::from(*colors.next().unwrap()))
-            .unwrap();
+    for (i, (partition, color)) in partitions.iter().zip(COLORS.iter().cycle()).enumerate() {
+        partition_color.try_insert(i, String::from(*color)).unwrap();
         for &leaf_id in partition {
             id_to_partition.try_insert(leaf_id, i).unwrap();
             tree_weights.try_insert(leaf_id, 0f64).unwrap();

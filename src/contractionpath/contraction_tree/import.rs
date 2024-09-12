@@ -13,29 +13,10 @@ use crate::{
     types::ContractionIndex,
 };
 
-use super::{export::DendogramEntry, ContractionTree};
-
-const COLORS: [&str; 19] = [
-    "black",
-    "blue",
-    "brown",
-    "cyan",
-    "green",
-    "lightgray",
-    "lime",
-    "magenta",
-    "olive",
-    "orange",
-    "pink",
-    "purple",
-    "red",
-    "teal",
-    "violet",
-    "white",
-    "yellow",
-    "darkgray",
-    "gray",
-];
+use super::{
+    export::{DendogramEntry, COLORS, COMMUNICATION_COLOR},
+    ContractionTree,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
@@ -165,7 +146,7 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
     let mut tensor_color = FxHashMap::default();
     let mut logging_start = DateTime::fixed_offset(&Utc::now());
 
-    for rank in 0..ranks {
+    for (rank, color) in (0..ranks).zip(COLORS.iter().cycle()) {
         let LogToSubtreeResult {
             nodes,
             mut local_communication_path,
@@ -178,9 +159,8 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
             rank,
         );
         logging_start = logging_start.min(contraction_start);
-        let color = COLORS[rank + 1];
         nodes.keys().for_each(|&key| {
-            tensor_color.insert(key, String::from(color));
+            tensor_color.insert(key, String::from(*color));
         });
         communication_logging.extend(communication_timestamps);
         remaining_nodes.extend(nodes);
@@ -265,7 +245,7 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
             .try_insert(tensor_count, cost)
             .unwrap_or_else(|_| panic!("SSA {tensor_count} already in tensor cost dict"));
         tensor_color
-            .try_insert(tensor_count, String::from(COLORS[0]))
+            .try_insert(tensor_count, String::from(COMMUNICATION_COLOR))
             .unwrap_or_else(|_| panic!("Tensor count {tensor_count} already in dict"));
         partition_root_nodes[*rank1] = Rc::clone(&new_node_ref);
         tensor_count += 1;
