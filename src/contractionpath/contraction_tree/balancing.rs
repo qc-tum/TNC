@@ -1,5 +1,3 @@
-use std::sync::RwLockReadGuard;
-
 use balancing_schemes::BalancingScheme;
 use communication_schemes::{
     bipartition_communication_scheme, greedy_communication_scheme, CommunicationScheme,

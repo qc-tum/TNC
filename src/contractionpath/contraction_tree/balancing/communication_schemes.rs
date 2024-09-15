@@ -10,7 +10,6 @@ use crate::pair;
 use crate::tensornetwork::partitioning::communication_partitioning;
 use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 
-use std::cmp::minmax;
 use std::sync::RwLockReadGuard;
 
 use crate::types::ContractionIndex;
