@@ -1,13 +1,17 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
-use tensorcontraction::contractionpath::contraction_tree::{
-    balance_partitions_iter, BalanceSettings, DendogramSettings,
+use tensorcontraction::contractionpath::contraction_tree::balancing::balancing_schemes::BalancingScheme;
+use tensorcontraction::contractionpath::contraction_tree::balancing::communication_schemes::CommunicationScheme;
+use tensorcontraction::contractionpath::contraction_tree::balancing::{
+    balance_partitions_iter, BalanceSettings,
 };
+
+use tensorcontraction::contractionpath::contraction_tree::export::DendogramSettings;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
     broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
-    scatter_tensor_network, CommunicationScheme,
+    scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
@@ -69,6 +73,7 @@ fn main() {
                 iterations: 10,
                 greedy_cost_function: greedy_cost_fn,
                 communication_scheme: CommunicationScheme::Greedy,
+                balancing_scheme: BalancingScheme::BestWorst,
             },
             Some(DendogramSettings {
                 output_file: String::from("output/rebalance_trial"),

@@ -5,12 +5,14 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
-use tensorcontraction::contractionpath::contraction_tree::{
-    balance_partitions_iter, BalanceSettings, DendogramSettings,
+use tensorcontraction::contractionpath::contraction_tree::balancing::balancing_schemes::BalancingScheme;
+use tensorcontraction::contractionpath::contraction_tree::balancing::communication_schemes::CommunicationScheme;
+use tensorcontraction::contractionpath::contraction_tree::balancing::{
+    balance_partitions_iter, BalanceSettings,
 };
+use tensorcontraction::contractionpath::contraction_tree::export::DendogramSettings;
 use tensorcontraction::contractionpath::paths::greedy::Greedy;
 use tensorcontraction::contractionpath::paths::{CostType, OptimizePath};
-use tensorcontraction::mpi::communication::CommunicationScheme;
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
@@ -88,6 +90,7 @@ fn main() {
                 iterations: 120,
                 greedy_cost_function: greedy_cost_fn,
                 communication_scheme,
+                balancing_scheme: BalancingScheme::BestWorst,
             },
             Some(DendogramSettings {
                 output_file: format!("output/{communication_scheme:?}_trial"),

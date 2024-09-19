@@ -36,6 +36,12 @@ pub(super) const COLORS: [&str; 18] = [
 ];
 
 #[derive(Debug)]
+pub struct DendogramSettings {
+    pub output_file: String,
+    pub cost_function: fn(&Tensor, &Tensor) -> f64,
+}
+
+#[derive(Debug)]
 pub struct DendogramEntry {
     pub id: usize,
     pub x: f64,
