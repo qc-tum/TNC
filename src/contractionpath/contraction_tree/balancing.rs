@@ -143,8 +143,8 @@ pub fn balance_partitions_iter(
 }
 
 pub(super) fn communicate_partitions(
-    partition_costs: &[(usize, f64)],
-    contraction_tree: &ContractionTree,
+    _partition_costs: &[(usize, f64)],
+    _contraction_tree: &ContractionTree,
     tensor: &Tensor,
     communication_scheme: &CommunicationScheme,
 ) -> (f64, Vec<ContractionIndex>) {
