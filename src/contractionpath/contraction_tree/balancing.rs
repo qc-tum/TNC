@@ -52,7 +52,6 @@ pub fn balance_partitions_iter(
     }: BalanceSettings,
     dendogram_settings: Option<DendogramSettings>,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
-    let bond_dims = tensor.bond_dims();
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor, path);
     let mut path = path.to_owned();
     let final_contraction = extract_communication_path(&path);
