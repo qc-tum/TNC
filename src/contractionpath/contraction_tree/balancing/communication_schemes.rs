@@ -5,6 +5,7 @@ use crate::contractionpath::contraction_cost::contract_cost_tensors;
 use crate::contractionpath::contraction_tree::utils::parallel_tree_contraction_cost;
 use crate::contractionpath::contraction_tree::ContractionTree;
 use crate::contractionpath::paths::greedy::Greedy;
+use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
 use crate::contractionpath::paths::{CostType, OptimizePath};
 use crate::pair;
 use crate::tensornetwork::partitioning::communication_partitioning;
@@ -22,6 +23,8 @@ pub enum CommunicationScheme {
     Greedy,
     /// Uses repeated bipartitioning to identify communication path
     Bipartition,
+    // Uses a filtered search that considered time to intermediate tensor
+    WeightedBranchBound,
 }
 
 pub(super) fn greedy_communication_scheme(
@@ -52,6 +55,34 @@ pub(super) fn bipartition_communication_scheme(
     let children_tensors = children_tensors.iter().cloned().enumerate().collect_vec();
     let (final_op_cost, final_contraction) = tensor_bipartition(&children_tensors, bond_dims);
 
+    (final_op_cost, final_contraction)
+}
+
+pub(super) fn weighted_branchbound_communication_scheme(
+    children_tensors: &[Tensor],
+    bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
+    latency_map: FxHashMap<usize, f64>,
+) -> (f64, Vec<ContractionIndex>) {
+    let mut communication_tensors = Tensor::default();
+    communication_tensors.push_tensors(children_tensors.to_vec(), Some(bond_dims), None);
+
+    let mut opt = WeightedBranchBound::new(
+        &communication_tensors,
+        None,
+        20.0,
+        latency_map,
+        CostType::Flops,
+    );
+    opt.optimize_path();
+    let final_contraction = opt.get_best_replace_path();
+    let contraction_tree =
+        ContractionTree::from_contraction_path(&communication_tensors, &final_contraction);
+    // let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
+    let (final_op_cost, _, _) = parallel_tree_contraction_cost(
+        &contraction_tree,
+        contraction_tree.root_id().unwrap(),
+        &communication_tensors,
+    );
     (final_op_cost, final_contraction)
 }
 
