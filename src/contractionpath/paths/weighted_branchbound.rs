@@ -61,7 +61,6 @@ impl<'a> WeightedBranchBound<'a> {
         &mut self,
         i: usize,
         j: usize,
-        flops: f64,
         size: f64,
         remaining: &[u32],
     ) -> Option<Candidate> {
@@ -69,7 +68,6 @@ impl<'a> WeightedBranchBound<'a> {
         let size_12: f64;
         let k12: usize;
         let k12_tensor: Tensor;
-        let mut current_flops = flops;
         let mut current_size = size;
         if self.result_cache.contains_key(&(i, j)) {
             k12 = self.result_cache[&(i, j)];
@@ -87,7 +85,7 @@ impl<'a> WeightedBranchBound<'a> {
                 .entry(k12)
                 .or_insert_with(|| k12_tensor.clone());
         }
-        current_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
+        let current_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
         self.comm_cache.entry(k12).or_insert_with(|| current_flops);
         current_size = current_size.max(size_12);
 
@@ -146,8 +144,7 @@ impl<'a> WeightedBranchBound<'a> {
 
         let mut candidates = BinaryHeap::<Candidate>::new();
         for i in remaining.iter().copied().combinations(2) {
-            let candidate =
-                self.assess_candidate(i[0] as usize, i[1] as usize, flops, size, &remaining);
+            let candidate = self.assess_candidate(i[0] as usize, i[1] as usize, size, &remaining);
             if let Some(new_candidate) = candidate {
                 candidates.push(new_candidate);
             }
