@@ -1,18 +1,26 @@
 use flexi_logger::writers::FileLogWriter;
 use flexi_logger::{json_format, Duplicate, FileSpec, Logger, LoggerHandle};
+use itertools::iproduct;
 use log::{debug, info, LevelFilter};
+use mpi::topology::{Process, SimpleCommunicator};
 use mpi::traits::Communicator;
 use mpi::Rank;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
-use tensorcontraction::contractionpath::contraction_tree::export::{to_dendogram_format, to_pdf};
-use tensorcontraction::contractionpath::contraction_tree::{
-    balance_partitions_iter, BalanceSettings, ContractionTree, DendogramSettings,
+use tensorcontraction::contractionpath::contraction_tree::balancing::balancing_schemes::BalancingScheme;
+use tensorcontraction::contractionpath::contraction_tree::balancing::communication_schemes::CommunicationScheme;
+use tensorcontraction::contractionpath::contraction_tree::balancing::{
+    balance_partitions_iter, BalanceSettings,
 };
+use tensorcontraction::contractionpath::contraction_tree::export::{
+    to_dendogram_format, to_pdf, DendogramSettings,
+};
+use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
-    broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network, CommunicationScheme,
+    broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
+    scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
@@ -20,7 +28,9 @@ use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::tensornetwork::tensor::Tensor;
+use tensorcontraction::types::ContractionIndex;
 
+static LOGGING_FOLDER: &str = "logs/run";
 /// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
 fn setup_logging_mpi(rank: Rank) -> LoggerHandle {
     Logger::with(LevelFilter::Debug)
@@ -30,7 +40,7 @@ fn setup_logging_mpi(rank: Rank) -> LoggerHandle {
                 .discriminant(format!("rank{rank}"))
                 .suppress_timestamp()
                 .suffix("log.json")
-                .directory("logs/run2"),
+                .directory(LOGGING_FOLDER),
         )
         .duplicate_to_stdout(Duplicate::Info)
         .start()
@@ -53,15 +63,14 @@ fn main() {
     info!(rank, size; "Logging setup");
 
     let seed = 23;
-    let qubits = 30;
+    let qubits = 15;
     let depth = 40;
     let single_qubit_probability = 0.4;
     let two_qubit_probability = 0.4;
     let connectivity = ConnectivityLayout::Osprey;
-    info!(seed, qubits, depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
 
-    // Setup tensor network
-    let (mut partitioned_tn, path, mut unopt_partitioned_tn, unopt_path) = if rank == 0 {
+    let unopt_partitioned_tn = if rank == 0 {
+        info!(seed, qubits, depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
         let r_tn = random_circuit(
             qubits,
             depth,
@@ -70,14 +79,15 @@ fn main() {
             &mut rng,
             connectivity,
         );
+        let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
+        debug!(tn_size = partitioning.len(); "TN size");
+        debug!(partitioning:serde; "Partitioning created");
+        partition_tensor_network(&r_tn, &partitioning)
+    } else {
+        Default::default()
+    };
 
-        let unopt_partitioned_tn = if size > 1 {
-            let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
-            debug!(partitioning:serde; "Partitioning created");
-            partition_tensor_network(&r_tn, &partitioning)
-        } else {
-            r_tn
-        };
+    let unopt_path = if rank == 0 {
         let mut opt = Greedy::new(&unopt_partitioned_tn, CostType::Flops);
         opt.optimize_path();
         let unopt_path = opt.get_best_replace_path();
@@ -90,44 +100,101 @@ fn main() {
             &unopt_partitioned_tn,
             contract_cost_tensors,
         );
-        to_pdf("unoptimized_path", &dendogram_entries);
-
-        let rebalance_depth = 1;
-        let communication_scheme = CommunicationScheme::Greedy;
-        let (num, partitioned_tn, path, _costs) = balance_partitions_iter(
-            &unopt_partitioned_tn,
-            &unopt_path,
-            BalanceSettings {
-                random_balance: false,
-                rebalance_depth,
-                iterations: 40,
-                greedy_cost_function: greedy_cost_fn,
-                communication_scheme,
-            },
-            Some(DendogramSettings {
-                output_file: format!("output/{communication_scheme:?}_trial"),
-                cost_function: contract_cost_tensors,
-            }),
+        to_pdf(
+            &format!("{LOGGING_FOLDER}/path_Unoptimized"),
+            &dendogram_entries,
+            None,
         );
-        info!(num; "Found best balancing iteration");
-
-        let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
-        let dendogram_entries =
-            to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
-        to_pdf("optimized_path", &dendogram_entries);
-
-        (partitioned_tn, path, unopt_partitioned_tn, unopt_path)
+        unopt_path
     } else {
         Default::default()
     };
+
+    // Experimental setup here.
+    let balancing_schemes = [
+        // BalancingScheme::BestWorst,
+        // BalancingScheme::Tensor,
+        BalancingScheme::Tensors,
+    ];
+    let communication_schemes = [
+        CommunicationScheme::Greedy,
+        // CommunicationScheme::Bipartition,
+    ];
+    let iterations = 30;
+    let rebalance_depth = 1;
+
+    for (balancing_scheme, communication_scheme) in
+        iproduct!(balancing_schemes, communication_schemes)
+    {
+        let name = format!("{balancing_scheme:?}_{communication_scheme:?}");
+
+        let (partitioned_tn, path) = if rank == 0 {
+            info!("Running: {name}");
+
+            let (num, partitioned_tn, path, _costs) = balance_partitions_iter(
+                &unopt_partitioned_tn,
+                &unopt_path,
+                BalanceSettings {
+                    random_balance: false,
+                    rebalance_depth,
+                    iterations,
+                    greedy_cost_function: greedy_cost_fn,
+                    communication_scheme,
+                    balancing_scheme,
+                },
+                Some(DendogramSettings {
+                    output_file: format!("output/{name}_trial"),
+                    cost_function: contract_cost_tensors,
+                }),
+            );
+            info!(num; "Found best balancing iteration");
+            let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
+            let dendogram_entries =
+                to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
+            to_pdf(
+                &format!("{LOGGING_FOLDER}/path_{name}"),
+                &dendogram_entries,
+                None,
+            );
+            (partitioned_tn, path)
+        } else {
+            Default::default()
+        };
+
+        bench_run(&logger, &name, partitioned_tn, &path, &world, root);
+    }
+
+    let name = "Unoptimized";
+
+    bench_run(
+        &logger,
+        name,
+        unopt_partitioned_tn,
+        &unopt_path,
+        &world,
+        root,
+    );
+}
+
+fn bench_run(
+    logger: &LoggerHandle,
+    name: &str,
+    mut partitioned_tn: Tensor,
+    path: &[ContractionIndex],
+    world: &SimpleCommunicator,
+    root: Process,
+) {
+    let rank = world.rank();
+    let size = world.size();
     logger.flush();
     logger
         .reset_flw(
             &FileLogWriter::builder(
                 FileSpec::default()
-                    .discriminant(format!("rank{}", rank))
+                    .discriminant(format!("rank{rank}"))
                     .suppress_timestamp()
-                    .suffix("opt.log.json"),
+                    .suffix(format!("{name}.log.json"))
+                    .directory(LOGGING_FOLDER),
             )
             .format(json_format),
         )
@@ -136,59 +203,22 @@ fn main() {
     // Distribute tensor network and contract
     let local_tn = if size > 1 {
         let (mut local_tn, local_path) =
-            scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
+            scatter_tensor_network(&partitioned_tn, path, rank, size, world);
         contract_tensor_network(&mut local_tn, &local_path);
 
-        let path = if rank == 0 {
-            broadcast_path(&path[(size as usize)..path.len()], &root, &world)
+        let mut communication_path = if rank == 0 {
+            extract_communication_path(path)
         } else {
-            broadcast_path(&[], &root, &world)
+            Default::default()
         };
-        intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
+        broadcast_path(&mut communication_path, &root, world);
+
+        intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, world);
         local_tn
     } else {
-        contract_tensor_network(&mut partitioned_tn, &path);
+        contract_tensor_network(&mut partitioned_tn, path);
         partitioned_tn
     };
 
-    // Print the result
-    if rank == 0 {
-        info!("{local_tn:?}");
-    }
-
-    logger
-        .reset_flw(
-            &FileLogWriter::builder(
-                FileSpec::default()
-                    .discriminant(format!("rank{}", rank))
-                    .suppress_timestamp()
-                    .suffix("unopt.log.json"),
-            )
-            .format(json_format)
-            .append(),
-        )
-        .unwrap();
-
-    // Distribute tensor network and contract
-    let local_tn = if size > 1 {
-        let (mut local_tn, local_path) =
-            scatter_tensor_network(&unopt_partitioned_tn, &unopt_path, rank, size, &world);
-        contract_tensor_network(&mut local_tn, &local_path);
-
-        let path = if rank == 0 {
-            broadcast_path(&path[(size as usize)..path.len()], &root, &world)
-        } else {
-            broadcast_path(&[], &root, &world)
-        };
-        intermediate_reduce_tensor_network(&mut local_tn, &path, rank, &world);
-        local_tn
-    } else {
-        contract_tensor_network(&mut unopt_partitioned_tn, &unopt_path);
-        unopt_partitioned_tn
-    };
-
-    // Print the result
-    if rank == 0 {
-        info!("{local_tn:?}");
-    }
+    std::hint::black_box(local_tn);
 }

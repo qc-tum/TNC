@@ -8,10 +8,13 @@ use rustc_hash::FxHashMap;
 
 use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
-use super::ContractionTree;
+use super::{
+    import::{CommunicationEvent, Direction},
+    ContractionTree,
+};
 
-const COLORS: [&str; 19] = [
-    "black",
+pub(super) const COMMUNICATION_COLOR: &str = "black";
+pub(super) const COLORS: [&str; 18] = [
     "blue",
     "brown",
     "cyan",
@@ -31,6 +34,12 @@ const COLORS: [&str; 19] = [
     "darkgray",
     "gray",
 ];
+
+#[derive(Debug)]
+pub struct DendogramSettings {
+    pub output_file: String,
+    pub cost_function: fn(&Tensor, &Tensor) -> f64,
+}
 
 #[derive(Debug)]
 pub struct DendogramEntry {
@@ -67,17 +76,14 @@ pub fn to_dendogram_format(
 
     let mut id_to_partition = FxHashMap::default();
     let mut partition_color = FxHashMap::default();
-    let mut colors = COLORS.iter();
-    let communication_color = String::from(*colors.next().unwrap());
+    let communication_color = String::from(COMMUNICATION_COLOR);
     let mut intermediate_tensors = FxHashMap::default();
 
     let mut dendogram_entries = Vec::new();
     let mut tree_weights = FxHashMap::default();
 
-    for (i, partition) in partitions.iter().enumerate() {
-        partition_color
-            .try_insert(i, String::from(*colors.next().unwrap()))
-            .unwrap();
+    for (i, (partition, color)) in partitions.iter().zip(COLORS.iter().cycle()).enumerate() {
+        partition_color.try_insert(i, String::from(*color)).unwrap();
         for &leaf_id in partition {
             id_to_partition.try_insert(leaf_id, i).unwrap();
             tree_weights.try_insert(leaf_id, 0f64).unwrap();
@@ -197,7 +203,12 @@ pub fn to_dendogram_format(
     dendogram_entries
 }
 
-pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
+pub fn to_pdf(
+    pdf_name: &str,
+    dendogram_entries: &[DendogramEntry],
+    communication_logging: Option<FxHashMap<CommunicationEvent, (f64, f64)>>,
+) {
+    let communication_logging = communication_logging.unwrap_or_default();
     let mut tikz_picture = String::from(
         r#"% tikzpic.tex
 \documentclass[crop,tikz]{standalone}% 'crop' is the default for v1.0, before it was 'preview'
@@ -222,6 +233,29 @@ pub fn to_pdf(pdf_name: &str, dendogram_entries: &[DendogramEntry]) {
         if let Some((node_1_id, node_2_id)) = children {
             let (x1, _) = id_position[node_1_id];
             let (x2, _) = id_position[node_2_id];
+            let recv_timestamps =
+                communication_logging.get(&(Direction::Recv, *node_1_id, *node_2_id));
+            let send_timestamps =
+                communication_logging.get(&(Direction::Send, *node_1_id, *node_2_id));
+
+            if let (Some(&(send_start, send_end)), Some(&(recv_start, recv_end))) =
+                (send_timestamps, recv_timestamps)
+            {
+                tikz_picture.push_str(&format!(
+                r#"    \path[draw, color=magenta, line width=0.5mm] ({x1}, {recv_start}) -- ({x1}, {recv_end});
+    "#,
+                    ));
+                tikz_picture.push_str(&format!(
+                r#"    \path[draw, color=magenta, line width=0.5mm] ({x2}, {send_start}) -- ({x2}, {send_end});
+    "#,
+                        ));
+                let latest_start = recv_start.max(send_start);
+                tikz_picture.push_str(&format!(
+                r#"    \path[draw, color=orange, line width=1mm] ({x1}, {latest_start}) -- ({x1}, {recv_end});
+    "#,         
+    ));
+            }
+
             tikz_picture.push_str(&format!(
                 r#"    \node[circle, scale=0.3, fill={color}, label={{[shift={{(-0.4,-0.1)}}]{cost}}}, label=below:{{{id}}}] at ({x}, {y}) ({id}) {{}};
     "#,
