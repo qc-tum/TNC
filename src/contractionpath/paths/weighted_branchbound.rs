@@ -62,7 +62,7 @@ impl<'a> WeightedBranchBound<'a> {
         mut i: usize,
         mut j: usize,
         size: f64,
-        remaining: &[usize],
+        remaining_len: usize,
     ) -> Option<Candidate> {
         let flops_12: f64;
         let size_12: f64;
@@ -92,11 +92,11 @@ impl<'a> WeightedBranchBound<'a> {
         }
         let best_flops = *self
             .best_progress
-            .entry(remaining.len())
+            .entry(remaining_len)
             .or_insert(current_flops);
 
         if current_flops < best_flops {
-            self.best_progress.insert(remaining.len(), current_flops);
+            self.best_progress.insert(remaining_len, current_flops);
         } else if current_flops > self.cutoff_flops_factor * best_flops {
             return None;
         }
@@ -147,7 +147,7 @@ impl<'a> WeightedBranchBound<'a> {
 
         let mut candidates = BinaryHeap::<Candidate>::new();
         for i in remaining.iter().copied().combinations(2) {
-            let candidate = self.assess_candidate(i[0] as usize, i[1] as usize, size, &remaining);
+            let candidate = self.assess_candidate(i[0], i[1], size, remaining.len());
             if let Some(new_candidate) = candidate {
                 candidates.push(new_candidate);
             }
