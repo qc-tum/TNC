@@ -62,7 +62,7 @@ impl<'a> WeightedBranchBound<'a> {
         mut i: usize,
         mut j: usize,
         size: f64,
-        remaining: &[u32],
+        remaining: &[usize],
     ) -> Option<Candidate> {
         let flops_12: f64;
         let size_12: f64;
@@ -120,7 +120,7 @@ impl<'a> WeightedBranchBound<'a> {
     fn branch_iterate(
         &mut self,
         path: Vec<(usize, usize, usize)>,
-        remaining: Vec<u32>,
+        remaining: Vec<usize>,
         flops: f64,
         size: f64,
         bi: usize,
@@ -166,8 +166,8 @@ impl<'a> WeightedBranchBound<'a> {
                 break;
             };
             new_remaining = remaining.clone();
-            new_remaining.retain(|e| *e != parent_ids.0 as u32 && *e != parent_ids.1 as u32);
-            new_remaining.push(child_id as u32);
+            new_remaining.retain(|e| *e != parent_ids.0 && *e != parent_ids.1);
+            new_remaining.push(child_id);
             new_path = path.clone();
             new_path.push((parent_ids.0, parent_ids.1, child_id));
             WeightedBranchBound::branch_iterate(
@@ -215,7 +215,7 @@ impl<'a> OptimizePath for WeightedBranchBound<'a> {
 
             self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
-        let remaining = (0u32..self.tn.tensors().len() as u32).collect();
+        let remaining = (0..self.tn.tensors().len()).collect();
         WeightedBranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64, 0);
         sub_tensor_contraction.extend_from_slice(&self.best_path);
         self.best_path = sub_tensor_contraction;
