@@ -123,7 +123,6 @@ impl<'a> WeightedBranchBound<'a> {
         remaining: Vec<usize>,
         flops: f64,
         size: f64,
-        bi: usize,
     ) {
         if remaining.len() == 1 {
             match self.minimize {
@@ -155,7 +154,9 @@ impl<'a> WeightedBranchBound<'a> {
 
         let mut new_remaining;
         let mut new_path: Vec<(usize, usize, usize)>;
+        let mut bi = 0;
         while self.nbranch.is_none() || bi < self.nbranch.unwrap() {
+            bi += 1;
             let Some(Candidate {
                 flop_cost,
                 size_cost,
@@ -176,7 +177,6 @@ impl<'a> WeightedBranchBound<'a> {
                 new_remaining,
                 flop_cost,
                 size_cost,
-                bi + 1,
             );
         }
     }
@@ -216,7 +216,7 @@ impl<'a> OptimizePath for WeightedBranchBound<'a> {
             self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
         let remaining = (0..self.tn.tensors().len()).collect();
-        WeightedBranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64, 0);
+        WeightedBranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64);
         sub_tensor_contraction.extend_from_slice(&self.best_path);
         self.best_path = sub_tensor_contraction;
     }
