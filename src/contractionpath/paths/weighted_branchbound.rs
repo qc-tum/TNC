@@ -59,8 +59,8 @@ impl<'a> WeightedBranchBound<'a> {
 
     fn assess_candidate(
         &mut self,
-        i: usize,
-        j: usize,
+        mut i: usize,
+        mut j: usize,
         size: f64,
         remaining: &[u32],
     ) -> Option<Candidate> {
@@ -99,6 +99,10 @@ impl<'a> WeightedBranchBound<'a> {
             self.best_progress.insert(remaining.len(), current_flops);
         } else if current_flops > self.cutoff_flops_factor * best_flops {
             return None;
+        }
+
+        if self.size_cache[&j] > self.size_cache[&i] {
+            (i, j) = (j, i);
         }
 
         Some(Candidate {
@@ -305,8 +309,8 @@ mod tests {
 
         assert_eq!(opt.best_flops, 4580f64);
         assert_eq!(opt.best_size, 538f64);
-        assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
+        assert_eq!(opt.get_best_path(), &path![(1, 0), (3, 2)]);
+        assert_eq!(opt.get_best_replace_path(), path![(1, 0), (1, 2)]);
     }
 
     #[test]
@@ -317,10 +321,10 @@ mod tests {
 
         assert_eq!(opt.best_flops, 2120615.0f64);
         assert_eq!(opt.best_size, 89478f64);
-        assert_eq!(opt.best_path, path![(3, 4), (2, 6), (1, 5), (0, 8), (7, 9)]);
+        assert_eq!(opt.best_path, path![(3, 4), (6, 2), (1, 5), (8, 0), (9, 7)]);
         assert_eq!(
             opt.get_best_replace_path(),
-            path![(3, 4), (2, 3), (1, 5), (0, 1), (2, 0)]
+            path![(3, 4), (3, 2), (1, 5), (1, 0), (1, 3)]
         );
     }
 }
