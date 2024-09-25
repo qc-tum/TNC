@@ -453,19 +453,6 @@ impl ContractionTree {
         init
     }
 
-    fn tensor_recursive(node: &Node, tn: &Tensor) -> Tensor {
-        if node.is_leaf() {
-            let tensor_index = node.tensor_index.as_ref().unwrap();
-            tn.nested_tensor(tensor_index).clone()
-        } else {
-            let left =
-                Self::tensor_recursive(&node.left_child.upgrade().unwrap().as_ref().borrow(), tn);
-            let right =
-                Self::tensor_recursive(&node.right_child.upgrade().unwrap().as_ref().borrow(), tn);
-            &left ^ &right
-        }
-    }
-
     /// Returns intermediate [`Tensor`] object corresponding to `node_id`.
     ///
     /// # Arguments
@@ -475,8 +462,14 @@ impl ContractionTree {
     /// # Returns
     /// Empty tensor with legs (dimensions) of data after fully contracted.
     pub fn tensor(&self, node_id: usize, tensor: &Tensor) -> Tensor {
-        let node = self.node(node_id);
-        Self::tensor_recursive(&node, tensor)
+        // let node = self.node(node_id);
+        let leaf_nodes = self.leaf_ids(node_id);
+        let mut new_tensor = Tensor::default();
+        for leaf_id in leaf_nodes {
+            new_tensor = &new_tensor
+                ^ &tensor.nested_tensor(&(self.node(leaf_id).tensor_index.as_ref().unwrap()));
+        }
+        new_tensor
     }
 }
 
