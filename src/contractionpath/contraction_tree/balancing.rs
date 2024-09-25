@@ -1,6 +1,7 @@
 use balancing_schemes::BalancingScheme;
 use communication_schemes::{
-    bipartition_communication_scheme, greedy_communication_scheme, CommunicationScheme,
+    bipartition_communication_scheme, greedy_communication_scheme,
+    weighted_branchbound_communication_scheme, CommunicationScheme,
 };
 use itertools::Itertools;
 use log::info;
@@ -143,7 +144,7 @@ pub fn balance_partitions_iter(
 }
 
 pub(super) fn communicate_partitions(
-    _partition_costs: &[(usize, f64)],
+    partition_costs: &[(usize, f64)],
     _contraction_tree: &ContractionTree,
     tensor: &Tensor,
     communication_scheme: &CommunicationScheme,
@@ -163,6 +164,10 @@ pub(super) fn communicate_partitions(
         CommunicationScheme::Greedy => greedy_communication_scheme(&children_tensors, &bond_dims),
         CommunicationScheme::Bipartition => {
             bipartition_communication_scheme(&children_tensors, &bond_dims)
+        }
+        CommunicationScheme::WeightedBranchBound => {
+            let latency_map = FxHashMap::from_iter(partition_costs.iter().copied());
+            weighted_branchbound_communication_scheme(&children_tensors, &bond_dims, latency_map)
         }
     };
     (final_op_cost, final_contraction)

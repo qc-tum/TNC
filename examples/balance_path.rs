@@ -77,11 +77,13 @@ fn main() {
 
     let rebalance_depth = 1;
     let mut best = None;
+
     for communication_scheme in [
         CommunicationScheme::Greedy,
         CommunicationScheme::Bipartition,
+        CommunicationScheme::WeightedBranchBound,
     ] {
-        let (num, _new_tn, _contraction_path, costs) = balance_partitions_iter(
+        let (num, mut _new_tn, _contraction_path, costs) = balance_partitions_iter(
             &partitioned_tn,
             &path,
             BalanceSettings {

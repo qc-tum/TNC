@@ -16,7 +16,7 @@ use crate::{
 use super::{CostType, OptimizePath};
 
 /// A struct with an [`OptimizePath`] implementation that explores possible pair contractions in a depth-first manner.
-pub struct BranchBound<'a> {
+pub struct WeightedBranchBound<'a> {
     tn: &'a Tensor,
     nbranch: Option<usize>,
     cutoff_flops_factor: f64,
@@ -28,14 +28,16 @@ pub struct BranchBound<'a> {
     result_cache: FxHashMap<(usize, usize), usize>,
     flop_cache: FxHashMap<usize, f64>,
     size_cache: FxHashMap<usize, f64>,
+    comm_cache: FxHashMap<usize, f64>,
     tensor_cache: FxHashMap<usize, Tensor>,
 }
 
-impl<'a> BranchBound<'a> {
+impl<'a> WeightedBranchBound<'a> {
     pub fn new(
         tn: &'a Tensor,
         nbranch: Option<usize>,
         cutoff_flops_factor: f64,
+        latency_map: FxHashMap<usize, f64>,
         minimize: CostType,
     ) -> Self {
         Self {
@@ -50,6 +52,7 @@ impl<'a> BranchBound<'a> {
             result_cache: FxHashMap::default(),
             flop_cache: FxHashMap::default(),
             size_cache: FxHashMap::default(),
+            comm_cache: latency_map,
             tensor_cache: FxHashMap::default(),
         }
     }
@@ -58,7 +61,6 @@ impl<'a> BranchBound<'a> {
         &mut self,
         mut i: usize,
         mut j: usize,
-        flops: f64,
         size: f64,
         remaining_len: usize,
     ) -> Option<Candidate> {
@@ -66,7 +68,6 @@ impl<'a> BranchBound<'a> {
         let size_12: f64;
         let k12: usize;
         let k12_tensor: Tensor;
-        let mut current_flops = flops;
         let mut current_size = size;
         if self.result_cache.contains_key(&(i, j)) {
             k12 = self.result_cache[&(i, j)];
@@ -77,15 +78,13 @@ impl<'a> BranchBound<'a> {
             flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
             size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
             k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
-
             self.result_cache.entry((i, j)).or_insert_with(|| k12);
             self.flop_cache.entry(k12).or_insert_with(|| flops_12);
             self.size_cache.entry(k12).or_insert_with(|| size_12);
-            self.tensor_cache
-                .entry(k12)
-                .or_insert_with(|| k12_tensor.clone());
+            self.tensor_cache.entry(k12).or_insert_with(|| k12_tensor);
         }
-        current_flops += flops_12;
+        let current_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
+        self.comm_cache.entry(k12).or_insert_with(|| current_flops);
         current_size = current_size.max(size_12);
 
         if current_flops > self.best_flops && current_size > self.best_size {
@@ -101,10 +100,11 @@ impl<'a> BranchBound<'a> {
         } else if current_flops > self.cutoff_flops_factor * best_flops {
             return None;
         }
-        // Ensure that larger tensor is always to the left.
+
         if self.size_cache[&j] > self.size_cache[&i] {
             (i, j) = (j, i);
         }
+
         Some(Candidate {
             flop_cost: current_flops,
             size_cost: current_size,
@@ -146,11 +146,12 @@ impl<'a> BranchBound<'a> {
 
         let mut candidates = BinaryHeap::<Candidate>::new();
         for i in remaining.iter().copied().combinations(2) {
-            let candidate = self.assess_candidate(i[0], i[1], flops, size, remaining.len());
+            let candidate = self.assess_candidate(i[0], i[1], size, remaining.len());
             if let Some(new_candidate) = candidate {
                 candidates.push(new_candidate);
             }
         }
+
         let mut new_remaining;
         let mut new_path: Vec<(usize, usize, usize)>;
         let mut bi = 0;
@@ -170,12 +171,18 @@ impl<'a> BranchBound<'a> {
             new_remaining.push(child_id);
             new_path = path.clone();
             new_path.push((parent_ids.0, parent_ids.1, child_id));
-            BranchBound::branch_iterate(self, new_path, new_remaining, flop_cost, size_cost);
+            WeightedBranchBound::branch_iterate(
+                self,
+                new_path,
+                new_remaining,
+                flop_cost,
+                size_cost,
+            );
         }
     }
 }
 
-impl<'a> OptimizePath for BranchBound<'a> {
+impl<'a> OptimizePath for WeightedBranchBound<'a> {
     fn optimize_path(&mut self) {
         if self.tn.is_leaf() {
             return;
@@ -189,11 +196,12 @@ impl<'a> OptimizePath for BranchBound<'a> {
         // Get the initial space requirements for uncontracted tensors
         for (index, mut tensor) in tensors.into_iter().enumerate() {
             // Check that tensor has sub-tensors and doesn't have external legs set
-            if !tensor.tensors().is_empty() && tensor.legs().is_empty() {
-                let mut bb = BranchBound::new(
+            if tensor.is_composite() && tensor.legs().is_empty() {
+                let mut bb = WeightedBranchBound::new(
                     &tensor,
                     self.nbranch,
                     self.cutoff_flops_factor,
+                    self.comm_cache.clone(),
                     self.minimize,
                 );
                 bb.optimize_path();
@@ -208,7 +216,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
             self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
         let remaining = (0..self.tn.tensors().len()).collect();
-        BranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64);
+        WeightedBranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64);
         sub_tensor_contraction.extend_from_slice(&self.best_path);
         self.best_path = sub_tensor_contraction;
     }
@@ -232,62 +240,76 @@ impl<'a> OptimizePath for BranchBound<'a> {
 
 #[cfg(test)]
 mod tests {
+
     use rustc_hash::FxHashMap;
 
-    use crate::contractionpath::paths::branchbound::BranchBound;
+    use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
     use crate::contractionpath::paths::CostType;
     use crate::contractionpath::paths::OptimizePath;
     use crate::path;
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
 
-    fn setup_simple() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-            ],
-            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-            None,
+    fn setup_simple() -> (Tensor, FxHashMap<usize, f64>) {
+        (
+            create_tensor_network(
+                vec![
+                    Tensor::new(vec![4, 3, 2]),
+                    Tensor::new(vec![0, 1, 3, 2]),
+                    Tensor::new(vec![4, 5, 6]),
+                ],
+                &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
+                None,
+            ),
+            FxHashMap::from_iter([(0, 20f64), (1, 40f64), (2, 85f64)]),
         )
     }
 
-    fn setup_complex() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-                Tensor::new(vec![6, 8, 9]),
-                Tensor::new(vec![10, 8, 9]),
-                Tensor::new(vec![5, 1, 0]),
-            ],
-            &FxHashMap::from_iter([
-                (0, 27),
-                (1, 18),
-                (2, 12),
-                (3, 15),
-                (4, 5),
-                (5, 3),
-                (6, 18),
-                (7, 22),
-                (8, 45),
-                (9, 65),
-                (10, 5),
-                (11, 17),
+    fn setup_complex() -> (Tensor, FxHashMap<usize, f64>) {
+        (
+            create_tensor_network(
+                vec![
+                    Tensor::new(vec![4, 3, 2]),
+                    Tensor::new(vec![0, 1, 3, 2]),
+                    Tensor::new(vec![4, 5, 6]),
+                    Tensor::new(vec![6, 8, 9]),
+                    Tensor::new(vec![10, 8, 9]),
+                    Tensor::new(vec![5, 1, 0]),
+                ],
+                &FxHashMap::from_iter([
+                    (0, 27),
+                    (1, 18),
+                    (2, 12),
+                    (3, 15),
+                    (4, 5),
+                    (5, 3),
+                    (6, 18),
+                    (7, 22),
+                    (8, 45),
+                    (9, 65),
+                    (10, 5),
+                    (11, 17),
+                ]),
+                None,
+            ),
+            FxHashMap::from_iter([
+                (0, 120f64),
+                (1, 0f64),
+                (2, 15f64),
+                (3, 15f64),
+                (4, 85f64),
+                (5, 15f64),
             ]),
-            None,
         )
     }
 
     #[test]
     fn test_contract_order_simple() {
-        let tn = setup_simple();
-        let mut opt = BranchBound::new(&tn, None, 20f64, CostType::Flops);
+        let (tn, latency_costs) = setup_simple();
+        let mut opt = WeightedBranchBound::new(&tn, None, 20f64, latency_costs, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 4540f64);
+        assert_eq!(opt.best_flops, 4580f64);
         assert_eq!(opt.best_size, 538f64);
         assert_eq!(opt.get_best_path(), &path![(1, 0), (3, 2)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 0), (1, 2)]);
@@ -295,16 +317,16 @@ mod tests {
 
     #[test]
     fn test_contract_order_complex() {
-        let tn = setup_complex();
-        let mut opt = BranchBound::new(&tn, None, 20f64, CostType::Flops);
+        let (tn, latency_costs) = setup_complex();
+        let mut opt = WeightedBranchBound::new(&tn, None, 20f64, latency_costs, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 2654474f64);
+        assert_eq!(opt.best_flops, 2120615.0f64);
         assert_eq!(opt.best_size, 89478f64);
-        assert_eq!(opt.best_path, path![(1, 5), (6, 0), (7, 2), (3, 8), (9, 4)]);
+        assert_eq!(opt.best_path, path![(3, 4), (6, 2), (1, 5), (8, 0), (9, 7)]);
         assert_eq!(
             opt.get_best_replace_path(),
-            path![(1, 5), (1, 0), (1, 2), (3, 1), (3, 4)]
+            path![(3, 4), (3, 2), (1, 5), (1, 0), (1, 3)]
         );
     }
 }
