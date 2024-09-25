@@ -11,6 +11,7 @@ use crate::{
     },
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
+    utils::HashMapInsertNew,
 };
 
 use super::{CostType, OptimizePath};
@@ -81,7 +82,7 @@ impl<'a> WeightedBranchBound<'a> {
             self.result_cache.entry((i, j)).or_insert_with(|| k12);
             self.flop_cache.entry(k12).or_insert_with(|| flops_12);
             self.size_cache.entry(k12).or_insert_with(|| size_12);
-            self.tensor_cache.entry(k12).or_insert_with(|| k12_tensor);
+            self.tensor_cache.insert_new(k12, k12_tensor);
         }
         let current_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
         self.comm_cache.entry(k12).or_insert_with(|| current_flops);
@@ -212,8 +213,7 @@ impl<'a> OptimizePath for WeightedBranchBound<'a> {
             self.size_cache
                 .entry(index)
                 .or_insert_with(|| tensor.shape().iter().product::<u64>() as f64);
-
-            self.tensor_cache.entry(index).or_insert_with(|| tensor);
+            self.tensor_cache.insert_new(index, tensor);
         }
         let remaining = (0..self.tn.tensors().len()).collect_vec();
         WeightedBranchBound::branch_iterate(self, &[], &remaining, 0f64, 0f64);
