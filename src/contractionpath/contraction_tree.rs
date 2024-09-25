@@ -515,6 +515,20 @@ fn populate_subtree_tensor_map(
     }
 }
 
+fn populate_leaf_node_tensor_map(
+    contraction_tree: &ContractionTree,
+    node_id: usize,
+    node_tensor_map: &mut FxHashMap<usize, Tensor>,
+    tensor_network: &Tensor,
+) {
+    for leaf_node_id in contraction_tree.leaf_ids(node_id) {
+        node_tensor_map.insert(
+            leaf_node_id,
+            contraction_tree.tensor(leaf_node_id, &tensor_network),
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::contractionpath::contraction_cost::contract_cost_tensors;
