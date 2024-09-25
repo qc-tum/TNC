@@ -81,9 +81,7 @@ impl<'a> WeightedBranchBound<'a> {
             self.result_cache.entry((i, j)).or_insert_with(|| k12);
             self.flop_cache.entry(k12).or_insert_with(|| flops_12);
             self.size_cache.entry(k12).or_insert_with(|| size_12);
-            self.tensor_cache
-                .entry(k12)
-                .or_insert_with(|| k12_tensor.clone());
+            self.tensor_cache.entry(k12).or_insert_with(|| k12_tensor);
         }
         let current_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
         self.comm_cache.entry(k12).or_insert_with(|| current_flops);
