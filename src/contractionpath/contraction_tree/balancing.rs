@@ -174,7 +174,7 @@ pub(super) fn communicate_partitions(
 }
 
 pub(super) fn balance_partitions(
-    tn: &Tensor,
+    tensor: &Tensor,
     contraction_tree: &mut ContractionTree,
     random_balance: bool,
     rebalance_depth: usize,
@@ -183,21 +183,21 @@ pub(super) fn balance_partitions(
     balancing_scheme: BalancingScheme,
 ) -> (f64, Vec<ContractionIndex>, Tensor) {
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
-    if tn.total_num_tensors() < 3 {
+    if tensor.total_num_tensors() < 3 {
         // TODO: should not panic, but handle gracefully
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
     }
     // Will cause strange errors (picking of same partition multiple times if this is not true.Better to panic here.)
     assert!(partition_costs.len() > 1);
     // Use memory reduction to identify which leaf node to shift between partitions.
-    let bond_dims = tn.bond_dims();
+    let bond_dims = tensor.bond_dims();
     let (new_max, partition_tensors, rebalanced_path) = match balancing_scheme {
         BalancingScheme::BestWorst => balancing_schemes::best_worst_balancing(
             partition_costs,
             contraction_tree,
             random_balance,
             greedy_cost_function,
-            tn,
+            tensor,
             rebalance_depth,
         ),
         BalancingScheme::Tensor => balancing_schemes::best_tensor_balancing(
@@ -205,7 +205,7 @@ pub(super) fn balance_partitions(
             contraction_tree,
             random_balance,
             greedy_cost_function,
-            tn,
+            tensor,
             rebalance_depth,
         ),
         BalancingScheme::Tensors => balancing_schemes::best_tensors_balancing(
@@ -213,7 +213,7 @@ pub(super) fn balance_partitions(
             contraction_tree,
             random_balance,
             greedy_cost_function,
-            tn,
+            tensor,
             rebalance_depth,
         ),
         _ => panic!("Balancing Scheme not implemented"),

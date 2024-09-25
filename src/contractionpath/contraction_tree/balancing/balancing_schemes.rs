@@ -32,8 +32,8 @@ pub(crate) fn best_worst_balancing(
     partition_costs: &[(usize, f64)],
     contraction_tree: &mut ContractionTree,
     random_balance: bool,
-    greedy_cost_fn: fn(&Tensor, &Tensor) -> f64,
-    tn: &Tensor,
+    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
+    tensor: &Tensor,
     rebalance_depth: usize,
 ) -> (f64, Vec<Tensor>, Vec<ContractionIndex>) {
     // Obtain most expensive and cheapest partitions
@@ -45,8 +45,8 @@ pub(crate) fn best_worst_balancing(
         contraction_tree,
         &contraction_tree.leaf_ids(larger_subtree_id),
         smaller_subtree_id,
-        greedy_cost_fn,
-        tn,
+        greedy_cost_function,
+        tensor,
     );
 
     // Obtain the new maximum cost other than smaller/larger subtrees for next balancing iteration
@@ -65,17 +65,17 @@ pub(crate) fn best_worst_balancing(
         larger_subtree_id,
         rebalance_depth,
         rebalanced_node,
-        tn,
+        tensor,
     );
 
     let children = &contraction_tree.partitions()[&rebalance_depth];
-    let bond_dims = tn.bond_dims();
+    let bond_dims = tensor.bond_dims();
     // Generate new rebalanced path with updated subtree paths
     let (partition_tensors, rebalanced_path) = children
         .iter()
         .enumerate()
         .map(|(i, node_id)| {
-            let (tensors, local_path) = subtensor_network(contraction_tree, *node_id, tn);
+            let (tensors, local_path) = subtensor_network(contraction_tree, *node_id, tensor);
             let mut tensor = Tensor::default();
             tensor.push_tensors(tensors, Some(&bond_dims), None);
             (tensor, ContractionIndex::Path(i, local_path))
@@ -92,8 +92,8 @@ pub(crate) fn best_tensor_balancing(
     partition_costs: &[(usize, f64)],
     contraction_tree: &mut ContractionTree,
     random_balance: bool,
-    greedy_cost_fn: fn(&Tensor, &Tensor) -> f64,
-    tn: &Tensor,
+    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
+    tensor: &Tensor,
     rebalance_depth: usize,
 ) -> (f64, Vec<Tensor>, Vec<ContractionIndex>) {
     // Obtain most expensive and cheapest partitions
@@ -109,8 +109,8 @@ pub(crate) fn best_tensor_balancing(
                 contraction_tree,
                 &contraction_tree.leaf_ids(larger_subtree_id),
                 *subtree_root_id,
-                greedy_cost_fn,
-                tn,
+                greedy_cost_function,
+                tensor,
             );
             (*subtree_root_id, potential_node, cost)
         })
@@ -133,17 +133,17 @@ pub(crate) fn best_tensor_balancing(
         larger_subtree_id,
         rebalance_depth,
         rebalanced_node,
-        tn,
+        tensor,
     );
 
     let children = &contraction_tree.partitions()[&rebalance_depth];
-    let bond_dims = tn.bond_dims();
+    let bond_dims = tensor.bond_dims();
     // Generate new rebalanced path with updated subtree paths
     let (partition_tensors, rebalanced_path) = children
         .iter()
         .enumerate()
         .map(|(i, node_id)| {
-            let (tensors, local_path) = subtensor_network(contraction_tree, *node_id, tn);
+            let (tensors, local_path) = subtensor_network(contraction_tree, *node_id, tensor);
             let mut tensor = Tensor::default();
             tensor.push_tensors(tensors, Some(&bond_dims), None);
             (tensor, ContractionIndex::Path(i, local_path))
@@ -160,8 +160,8 @@ pub(crate) fn best_tensors_balancing(
     partition_costs: &[(usize, f64)],
     contraction_tree: &mut ContractionTree,
     random_balance: bool,
-    greedy_cost_fn: fn(&Tensor, &Tensor) -> f64,
-    tn: &Tensor,
+    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
+    tensor: &Tensor,
     rebalance_depth: usize,
 ) -> (f64, Vec<Tensor>, Vec<ContractionIndex>) {
     // Obtain most expensive and cheapest partitions
@@ -177,8 +177,8 @@ pub(crate) fn best_tensors_balancing(
                 contraction_tree,
                 &contraction_tree.leaf_ids(larger_subtree_id),
                 *subtree_root_id,
-                greedy_cost_fn,
-                tn,
+                greedy_cost_function,
+                tensor,
             );
             (*subtree_root_id, potential_node, cost)
         })
@@ -201,10 +201,11 @@ pub(crate) fn best_tensors_balancing(
         larger_subtree_id,
         rebalance_depth,
         rebalanced_node,
-        tn,
+        tensor,
     );
 
-    let partition_costs = calculate_partition_costs(contraction_tree, rebalance_depth, tn, true);
+    let partition_costs =
+        calculate_partition_costs(contraction_tree, rebalance_depth, tensor, true);
 
     // Obtain most expensive and cheapest partitions
     let (smaller_subtree_id, _) = *partition_costs.first().unwrap();
@@ -219,8 +220,8 @@ pub(crate) fn best_tensors_balancing(
                 contraction_tree,
                 &contraction_tree.leaf_ids(*subtree_root_id),
                 smaller_subtree_id,
-                greedy_cost_fn,
-                tn,
+                greedy_cost_function,
+                tensor,
             );
             (*subtree_root_id, potential_node, cost)
         })
@@ -243,17 +244,17 @@ pub(crate) fn best_tensors_balancing(
         larger_subtree_id,
         rebalance_depth,
         rebalanced_node,
-        tn,
+        tensor,
     );
 
     let children = &contraction_tree.partitions()[&rebalance_depth];
-    let bond_dims = tn.bond_dims();
+    let bond_dims = tensor.bond_dims();
     // Generate new rebalanced path with updated subtree paths
     let (partition_tensors, rebalanced_path) = children
         .iter()
         .enumerate()
         .map(|(i, node_id)| {
-            let (tensors, local_path) = subtensor_network(contraction_tree, *node_id, tn);
+            let (tensors, local_path) = subtensor_network(contraction_tree, *node_id, tensor);
             let mut tensor = Tensor::default();
             tensor.push_tensors(tensors, Some(&bond_dims), None);
             (tensor, ContractionIndex::Path(i, local_path))
@@ -272,7 +273,7 @@ fn shift_node_between_subtrees(
     larger_subtree_id: usize,
     rebalance_depth: usize,
     rebalanced_node: usize,
-    tn: &Tensor,
+    tensor: &Tensor,
 ) -> (usize, f64, usize, f64) {
     // Obtain parents of the two subtrees that are being updated.
     let smaller_subtree_parent_id = contraction_tree
@@ -303,10 +304,10 @@ fn shift_node_between_subtrees(
 
     // Run Greedy on the two updated subtrees
     let (updated_smaller_path, smaller_cost) =
-        subtree_contraction_path(&smaller_subtree_leaf_nodes, tn, contraction_tree, true);
+        subtree_contraction_path(&smaller_subtree_leaf_nodes, tensor, contraction_tree, true);
 
     let (updated_larger_path, larger_cost) =
-        subtree_contraction_path(&larger_subtree_leaf_nodes, tn, contraction_tree, true);
+        subtree_contraction_path(&larger_subtree_leaf_nodes, tensor, contraction_tree, true);
 
     // Remove smaller subtree
     contraction_tree.remove_subtree(smaller_subtree_id);
