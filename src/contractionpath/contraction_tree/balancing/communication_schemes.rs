@@ -23,7 +23,7 @@ pub enum CommunicationScheme {
     Greedy,
     /// Uses repeated bipartitioning to identify communication path
     Bipartition,
-    // Uses a filtered search that considered time to intermediate tensor
+    /// Uses a filtered search that considered time to intermediate tensor
     WeightedBranchBound,
 }
 
