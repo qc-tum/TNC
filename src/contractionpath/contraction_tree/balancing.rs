@@ -259,74 +259,32 @@ pub(super) fn find_potential_nodes(
     .collect()
 }
 
-pub(super) fn rebalance_node_largest_overlap(
-    random_balance: bool,
-    contraction_tree: &ContractionTree,
-    larger_subtree_leaf_nodes: &[usize],
-    smaller_subtree_id: usize,
+/// Takes two hashmaps that contain node information. Identifies which pair of nodes from larger and smaller hashmaps maximizes the greedy cost function
+pub(super) fn find_rebalance_node(
+    random_balance: Option<usize>,
+    larger_subtree_nodes: &FxHashMap<usize, Tensor>,
+    smaller_subtree_nodes: &FxHashMap<usize, Tensor>,
     greedy_cost_fn: fn(&Tensor, &Tensor) -> f64,
-    tn: &Tensor,
 ) -> (usize, f64) {
-    let (rebalanced_node, max_cost) = if random_balance {
-        // Randomly select one of the top n nodes to rebalance.
-        let top_n = 3;
-        let rebalanced_node_weights = find_potential_nodes(
-            contraction_tree,
-            larger_subtree_leaf_nodes,
-            smaller_subtree_id,
-            tn,
-            greedy_cost_fn,
-        );
-
-        let mut keys: Vec<(usize, f64)> = rebalanced_node_weights
-            .iter()
-            .map(|(a, b)| (*a, *b))
-            .collect_vec();
-        keys.sort_by(|(a, _), (b, _)| {
-            rebalanced_node_weights[a].total_cmp(&rebalanced_node_weights[b])
+    let node_comparison = larger_subtree_nodes
+        .iter()
+        .cartesian_product(smaller_subtree_nodes.iter())
+        .map(|((larger_node_id, larger_tensor), (_, smaller_tensor))| {
+            (
+                *larger_node_id,
+                greedy_cost_fn(larger_tensor, smaller_tensor),
+            )
         });
-        if keys.len() < top_n {
-            panic!("Error rebalance_path: Not enough nodes in the bigger subtree to select the top {top_n} from!");
-        } else {
-            // Sample randomly from the top n nodes. Use softmax probabilities.
-            let top_n_nodes = keys.into_iter().take(top_n).collect_vec();
-
-            // Subtract max val after inverting for numerical stability.
-            let l2_norm = top_n_nodes
-                .iter()
-                .map(|(_idx, weight)| weight.powi(2))
-                .sum::<f64>()
-                .sqrt();
-            let top_n_exp = top_n_nodes
-                .iter()
-                .map(|(_idx, weight)| (-1.0 * *weight / l2_norm).exp())
-                .collect_vec();
-
-            let sum_exp = top_n_exp.iter().sum::<f64>();
-            let top_n_prob = top_n_exp.iter().map(|&exp| (exp / sum_exp)).collect_vec();
-
-            // Sample index based on its probability
-            let dist = WeightedIndex::new(top_n_prob).unwrap();
-            let mut rng = thread_rng();
-            let rand_idx = dist.sample(&mut rng);
-
-            top_n_nodes[rand_idx]
-        }
+    if let Some(options_considered) = random_balance {
+        let mut rng = thread_rng();
+        let node_options = node_comparison
+            .sorted_by(|a, b| a.1.total_cmp(&b.1))
+            .take(options_considered)
+            .collect::<Vec<(usize, f64)>>();
+        *node_options
+            .choose_weighted(&mut rng, |node_option| (-1.0 * node_option.1).exp())
+            .unwrap()
     } else {
-        let (best_node, max_cost) = larger_subtree_leaf_nodes
-            .iter()
-            .map(|larger_node| {
-                (
-                    *larger_node,
-                    contraction_tree
-                        .max_match_by(*larger_node, smaller_subtree_id, tn, greedy_cost_fn)
-                        .unwrap()
-                        .1,
-                )
-            })
-            .max_by(|a, b| a.1.total_cmp(&b.1))
-            .unwrap();
-        (best_node, max_cost)
-    };
-    (rebalanced_node, max_cost)
+        node_comparison.max_by(|a, b| a.1.total_cmp(&b.1)).unwrap()
+    }
 }
