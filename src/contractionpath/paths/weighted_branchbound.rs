@@ -302,7 +302,7 @@ mod tests {
         let (tn, latency_costs) = setup_simple();
         let mut opt = WeightedBranchBound::new(&tn, None, 20f64, latency_costs, CostType::Flops);
         opt.optimize_path();
-        println!("Best path: {:?}", opt.get_best_path());
+
         assert_eq!(opt.best_flops, 4580f64);
         assert_eq!(opt.best_size, 538f64);
         assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3)]);
