@@ -18,7 +18,7 @@ use super::{CostType, OptimizePath};
 /// A struct with an [`OptimizePath`] implementation that explores possible pair contractions in a depth-first manner.
 pub struct WeightedBranchBound<'a> {
     tn: &'a Tensor,
-    nbranch: Option<u32>,
+    nbranch: Option<usize>,
     cutoff_flops_factor: f64,
     minimize: CostType,
     best_flops: f64,
@@ -35,7 +35,7 @@ pub struct WeightedBranchBound<'a> {
 impl<'a> WeightedBranchBound<'a> {
     pub fn new(
         tn: &'a Tensor,
-        nbranch: Option<u32>,
+        nbranch: Option<usize>,
         cutoff_flops_factor: f64,
         latency_map: FxHashMap<usize, f64>,
         minimize: CostType,
@@ -123,6 +123,7 @@ impl<'a> WeightedBranchBound<'a> {
         remaining: Vec<u32>,
         flops: f64,
         size: f64,
+        bi: usize,
     ) {
         if remaining.len() == 1 {
             match self.minimize {
@@ -151,7 +152,7 @@ impl<'a> WeightedBranchBound<'a> {
                 candidates.push(new_candidate);
             }
         }
-        let bi = 0;
+
         let mut new_remaining;
         let mut new_path: Vec<(usize, usize, usize)>;
         while self.nbranch.is_none() || bi < self.nbranch.unwrap() {
@@ -175,6 +176,7 @@ impl<'a> WeightedBranchBound<'a> {
                 new_remaining,
                 flop_cost,
                 size_cost,
+                bi + 1,
             );
         }
     }
@@ -214,7 +216,7 @@ impl<'a> OptimizePath for WeightedBranchBound<'a> {
             self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
         let remaining = (0u32..self.tn.tensors().len() as u32).collect();
-        WeightedBranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64);
+        WeightedBranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64, 0);
         sub_tensor_contraction.extend_from_slice(&self.best_path);
         self.best_path = sub_tensor_contraction;
     }

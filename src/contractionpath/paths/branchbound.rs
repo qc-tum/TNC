@@ -18,7 +18,7 @@ use super::{CostType, OptimizePath};
 /// A struct with an [`OptimizePath`] implementation that explores possible pair contractions in a depth-first manner.
 pub struct BranchBound<'a> {
     tn: &'a Tensor,
-    nbranch: Option<u32>,
+    nbranch: Option<usize>,
     cutoff_flops_factor: f64,
     minimize: CostType,
     best_flops: f64,
@@ -34,7 +34,7 @@ pub struct BranchBound<'a> {
 impl<'a> BranchBound<'a> {
     pub fn new(
         tn: &'a Tensor,
-        nbranch: Option<u32>,
+        nbranch: Option<usize>,
         cutoff_flops_factor: f64,
         minimize: CostType,
     ) -> Self {
@@ -123,6 +123,7 @@ impl<'a> BranchBound<'a> {
         remaining: Vec<u32>,
         flops: f64,
         size: f64,
+        bi: usize,
     ) {
         if remaining.len() == 1 {
             match self.minimize {
@@ -152,7 +153,6 @@ impl<'a> BranchBound<'a> {
                 candidates.push(new_candidate);
             }
         }
-        let bi = 0;
         let mut new_remaining;
         let mut new_path: Vec<(usize, usize, usize)>;
         while self.nbranch.is_none() || bi < self.nbranch.unwrap() {
@@ -170,7 +170,14 @@ impl<'a> BranchBound<'a> {
             new_remaining.push(child_id as u32);
             new_path = path.clone();
             new_path.push((parent_ids.0, parent_ids.1, child_id));
-            BranchBound::branch_iterate(self, new_path, new_remaining, flop_cost, size_cost);
+            BranchBound::branch_iterate(
+                self,
+                new_path,
+                new_remaining,
+                flop_cost,
+                size_cost,
+                bi + 1,
+            );
         }
     }
 }
@@ -208,7 +215,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
             self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
         let remaining = (0u32..self.tn.tensors().len() as u32).collect();
-        BranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64);
+        BranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64, 0);
         sub_tensor_contraction.extend_from_slice(&self.best_path);
         self.best_path = sub_tensor_contraction;
     }
