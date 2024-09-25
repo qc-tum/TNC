@@ -194,7 +194,7 @@ impl<'a> OptimizePath for WeightedBranchBound<'a> {
         // Get the initial space requirements for uncontracted tensors
         for (index, mut tensor) in tensors.into_iter().enumerate() {
             // Check that tensor has sub-tensors and doesn't have external legs set
-            if !tensor.tensors().is_empty() && tensor.legs().is_empty() {
+            if tensor.is_composite() && tensor.legs().is_empty() {
                 let mut bb = WeightedBranchBound::new(
                     &tensor,
                     self.nbranch,
