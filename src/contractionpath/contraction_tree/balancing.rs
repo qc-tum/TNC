@@ -153,7 +153,11 @@ pub(super) fn communicate_partitions(
     let children_tensors = tensor
         .tensors()
         .iter()
-        .map(|t| Tensor::new(t.external_edges()))
+        .map(|t| {
+            let mut tc = Tensor::new(t.external_edges());
+            tc.bond_dims = t.bond_dims.clone();
+            tc
+        })
         .collect_vec();
 
     let (final_op_cost, final_contraction) = match *communication_scheme {

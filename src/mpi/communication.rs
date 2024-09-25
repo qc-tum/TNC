@@ -127,7 +127,7 @@ fn send_leaf_tensor(tensor: &Tensor, receiver: Rank, world: &SimpleCommunicator)
     let tensor_data = tensor.tensor_data();
 
     // Get the total serialized size
-    let size = serialized_size(&legs) + serialized_size(&*tensor_data);
+    let size = serialized_size(&legs) + serialized_size(tensor_data);
     let size: usize = size.try_into().unwrap();
 
     // Allocate a buffer of blobs
@@ -145,7 +145,7 @@ fn send_leaf_tensor(tensor: &Tensor, receiver: Rank, world: &SimpleCommunicator)
 
     // Serialize legs and data into the buffer
     serialize_into(&mut write_view, legs);
-    serialize_into(&mut write_view, &*tensor_data);
+    serialize_into(&mut write_view, tensor_data);
     unsafe { buffer.set_len(buffer.capacity()) };
 
     // Send the buffer

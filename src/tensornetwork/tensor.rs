@@ -1,5 +1,4 @@
 use core::ops::{BitAnd, BitOr, BitXor, Sub};
-use std::cell::{Ref, RefCell};
 use std::hash::{Hash, Hasher};
 use std::iter::zip;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
@@ -32,7 +31,7 @@ pub struct Tensor {
     external_hyperedge: FxHashMap<EdgeIndex, usize>,
 
     /// The data of the tensor.
-    tensordata: RefCell<TensorData>,
+    tensordata: TensorData,
 }
 
 impl Hash for Tensor {
@@ -141,8 +140,7 @@ impl Tensor {
         tensor
     }
 
-    /// Returns the total number of tensors in the hierarchy, including all nested
-    /// tensors.
+    /// Returns the total number of leaf tensors in the hierarchy.
     pub fn total_num_tensors(&self) -> usize {
         if self.is_composite() {
             self.tensors.iter().map(|e| e.total_num_tensors()).sum()
@@ -386,9 +384,7 @@ impl Tensor {
             }
         }
 
-        self.tensordata
-            .borrow()
-            .approx_eq(&other.tensordata.borrow(), epsilon)
+        self.tensordata.approx_eq(&other.tensordata, epsilon)
     }
 
     /// Pushes additional tensor into Tensor object. If self is a leaf tensor, clone it and push it into itself.
@@ -408,7 +404,7 @@ impl Tensor {
                 tensordata,
             } = tensor;
             self.set_legs(legs);
-            self.set_tensor_data(tensordata.into_inner());
+            self.set_tensor_data(tensordata);
 
             if let Some(bond_dims) = bond_dims {
                 self.add_bond_dims(bond_dims);
@@ -544,8 +540,8 @@ impl Tensor {
 
     /// Getter for tensor data.
     #[inline]
-    pub fn tensor_data(&self) -> Ref<TensorData> {
-        self.tensordata.borrow()
+    pub fn tensor_data(&self) -> &TensorData {
+        &self.tensordata
     }
 
     /// Setter for tensor data.
@@ -562,7 +558,7 @@ impl Tensor {
     #[inline]
     pub fn set_tensor_data(&mut self, tensordata: TensorData) {
         assert!(self.is_leaf(), "Cannot add data to composite tensor");
-        *self.tensordata.get_mut() = tensordata;
+        self.tensordata = tensordata;
     }
 
     /// Returns `Tensor` with legs in `self` that are not in `other`.
