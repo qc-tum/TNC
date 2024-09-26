@@ -523,7 +523,7 @@ fn populate_edge_to_tensors(
     // Dictionary that maps leg id to tensor
     let remaining_inputs = remaining_tensors
         .values()
-        .map(|&e| inputs.get(e).unwrap())
+        .map(|&e| &inputs[e])
         .collect::<Vec<_>>();
     let mut bond_dim_to_tensors = FxHashMap::<usize, Vec<Tensor>>::default();
     for key in remaining_inputs {
