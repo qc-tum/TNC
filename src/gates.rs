@@ -44,7 +44,7 @@ pub fn load_gate(gate: &str, angles: &[f64]) -> DataTensor {
     let gates = &GATES.read().unwrap();
     let gate = gates
         .get(gate)
-        .unwrap_or_else(|| panic!("Gate '{}' not found.", gate));
+        .unwrap_or_else(|| panic!("Gate '{gate}' not found."));
     gate.compute(angles)
 }
 
@@ -54,7 +54,7 @@ pub fn load_gate_adjoint(gate: &str, angles: &[f64]) -> DataTensor {
     let gates = &GATES.read().unwrap();
     let gate = gates
         .get(gate)
-        .unwrap_or_else(|| panic!("Gate '{}' not found.", gate));
+        .unwrap_or_else(|| panic!("Gate '{gate}' not found."));
     gate.adjoint(angles)
 }
 

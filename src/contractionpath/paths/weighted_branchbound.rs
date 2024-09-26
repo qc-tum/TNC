@@ -119,8 +119,8 @@ impl<'a> WeightedBranchBound<'a> {
     /// the Python based `opt_einsum` implementation. Found at <https://github.com/dgasmith/opt_einsum>.
     fn branch_iterate(
         &mut self,
-        path: Vec<(usize, usize, usize)>,
-        remaining: Vec<usize>,
+        path: &[(usize, usize, usize)],
+        remaining: &[usize],
         flops: f64,
         size: f64,
     ) {
@@ -166,15 +166,15 @@ impl<'a> WeightedBranchBound<'a> {
             else {
                 break;
             };
-            new_remaining = remaining.clone();
+            new_remaining = remaining.to_vec();
             new_remaining.retain(|e| *e != parent_ids.0 && *e != parent_ids.1);
             new_remaining.push(child_id);
-            new_path = path.clone();
+            new_path = path.to_vec();
             new_path.push((parent_ids.0, parent_ids.1, child_id));
             WeightedBranchBound::branch_iterate(
                 self,
-                new_path,
-                new_remaining,
+                &new_path,
+                &new_remaining,
                 flop_cost,
                 size_cost,
             );
@@ -215,8 +215,8 @@ impl<'a> OptimizePath for WeightedBranchBound<'a> {
 
             self.tensor_cache.entry(index).or_insert_with(|| tensor);
         }
-        let remaining = (0..self.tn.tensors().len()).collect();
-        WeightedBranchBound::branch_iterate(self, vec![], remaining, 0f64, 0f64);
+        let remaining = (0..self.tn.tensors().len()).collect_vec();
+        WeightedBranchBound::branch_iterate(self, &[], &remaining, 0f64, 0f64);
         sub_tensor_contraction.extend_from_slice(&self.best_path);
         self.best_path = sub_tensor_contraction;
     }

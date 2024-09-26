@@ -138,7 +138,7 @@ fn send_leaf_tensor(tensor: &Tensor, receiver: Rank, world: &SimpleCommunicator)
     // Get a bytes view of the buffer
     let mut write_view = unsafe {
         std::slice::from_raw_parts_mut(
-            buffer.as_mut_ptr() as *mut u8,
+            buffer.as_mut_ptr().cast::<u8>(),
             buffer.capacity() * element_size,
         )
     };
@@ -162,7 +162,7 @@ fn receive_leaf_tensor(sender: Rank, world: &SimpleCommunicator) -> Tensor {
     // Get a bytes view of the buffer
     let element_size = std::mem::size_of::<MessageBinaryBlob>();
     let mut read_buffer = unsafe {
-        std::slice::from_raw_parts(buffer.as_ptr() as *const u8, buffer.len() * element_size)
+        std::slice::from_raw_parts(buffer.as_ptr().cast::<u8>(), buffer.len() * element_size)
     };
 
     // Deserialize legs and data

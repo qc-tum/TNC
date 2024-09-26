@@ -51,7 +51,7 @@ pub fn balance_partitions_iter(
         communication_scheme,
         balancing_scheme,
     }: BalanceSettings,
-    dendogram_settings: Option<DendogramSettings>,
+    dendogram_settings: &Option<DendogramSettings>,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor, path);
     let mut path = path.to_owned();
@@ -75,7 +75,7 @@ pub fn balance_partitions_iter(
     let mut max_costs = Vec::with_capacity(iterations + 1);
     max_costs.push(max_cost + final_op_cost);
 
-    if let Some(settings) = &dendogram_settings {
+    if let Some(settings) = dendogram_settings {
         let dendogram_entries =
             to_dendogram_format(&contraction_tree, tensor, settings.cost_function);
         to_pdf(
@@ -114,7 +114,7 @@ pub fn balance_partitions_iter(
             &partition_costs,
             &contraction_tree,
             &new_tn,
-            &communication_scheme,
+            communication_scheme,
         );
 
         path.extend(final_contraction);
@@ -129,7 +129,7 @@ pub fn balance_partitions_iter(
             best_contraction_path = path;
         }
 
-        if let Some(settings) = &dendogram_settings {
+        if let Some(settings) = dendogram_settings {
             let dendogram_entries =
                 to_dendogram_format(&contraction_tree, tensor, settings.cost_function);
             to_pdf(
@@ -147,7 +147,7 @@ pub(super) fn communicate_partitions(
     partition_costs: &[(usize, f64)],
     _contraction_tree: &ContractionTree,
     tensor: &Tensor,
-    communication_scheme: &CommunicationScheme,
+    communication_scheme: CommunicationScheme,
 ) -> (f64, Vec<ContractionIndex>) {
     let bond_dims = tensor.bond_dims();
     let children_tensors = tensor
@@ -160,13 +160,13 @@ pub(super) fn communicate_partitions(
         })
         .collect_vec();
 
-    let (final_op_cost, final_contraction) = match *communication_scheme {
+    let (final_op_cost, final_contraction) = match communication_scheme {
         CommunicationScheme::Greedy => greedy_communication_scheme(&children_tensors, &bond_dims),
         CommunicationScheme::Bipartition => {
             bipartition_communication_scheme(&children_tensors, &bond_dims)
         }
         CommunicationScheme::WeightedBranchBound => {
-            let latency_map = FxHashMap::from_iter(partition_costs.iter().copied());
+            let latency_map = partition_costs.iter().copied().collect();
             weighted_branchbound_communication_scheme(&children_tensors, &bond_dims, latency_map)
         }
     };

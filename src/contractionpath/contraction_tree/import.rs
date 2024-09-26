@@ -45,7 +45,7 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     let mut next_x = 0f64;
     let mut tensor_x_position = FxHashMap::default();
 
-    for contraction_index in flat_contraction_path.iter() {
+    for contraction_index in &flat_contraction_path {
         if let ContractionIndex::Pair(i, j) = contraction_index {
             if contraction_tree.node(*i).is_leaf() {
                 tensor_x_position
@@ -159,9 +159,9 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
             rank,
         );
         logging_start = logging_start.min(contraction_start);
-        nodes.keys().for_each(|&key| {
+        for &key in nodes.keys() {
             tensor_color.insert(key, String::from(*color));
-        });
+        }
         communication_logging.extend(communication_timestamps);
         remaining_nodes.extend(nodes);
         communication_path.append(&mut local_communication_path);
@@ -331,7 +331,7 @@ fn log_to_subtree(
     let mut send_start = Default::default();
     let mut recv_start = Default::default();
 
-    for line in file.split("\n") {
+    for line in file.split('\n') {
         if line.is_empty() {
             break;
         }
@@ -398,7 +398,7 @@ fn log_to_subtree(
                     .unwrap_or_else(|_| panic!("Tensor {} already inserted", *tensor_count));
 
                 let intermediate_node_ref =
-                    new_intermediate_node(&remaining_nodes, &replace_to_ssa, &ij, tensor_count);
+                    new_intermediate_node(&remaining_nodes, &replace_to_ssa, &ij, *tensor_count);
                 // New tensor replaces tensor at position i
                 replace_to_ssa.insert(ij[0], *tensor_count);
                 // Tensor in j should never be referenced again
@@ -462,12 +462,12 @@ fn new_intermediate_node(
     remaining_nodes: &FxHashMap<usize, Rc<RefCell<Node>>>,
     replace_to_ssa: &FxHashMap<usize, usize>,
     ij: &[usize],
-    tensor_count: &usize,
+    tensor_count: usize,
 ) -> Rc<RefCell<Node>> {
     let left_child = Rc::clone(&remaining_nodes[&replace_to_ssa[&ij[0]]]);
     let right_child = Rc::clone(&remaining_nodes[&replace_to_ssa[&ij[1]]]);
     let intermediate_node = Node::new(
-        *tensor_count,
+        tensor_count,
         Rc::downgrade(&left_child),
         Rc::downgrade(&right_child),
         Weak::new(),

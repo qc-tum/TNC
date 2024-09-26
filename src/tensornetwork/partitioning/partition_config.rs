@@ -16,13 +16,13 @@ impl PartitioningStrategy {
     pub(super) fn apply(self, context: &mut KaHyParContext) {
         match self {
             PartitioningStrategy::MinCut => {
-                context.configure_from_str(CString::new(MIN_CUT_CONFIG).unwrap())
+                context.configure_from_str(CString::new(MIN_CUT_CONFIG).unwrap());
             }
             PartitioningStrategy::CommunityFinding => {
-                context.configure_from_str(CString::new(COMMUNITY_FINDING_CONFIG).unwrap())
+                context.configure_from_str(CString::new(COMMUNITY_FINDING_CONFIG).unwrap());
             }
             PartitioningStrategy::Custom(path) => {
-                context.configure_from_file(CString::new(path.to_str().unwrap()).unwrap())
+                context.configure_from_file(CString::new(path.to_str().unwrap()).unwrap());
             }
         }
     }

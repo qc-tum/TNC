@@ -143,7 +143,7 @@ impl Tensor {
     /// Returns the total number of leaf tensors in the hierarchy.
     pub fn total_num_tensors(&self) -> usize {
         if self.is_composite() {
-            self.tensors.iter().map(|e| e.total_num_tensors()).sum()
+            self.tensors.iter().map(Self::total_num_tensors).sum()
         } else {
             1
         }

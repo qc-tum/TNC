@@ -238,7 +238,7 @@ impl ContractionTree {
         self.remove_subtree_recurse(node_id);
     }
 
-    /// Converts a contraction path into a ContractionTree, then attaches this as a subtree at "parent_id"
+    /// Converts a contraction path into a ContractionTree, then attaches this as a subtree at `parent_id`
     pub fn add_subtree(
         &mut self,
         path: &[ContractionIndex],

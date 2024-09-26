@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
@@ -47,7 +48,7 @@ impl Connectivity {
 }
 
 fn all_layer_connect(n: usize) -> Vec<(usize, usize)> {
-    let mut v = Vec::from_iter(0..n);
+    let mut v = (0..n).collect_vec();
     v.shuffle(&mut thread_rng());
     v.chunks(2)
         .map(|x| (x[0], x[1]))
