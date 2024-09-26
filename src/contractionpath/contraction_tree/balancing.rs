@@ -32,12 +32,20 @@ pub mod communication_schemes;
 
 #[derive(Debug)]
 pub struct BalanceSettings {
-    pub random_balance: bool,
+    pub random_balance: Option<usize>,
     pub rebalance_depth: usize,
     pub iterations: usize,
     pub greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
     pub communication_scheme: CommunicationScheme,
     pub balancing_scheme: BalancingScheme,
+}
+
+#[derive(Debug)]
+pub struct PartitionData {
+    pub id: usize,
+    pub cost: f64,
+    pub contraction: Vec<ContractionIndex>,
+    pub tensor: Tensor,
 }
 
 pub fn balance_partitions_iter(
@@ -56,19 +64,21 @@ pub fn balance_partitions_iter(
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor, path);
     let mut path = path.to_owned();
     let final_contraction = extract_communication_path(&path);
-    let mut partition_costs =
-        calculate_partition_costs(&contraction_tree, rebalance_depth, tensor, true);
 
-    assert!(partition_costs.len() > 1);
-    let partition_number = partition_costs.len();
+    let mut partition_data =
+        characterize_partition(&contraction_tree, rebalance_depth, tensor, true);
 
-    let (_, mut max_cost) = partition_costs.last().unwrap();
+    assert!(partition_data.len() > 1);
 
-    let children = &contraction_tree.partitions()[&rebalance_depth];
+    let partition_number = partition_data.len();
 
-    let children_tensors = children
+    let PartitionData {
+        cost: mut max_cost, ..
+    } = partition_data.last().unwrap();
+
+    let children_tensors = partition_data
         .iter()
-        .map(|e| contraction_tree.tensor(*e, tensor))
+        .map(|PartitionData { tensor, .. }| tensor.clone())
         .collect_vec();
 
     let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
@@ -99,10 +109,12 @@ pub fn balance_partitions_iter(
             &mut contraction_tree,
             random_balance,
             rebalance_depth,
-            &partition_costs,
+            random_balance,
+            &mut partition_data,
             greedy_cost_function,
             balancing_scheme,
         );
+
         assert_eq!(partition_number, path.len(), "Tensors lost!");
         validate_path(&path);
 
@@ -111,7 +123,7 @@ pub fn balance_partitions_iter(
 
         // Ensures that children tensors are mapped to their respective partition costs
         let (final_op_cost, final_contraction) = communicate_partitions(
-            &partition_costs,
+            &partition_data,
             &contraction_tree,
             &new_tn,
             communication_scheme,
@@ -144,7 +156,7 @@ pub fn balance_partitions_iter(
 }
 
 pub(super) fn communicate_partitions(
-    partition_costs: &[(usize, f64)],
+    partition_costs: &[PartitionData],
     _contraction_tree: &ContractionTree,
     tensor: &Tensor,
     communication_scheme: CommunicationScheme,
@@ -166,7 +178,11 @@ pub(super) fn communicate_partitions(
             bipartition_communication_scheme(&children_tensors, &bond_dims)
         }
         CommunicationScheme::WeightedBranchBound => {
-            let latency_map = partition_costs.iter().copied().collect();
+            let partition_iter = partition_costs
+                .iter()
+                .enumerate()
+                .map(|(i, PartitionData { cost, .. })| (i, *cost));
+            let latency_map = FxHashMap::from_iter(partition_iter);
             weighted_branchbound_communication_scheme(&children_tensors, &bond_dims, latency_map)
         }
     };
@@ -176,9 +192,9 @@ pub(super) fn communicate_partitions(
 pub(super) fn balance_partitions(
     tensor: &Tensor,
     contraction_tree: &mut ContractionTree,
-    random_balance: bool,
     rebalance_depth: usize,
-    partition_costs: &[(usize, f64)],
+    random_balance: Option<usize>,
+    partition_data: &mut [PartitionData],
     greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
     balancing_scheme: BalancingScheme,
 ) -> (f64, Vec<ContractionIndex>, Tensor) {
@@ -188,75 +204,143 @@ pub(super) fn balance_partitions(
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
     }
     // Will cause strange errors (picking of same partition multiple times if this is not true.Better to panic here.)
-    assert!(partition_costs.len() > 1);
+    assert!(partition_data.len() > 1);
     // Use memory reduction to identify which leaf node to shift between partitions.
     let bond_dims = tensor.bond_dims();
-    let (new_max, partition_tensors, rebalanced_path) = match balancing_scheme {
+    let shifted_nodes = match balancing_scheme {
         BalancingScheme::BestWorst => balancing_schemes::best_worst_balancing(
-            partition_costs,
+            partition_data,
             contraction_tree,
             random_balance,
             greedy_cost_function,
             tensor,
-            rebalance_depth,
         ),
         BalancingScheme::Tensor => balancing_schemes::best_tensor_balancing(
-            partition_costs,
+            partition_data,
             contraction_tree,
             random_balance,
             greedy_cost_function,
             tensor,
-            rebalance_depth,
         ),
         BalancingScheme::Tensors => balancing_schemes::best_tensors_balancing(
-            partition_costs,
+            partition_data,
             contraction_tree,
             random_balance,
             greedy_cost_function,
             tensor,
-            rebalance_depth,
         ),
+        BalancingScheme::IntermediateTensors => {
+            balancing_schemes::best_intermediate_tensors_balancing(
+                partition_data,
+                contraction_tree,
+                random_balance,
+                greedy_cost_function,
+                tensor,
+            )
+        }
         _ => panic!("Balancing Scheme not implemented"),
     };
+    let mut shifted_indices = FxHashMap::default();
+    for (from_subtree_id, to_subtree_id, rebalanced_nodes) in shifted_nodes {
+        let shifted_from_id = if shifted_indices.contains_key(&from_subtree_id) {
+            *shifted_indices.get(&from_subtree_id).unwrap()
+        } else {
+            from_subtree_id
+        };
+
+        let shifted_to_id = if shifted_indices.contains_key(&to_subtree_id) {
+            *shifted_indices.get(&to_subtree_id).unwrap()
+        } else {
+            to_subtree_id
+        };
+        let (
+            larger_id,
+            larger_contraction,
+            larger_subtree_cost,
+            smaller_id,
+            smaller_contraction,
+            smaller_subtree_cost,
+        ) = shift_node_between_subtrees(
+            contraction_tree,
+            rebalance_depth,
+            shifted_from_id,
+            shifted_to_id,
+            rebalanced_nodes,
+            tensor,
+        );
+        shifted_indices.insert(from_subtree_id, larger_id);
+        shifted_indices.insert(to_subtree_id, smaller_id);
+
+        let larger_tensor = contraction_tree.tensor(larger_id, tensor);
+        let smaller_tensor = contraction_tree.tensor(smaller_id, tensor);
+
+        // Update partition data based on shift
+        for PartitionData {
+            id,
+            cost,
+            contraction: subtree_contraction,
+            tensor: local_tensor,
+        } in partition_data.iter_mut()
+        {
+            if *id == shifted_from_id {
+                *id = larger_id;
+                *subtree_contraction = larger_contraction.clone();
+                *cost = larger_subtree_cost;
+                *local_tensor = larger_tensor.clone();
+            }
+            if *id == shifted_to_id {
+                *id = smaller_id;
+                *subtree_contraction = smaller_contraction.clone();
+                *cost = smaller_subtree_cost;
+                *local_tensor = smaller_tensor.clone();
+            }
+        }
+    }
+
+    partition_data.sort_unstable_by(
+        |PartitionData { cost: cost_a, .. }, PartitionData { cost: cost_b, .. }| {
+            cost_a.total_cmp(cost_b)
+        },
+    );
+
+    let mut new_max = 0.0;
+    let mut rebalanced_path = Vec::new();
+    let (partition_tensors, partition_ids): (Vec<_>, Vec<_>) = partition_data
+        .iter()
+        .enumerate()
+        .map(
+            |(
+                i,
+                PartitionData {
+                    id,
+                    cost,
+                    contraction: subtree_contraction,
+                    ..
+                },
+            )| {
+                if *cost > new_max {
+                    new_max = *cost;
+                }
+                rebalanced_path.push(ContractionIndex::Path(i, subtree_contraction.clone()));
+                let mut child_tensor = Tensor::default();
+                let leaf_ids = contraction_tree.leaf_ids(*id);
+                let leaf_tensors = leaf_ids
+                    .iter()
+                    .map(|tensor_id| contraction_tree.tensor(*tensor_id, tensor))
+                    .collect_vec();
+                child_tensor.push_tensors(leaf_tensors, Some(&bond_dims), None);
+                (child_tensor, *id)
+            },
+        )
+        .collect();
+
+    contraction_tree
+        .partitions
+        .insert(rebalance_depth, partition_ids);
 
     let mut updated_tn = Tensor::default();
     updated_tn.push_tensors(partition_tensors, Some(&bond_dims), None);
     (new_max, rebalanced_path, updated_tn)
-}
-
-/// Computes a hashmap that maps the node id to its weight. The weight is the maximum
-/// memory reduction that can be achieved if it is shifted to the other subtree.
-pub(super) fn find_potential_nodes(
-    contraction_tree: &ContractionTree,
-    bigger_subtree_leaf_nodes: &[usize],
-    smaller_subtree_root: usize,
-    tn: &Tensor,
-    cost_function: fn(&Tensor, &Tensor) -> f64,
-) -> FxHashMap<usize, f64> {
-    // Get a map that maps nodes to their tensors.
-    let mut node_tensor_map = FxHashMap::default();
-    populate_subtree_tensor_map(
-        contraction_tree,
-        smaller_subtree_root,
-        &mut node_tensor_map,
-        tn,
-    );
-
-    (bigger_subtree_leaf_nodes.iter().map(|leaf_index| {
-        let t1 = tn.nested_tensor(
-            contraction_tree
-                .node(*leaf_index)
-                .tensor_index
-                .as_ref()
-                .unwrap(),
-        );
-        node_tensor_map
-            .iter()
-            .map(|(&index, tensor)| (index, cost_function(tensor, t1)))
-            .min_by(|a, b| a.1.total_cmp(&b.1))
-            .unwrap()
-    }))
-    .collect()
 }
 
 /// Takes two hashmaps that contain node information. Identifies which pair of nodes from larger and smaller hashmaps maximizes the greedy cost function
@@ -287,4 +371,89 @@ pub(super) fn find_rebalance_node(
     } else {
         node_comparison.max_by(|a, b| a.1.total_cmp(&b.1)).unwrap()
     }
+}
+
+/// Shifts `rebalance_node` from the larger subtree to the smaller subtree
+/// Updates partition tensor ids after subtrees are updated and a new contraction order is found.
+fn shift_node_between_subtrees(
+    contraction_tree: &mut ContractionTree,
+    rebalance_depth: usize,
+    larger_subtree_id: usize,
+    smaller_subtree_id: usize,
+    rebalanced_nodes: Vec<usize>,
+    tensor: &Tensor,
+) -> (
+    usize,
+    Vec<ContractionIndex>,
+    f64,
+    usize,
+    Vec<ContractionIndex>,
+    f64,
+) {
+    // Obtain parents of the two subtrees that are being updated.
+    let larger_subtree_parent_id = contraction_tree
+        .node(larger_subtree_id)
+        .parent_id()
+        .unwrap();
+    let smaller_subtree_parent_id = contraction_tree
+        .node(smaller_subtree_id)
+        .parent_id()
+        .unwrap();
+
+    // Remove the updated subtrees from the `ContractionTree` partitions member as the intermediate tensor id will be updated.
+    contraction_tree
+        .partitions
+        .get_mut(&rebalance_depth)
+        .unwrap()
+        .retain(|&e| e != smaller_subtree_id && e != larger_subtree_id);
+
+    let mut larger_subtree_leaf_nodes = contraction_tree.leaf_ids(larger_subtree_id);
+    let mut smaller_subtree_leaf_nodes = contraction_tree.leaf_ids(smaller_subtree_id);
+    // Always check that a node can be moved over.
+
+    assert!(rebalanced_nodes
+        .iter()
+        .all(|node| !smaller_subtree_leaf_nodes.contains(node)));
+    assert!(rebalanced_nodes
+        .iter()
+        .all(|node| larger_subtree_leaf_nodes.contains(node)));
+
+    // Remove selected tensors from bigger subtree. Add it to the smaller subtree
+    larger_subtree_leaf_nodes.retain(|leaf| !rebalanced_nodes.contains(leaf));
+    smaller_subtree_leaf_nodes.extend(rebalanced_nodes);
+
+    // Run Greedy on the two updated subtrees
+    let (updated_larger_path, local_larger_path, larger_cost) =
+        subtree_contraction_path(&larger_subtree_leaf_nodes, tensor, contraction_tree, true);
+
+    let (updated_smaller_path, local_smaller_path, smaller_cost) =
+        subtree_contraction_path(&smaller_subtree_leaf_nodes, tensor, contraction_tree, true);
+
+    // Remove larger subtree
+    contraction_tree.remove_subtree(larger_subtree_id);
+    // Add new subtree, keep track of updated root id
+    let new_larger_subtree_id = contraction_tree.add_subtree(
+        &updated_larger_path,
+        larger_subtree_parent_id,
+        &larger_subtree_leaf_nodes,
+    );
+
+    // Remove smaller subtree
+    contraction_tree.remove_subtree(smaller_subtree_id);
+
+    // Add new subtree, keep track of updated root id
+    let new_smaller_subtree_id = contraction_tree.add_subtree(
+        &updated_smaller_path,
+        smaller_subtree_parent_id,
+        &smaller_subtree_leaf_nodes,
+    );
+
+    (
+        new_larger_subtree_id,
+        local_larger_path,
+        larger_cost,
+        new_smaller_subtree_id,
+        local_smaller_path,
+        smaller_cost,
+    )
 }

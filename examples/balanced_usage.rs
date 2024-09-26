@@ -135,7 +135,7 @@ fn main() {
                 &unopt_partitioned_tn,
                 &unopt_path,
                 BalanceSettings {
-                    random_balance: false,
+                    random_balance: None,
                     rebalance_depth,
                     iterations,
                     greedy_cost_function: greedy_cost_fn,

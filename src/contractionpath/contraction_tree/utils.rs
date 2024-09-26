@@ -11,7 +11,7 @@ use crate::{
     types::ContractionIndex,
 };
 
-use super::ContractionTree;
+use super::{balancing::PartitionData, ContractionTree};
 
 /// Returns contraction cost of subtree in `contraction_tree`.
 ///
@@ -103,14 +103,14 @@ pub(super) fn subtensor_network(
     (local_tensors, local_contraction_path)
 }
 
-/// Generates a local contraction path for a subtree in a ContractionTree, returns the local contraction path and its cost.
-/// One issue of generating a contraction path for a subtree is that tensor ids do not follow a strict ordering. Hence, a reindexing is required to find the replace contraction path. This function can return the replace contraction path if `replace` is set to true.
+/// Generates a local contraction path for a subtree in a ContractionTree, returns the local contraction path with global index, the local contraction path with local indexing and the cost of contracting.
+/// One issue of generating a contraction path for a subtree is that tensor ids do not follow a strict ordering. Hence, a re-indexing is required to find the replace contraction path. This function can return the replace contraction path if `replace` is set to true.
 pub(super) fn subtree_contraction_path(
     subtree_leaf_nodes: &[usize],
     tn: &Tensor,
     contraction_tree: &ContractionTree,
-    replace: bool,
-) -> (Vec<ContractionIndex>, f64) {
+    replace_path: bool,
+) -> (Vec<ContractionIndex>, Vec<ContractionIndex>, f64) {
     // Obtain the flattened list of Tensors corresponding to `indices`. Introduces a new indexing to find the replace contraction path.
     let tensors = subtree_leaf_nodes
         .iter()
@@ -125,12 +125,11 @@ pub(super) fn subtree_contraction_path(
     let mut opt = Greedy::new(&tn_subtree, CostType::Flops);
     opt.optimize_path();
 
-    let path_smaller_subtree = if replace {
+    let path_smaller_subtree = if replace_path {
         opt.get_best_replace_path()
     } else {
         opt.get_best_path().clone()
     };
-
     let updated_smaller_path = path_smaller_subtree
         .iter()
         .map(|e| {
@@ -141,32 +140,45 @@ pub(super) fn subtree_contraction_path(
             }
         })
         .collect_vec();
-    (updated_smaller_path, opt.get_best_flops())
+
+    (
+        updated_smaller_path,
+        path_smaller_subtree,
+        opt.get_best_flops(),
+    )
 }
 
-/// Calculate partition contraction cast of all children at `rebalance_depth`
+/// Calculate local contraction path and corresponding cost at `rebalance_depth`
 /// Returns a vector of tuples, where each tuple has the tensor_id of the child and its contraction cost.
 /// tensor_id is required to identify the partition if it is sorted.
-pub(super) fn calculate_partition_costs(
+pub(super) fn characterize_partition(
     contraction_tree: &ContractionTree,
     rebalance_depth: usize,
     tensor: &Tensor,
     sort: bool,
-) -> Vec<(usize, f64)> {
+) -> Vec<PartitionData> {
     let children = &contraction_tree.partitions()[&rebalance_depth];
 
     // Identify the contraction cost of each partition
     let mut partition_costs = children
         .iter()
         .map(|child| {
-            (
-                *child,
-                tree_contraction_cost(contraction_tree, *child, tensor).0,
-            )
+            let (local_tensors, local_contraction_path) =
+                subtensor_network(contraction_tree, *child, tensor);
+            println!("local_contraction_path: {:?}", local_contraction_path);
+
+            let mut new_tensor = Tensor::default();
+            new_tensor.insert_bond_dims(&tensor.bond_dims());
+            PartitionData {
+                id: *child,
+                cost: contract_path_cost(&local_tensors, &local_contraction_path).0,
+                contraction: local_contraction_path,
+                tensor: local_tensors.iter().fold(new_tensor, |a, b| &a ^ b),
+            }
         })
         .collect_vec();
     if sort {
-        partition_costs.sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
+        partition_costs.sort_unstable_by(|a, b| a.cost.total_cmp(&b.cost));
     }
 
     partition_costs
