@@ -69,16 +69,19 @@ pub fn parallel_tree_contraction_cost(
     }
 }
 
-/// Identifies the contraction path designated by subtree rooted at `node_id` in TN
+/// Identifies the contraction path designated by subtree rooted at `node_id` in contraction tree. Allows for Tensor to have a different structure than
+/// ContractionTree as long as leaf_ids in ContractionTree match the Tensor
 pub(super) fn subtensor_network(
     contraction_tree: &ContractionTree,
     node_id: usize,
-    tn: &Tensor,
+    tensor_network: &Tensor,
 ) -> (Vec<Tensor>, Vec<ContractionIndex>) {
     let leaf_ids = contraction_tree.leaf_ids(node_id);
     let local_tensors = leaf_ids
         .iter()
-        .map(|&id| tn.nested_tensor(contraction_tree.node(id).tensor_index.as_ref().unwrap()))
+        .map(|&id| {
+            tensor_network.nested_tensor(contraction_tree.node(id).tensor_index.as_ref().unwrap())
+        })
         .cloned()
         .collect_vec();
     let local_mapping = leaf_ids

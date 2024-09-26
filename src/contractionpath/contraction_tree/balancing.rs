@@ -118,15 +118,12 @@ pub fn balance_partitions_iter(
         assert_eq!(partition_number, path.len(), "Tensors lost!");
         validate_path(&path);
 
-        partition_costs =
-            calculate_partition_costs(&contraction_tree, rebalance_depth, tensor, true);
-
         // Ensures that children tensors are mapped to their respective partition costs
         let (final_op_cost, final_contraction) = communicate_partitions(
             &partition_data,
             &contraction_tree,
-            &new_tn,
-            communication_scheme,
+            &new_tensor,
+            &communication_scheme,
         );
 
         path.extend(final_contraction);
@@ -137,7 +134,7 @@ pub fn balance_partitions_iter(
         if new_max_cost < best_cost {
             best_cost = new_max_cost;
             best_contraction = i;
-            best_tn = new_tn;
+            best_tn = new_tensor;
             best_contraction_path = path;
         }
 
@@ -348,7 +345,7 @@ pub(super) fn find_rebalance_node(
     random_balance: Option<usize>,
     larger_subtree_nodes: &FxHashMap<usize, Tensor>,
     smaller_subtree_nodes: &FxHashMap<usize, Tensor>,
-    greedy_cost_fn: fn(&Tensor, &Tensor) -> f64,
+    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
 ) -> (usize, f64) {
     let node_comparison = larger_subtree_nodes
         .iter()
@@ -356,7 +353,7 @@ pub(super) fn find_rebalance_node(
         .map(|((larger_node_id, larger_tensor), (_, smaller_tensor))| {
             (
                 *larger_node_id,
-                greedy_cost_fn(larger_tensor, smaller_tensor),
+                greedy_cost_function(larger_tensor, smaller_tensor),
             )
         });
     if let Some(options_considered) = random_balance {
