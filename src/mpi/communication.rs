@@ -120,7 +120,7 @@ fn send_leaf_tensor(tensor: &Tensor, receiver: Rank, world: &SimpleCommunicator)
     // MPI uses an i32 to store the number of elements in a buffer. This means, we
     // can send at most `i32::MAX * sizeof(datatype)`. Hence, if we only use byte
     // arrays, we can send at most `i32::MAX` bytes (~2GB) which is not enough.
-    // Instead, we interpret the byte arrays as arrays of a artifical, larger data
+    // Instead, we interpret the byte arrays as arrays of a artificial, larger data
     // type, which allows us to send more bytes.
 
     let legs = tensor.legs();
