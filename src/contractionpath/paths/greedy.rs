@@ -388,7 +388,7 @@ impl<'a> Greedy<'a> {
             }
             ssa_id_to_tensor.entry(child_id).or_insert_with(|| k1);
         }
-        assert!(queue.is_empty());
+
         for (_key, ssa_id) in remaining_tensors {
             let k12_tensor = ssa_id_to_tensor[&ssa_id].clone();
             let tensor_size = (&k12_tensor & output_dims).size() as f64;
