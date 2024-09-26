@@ -130,14 +130,14 @@ impl<'a> WeightedBranchBound<'a> {
                     if self.best_flops > flops {
                         self.best_flops = flops;
                         self.best_size = size;
-                        self.best_path = ssa_ordering(&path, self.tn.tensors().len());
+                        self.best_path = ssa_ordering(path, self.tn.tensors().len());
                     }
                 }
                 CostType::Size => {
                     if self.best_size > size {
                         self.best_flops = flops;
                         self.best_size = size;
-                        self.best_path = ssa_ordering(&path, self.tn.tensors().len());
+                        self.best_path = ssa_ordering(path, self.tn.tensors().len());
                     }
                 }
             }
