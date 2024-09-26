@@ -95,7 +95,7 @@ pub fn balance_partitions_iter(
         );
     }
 
-    let mut new_tn;
+    let mut new_tensor;
     let mut best_contraction = 0;
     let mut best_contraction_path = path.clone();
     let mut best_cost = max_cost + final_op_cost;
@@ -104,10 +104,11 @@ pub fn balance_partitions_iter(
 
     for i in 1..=iterations {
         info!("Balancing iteration {i} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
-        (max_cost, path, new_tn) = balance_partitions(
+
+        // Balances and updates partitions
+        (max_cost, path, new_tensor) = balance_partitions(
             tensor,
             &mut contraction_tree,
-            random_balance,
             rebalance_depth,
             random_balance,
             &mut partition_data,
