@@ -462,12 +462,14 @@ impl ContractionTree {
     /// # Returns
     /// Empty tensor with legs (dimensions) of data after fully contracted.
     pub fn tensor(&self, node_id: usize, tensor: &Tensor) -> Tensor {
-        // let node = self.node(node_id);
         let leaf_nodes = self.leaf_ids(node_id);
         let mut new_tensor = Tensor::default();
+
+        new_tensor.insert_bond_dims(&tensor.bond_dims());
+
         for leaf_id in leaf_nodes {
             new_tensor = &new_tensor
-                ^ &tensor.nested_tensor(&(self.node(leaf_id).tensor_index.as_ref().unwrap()));
+                ^ tensor.nested_tensor(self.node(leaf_id).tensor_index.as_ref().unwrap());
         }
         new_tensor
     }
