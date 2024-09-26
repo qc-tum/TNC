@@ -364,7 +364,7 @@ impl ContractionTree {
 
         // Get a map that maps leaf nodes to corresponding tensor objects.
         let mut node_tensor_map = FxHashMap::default();
-        populate_subtree_tensor_map(self, subtree_root, &mut node_tensor_map, tn);
+        populate_subtree_tensor_map(self, subtree_root, &mut node_tensor_map, tn, None);
         let node = self.node(node_id);
         let tensor_index = node.tensor_index.as_ref().unwrap();
         let t1 = tn.nested_tensor(tensor_index);
@@ -487,31 +487,41 @@ fn populate_subtree_tensor_map(
     contraction_tree: &ContractionTree,
     node_id: usize,
     node_tensor_map: &mut FxHashMap<usize, Tensor>,
-    tn: &Tensor,
-) -> Tensor {
+    tensor_network: &Tensor,
+    height_limit: Option<usize>,
+) -> (Tensor, usize) {
     let node = contraction_tree.node(node_id);
 
     if node.is_leaf() {
         let tensor_index = node.tensor_index.as_ref().unwrap();
-        let t = tn.nested_tensor(tensor_index);
+        let t = tensor_network.nested_tensor(tensor_index);
         node_tensor_map.insert(node.id, t.clone());
-        t.clone()
+        (t.clone(), 0)
     } else {
-        let t1 = populate_subtree_tensor_map(
+        let (t1, new_height1) = populate_subtree_tensor_map(
             contraction_tree,
             node.left_child_id().unwrap(),
             node_tensor_map,
-            tn,
+            tensor_network,
+            height_limit,
         );
-        let t2 = populate_subtree_tensor_map(
+        let (t2, new_height2) = populate_subtree_tensor_map(
             contraction_tree,
             node.right_child_id().unwrap(),
             node_tensor_map,
-            tn,
+            tensor_network,
+            height_limit,
         );
         let t12 = &t1 ^ &t2;
-        node_tensor_map.insert(node.id, t12.clone());
-        t12
+        if let Some(height_limit) = height_limit {
+            if new_height1 <= height_limit && new_height2 <= height_limit {
+                node_tensor_map.insert(node.id, t12.clone());
+            }
+        } else {
+            node_tensor_map.insert(node.id, t12.clone());
+        }
+
+        (t12, new_height1.max(new_height2) + 1)
     }
 }
 
@@ -1215,7 +1225,7 @@ mod tests {
         let (tensor, ref_path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut node_tensor_map = FxHashMap::default();
-        populate_subtree_tensor_map(&tree, 4, &mut node_tensor_map, &tensor);
+        populate_subtree_tensor_map(&tree, 4, &mut node_tensor_map, &tensor, None);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
             (0, Tensor::new(vec![4, 3, 2])),
@@ -1235,7 +1245,7 @@ mod tests {
         let (tensor, ref_path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut node_tensor_map = FxHashMap::default();
-        populate_subtree_tensor_map(&tree, 10, &mut node_tensor_map, &tensor);
+        populate_subtree_tensor_map(&tree, 10, &mut node_tensor_map, &tensor, None);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
             (0, Tensor::new(vec![4, 3, 2])),
