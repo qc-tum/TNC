@@ -23,6 +23,12 @@ pub enum BalancingScheme {
     /// subtrees are updated.
     Tensors,
 
+    /// Identifies the intermediate tensor in the slowest subtree and passes it to the subtree with
+    /// largest memory reduction. Then identifies the intermediate tensor with the largest memory
+    /// reduction when passed to the fastest subtree. Both slowest and fastest
+    /// subtrees are updated.
+    IntermediateTensors,
+
     Configuration,
 }
 
