@@ -87,7 +87,7 @@ fn main() {
             &partitioned_tn,
             &path,
             BalanceSettings {
-                random_balance: false,
+                random_balance: None,
                 rebalance_depth,
                 iterations: 120,
                 greedy_cost_function: greedy_cost_fn,
