@@ -21,11 +21,11 @@ pub enum ContractionIndex {
 
 #[macro_export]
 macro_rules! path {
-    ($index:expr, [$(($l:expr, $r:expr)),*]) => {
-        $crate::types::ContractionIndex::Path($index, vec![$($crate::pair![$l, $r]),*])
-    };
     ($(($index:expr, $($tokens:tt),*)),*) => {
         &[$(path![$index, $($tokens),*]),*]
+    };
+    ($index:expr, [$($tokens:tt),+]) => {
+        $crate::types::ContractionIndex::Path($index, path![$($tokens),+].to_vec())
     };
     ($e:expr, $p:expr) => {
         $crate::types::ContractionIndex::Pair($e, $p)
@@ -55,6 +55,7 @@ mod tests {
             path![
                 (0, 1),
                 (2, [(1, 2), (1, 3)]),
+                (4, [(2, [(1, 2), (1, 3)]), (1, 3)]),
                 (0, 2),
                 (3, [(4, 1), (3, 4), (3, 5)]),
                 (0, 3)
@@ -64,6 +65,16 @@ mod tests {
                 ContractionIndex::Path(
                     2,
                     vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
+                ),
+                ContractionIndex::Path(
+                    4,
+                    vec![
+                        ContractionIndex::Path(
+                            2,
+                            vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
+                        ),
+                        ContractionIndex::Pair(1, 3)
+                    ]
                 ),
                 ContractionIndex::Pair(0, 2),
                 ContractionIndex::Path(
