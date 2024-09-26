@@ -53,6 +53,7 @@ impl Tensor {
     /// let legs = vec![1,2,3];
     /// let tensor = Tensor::new(legs);
     /// ```
+    #[inline]
     pub fn new(legs: Vec<EdgeIndex>) -> Self {
         Self {
             legs,
@@ -573,7 +574,7 @@ impl Tensor {
     /// ```
     #[must_use]
     pub fn difference(&self, other: &Self) -> Self {
-        let mut new_legs = Vec::new();
+        let mut new_legs = Vec::with_capacity(self.legs.len());
         for &i in &self.legs {
             if !other.contains_leg(i) {
                 new_legs.push(i);
@@ -596,7 +597,8 @@ impl Tensor {
     /// ```
     #[must_use]
     pub fn union(&self, other: &Self) -> Self {
-        let mut new_legs = self.legs().clone();
+        let mut new_legs = Vec::with_capacity(self.legs.len() + other.legs.len());
+        new_legs.extend_from_slice(&self.legs);
         for &i in other.legs() {
             if !self.contains_leg(i) {
                 new_legs.push(i);
@@ -619,7 +621,7 @@ impl Tensor {
     /// ```
     #[must_use]
     pub fn intersection(&self, other: &Self) -> Self {
-        let mut new_legs = Vec::new();
+        let mut new_legs = Vec::with_capacity(self.legs.len().min(other.legs.len()));
         for &i in &self.legs {
             if other.contains_leg(i) {
                 new_legs.push(i);
@@ -642,7 +644,7 @@ impl Tensor {
     /// ```
     #[must_use]
     pub fn symmetric_difference(&self, other: &Self) -> Self {
-        let mut new_legs = Vec::new();
+        let mut new_legs = Vec::with_capacity(self.legs.len() + other.legs.len());
         for &i in &self.legs {
             if !other.contains_leg(i) {
                 new_legs.push(i);
