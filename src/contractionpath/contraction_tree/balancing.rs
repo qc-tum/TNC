@@ -5,10 +5,7 @@ use communication_schemes::{
 };
 use itertools::Itertools;
 use log::info;
-use rand::{
-    distributions::{Distribution, WeightedIndex},
-    thread_rng,
-};
+use rand::{seq::SliceRandom, thread_rng};
 use rustc_hash::FxHashMap;
 
 use crate::{
@@ -16,7 +13,7 @@ use crate::{
         contraction_cost::contract_path_cost,
         contraction_tree::{
             export::{to_dendogram_format, to_pdf},
-            utils::calculate_partition_costs,
+            utils::{characterize_partition, subtree_contraction_path},
         },
         paths::validate_path,
     },
@@ -25,7 +22,7 @@ use crate::{
     types::ContractionIndex,
 };
 
-use super::{export::DendogramSettings, populate_subtree_tensor_map, ContractionTree};
+use super::{export::DendogramSettings, ContractionTree};
 
 pub mod balancing_schemes;
 pub mod communication_schemes;
