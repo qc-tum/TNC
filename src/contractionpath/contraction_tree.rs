@@ -543,7 +543,7 @@ fn populate_leaf_node_tensor_map(
     for leaf_node_id in contraction_tree.leaf_ids(node_id) {
         node_tensor_map.insert(
             leaf_node_id,
-            contraction_tree.tensor(leaf_node_id, &tensor_network),
+            contraction_tree.tensor(leaf_node_id, tensor_network),
         );
     }
 }
