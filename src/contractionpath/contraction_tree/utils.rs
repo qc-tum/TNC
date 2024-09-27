@@ -360,7 +360,7 @@ mod tests {
             self.id == other.id
                 && self.cost == other.cost
                 && self.contraction == other.contraction
-                && self.tensor.legs() == other.tensor.legs()
+                && self.local_tensor.legs() == other.local_tensor.legs()
         }
     }
 
@@ -377,19 +377,19 @@ mod tests {
                 id: 4,
                 cost: 84f64,
                 contraction: path![(0, 1), (0, 2)].to_vec(),
-                tensor: Tensor::new(vec![1, 2, 3]),
+                local_tensor: Tensor::new(vec![1, 2, 3]),
             },
             PartitionData {
                 id: 9,
                 cost: 3456f64,
                 contraction: path![(0, 1), (0, 2)].to_vec(),
-                tensor: Tensor::new(vec![2, 1, 3, 5, 7]),
+                local_tensor: Tensor::new(vec![2, 1, 3, 5, 7]),
             },
             PartitionData {
                 id: 12,
                 cost: 140f64,
                 contraction: path![(0, 1)].to_vec(),
-                tensor: Tensor::new(vec![5, 7]),
+                local_tensor: Tensor::new(vec![5, 7]),
             },
         ];
         assert_eq!(ref_partition_data, partition_data);
@@ -408,19 +408,19 @@ mod tests {
                 id: 4,
                 cost: 84f64,
                 contraction: path![(0, 1), (0, 2)].to_vec(),
-                tensor: Tensor::new(vec![1, 2, 3]),
+                local_tensor: Tensor::new(vec![1, 2, 3]),
             },
             PartitionData {
                 id: 12,
                 cost: 140f64,
                 contraction: path![(0, 1)].to_vec(),
-                tensor: Tensor::new(vec![5, 7]),
+                local_tensor: Tensor::new(vec![5, 7]),
             },
             PartitionData {
                 id: 9,
                 cost: 3456f64,
                 contraction: path![(0, 1), (0, 2)].to_vec(),
-                tensor: Tensor::new(vec![2, 1, 3, 5, 7]),
+                local_tensor: Tensor::new(vec![2, 1, 3, 5, 7]),
             },
         ];
         assert_eq!(ref_partition_data, partition_data);
