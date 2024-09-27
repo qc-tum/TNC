@@ -27,15 +27,15 @@ use super::{balancing::PartitionData, ContractionTree};
 pub fn parallel_tree_contraction_cost(
     contraction_tree: &ContractionTree,
     node_id: usize,
-    tn: &Tensor,
+    tensor_network: &Tensor,
 ) -> (f64, f64, Tensor) {
     let left_child_id = contraction_tree.node(node_id).left_child_id();
     let right_child_id = contraction_tree.node(node_id).right_child_id();
     if let (Some(left_child_id), Some(right_child_id)) = (left_child_id, right_child_id) {
         let (left_op_cost, left_mem_cost, t1) =
-            parallel_tree_contraction_cost(contraction_tree, left_child_id, tn);
+            parallel_tree_contraction_cost(contraction_tree, left_child_id, tensor_network);
         let (right_op_cost, right_mem_cost, t2) =
-            parallel_tree_contraction_cost(contraction_tree, right_child_id, tn);
+            parallel_tree_contraction_cost(contraction_tree, right_child_id, tensor_network);
         let current_tensor = &t1 ^ &t2;
         let contraction_cost = contract_cost_tensors(&t1, &t2);
         let current_mem_cost = contract_size_tensors(&t1, &t2);
@@ -47,7 +47,7 @@ pub fn parallel_tree_contraction_cost(
         )
     } else {
         let tensor_id = contraction_tree.node(node_id).tensor_index.clone().unwrap();
-        let tensor = tn.nested_tensor(&tensor_id).clone();
+        let tensor = tensor_network.nested_tensor(&tensor_id).clone();
         (0.0, tensor.size() as f64, tensor)
     }
 }
@@ -93,20 +93,20 @@ pub(super) fn subtensor_network(
 /// One issue of generating a contraction path for a subtree is that tensor ids do not follow a strict ordering. Hence, a re-indexing is required to find the replace contraction path. This function can return the replace contraction path if `replace` is set to true.
 pub(super) fn subtree_contraction_path(
     subtree_leaf_nodes: &[usize],
-    tensor: &Tensor,
     contraction_tree: &ContractionTree,
+    tensor_network: &Tensor,
 ) -> (Vec<ContractionIndex>, Vec<ContractionIndex>, f64) {
     // Obtain the flattened list of Tensors corresponding to `indices`. Introduces a new indexing to find the replace contraction path.
     let tensors = subtree_leaf_nodes
         .iter()
         .map(|&e| {
-            tensor
+            tensor_network
                 .nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
                 .clone()
         })
         .collect();
     // Obtain tensor network corresponding to subtree
-    let tn_subtree = create_tensor_network(tensors, &tensor.bond_dims(), None);
+    let tn_subtree = create_tensor_network(tensors, &tensor_network.bond_dims(), None);
 
     let mut opt = Greedy::new(&tn_subtree, CostType::Flops);
     opt.optimize_path();
@@ -137,7 +137,7 @@ pub(super) fn subtree_contraction_path(
 pub(super) fn characterize_partition(
     contraction_tree: &ContractionTree,
     rebalance_depth: usize,
-    tensor: &Tensor,
+    tensor_network: &Tensor,
     sort: bool,
 ) -> Vec<PartitionData> {
     let children = &contraction_tree.partitions()[&rebalance_depth];
@@ -147,10 +147,10 @@ pub(super) fn characterize_partition(
         .iter()
         .map(|child| {
             let (local_tensors, local_contraction_path) =
-                subtensor_network(contraction_tree, *child, tensor);
+                subtree_tensor_network(*child, contraction_tree, tensor_network);
 
             let mut new_tensor = Tensor::default();
-            new_tensor.insert_bond_dims(&tensor.bond_dims());
+            new_tensor.insert_bond_dims(&tensor_network.bond_dims());
             PartitionData {
                 id: *child,
                 cost: contract_path_op_cost(&local_tensors, &local_contraction_path).0,
