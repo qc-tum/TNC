@@ -27,7 +27,7 @@ use super::{export::DendogramSettings, ContractionTree};
 pub mod balancing_schemes;
 pub mod communication_schemes;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct BalanceSettings {
     pub random_balance: Option<usize>,
     pub rebalance_depth: usize,
@@ -37,7 +37,7 @@ pub struct BalanceSettings {
     pub balancing_scheme: BalancingScheme,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PartitionData {
     pub id: usize,
     pub cost: f64,
