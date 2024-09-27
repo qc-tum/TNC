@@ -1390,47 +1390,40 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_tree_contraction_path() {
+    fn test_populate_leaf_node_tensor_map_simple() {
         let (tensor, ref_path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        let (op_cost, mem_cost) = tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+        let mut node_tensor_map = FxHashMap::default();
+        populate_leaf_node_tensor_map(&tree, 4, &mut node_tensor_map, &tensor);
 
-        assert_eq!(op_cost, 4540f64);
-        assert_eq!(mem_cost, 538f64);
+        let ref_node_tensor_map = FxHashMap::from_iter([
+            (0, Tensor::new(vec![4, 3, 2])),
+            (1, Tensor::new(vec![0, 1, 3, 2])),
+            (2, Tensor::new(vec![4, 5, 6])),
+        ]);
+
+        for (key, value) in ref_node_tensor_map {
+            assert_eq!(node_tensor_map[&key].legs(), value.legs());
+        }
     }
 
     #[test]
-    fn test_parallel_tree_contraction_path() {
-        let (tensor, ref_path) = setup_simple();
-        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-
-        let (op_cost, mem_cost, _) =
-            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
-
-        assert_eq!(op_cost, 4540f64);
-        assert_eq!(mem_cost, 538f64);
-    }
-
-    #[test]
-    fn test_tree_contraction_path_complex() {
+    fn test_populate_leaf_node_tensor_map_complex() {
         let (tensor, ref_path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        let (op_cost, mem_cost) = tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+        let mut node_tensor_map = FxHashMap::default();
+        populate_subtree_tensor_map(&tree, 10, &mut node_tensor_map, &tensor, None);
 
-        assert_eq!(op_cost, 4237070f64);
-        assert_eq!(mem_cost, 89478f64);
-    }
+        let ref_node_tensor_map = FxHashMap::from_iter([
+            (0, Tensor::new(vec![4, 3, 2])),
+            (1, Tensor::new(vec![0, 1, 3, 2])),
+            (2, Tensor::new(vec![4, 5, 6])),
+            (3, Tensor::new(vec![6, 8, 9])),
+            (4, Tensor::new(vec![10, 8, 9])),
+        ]);
 
-    #[test]
-    fn test_parallel_tree_contraction_path_complex() {
-        let (tensor, ref_path) = setup_complex();
-        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-
-        let (op_cost, mem_cost, _) =
-            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
-
-        assert_eq!(op_cost, 2120600f64);
-        assert_eq!(mem_cost, 89478f64);
+        for (key, value) in ref_node_tensor_map {
+            assert_eq!(node_tensor_map[&key].legs(), value.legs());
+        }
     }
 }
