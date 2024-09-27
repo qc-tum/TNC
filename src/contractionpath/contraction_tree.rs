@@ -469,7 +469,6 @@ mod tests {
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
     use crate::types::ContractionIndex;
-    use utils::{parallel_tree_contraction_cost, tree_contraction_cost};
 
     use super::*;
 
