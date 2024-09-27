@@ -152,6 +152,16 @@ impl ContractionTree {
     /// Removes subtree with root at `node_id`.
     fn remove_subtree_recurse(&mut self, node_id: usize) {
         if self.node(node_id).is_leaf() {
+            // Leaf nodes are not removed. We need to manually clear parent/children relations
+            let node = &self.nodes[&node_id];
+            if let Some(parent_id) = node.borrow().parent_id() {
+                if self.nodes.contains_key(&parent_id) {
+                    self.nodes[&parent_id]
+                        .borrow_mut()
+                        .remove_child(node.borrow().id());
+                }
+            }
+            node.borrow_mut().parent = Default::default();
             return;
         }
 
@@ -483,6 +493,8 @@ fn populate_leaf_node_tensor_map(
 
 #[cfg(test)]
 mod tests {
+    use std::iter::zip;
+
     use crate::contractionpath::contraction_cost::contract_cost_tensors;
     use crate::contractionpath::contraction_tree::{ContractionTree, Node};
     use crate::contractionpath::ssa_replace_ordering;
@@ -1063,6 +1075,215 @@ mod tests {
         assert_eq!(tree.leaf_ids(7), vec![0, 1, 5]);
         assert_eq!(tree.leaf_ids(6), vec![1, 5]);
         assert_eq!(tree.leaf_ids(3), vec![3]);
+    }
+    #[test]
+    fn test_remove_subtree() {
+        let (tn, path) = setup_nested();
+        let mut tree = ContractionTree::from_contraction_path(&tn, &path);
+
+        tree.remove_subtree(8);
+
+        let ContractionTree { nodes, root, .. } = tree;
+
+        let node0 = Rc::new(RefCell::new(Node::new(
+            0,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![0, 0]),
+        )));
+        let node1 = Rc::new(RefCell::new(Node::new(
+            1,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![0, 1]),
+        )));
+        let node3 = Rc::new(RefCell::new(Node::new(
+            3,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![1, 0]),
+        )));
+        let node4 = Rc::new(RefCell::new(Node::new(
+            4,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![1, 1]),
+        )));
+        let node6 = Rc::new(RefCell::new(Node::new(
+            6,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![2, 0]),
+        )));
+        let node7 = Rc::new(RefCell::new(Node::new(
+            7,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![2, 1]),
+        )));
+        let node2 = Rc::new(RefCell::new(Node::new(
+            2,
+            Rc::downgrade(&node0),
+            Rc::downgrade(&node1),
+            Weak::new(),
+            None,
+        )));
+        let node5 = Rc::new(RefCell::new(Node::new(
+            5,
+            Rc::downgrade(&node3),
+            Rc::downgrade(&node4),
+            Weak::new(),
+            None,
+        )));
+
+        let node9 = Rc::new(RefCell::new(Node::new(
+            9,
+            Rc::downgrade(&node2),
+            Rc::downgrade(&node5),
+            Weak::new(),
+            None,
+        )));
+        let node10 = Rc::new(RefCell::new(Node::new(
+            10,
+            Rc::downgrade(&node9),
+            Default::default(),
+            Weak::new(),
+            None,
+        )));
+        node0.borrow_mut().parent = Rc::downgrade(&node2);
+        node1.borrow_mut().parent = Rc::downgrade(&node2);
+        node2.borrow_mut().parent = Rc::downgrade(&node9);
+        node3.borrow_mut().parent = Rc::downgrade(&node5);
+        node4.borrow_mut().parent = Rc::downgrade(&node5);
+        node5.borrow_mut().parent = Rc::downgrade(&node9);
+        node9.borrow_mut().parent = Rc::downgrade(&node10);
+
+        let ref_root = Rc::clone(&node10);
+        let ref_nodes = [
+            node0, node1, node2, node3, node4, node5, node6, node7, node9, node10,
+        ];
+        let mut range = (0..8).collect::<Vec<usize>>();
+        range.extend(9..11);
+        for (key, ref_node) in zip(range.iter(), ref_nodes.iter()) {
+            let node = &nodes[key];
+            assert_eq!(node, ref_node);
+        }
+        assert_eq!(root.upgrade().unwrap(), ref_root);
+    }
+
+    #[test]
+    fn test_remove_trivial_subtree() {
+        let (tensor, path) = setup_nested();
+        let mut tree = ContractionTree::from_contraction_path(&tensor, &path);
+
+        tree.remove_subtree(7);
+
+        let ContractionTree { nodes, root, .. } = tree;
+
+        let node0 = Rc::new(RefCell::new(Node::new(
+            0,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![0, 0]),
+        )));
+        let node1 = Rc::new(RefCell::new(Node::new(
+            1,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![0, 1]),
+        )));
+        let node3 = Rc::new(RefCell::new(Node::new(
+            3,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![1, 0]),
+        )));
+        let node4 = Rc::new(RefCell::new(Node::new(
+            4,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![1, 1]),
+        )));
+        let node6 = Rc::new(RefCell::new(Node::new(
+            6,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![2, 0]),
+        )));
+        let node7 = Rc::new(RefCell::new(Node::new(
+            7,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![2, 1]),
+        )));
+        let node2 = Rc::new(RefCell::new(Node::new(
+            2,
+            Rc::downgrade(&node0),
+            Rc::downgrade(&node1),
+            Weak::new(),
+            None,
+        )));
+        let node5 = Rc::new(RefCell::new(Node::new(
+            5,
+            Rc::downgrade(&node3),
+            Rc::downgrade(&node4),
+            Weak::new(),
+            None,
+        )));
+        let node8 = Rc::new(RefCell::new(Node::new(
+            8,
+            Rc::downgrade(&node6),
+            Default::default(),
+            Weak::new(),
+            None,
+        )));
+        let node9 = Rc::new(RefCell::new(Node::new(
+            9,
+            Rc::downgrade(&node2),
+            Rc::downgrade(&node5),
+            Weak::new(),
+            None,
+        )));
+        let node10 = Rc::new(RefCell::new(Node::new(
+            10,
+            Rc::downgrade(&node9),
+            Rc::downgrade(&node8),
+            Weak::new(),
+            None,
+        )));
+        node0.borrow_mut().parent = Rc::downgrade(&node2);
+        node1.borrow_mut().parent = Rc::downgrade(&node2);
+        node2.borrow_mut().parent = Rc::downgrade(&node9);
+        node3.borrow_mut().parent = Rc::downgrade(&node5);
+        node4.borrow_mut().parent = Rc::downgrade(&node5);
+        node5.borrow_mut().parent = Rc::downgrade(&node9);
+        node6.borrow_mut().parent = Rc::downgrade(&node8);
+        // node7.borrow_mut().parent = Rc::downgrade(&node8);
+        node8.borrow_mut().parent = Rc::downgrade(&node10);
+        node9.borrow_mut().parent = Rc::downgrade(&node10);
+
+        let ref_root = Rc::clone(&node10);
+        let ref_nodes = [
+            node0, node1, node2, node3, node4, node5, node6, node7, node8, node9, node10,
+        ];
+
+        for (key, ref_node) in ref_nodes.iter().enumerate() {
+            let node = &nodes[&key];
+            assert_eq!(node, ref_node);
+        }
+        assert_eq!(root.upgrade().unwrap(), ref_root);
     }
 
     #[test]
