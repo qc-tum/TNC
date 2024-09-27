@@ -3,7 +3,9 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
-        contraction_cost::{contract_cost_tensors, contract_path_cost, contract_size_tensors},
+        contraction_cost::{
+            contract_cost_tensors, contract_path_cost, contract_path_op_cost, contract_size_tensors,
+        },
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
     pair,
@@ -170,7 +172,7 @@ pub(super) fn characterize_partition(
             new_tensor.insert_bond_dims(&tensor.bond_dims());
             PartitionData {
                 id: *child,
-                cost: contract_path_cost(&local_tensors, &local_contraction_path).0,
+                cost: contract_path_op_cost(&local_tensors, &local_contraction_path).0,
                 contraction: local_contraction_path,
                 tensor: local_tensors.iter().fold(new_tensor, |a, b| &a ^ b),
             }
@@ -283,6 +285,52 @@ mod tests {
         )
     }
 
+    fn setup_nested() -> (Tensor, Vec<ContractionIndex>) {
+        let bond_dims = FxHashMap::from_iter([
+            (0, 4),
+            (1, 6),
+            (2, 2),
+            (3, 3),
+            (4, 2),
+            (5, 4),
+            (6, 7),
+            (7, 5),
+            (8, 2),
+        ]);
+
+        let t0 = Tensor::new(vec![0, 1]);
+        let t1 = Tensor::new(vec![0, 2]);
+        let t2 = Tensor::new(vec![3]);
+        let t3 = Tensor::new(vec![2, 4]);
+        let t4 = Tensor::new(vec![1, 3, 5, 8]);
+        let t5 = Tensor::new(vec![4, 7, 8]);
+        let t6 = Tensor::new(vec![5, 6, 7]);
+        let t7 = Tensor::new(vec![6]);
+
+        let mut t012 = Tensor::default();
+        t012.push_tensors(vec![t0, t1, t2], Some(&bond_dims), None);
+
+        let mut t345 = Tensor::default();
+        t345.push_tensors(vec![t3, t4, t5], Some(&bond_dims), None);
+
+        let mut t67 = Tensor::default();
+        t67.push_tensors(vec![t6, t7], Some(&bond_dims), None);
+
+        let mut tensor_network = Tensor::default();
+        tensor_network.push_tensors(vec![t012, t345, t67], Some(&bond_dims), None);
+        (
+            tensor_network,
+            path![
+                (0, [(0, 1), (0, 2)]),
+                (1, [(0, 1), (0, 2)]),
+                (2, [(0, 1)]),
+                (0, 1),
+                (0, 2)
+            ]
+            .to_vec(),
+        )
+    }
+
     #[test]
     fn test_tree_contraction_path() {
         let (tensor, ref_path) = setup_simple();
@@ -346,5 +394,45 @@ mod tests {
         );
 
         assert_eq!(171781290f64, cost);
+    }
+
+    impl PartialEq for PartitionData {
+        fn eq(&self, other: &Self) -> bool {
+            self.id == other.id
+                && self.cost == other.cost
+                && self.contraction == other.contraction
+                && self.tensor.legs() == other.tensor.legs()
+        }
+    }
+
+    #[test]
+    fn test_characterize_partitions() {
+        let (tensor, ref_path) = setup_nested();
+        let mut contraction_tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        contraction_tree.partitions.insert(1, vec![4, 9, 12]);
+        let rebalance_depth = 1;
+        let partition_data =
+            characterize_partition(&contraction_tree, rebalance_depth, &tensor, false);
+        let ref_partition_data = vec![
+            PartitionData {
+                id: 4,
+                cost: 84f64,
+                contraction: path![(0, 1), (0, 2)].to_vec(),
+                tensor: Tensor::new(vec![1, 2, 3]),
+            },
+            PartitionData {
+                id: 9,
+                cost: 3456f64,
+                contraction: path![(0, 1), (0, 2)].to_vec(),
+                tensor: Tensor::new(vec![2, 1, 3, 5, 7]),
+            },
+            PartitionData {
+                id: 12,
+                cost: 140f64,
+                contraction: path![(0, 1)].to_vec(),
+                tensor: Tensor::new(vec![5, 7]),
+            },
+        ];
+        assert_eq!(ref_partition_data, partition_data);
     }
 }
