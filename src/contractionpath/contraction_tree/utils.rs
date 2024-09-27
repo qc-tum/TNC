@@ -104,14 +104,14 @@ pub(super) fn subtree_contraction_path(
         })
         .collect();
     // Obtain tensor network corresponding to subtree
-    let tn_subtree = create_tensor_network(tensors, &tensor_network.bond_dims(), None);
+    let subtree_tensor_network = create_tensor_network(tensors, &tensor_network.bond_dims(), None);
 
-    let mut opt = Greedy::new(&tn_subtree, CostType::Flops);
+    let mut opt = Greedy::new(&subtree_tensor_network, CostType::Flops);
     opt.optimize_path();
 
-    let path_smaller_subtree = opt.get_best_replace_path();
+    let smaller_path_new_index = opt.get_best_replace_path();
 
-    let updated_smaller_path = path_smaller_subtree
+    let smaller_path_node_index = smaller_path_new_index
         .iter()
         .map(|e| {
             if let ContractionIndex::Pair(v1, v2) = e {
@@ -123,8 +123,8 @@ pub(super) fn subtree_contraction_path(
         .collect_vec();
 
     (
-        updated_smaller_path,
-        path_smaller_subtree,
+        smaller_path_node_index,
+        smaller_path_new_index,
         opt.get_best_flops(),
     )
 }
