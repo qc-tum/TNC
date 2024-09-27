@@ -368,8 +368,9 @@ pub(super) fn find_rebalance_node(
             .sorted_by(|a, b| a.1.total_cmp(&b.1))
             .take(options_considered)
             .collect::<Vec<(usize, f64)>>();
+        let max = node_options.first().unwrap().1;
         *node_options
-            .choose_weighted(&mut rng, |node_option| (-1.0 * node_option.1).exp())
+            .choose_weighted(&mut rng, |node_option| node_option.1 / max)
             .unwrap()
     } else {
         node_comparison.max_by(|a, b| a.1.total_cmp(&b.1)).unwrap()
