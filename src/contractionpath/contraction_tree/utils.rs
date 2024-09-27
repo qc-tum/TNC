@@ -153,7 +153,7 @@ pub(super) fn characterize_partition(
                 id: *child,
                 cost: contract_path_op_cost(&local_tensors, &local_contraction_path).0,
                 contraction: local_contraction_path,
-                tensor: local_tensors.iter().fold(new_tensor, |a, b| &a ^ b),
+                local_tensor: local_tensors.iter().fold(new_tensor, |a, b| &a ^ b),
             }
         })
         .collect_vec();
