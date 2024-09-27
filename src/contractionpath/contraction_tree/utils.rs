@@ -186,3 +186,149 @@ pub(super) fn characterize_partition(
 
     partition_costs
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::path;
+
+    use rustc_hash::FxHashMap;
+
+    fn setup_simple() -> (Tensor, Vec<ContractionIndex>) {
+        (
+            create_tensor_network(
+                vec![
+                    Tensor::new(vec![4, 3, 2]),
+                    Tensor::new(vec![0, 1, 3, 2]),
+                    Tensor::new(vec![4, 5, 6]),
+                ],
+                &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
+                None,
+            ),
+            path![(0, 1), (2, 0)].to_vec(),
+        )
+    }
+
+    fn setup_complex() -> (Tensor, Vec<ContractionIndex>) {
+        (
+            create_tensor_network(
+                vec![
+                    Tensor::new(vec![4, 3, 2]),
+                    Tensor::new(vec![0, 1, 3, 2]),
+                    Tensor::new(vec![4, 5, 6]),
+                    Tensor::new(vec![6, 8, 9]),
+                    Tensor::new(vec![10, 8, 9]),
+                    Tensor::new(vec![5, 1, 0]),
+                ],
+                &FxHashMap::from_iter([
+                    (0, 27),
+                    (1, 18),
+                    (2, 12),
+                    (3, 15),
+                    (4, 5),
+                    (5, 3),
+                    (6, 18),
+                    (7, 22),
+                    (8, 45),
+                    (9, 65),
+                    (10, 5),
+                ]),
+                None,
+            ),
+            path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
+        )
+    }
+
+    fn setup_double_nested() -> (Tensor, Vec<ContractionIndex>) {
+        let bond_dims = FxHashMap::from_iter([
+            (0, 27),
+            (1, 18),
+            (2, 12),
+            (3, 15),
+            (4, 5),
+            (5, 3),
+            (6, 18),
+            (7, 22),
+            (8, 45),
+            (9, 65),
+            (10, 5),
+            (11, 17),
+        ]);
+
+        let t0 = Tensor::new(vec![4, 3, 2]);
+        let t1 = Tensor::new(vec![0, 1, 3, 2]);
+        let t2 = Tensor::new(vec![4, 5, 6]);
+        let t3 = Tensor::new(vec![6, 8, 9]);
+        let t4 = Tensor::new(vec![5, 1, 0]);
+        let t5 = Tensor::new(vec![10, 8, 9]);
+
+        let mut t01 = Tensor::default();
+        t01.push_tensors(vec![t0, t1], Some(&bond_dims), None);
+
+        let mut t012 = Tensor::default();
+        t012.push_tensors(vec![t01, t2], Some(&bond_dims), None);
+
+        let mut t34 = Tensor::default();
+        t34.push_tensors(vec![t3, t4], Some(&bond_dims), None);
+
+        let mut t345 = Tensor::default();
+        t345.push_tensors(vec![t34, t5], Some(&bond_dims), None);
+
+        let mut tensor_network = Tensor::default();
+        tensor_network.push_tensors(vec![t012, t345], Some(&bond_dims), None);
+        (
+            tensor_network,
+            path![
+                (0, [(0, [(0, 1)]), (0, 1)]),
+                (1, [(0, [(0, 1)]), (0, 1)]),
+                (0, 1)
+            ]
+            .to_vec(),
+        )
+    }
+
+    #[test]
+    fn test_tree_contraction_path() {
+        let (tensor, ref_path) = setup_simple();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let (op_cost, mem_cost) = tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+
+        assert_eq!(op_cost, 4540f64);
+        assert_eq!(mem_cost, 538f64);
+    }
+
+    #[test]
+    fn test_parallel_tree_contraction_path() {
+        let (tensor, ref_path) = setup_simple();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+
+        let (op_cost, mem_cost, _) =
+            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+
+        assert_eq!(op_cost, 4540f64);
+        assert_eq!(mem_cost, 538f64);
+    }
+
+    #[test]
+    fn test_tree_contraction_path_complex() {
+        let (tensor, ref_path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let (op_cost, mem_cost) = tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+
+        assert_eq!(op_cost, 4237070f64);
+        assert_eq!(mem_cost, 89478f64);
+    }
+
+    #[test]
+    fn test_parallel_tree_contraction_path_complex() {
+        let (tensor, ref_path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+
+        let (op_cost, mem_cost, _) =
+            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+
+        assert_eq!(op_cost, 2120600f64);
+        assert_eq!(mem_cost, 89478f64);
+    }
+
+}
