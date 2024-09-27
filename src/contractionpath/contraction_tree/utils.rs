@@ -54,9 +54,9 @@ pub fn parallel_tree_contraction_cost(
 
 /// Identifies the contraction path designated by subtree rooted at `node_id` in contraction tree. Allows for Tensor to have a different structure than
 /// ContractionTree as long as leaf_ids in ContractionTree match the Tensor
-pub(super) fn subtensor_network(
-    contraction_tree: &ContractionTree,
+pub(super) fn subtree_tensor_network(
     node_id: usize,
+    contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
 ) -> (Vec<Tensor>, Vec<ContractionIndex>) {
     let leaf_ids = contraction_tree.leaf_ids(node_id);
@@ -342,7 +342,7 @@ mod tests {
         let contraction_tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let subtree_leaf_nodes = vec![0, 1, 3, 5];
         let (tree_contraction_path, local_contraction_path, cost) =
-            subtree_contraction_path(&subtree_leaf_nodes, &tensor, &contraction_tree);
+            subtree_contraction_path(&subtree_leaf_nodes, &contraction_tree, &tensor);
 
         assert_eq!(
             path![(1, 0), (5, 3), (1, 5)].to_vec(),
