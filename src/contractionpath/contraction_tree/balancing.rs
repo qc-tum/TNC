@@ -428,10 +428,10 @@ fn shift_node_between_subtrees(
 
     // Run Greedy on the two updated subtrees
     let (updated_larger_path, local_larger_path, larger_cost) =
-        subtree_contraction_path(&larger_subtree_leaf_nodes, tensor, contraction_tree, true);
+        subtree_contraction_path(&larger_subtree_leaf_nodes, tensor, contraction_tree);
 
     let (updated_smaller_path, local_smaller_path, smaller_cost) =
-        subtree_contraction_path(&smaller_subtree_leaf_nodes, tensor, contraction_tree, true);
+        subtree_contraction_path(&smaller_subtree_leaf_nodes, tensor, contraction_tree);
 
     // Remove larger subtree
     contraction_tree.remove_subtree(larger_subtree_id);

@@ -106,33 +106,30 @@ pub(super) fn subtensor_network(
     (local_tensors, local_contraction_path)
 }
 
-/// Generates a local contraction path for a subtree in a ContractionTree, returns the local contraction path with global index, the local contraction path with local indexing and the cost of contracting.
+/// Generates a local contraction path for a subtree in a ContractionTree, returns the local contraction path with tree node indices, the local contraction path with local indexing and the cost of contracting.
 /// One issue of generating a contraction path for a subtree is that tensor ids do not follow a strict ordering. Hence, a re-indexing is required to find the replace contraction path. This function can return the replace contraction path if `replace` is set to true.
 pub(super) fn subtree_contraction_path(
     subtree_leaf_nodes: &[usize],
-    tn: &Tensor,
+    tensor: &Tensor,
     contraction_tree: &ContractionTree,
-    replace_path: bool,
 ) -> (Vec<ContractionIndex>, Vec<ContractionIndex>, f64) {
     // Obtain the flattened list of Tensors corresponding to `indices`. Introduces a new indexing to find the replace contraction path.
     let tensors = subtree_leaf_nodes
         .iter()
         .map(|&e| {
-            tn.nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
+            tensor
+                .nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
                 .clone()
         })
         .collect();
     // Obtain tensor network corresponding to subtree
-    let tn_subtree = create_tensor_network(tensors, &tn.bond_dims(), None);
+    let tn_subtree = create_tensor_network(tensors, &tensor.bond_dims(), None);
 
     let mut opt = Greedy::new(&tn_subtree, CostType::Flops);
     opt.optimize_path();
 
-    let path_smaller_subtree = if replace_path {
-        opt.get_best_replace_path()
-    } else {
-        opt.get_best_path().clone()
-    };
+    let path_smaller_subtree = opt.get_best_replace_path();
+
     let updated_smaller_path = path_smaller_subtree
         .iter()
         .map(|e| {
@@ -331,4 +328,24 @@ mod tests {
         assert_eq!(mem_cost, 89478f64);
     }
 
+    #[test]
+    fn test_subtree_network() {
+        let (tensor, ref_path) = setup_double_nested();
+        let contraction_tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let subtree_leaf_nodes = vec![0, 1, 3, 5];
+        let (tree_contraction_path, local_contraction_path, cost) =
+            subtree_contraction_path(&subtree_leaf_nodes, &tensor, &contraction_tree);
+
+        assert_eq!(
+            path![(1, 0), (5, 3), (1, 5)].to_vec(),
+            tree_contraction_path
+        );
+
+        assert_eq!(
+            path![(1, 0), (3, 2), (1, 3)].to_vec(),
+            local_contraction_path
+        );
+
+        assert_eq!(171781290f64, cost);
+    }
 }
