@@ -42,11 +42,11 @@ pub struct PartitionData {
     pub id: usize,
     pub cost: f64,
     pub contraction: Vec<ContractionIndex>,
-    pub tensor: Tensor,
+    pub local_tensor: Tensor,
 }
 
 pub fn balance_partitions_iter(
-    tensor: &Tensor,
+    tensor_network: &Tensor,
     path: &[ContractionIndex],
     BalanceSettings {
         random_balance,
@@ -58,12 +58,12 @@ pub fn balance_partitions_iter(
     }: BalanceSettings,
     dendogram_settings: &Option<DendogramSettings>,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
-    let mut contraction_tree = ContractionTree::from_contraction_path(tensor, path);
+    let mut contraction_tree = ContractionTree::from_contraction_path(tensor_network, path);
     let mut path = path.to_owned();
     let final_contraction = extract_communication_path(&path);
 
     let mut partition_data =
-        characterize_partition(&contraction_tree, rebalance_depth, tensor, true);
+        characterize_partition(&contraction_tree, rebalance_depth, tensor_network, true);
 
     assert!(partition_data.len() > 1);
 
@@ -75,7 +75,12 @@ pub fn balance_partitions_iter(
 
     let children_tensors = partition_data
         .iter()
-        .map(|PartitionData { tensor, .. }| tensor.clone())
+        .map(
+            |PartitionData {
+                 local_tensor: tensor,
+                 ..
+             }| tensor.clone(),
+        )
         .collect_vec();
 
     let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
@@ -84,7 +89,7 @@ pub fn balance_partitions_iter(
 
     if let Some(settings) = dendogram_settings {
         let dendogram_entries =
-            to_dendogram_format(&contraction_tree, tensor, settings.cost_function);
+            to_dendogram_format(&contraction_tree, tensor_network, settings.cost_function);
         to_pdf(
             &format!("{}_0", settings.output_file),
             &dendogram_entries,
@@ -97,14 +102,14 @@ pub fn balance_partitions_iter(
     let mut best_contraction_path = path.clone();
     let mut best_cost = max_cost + final_op_cost;
 
-    let mut best_tn = tensor.clone();
+    let mut best_tn = tensor_network.clone();
 
     for i in 1..=iterations {
         info!("Balancing iteration {i} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
 
         // Balances and updates partitions
         (max_cost, path, new_tensor) = balance_partitions(
-            tensor,
+            tensor_network,
             &mut contraction_tree,
             rebalance_depth,
             random_balance,
@@ -138,7 +143,7 @@ pub fn balance_partitions_iter(
 
         if let Some(settings) = dendogram_settings {
             let dendogram_entries =
-                to_dendogram_format(&contraction_tree, tensor, settings.cost_function);
+                to_dendogram_format(&contraction_tree, tensor_network, settings.cost_function);
             to_pdf(
                 &format!("{}_{i}", settings.output_file),
                 &dendogram_entries,
@@ -153,11 +158,11 @@ pub fn balance_partitions_iter(
 pub(super) fn communicate_partitions(
     partition_costs: &[PartitionData],
     _contraction_tree: &ContractionTree,
-    tensor: &Tensor,
-    communication_scheme: CommunicationScheme,
+    tensor_network: &Tensor,
+    communication_scheme: &CommunicationScheme,
 ) -> (f64, Vec<ContractionIndex>) {
-    let bond_dims = tensor.bond_dims();
-    let children_tensors = tensor
+    let bond_dims = tensor_network.bond_dims();
+    let children_tensors = tensor_network
         .tensors()
         .iter()
         .map(|t| {
@@ -185,7 +190,7 @@ pub(super) fn communicate_partitions(
 }
 
 pub(super) fn balance_partitions(
-    tensor: &Tensor,
+    tensor_network: &Tensor,
     contraction_tree: &mut ContractionTree,
     rebalance_depth: usize,
     random_balance: Option<usize>,
@@ -194,35 +199,35 @@ pub(super) fn balance_partitions(
     balancing_scheme: BalancingScheme,
 ) -> (f64, Vec<ContractionIndex>, Tensor) {
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
-    if tensor.total_num_tensors() < 3 {
+    if tensor_network.total_num_tensors() < 3 {
         // TODO: should not panic, but handle gracefully
         panic!("No rebalancing undertaken, as tn is too small (< 3 tensors)");
     }
     // Will cause strange errors (picking of same partition multiple times if this is not true.Better to panic here.)
     assert!(partition_data.len() > 1);
     // Use memory reduction to identify which leaf node to shift between partitions.
-    let bond_dims = tensor.bond_dims();
+    let bond_dims = tensor_network.bond_dims();
     let shifted_nodes = match balancing_scheme {
         BalancingScheme::BestWorst => balancing_schemes::best_worst_balancing(
             partition_data,
             contraction_tree,
             random_balance,
             greedy_cost_function,
-            tensor,
+            tensor_network,
         ),
         BalancingScheme::Tensor => balancing_schemes::best_tensor_balancing(
             partition_data,
             contraction_tree,
             random_balance,
             greedy_cost_function,
-            tensor,
+            tensor_network,
         ),
         BalancingScheme::Tensors => balancing_schemes::best_tensors_balancing(
             partition_data,
             contraction_tree,
             random_balance,
             greedy_cost_function,
-            tensor,
+            tensor_network,
         ),
         BalancingScheme::IntermediateTensors(height_limit) => {
             balancing_schemes::best_intermediate_tensors_balancing(
@@ -230,7 +235,7 @@ pub(super) fn balance_partitions(
                 contraction_tree,
                 random_balance,
                 greedy_cost_function,
-                tensor,
+                tensor_network,
                 height_limit,
             )
         }
@@ -262,20 +267,20 @@ pub(super) fn balance_partitions(
             shifted_from_id,
             shifted_to_id,
             rebalanced_nodes,
-            tensor,
+            tensor_network,
         );
         shifted_indices.insert(from_subtree_id, larger_id);
         shifted_indices.insert(to_subtree_id, smaller_id);
 
-        let larger_tensor = contraction_tree.tensor(larger_id, tensor);
-        let smaller_tensor = contraction_tree.tensor(smaller_id, tensor);
+        let larger_tensor = contraction_tree.tensor(larger_id, tensor_network);
+        let smaller_tensor = contraction_tree.tensor(smaller_id, tensor_network);
 
         // Update partition data based on shift
         for PartitionData {
             id,
             cost,
             contraction: subtree_contraction,
-            tensor: local_tensor,
+            local_tensor,
         } in partition_data.iter_mut()
         {
             if *id == shifted_from_id {
@@ -328,7 +333,7 @@ pub(super) fn balance_partitions(
                             .tensor_index
                             .clone()
                             .unwrap();
-                        tensor.nested_tensor(&nested_indices).clone()
+                        tensor_network.nested_tensor(&nested_indices).clone()
                     })
                     .collect_vec();
                 child_tensor.push_tensors(leaf_tensors, Some(&bond_dims), None);
@@ -385,7 +390,7 @@ fn shift_node_between_subtrees(
     larger_subtree_id: usize,
     smaller_subtree_id: usize,
     rebalanced_nodes: Vec<usize>,
-    tensor: &Tensor,
+    tensor_network: &Tensor,
 ) -> (
     usize,
     Vec<ContractionIndex>,
@@ -428,10 +433,13 @@ fn shift_node_between_subtrees(
 
     // Run Greedy on the two updated subtrees
     let (updated_larger_path, local_larger_path, larger_cost) =
-        subtree_contraction_path(&larger_subtree_leaf_nodes, tensor, contraction_tree);
+        subtree_contraction_path(&larger_subtree_leaf_nodes, contraction_tree, tensor_network);
 
-    let (updated_smaller_path, local_smaller_path, smaller_cost) =
-        subtree_contraction_path(&smaller_subtree_leaf_nodes, tensor, contraction_tree);
+    let (updated_smaller_path, local_smaller_path, smaller_cost) = subtree_contraction_path(
+        &smaller_subtree_leaf_nodes,
+        contraction_tree,
+        tensor_network,
+    );
 
     // Remove larger subtree
     contraction_tree.remove_subtree(larger_subtree_id);
