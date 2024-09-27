@@ -286,40 +286,6 @@ impl ContractionTree {
         weights
     }
 
-    /// Given a specific tensor at leaf node "n1" with id `node_index`, identifies tensor at node "n2" in `ContractionTree` subtree rooted at `subtree_root`, such that (n1, n2) maximizes provided cost function `cost_function`.
-    ///
-    /// # Arguments
-    /// * `node_id` - leaf node used to calculation cost function, must be disjoint from subtree rooted at `subtree_root`
-    /// * `subtree_root` - identifies root of subtree to be considered
-    /// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
-    /// * `cost_function` - cost function of contracting the tensors
-    ///
-    /// # Returns
-    /// * option of node id (not necessarily a leaf node) in subtree that maximizes `cost_function`.
-    pub fn max_match_by(
-        &self,
-        node_id: usize,
-        subtree_root: usize,
-        tn: &Tensor,
-        cost_function: fn(&Tensor, &Tensor) -> f64,
-    ) -> Option<(usize, f64)> {
-        assert!(self.node(node_id).is_leaf());
-
-        // Get a map that maps leaf nodes to corresponding tensor objects.
-        let mut node_tensor_map = FxHashMap::default();
-        populate_subtree_tensor_map(self, subtree_root, &mut node_tensor_map, tn, None);
-        let node = self.node(node_id);
-        let tensor_index = node.tensor_index.as_ref().unwrap();
-        let t1 = tn.nested_tensor(tensor_index);
-
-        // Find the tensor that maximizes cost function.
-        let (node, cost) = node_tensor_map
-            .iter()
-            .map(|(id, tensor)| (id, cost_function(tensor, t1)))
-            .max_by(|a, b| a.1.total_cmp(&b.1))?;
-        Some((*node, cost))
-    }
-
     /// Populates given vector with contractions path of contraction tree starting at `node`.
     ///
     /// # Arguments
@@ -1349,28 +1315,6 @@ mod tests {
         let weights = tree.tree_weights(10, &tensor, contract_cost_tensors);
 
         assert_eq!(weights, ref_weights);
-    }
-
-    #[test]
-    fn test_max_match_by_complex() {
-        let (tensor, path) = setup_complex();
-        let tree = ContractionTree::from_contraction_path(&tensor, &path);
-
-        fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
-            (t1.size() as f64) + (t2.size() as f64) - ((t1 ^ t2).size() as f64)
-        }
-        let (max_match, _) = tree.max_match_by(2, 7, &tensor, greedy_cost_fn).unwrap();
-
-        assert_eq!(max_match, 7);
-
-        fn max_memory_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
-            (t1 ^ t2).size() as f64
-        }
-
-        let (max_match, _) = tree
-            .max_match_by(2, 7, &tensor, max_memory_cost_fn)
-            .unwrap();
-        assert_eq!(max_match, 1);
     }
 
     #[test]
