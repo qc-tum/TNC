@@ -224,13 +224,14 @@ pub(super) fn balance_partitions(
             greedy_cost_function,
             tensor,
         ),
-        BalancingScheme::IntermediateTensors => {
+        BalancingScheme::IntermediateTensors(height_limit) => {
             balancing_schemes::best_intermediate_tensors_balancing(
                 partition_data,
                 contraction_tree,
                 random_balance,
                 greedy_cost_function,
                 tensor,
+                height_limit,
             )
         }
         _ => panic!("Balancing Scheme not implemented"),
@@ -321,7 +322,14 @@ pub(super) fn balance_partitions(
                 let leaf_ids = contraction_tree.leaf_ids(*id);
                 let leaf_tensors = leaf_ids
                     .iter()
-                    .map(|tensor_id| contraction_tree.tensor(*tensor_id, tensor))
+                    .map(|node_id| {
+                        let nested_indices = contraction_tree
+                            .node(*node_id)
+                            .tensor_index
+                            .clone()
+                            .unwrap();
+                        tensor.nested_tensor(&nested_indices).clone()
+                    })
                     .collect_vec();
                 child_tensor.push_tensors(leaf_tensors, Some(&bond_dims), None);
                 (child_tensor, *id)

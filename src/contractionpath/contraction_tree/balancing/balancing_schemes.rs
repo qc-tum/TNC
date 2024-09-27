@@ -27,7 +27,7 @@ pub enum BalancingScheme {
     /// largest memory reduction. Then identifies the intermediate tensor with the largest memory
     /// reduction when passed to the fastest subtree. Both slowest and fastest
     /// subtrees are updated.
-    IntermediateTensors,
+    IntermediateTensors(usize),
 
     Configuration,
 }
