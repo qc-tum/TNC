@@ -186,16 +186,17 @@ impl ContractionTree {
         &mut self,
         path: &[ContractionIndex],
         parent_id: usize,
-        tensor_indices: &[usize],
+        leaf_tensor_indices: &[usize],
     ) -> usize {
         validate_path(path);
         assert!(self.nodes.contains_key(&parent_id));
+
         let mut index = 0;
         // Utilize a scratch hashmap to store intermediate tensor information
         let mut scratch = FxHashMap::default();
 
-        // Fill scratch with initial tensor inputs
-        for &tensor_index in tensor_indices {
+        // Fill scratch with leaf tensors, these should already be present in self.nodes.
+        for &tensor_index in leaf_tensor_indices {
             scratch.insert(tensor_index, Rc::clone(&self.nodes[&tensor_index]));
         }
 
