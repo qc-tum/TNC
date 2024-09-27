@@ -1076,6 +1076,30 @@ mod tests {
         assert_eq!(tree.leaf_ids(6), vec![1, 5]);
         assert_eq!(tree.leaf_ids(3), vec![3]);
     }
+
+    #[test]
+    fn test_leaf_ids_nested() {
+        let (tn, path) = setup_nested();
+        let tree = ContractionTree::from_contraction_path(&tn, &path);
+        assert_eq!(tree.leaf_ids(10), vec![0, 1, 3, 4, 6, 7]);
+        assert_eq!(tree.leaf_ids(9), vec![0, 1, 3, 4]);
+        assert_eq!(tree.leaf_ids(8), vec![6, 7]);
+        assert_eq!(tree.leaf_ids(5), vec![3, 4]);
+        assert_eq!(tree.leaf_ids(2), vec![0, 1]);
+    }
+
+    #[test]
+    fn test_leaf_ids_double_nested() {
+        let (tn, path) = setup_double_nested();
+        let tree = ContractionTree::from_contraction_path(&tn, &path);
+
+        assert_eq!(tree.leaf_ids(10), vec![0, 1, 3, 5, 6, 8]);
+        assert_eq!(tree.leaf_ids(9), vec![5, 6, 8]);
+        assert_eq!(tree.leaf_ids(7), vec![5, 6]);
+        assert_eq!(tree.leaf_ids(4), vec![0, 1, 3]);
+        assert_eq!(tree.leaf_ids(2), vec![0, 1]);
+    }
+
     #[test]
     fn test_remove_subtree() {
         let (tn, path) = setup_nested();
