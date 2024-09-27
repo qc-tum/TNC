@@ -48,20 +48,19 @@ pub struct PartitionData {
 pub fn balance_partitions_iter(
     tensor_network: &Tensor,
     path: &[ContractionIndex],
-    BalanceSettings {
-        random_balance,
-        rebalance_depth,
-        iterations,
-        greedy_cost_function,
-        communication_scheme,
-        balancing_scheme,
-    }: BalanceSettings,
-    dendogram_settings: &Option<DendogramSettings>,
+    balance_settings: BalanceSettings,
+    dendogram_settings: Option<DendogramSettings>,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor_network, path);
-    let mut intermediate_path = path.to_owned();
-    let communication_path = extract_communication_path(&intermediate_path);
-
+    let path = path.to_owned();
+    let communication_path = extract_communication_path(&path);
+    let BalanceSettings {
+        rebalance_depth,
+        iterations,
+        balancing_scheme,
+        communication_scheme,
+        ..
+    } = balance_settings;
     let mut partition_data =
         characterize_partition(&contraction_tree, rebalance_depth, tensor_network, true);
 
@@ -70,7 +69,7 @@ pub fn balance_partitions_iter(
     let partition_number = partition_data.len();
 
     let PartitionData {
-        cost: mut intermediate_cost,
+        cost: intermediate_cost,
         ..
     } = partition_data.last().unwrap();
 
@@ -93,9 +92,8 @@ pub fn balance_partitions_iter(
         );
     }
 
-    let mut new_tensor_network;
     let mut best_iteration = 0;
-    let mut best_contraction_path = intermediate_path.clone();
+    let mut best_contraction_path = path.clone();
     let mut best_cost = intermediate_cost + communication_cost;
 
     let mut best_tn = tensor_network.clone();
@@ -104,14 +102,11 @@ pub fn balance_partitions_iter(
         info!("Balancing iteration {i} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
 
         // Balances and updates partitions
-        (intermediate_cost, intermediate_path, new_tensor_network) = balance_partitions(
-            tensor_network,
-            &mut contraction_tree,
-            rebalance_depth,
-            random_balance,
+        let (intermediate_cost, mut intermediate_path, new_tensor_network) = balance_partitions(
             &mut partition_data,
-            greedy_cost_function,
-            balancing_scheme,
+            &mut contraction_tree,
+            tensor_network,
+            balance_settings,
         );
 
         assert_eq!(partition_number, intermediate_path.len(), "Tensors lost!");
@@ -122,7 +117,7 @@ pub fn balance_partitions_iter(
             &partition_data,
             &contraction_tree,
             &new_tensor_network,
-            &communication_scheme,
+            balance_settings,
         );
 
         intermediate_path.extend(communication_path);
@@ -155,8 +150,9 @@ pub(super) fn communicate_partitions(
     partition_data: &[PartitionData],
     _contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
-    communication_scheme: &CommunicationScheme,
+    balance_settings: BalanceSettings,
 ) -> (f64, Vec<ContractionIndex>) {
+    let communication_scheme = balance_settings.communication_scheme;
     let bond_dims = tensor_network.bond_dims();
     let children_tensors = tensor_network
         .tensors()
@@ -168,7 +164,7 @@ pub(super) fn communicate_partitions(
         })
         .collect_vec();
 
-    let (communication_cost, communication_path) = match *communication_scheme {
+    let (communication_cost, communication_path) = match communication_scheme {
         CommunicationScheme::Greedy => greedy_communication_scheme(&children_tensors, &bond_dims),
         CommunicationScheme::Bipartition => {
             bipartition_communication_scheme(&children_tensors, &bond_dims)
@@ -186,14 +182,18 @@ pub(super) fn communicate_partitions(
 }
 
 pub(super) fn balance_partitions(
-    tensor_network: &Tensor,
-    contraction_tree: &mut ContractionTree,
-    rebalance_depth: usize,
-    random_balance: Option<usize>,
     partition_data: &mut [PartitionData],
-    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
-    balancing_scheme: BalancingScheme,
+    contraction_tree: &mut ContractionTree,
+    tensor_network: &Tensor,
+    balance_settings: BalanceSettings,
 ) -> (f64, Vec<ContractionIndex>, Tensor) {
+    let BalanceSettings {
+        random_balance,
+        rebalance_depth,
+        greedy_cost_function,
+        balancing_scheme,
+        ..
+    } = balance_settings;
     // If there are less than 3 tensors in the tn, rebalancing will not make sense.
     if tensor_network.total_num_tensors() < 3 {
         // TODO: should not panic, but handle gracefully
