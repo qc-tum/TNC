@@ -1,6 +1,7 @@
 use crate::pair;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
+use node::{Node, NodeRef, WeakNodeRef};
 use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
 use std::rc::{Rc, Weak};
@@ -10,76 +11,8 @@ use super::paths::validate_path;
 pub mod balancing;
 pub mod export;
 pub mod import;
+mod node;
 mod utils;
-
-type NodeRef = Rc<RefCell<Node>>;
-type WeakNodeRef = Weak<RefCell<Node>>;
-
-/// Node in [`ContractionTree`], represents a contraction of [`Tensor`] with position
-/// `left_child` and position `right_child` to obtain [`Tensor`] at position
-/// `parent`.
-#[derive(Debug, Clone)]
-pub struct Node {
-    id: usize,
-    left_child: WeakNodeRef,
-    right_child: WeakNodeRef,
-    parent: WeakNodeRef,
-    tensor_index: Option<Vec<usize>>,
-}
-
-impl Node {
-    fn new(
-        id: usize,
-        left_child: WeakNodeRef,
-        right_child: WeakNodeRef,
-        parent: WeakNodeRef,
-        tensor_index: Option<Vec<usize>>,
-    ) -> Self {
-        Self {
-            id,
-            left_child,
-            right_child,
-            parent,
-            tensor_index,
-        }
-    }
-
-    pub fn left_child_id(&self) -> Option<usize> {
-        self.left_child.upgrade().map(|node| node.borrow().id)
-    }
-
-    pub fn right_child_id(&self) -> Option<usize> {
-        self.right_child.upgrade().map(|node| node.borrow().id)
-    }
-
-    pub const fn id(&self) -> usize {
-        self.id
-    }
-
-    pub fn parent_id(&self) -> Option<usize> {
-        self.parent.upgrade().map(|node| node.borrow().id)
-    }
-
-    fn is_leaf(&self) -> bool {
-        self.left_child.upgrade().is_none() && self.right_child.upgrade().is_none()
-    }
-
-    fn set_parent(&mut self, parent: WeakNodeRef) {
-        assert!(parent.upgrade().is_some(), "Parent is already deallocated");
-        self.parent = parent;
-    }
-
-    fn add_child(&mut self, child: WeakNodeRef) {
-        assert!(child.upgrade().is_some(), "Child is already deallocated");
-        if self.left_child.upgrade().is_none() {
-            self.left_child = child;
-        } else if self.right_child.upgrade().is_none() {
-            self.right_child = child;
-        } else {
-            panic!("Node already has two children");
-        }
-    }
-}
 
 /// Struct representing the full contraction path of a given Tensor object
 #[derive(Default, Debug, Clone)]

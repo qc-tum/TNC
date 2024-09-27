@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-    contractionpath::contraction_tree::{export::to_pdf, Node},
+    contractionpath::contraction_tree::{export::to_pdf, node::Node},
     types::ContractionIndex,
     utils::traits::HashMapInsertNew,
 };
