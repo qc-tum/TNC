@@ -165,7 +165,6 @@ pub(super) fn characterize_partition(
         .map(|child| {
             let (local_tensors, local_contraction_path) =
                 subtensor_network(contraction_tree, *child, tensor);
-            println!("local_contraction_path: {:?}", local_contraction_path);
 
             let mut new_tensor = Tensor::default();
             new_tensor.insert_bond_dims(&tensor.bond_dims());
