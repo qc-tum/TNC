@@ -59,8 +59,8 @@ pub fn balance_partitions_iter(
     dendogram_settings: &Option<DendogramSettings>,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor_network, path);
-    let mut path = path.to_owned();
-    let final_contraction = extract_communication_path(&path);
+    let mut intermediate_path = path.to_owned();
+    let communication_path = extract_communication_path(&intermediate_path);
 
     let mut partition_data =
         characterize_partition(&contraction_tree, rebalance_depth, tensor_network, true);
@@ -70,22 +70,18 @@ pub fn balance_partitions_iter(
     let partition_number = partition_data.len();
 
     let PartitionData {
-        cost: mut max_cost, ..
+        cost: mut intermediate_cost,
+        ..
     } = partition_data.last().unwrap();
 
     let children_tensors = partition_data
         .iter()
-        .map(
-            |PartitionData {
-                 local_tensor: tensor,
-                 ..
-             }| tensor.clone(),
-        )
+        .map(|PartitionData { local_tensor, .. }| local_tensor.clone())
         .collect_vec();
 
-    let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
+    let (communication_cost, _) = contract_path_cost(&children_tensors, &communication_path);
     let mut max_costs = Vec::with_capacity(iterations + 1);
-    max_costs.push(max_cost + final_op_cost);
+    max_costs.push(intermediate_cost + communication_cost);
 
     if let Some(settings) = dendogram_settings {
         let dendogram_entries =
@@ -97,10 +93,10 @@ pub fn balance_partitions_iter(
         );
     }
 
-    let mut new_tensor;
-    let mut best_contraction = 0;
-    let mut best_contraction_path = path.clone();
-    let mut best_cost = max_cost + final_op_cost;
+    let mut new_tensor_network;
+    let mut best_iteration = 0;
+    let mut best_contraction_path = intermediate_path.clone();
+    let mut best_cost = intermediate_cost + communication_cost;
 
     let mut best_tn = tensor_network.clone();
 
@@ -108,7 +104,7 @@ pub fn balance_partitions_iter(
         info!("Balancing iteration {i} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
 
         // Balances and updates partitions
-        (max_cost, path, new_tensor) = balance_partitions(
+        (intermediate_cost, intermediate_path, new_tensor_network) = balance_partitions(
             tensor_network,
             &mut contraction_tree,
             rebalance_depth,
@@ -118,27 +114,27 @@ pub fn balance_partitions_iter(
             balancing_scheme,
         );
 
-        assert_eq!(partition_number, path.len(), "Tensors lost!");
-        validate_path(&path);
+        assert_eq!(partition_number, intermediate_path.len(), "Tensors lost!");
+        validate_path(&intermediate_path);
 
         // Ensures that children tensors are mapped to their respective partition costs
-        let (final_op_cost, final_contraction) = communicate_partitions(
+        let (communication_cost, communication_path) = communicate_partitions(
             &partition_data,
             &contraction_tree,
-            &new_tensor,
+            &new_tensor_network,
             &communication_scheme,
         );
 
-        path.extend(final_contraction);
-        let new_max_cost = max_cost + final_op_cost;
+        intermediate_path.extend(communication_path);
+        let new_cost = intermediate_cost + communication_cost;
 
-        max_costs.push(new_max_cost);
+        max_costs.push(new_cost);
 
-        if new_max_cost < best_cost {
-            best_cost = new_max_cost;
-            best_contraction = i;
-            best_tn = new_tensor;
-            best_contraction_path = path;
+        if new_cost < best_cost {
+            best_cost = new_cost;
+            best_iteration = i;
+            best_tn = new_tensor_network;
+            best_contraction_path = intermediate_path;
         }
 
         if let Some(settings) = dendogram_settings {
@@ -152,11 +148,11 @@ pub fn balance_partitions_iter(
         }
     }
 
-    (best_contraction, best_tn, best_contraction_path, max_costs)
+    (best_iteration, best_tn, best_contraction_path, max_costs)
 }
 
 pub(super) fn communicate_partitions(
-    partition_costs: &[PartitionData],
+    partition_data: &[PartitionData],
     _contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
     communication_scheme: &CommunicationScheme,
@@ -172,13 +168,13 @@ pub(super) fn communicate_partitions(
         })
         .collect_vec();
 
-    let (final_op_cost, final_contraction) = match communication_scheme {
+    let (communication_cost, communication_path) = match *communication_scheme {
         CommunicationScheme::Greedy => greedy_communication_scheme(&children_tensors, &bond_dims),
         CommunicationScheme::Bipartition => {
             bipartition_communication_scheme(&children_tensors, &bond_dims)
         }
         CommunicationScheme::WeightedBranchBound => {
-            let partition_iter = partition_costs
+            let partition_iter = partition_data
                 .iter()
                 .enumerate()
                 .map(|(i, PartitionData { cost, .. })| (i, *cost));
@@ -186,7 +182,7 @@ pub(super) fn communicate_partitions(
             weighted_branchbound_communication_scheme(&children_tensors, &bond_dims, latency_map)
         }
     };
-    (final_op_cost, final_contraction)
+    (communication_cost, communication_path)
 }
 
 pub(super) fn balance_partitions(
