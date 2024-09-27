@@ -15,25 +15,6 @@ use crate::{
 
 use super::{balancing::PartitionData, ContractionTree};
 
-/// Returns contraction cost of subtree in `contraction_tree`.
-///
-/// # Arguments
-/// * `contraction_tree` - [`ContractionTree`] object
-/// * `node_id` - root of subtree to examine
-/// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
-///
-/// # Returns
-/// Total op cost and maximum memory required of fully contracting subtree rooted at `node_id`
-pub fn tree_contraction_cost(
-    contraction_tree: &ContractionTree,
-    node_id: usize,
-    tn: &Tensor,
-) -> (f64, f64) {
-    let (local_tensors, local_contraction_path) = subtensor_network(contraction_tree, node_id, tn);
-
-    contract_path_cost(&local_tensors, &local_contraction_path)
-}
-
 /// Returns contraction cost of subtree in `contraction_tree` if all subtrees can be contracted in parallel..
 ///
 /// # Arguments
@@ -332,16 +313,6 @@ mod tests {
     }
 
     #[test]
-    fn test_tree_contraction_path() {
-        let (tensor, ref_path) = setup_simple();
-        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        let (op_cost, mem_cost) = tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
-
-        assert_eq!(op_cost, 4540f64);
-        assert_eq!(mem_cost, 538f64);
-    }
-
-    #[test]
     fn test_parallel_tree_contraction_path() {
         let (tensor, ref_path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
@@ -351,16 +322,6 @@ mod tests {
 
         assert_eq!(op_cost, 4540f64);
         assert_eq!(mem_cost, 538f64);
-    }
-
-    #[test]
-    fn test_tree_contraction_path_complex() {
-        let (tensor, ref_path) = setup_complex();
-        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        let (op_cost, mem_cost) = tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
-
-        assert_eq!(op_cost, 4237070f64);
-        assert_eq!(mem_cost, 89478f64);
     }
 
     #[test]
