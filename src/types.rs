@@ -19,16 +19,6 @@ pub enum ContractionIndex {
     Path(usize, Vec<ContractionIndex>),
 }
 
-impl ContractionIndex {
-    #[must_use]
-    pub fn get_data(self) -> Vec<Self> {
-        match self {
-            Self::Pair(a, b) => vec![Self::Pair(a, b)],
-            Self::Path(_a, b) => b,
-        }
-    }
-}
-
 #[macro_export]
 macro_rules! path {
     ($index:expr, [$(($l:expr, $r:expr)),*]) => {
