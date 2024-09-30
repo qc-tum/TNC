@@ -41,7 +41,7 @@ impl Hash for Tensor {
 }
 
 impl Tensor {
-    /// Constructs a Tensor object without underlying data
+    /// Constructs a Tensor object without underlying data.
     ///
     /// # Arguments
     ///
@@ -50,8 +50,8 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let legs = vec![1,2,3];
-    /// let tensor = Tensor::new(legs);
+    /// let tensor = Tensor::new(vec![1, 2, 3]);
+    /// assert_eq!(tensor.legs(), &[1, 2, 3]);
     /// ```
     #[inline]
     pub fn new(legs: Vec<EdgeIndex>) -> Self {
@@ -61,7 +61,31 @@ impl Tensor {
         }
     }
 
-    /// Returns edge ids of Tensor object
+    /// Constructs a Tensor object with bond dimensions without underlying data.
+    ///
+    /// # Examples
+    /// ```
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use rustc_hash::FxHashMap;
+    /// # use std::sync::{Arc, RwLock};
+    /// let bond_dims = FxHashMap::from_iter([(0, 17), (1, 19), (2, 8)]);
+    /// let tensor = Tensor::new_with_bonddims(vec![1, 2, 3], Arc::new(RwLock::new(bond_dims.clone())));
+    /// assert_eq!(tensor.legs(), &[1, 2, 3]);
+    /// assert_eq!(*tensor.bond_dims(), bond_dims);
+    /// ```
+    #[inline]
+    pub fn new_with_bonddims(
+        legs: Vec<EdgeIndex>,
+        bond_dims: Arc<RwLock<FxHashMap<EdgeIndex, u64>>>,
+    ) -> Self {
+        Self {
+            legs,
+            bond_dims,
+            ..Default::default()
+        }
+    }
+
+    /// Returns edge ids of Tensor object.
     ///
     /// # Examples
     /// ```
@@ -580,9 +604,7 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        let mut new_tn = Self::new(new_legs);
-        new_tn.bond_dims = Arc::clone(&self.bond_dims);
-        new_tn
+        Self::new_with_bonddims(new_legs, self.bond_dims.clone())
     }
 
     /// Returns `Tensor` with union of legs in both `self` and `other`.
@@ -604,9 +626,7 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        let mut new_tn = Self::new(new_legs);
-        new_tn.bond_dims = Arc::clone(&self.bond_dims);
-        new_tn
+        Self::new_with_bonddims(new_legs, self.bond_dims.clone())
     }
 
     /// Returns `Tensor` with intersection of legs in `self` and `other`.
@@ -627,9 +647,7 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        let mut new_tn = Self::new(new_legs);
-        new_tn.bond_dims = Arc::clone(&self.bond_dims);
-        new_tn
+        Self::new_with_bonddims(new_legs, self.bond_dims.clone())
     }
 
     /// Returns `Tensor` with symmetrical difference of legs in `self` and `other`.
@@ -655,9 +673,7 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        let mut new_tn = Self::new(new_legs);
-        new_tn.bond_dims = Arc::clone(&self.bond_dims);
-        new_tn
+        Self::new_with_bonddims(new_legs, self.bond_dims.clone())
     }
 
     /// Get output legs after tensor contraction
