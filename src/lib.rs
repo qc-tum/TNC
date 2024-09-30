@@ -17,3 +17,4 @@ pub mod qasm;
 pub mod random;
 pub mod tensornetwork;
 pub mod types;
+mod utils;
