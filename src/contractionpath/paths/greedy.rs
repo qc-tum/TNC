@@ -14,6 +14,7 @@ use crate::{
     },
     tensornetwork::tensor::Tensor,
     types::{calculate_hash, ContractionIndex},
+    utils::HashMapInsertNew,
 };
 
 use super::{validate_path, CostFnType, CostType, OptimizePath};
@@ -434,7 +435,7 @@ impl<'a> Greedy<'a> {
                 parent_ids: (next_ssa_id, 0),
                 child_id: 0,
             });
-            ssa_id_to_tensor.try_insert(next_ssa_id, k12).unwrap();
+            ssa_id_to_tensor.insert_new(next_ssa_id, k12);
             next_ssa_id += 1;
         }
         if !scalar_tensors.is_empty() {

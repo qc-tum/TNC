@@ -11,6 +11,7 @@ use std::{
 use crate::{
     contractionpath::contraction_tree::{export::to_pdf, Node},
     types::ContractionIndex,
+    utils::HashMapInsertNew,
 };
 
 use super::{
@@ -48,9 +49,7 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     for contraction_index in &flat_contraction_path {
         if let ContractionIndex::Pair(i, j) = contraction_index {
             if contraction_tree.node(*i).is_leaf() {
-                tensor_x_position
-                    .try_insert(*i, next_x)
-                    .unwrap_or_else(|_| panic!("Tensor {i} already in position dict."));
+                tensor_x_position.insert_new(*i, next_x);
                 dendogram_entries.push(DendogramEntry {
                     id: *i,
                     x: tensor_x_position[i],
@@ -63,9 +62,7 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
             }
 
             if contraction_tree.node(*j).is_leaf() {
-                tensor_x_position
-                    .try_insert(*j, next_x)
-                    .unwrap_or_else(|_| panic!("Tensor {j} already in position dict."));
+                tensor_x_position.insert_new(*j, next_x);
                 dendogram_entries.push(DendogramEntry {
                     id: *j,
                     x: tensor_x_position[j],
@@ -91,9 +88,7 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
                     color,
                     children: Some((*i, *j)),
                 });
-                tensor_x_position
-                    .try_insert(parent_id, new_x)
-                    .unwrap_or_else(|_| panic!("Tensor {parent_id} already in position dict."));
+                tensor_x_position.insert_new(parent_id, new_x);
             }
         }
     }
@@ -237,16 +232,10 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
             .borrow_mut()
             .add_parent(Rc::downgrade(&new_node_ref));
 
-        remaining_nodes
-            .try_insert(tensor_count, Rc::clone(&new_node_ref))
-            .unwrap_or_else(|_| panic!("SSA {tensor_count} already in tensor cost dict"));
+        remaining_nodes.insert_new(tensor_count, Rc::clone(&new_node_ref));
         let cost = (*timestamp - logging_start).num_microseconds().unwrap() as f64;
-        tensor_cost
-            .try_insert(tensor_count, cost)
-            .unwrap_or_else(|_| panic!("SSA {tensor_count} already in tensor cost dict"));
-        tensor_color
-            .try_insert(tensor_count, String::from(COMMUNICATION_COLOR))
-            .unwrap_or_else(|_| panic!("Tensor count {tensor_count} already in dict"));
+        tensor_cost.insert_new(tensor_count, cost);
+        tensor_color.insert_new(tensor_count, String::from(COMMUNICATION_COLOR));
         partition_root_nodes[*rank1] = Rc::clone(&new_node_ref);
         tensor_count += 1;
     }
@@ -377,25 +366,15 @@ fn log_to_subtree(
                             Node::new(*tensor_count, Weak::new(), Weak::new(), Weak::new(), None);
                         let leaf_node_ref = Rc::new(RefCell::new(leaf_node));
 
-                        replace_to_ssa
-                            .try_insert(tensor_id, *tensor_count)
-                            .unwrap_or_else(|_| panic!("SSA {tensor_id} already exists"));
-                        tensor_cost
-                            .try_insert(*tensor_count, DateTime::default())
-                            .unwrap_or_else(|_| panic!("SSA {tensor_id} already exists"));
-                        remaining_nodes
-                            .try_insert(*tensor_count, Rc::clone(&leaf_node_ref))
-                            .unwrap_or_else(|_| {
-                                panic!("SSA {tensor_id} already in remaining nodes")
-                            });
+                        replace_to_ssa.insert_new(tensor_id, *tensor_count);
+                        tensor_cost.insert_new(*tensor_count, DateTime::default());
+                        remaining_nodes.insert_new(*tensor_count, Rc::clone(&leaf_node_ref));
                         *tensor_count += 1;
                     }
                 }
 
                 // Store contraction time of resultant tensor
-                tensor_cost
-                    .try_insert(*tensor_count, contraction_timestamp)
-                    .unwrap_or_else(|_| panic!("Tensor {} already inserted", *tensor_count));
+                tensor_cost.insert_new(*tensor_count, contraction_timestamp);
 
                 let intermediate_node_ref =
                     new_intermediate_node(&remaining_nodes, &replace_to_ssa, &ij, *tensor_count);
@@ -404,11 +383,7 @@ fn log_to_subtree(
                 // Tensor in j should never be referenced again
                 replace_to_ssa.remove(&ij[1]);
 
-                remaining_nodes
-                    .try_insert(*tensor_count, intermediate_node_ref)
-                    .unwrap_or_else(|_| {
-                        panic!("SSA {tensor_count} already exists in remaining nodes")
-                    });
+                remaining_nodes.insert_new(*tensor_count, intermediate_node_ref);
 
                 *tensor_count += 1;
             }

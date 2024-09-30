@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 
-use crate::{pair, types::ContractionIndex};
+use crate::{pair, types::ContractionIndex, utils::HashMapInsertNew};
 pub mod candidates;
 pub mod contraction_cost;
 pub mod contraction_tree;
@@ -49,7 +49,7 @@ pub(super) fn ssa_replace_ordering(
                 let new_t0 = *hs.get(t0).unwrap_or(t0);
                 let new_t1 = *hs.get(t1).unwrap_or(t1);
 
-                hs.try_insert(n, new_t0).unwrap();
+                hs.insert_new(n, new_t0);
                 replace_path.push(pair!(new_t0, new_t1));
                 n += 1;
             }
