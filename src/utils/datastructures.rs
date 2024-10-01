@@ -13,6 +13,7 @@ pub struct UnionFind {
 
 impl UnionFind {
     /// Creates a new union-find data structure with `n` elements.
+    #[must_use]
     pub fn new(n: usize) -> Self {
         let parent = (0..n).collect_vec();
         let rank = vec![0; n];
@@ -24,6 +25,7 @@ impl UnionFind {
 
     /// Finds the root element of the set containing `u`.
     /// This method uses *path splitting* as optimization.
+    #[must_use]
     pub fn find(&self, u: usize) -> usize {
         let mut r = u;
         let mut parents = self.parent.borrow_mut();
@@ -62,6 +64,19 @@ impl UnionFind {
         if self.rank[low] == self.rank[high] {
             self.rank[high] += 1;
         }
+    }
+
+    /// Returns the number of elements in the union-find data structure.
+    #[must_use]
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.rank.len()
+    }
+
+    /// Returns the number of disjoint sets in the union-find data structure.
+    #[must_use]
+    pub fn count_sets(&self) -> usize {
+        (0..self.len()).map(|i| self.find(i)).unique().count()
     }
 }
 
@@ -106,5 +121,37 @@ mod tests {
             }
             assert_ne!(uf.find(a), uf.find(0));
         }
+    }
+
+    #[test]
+    fn test_union_find_len() {
+        let uf = super::UnionFind::new(5);
+        assert_eq!(uf.len(), 5);
+    }
+
+    #[test]
+    fn test_union_find_len_doesnt_change() {
+        let mut uf = super::UnionFind::new(5);
+        uf.union(1, 2);
+        assert_eq!(uf.len(), 5);
+    }
+
+    #[test]
+    fn test_union_find_count_sets() {
+        let mut uf = super::UnionFind::new(5);
+        // (0), (1), (2), (3), (4)
+        assert_eq!(uf.count_sets(), 5);
+        uf.union(1, 2);
+        // (0), (1, 2), (3), (4)
+        assert_eq!(uf.count_sets(), 4);
+        uf.union(3, 4);
+        // (0), (1, 2), (3, 4)
+        assert_eq!(uf.count_sets(), 3);
+        uf.union(2, 3);
+        // (0), (1, 2, 3, 4)
+        assert_eq!(uf.count_sets(), 2);
+        uf.union(0, 1);
+        // (0, 1, 2, 3, 4)
+        assert_eq!(uf.count_sets(), 1);
     }
 }
