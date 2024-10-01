@@ -6,6 +6,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 use rustc_hash::FxHashMap;
 
 use crate::types::{EdgeIndex, Vertex};
+use crate::utils::datastructures::UnionFind;
 
 use super::tensordata::TensorData;
 
@@ -584,6 +585,44 @@ impl Tensor {
     pub fn set_tensor_data(&mut self, tensordata: TensorData) {
         assert!(self.is_leaf(), "Cannot add data to composite tensor");
         self.tensordata = tensordata;
+    }
+
+    /// Returns whether all tensors inside this tensor are connected.
+    /// This only checks the top-level, not recursing into composite tensors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tensorcontraction::tensornetwork::create_tensor_network;
+    /// # use rustc_hash::FxHashMap;
+    /// // Create a tensor network with two connected tensors
+    /// let v1 = Tensor::new(vec![0, 1]);
+    /// let v2 = Tensor::new(vec![1, 2]);
+    /// let bond_dims = FxHashMap::from_iter([
+    /// (0, 17), (1, 19), (2, 8), (3, 5)
+    /// ]);
+    /// let mut tn = create_tensor_network(vec![v1, v2], &bond_dims, None);
+    /// assert!(tn.is_connected());
+    ///
+    /// // Introduce a new tensor that is not connected
+    /// let v3 = Tensor::new(vec![3]);
+    /// tn.push_tensor(v3, None);
+    /// assert!(!tn.is_connected());
+    /// ```
+    pub fn is_connected(&self) -> bool {
+        let mut uf = UnionFind::new(self.tensors.len());
+        for (i, tensor) in self.tensors.iter().enumerate() {
+            for leg in &tensor.legs {
+                let edge = &self.edges[leg];
+                for vertex in edge {
+                    if let Vertex::Closed(j) = vertex {
+                        uf.union(i, *j);
+                    }
+                }
+            }
+        }
+        uf.count_sets() == 1
     }
 
     /// Returns `Tensor` with legs in `self` that are not in `other`.
