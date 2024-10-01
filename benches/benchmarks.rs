@@ -11,7 +11,7 @@ use tensorcontraction::mpi::communication::{
     naive_reduce_tensor_network, scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
-use tensorcontraction::networks::sycamore::random_circuit;
+use tensorcontraction::networks::sycamore::random_connected_circuit;
 
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
@@ -54,7 +54,7 @@ pub fn partitioned_contraction_benchmark(c: &mut Criterion) {
     let mut part_group = c.benchmark_group("Partition");
 
     for k in [10, 15, 20, 25] {
-        let r_tn = random_circuit(k, 5, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+        let r_tn = random_connected_circuit(k, 5, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
         let partitioning =
             find_partitioning(&r_tn, 5, PartitioningStrategy::CommunityFinding, true);
         let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
@@ -89,7 +89,8 @@ pub fn parallel_naive_benchmark(c: &mut Criterion) {
     // TODO: Do we need to know communication beforehand?
     for k in [25, 30] {
         let (partitioned_tn, path) = if rank == 0 {
-            let r_tn = random_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+            let r_tn =
+                random_connected_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
             let partitioning =
                 find_partitioning(&r_tn, size, PartitioningStrategy::CommunityFinding, true);
             let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
@@ -134,7 +135,8 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
     // TODO: Do we need to know communication beforehand?
     for k in [30, 35, 45] {
         let (partitioned_tn, path) = if rank == 0 {
-            let r_tn = random_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+            let r_tn =
+                random_connected_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
             let partitioning =
                 find_partitioning(&r_tn, size, PartitioningStrategy::CommunityFinding, true);
             let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);

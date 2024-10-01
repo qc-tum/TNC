@@ -11,11 +11,40 @@ use crate::random::tensorgeneration::random_sparse_tensor_data_with_rng;
 use crate::tensornetwork::contraction::contract_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
+use crate::utils::datastructures::UnionFind;
 
 macro_rules! fsim {
     ($a:expr, $b:expr) => {
         $crate::tensornetwork::tensordata::TensorData::Gate((String::from("fsim"), vec![$a, $b]))
     };
+}
+
+pub fn random_connected_circuit<R>(
+    size: usize,
+    round: usize,
+    single_qubit_probability: f64,
+    two_qubit_probability: f64,
+    rng: &mut R,
+    connectivity: ConnectivityLayout,
+) -> Tensor
+where
+    R: Rng + ?Sized,
+{
+    const MAX_TRIES: usize = 100;
+    for _ in 0..MAX_TRIES {
+        let (is_connected, tn) = random_circuit(
+            size,
+            round,
+            single_qubit_probability,
+            two_qubit_probability,
+            rng,
+            connectivity,
+        );
+        if is_connected {
+            return tn;
+        }
+    }
+    panic!("Could not generate a connected circuit in {MAX_TRIES} tries");
 }
 
 pub fn random_circuit<R>(
@@ -25,7 +54,7 @@ pub fn random_circuit<R>(
     two_qubit_probability: f64,
     rng: &mut R,
     connectivity: ConnectivityLayout,
-) -> Tensor
+) -> (bool, Tensor)
 where
     R: Rng + ?Sized,
 {
@@ -69,9 +98,10 @@ where
         open_edges.insert(i, i);
         initial_state.push(new_state);
     }
-
     sycamore_tn.push_tensors(initial_state, Some(&sycamore_bonddims), None);
 
+    // set up intermediate gates
+    let mut connected = UnionFind::new(size);
     let die = Uniform::from(0..single_qubit_gates.len());
     let mut intermediate_gates = Vec::new();
     for _ in 1..round {
@@ -98,6 +128,7 @@ where
                 open_edges.insert(*i, next_edge);
                 open_edges.insert(*j, next_edge + 1);
                 next_edge += 2;
+                connected.union(*i, *j);
             }
         }
     }
@@ -112,7 +143,8 @@ where
     }
     sycamore_tn.push_tensors(final_state, Some(&sycamore_bonddims), None);
 
-    sycamore_tn
+    let is_connected = connected.count_sets() == 1;
+    (is_connected, sycamore_tn)
 }
 
 pub fn sycamore_contract(mut tn: Tensor) {

@@ -8,7 +8,7 @@ use tensorcontraction::{
         },
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
-    networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
+    networks::{connectivity::ConnectivityLayout, sycamore::random_connected_circuit},
     tensornetwork::partitioning::{
         find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
     },
@@ -16,7 +16,7 @@ use tensorcontraction::{
 
 fn main() {
     let mut rng = StdRng::seed_from_u64(23);
-    let tensor = random_circuit(5, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+    let tensor = random_connected_circuit(5, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
     let partitioning = find_partitioning(&tensor, 3, PartitioningStrategy::MinCut, true);
 
     let partitioned_tn = partition_tensor_network(&tensor, &partitioning);
