@@ -11,7 +11,7 @@ use crate::{
     },
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
-    utils::HashMapInsertNew,
+    utils::traits::HashMapInsertNew,
 };
 
 use super::{CostType, OptimizePath};

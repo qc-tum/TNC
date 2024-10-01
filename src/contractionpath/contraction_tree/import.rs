@@ -11,7 +11,7 @@ use std::{
 use crate::{
     contractionpath::contraction_tree::{export::to_pdf, Node},
     types::ContractionIndex,
-    utils::HashMapInsertNew,
+    utils::traits::HashMapInsertNew,
 };
 
 use super::{
