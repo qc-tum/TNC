@@ -14,7 +14,7 @@ use tensorcontraction::contractionpath::contraction_tree::export::DendogramSetti
 use tensorcontraction::contractionpath::paths::greedy::Greedy;
 use tensorcontraction::contractionpath::paths::{CostType, OptimizePath};
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
-use tensorcontraction::networks::sycamore::random_connected_circuit;
+use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 use tensorcontraction::tensornetwork::tensor::Tensor;
@@ -50,7 +50,7 @@ fn main() {
 
     setup_logging_mpi(0);
 
-    let tensor = random_connected_circuit(
+    let tensor = random_circuit(
         num_qubits,
         circuit_depth,
         single_qubit_probability,

@@ -13,7 +13,7 @@ use tensorcontraction::mpi::communication::{
     scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
-use tensorcontraction::networks::sycamore::random_connected_circuit;
+use tensorcontraction::networks::sycamore::random_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
@@ -54,7 +54,7 @@ fn main() {
 
     // Setup tensor network
     let (mut partitioned_tn, path) = if rank == 0 {
-        let r_tn = random_connected_circuit(
+        let r_tn = random_circuit(
             qubits,
             depth,
             single_qubit_probability,
