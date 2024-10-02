@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::iter::zip;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
 use crate::types::{EdgeIndex, Vertex};
@@ -612,15 +613,14 @@ impl Tensor {
     /// ```
     pub fn is_connected(&self) -> bool {
         let mut uf = UnionFind::new(self.tensors.len());
-        for (i, tensor) in self.tensors.iter().enumerate() {
-            for leg in &tensor.legs {
-                let edge = &self.edges[leg];
-                for vertex in edge {
-                    if let Vertex::Closed(j) = vertex {
-                        uf.union(i, *j);
-                    }
-                }
-            }
+        for edge in self.edges.values() {
+            edge.iter()
+                .filter_map(|v| match v {
+                    Vertex::Closed(i) => Some(*i),
+                    Vertex::Open => None,
+                })
+                .tuple_windows()
+                .for_each(|(ta, tb)| uf.union(ta, tb));
         }
         uf.count_sets() == 1
     }
