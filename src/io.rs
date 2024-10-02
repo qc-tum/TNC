@@ -172,7 +172,7 @@ mod tests {
             Complex64::new(3.0, 0.0),
             Complex64::new(0.0, 1.0),
         ];
-        for (u, v) in zip(ref_data.iter(), tensor_data.get_raw_data().iter()) {
+        for (u, v) in zip(ref_data.iter(), tensor_data.elements().iter()) {
             assert_approx_eq!(f64, u.re, v.re, epsilon = 1e-8);
             assert_approx_eq!(f64, u.im, v.im, epsilon = 1e-8);
         }
