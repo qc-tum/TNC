@@ -204,6 +204,7 @@ pub(crate) fn best_tensors_balancing(
     let (larger_subtree_id, rebalanced_node, _) = partition_data
         .iter()
         .skip(1)
+        .take(partition_data.len() - 2)
         .map(
             |PartitionData {
                  id: larger_subtree_id,
