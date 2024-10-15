@@ -724,7 +724,12 @@ impl Tensor {
 
         let mut ext_edges = Self::default();
         for tensor in &self.tensors {
-            ext_edges = &ext_edges ^ tensor;
+            let new_tensor = if tensor.is_composite() {
+                &Tensor::new(tensor.external_edges())
+            } else {
+                tensor
+            };
+            ext_edges = &ext_edges ^ new_tensor;
         }
         let mut ext_edges = std::mem::take(&mut ext_edges.legs);
         for (&edge_index, &count) in &self.external_hyperedge {
@@ -805,6 +810,35 @@ mod tests {
 
         let bond_dims = FxHashMap::from_iter([(2, 17), (4, 11), (5, 14)]);
         tensor.add_bond_dims(&bond_dims);
+    }
+
+    #[test]
+    fn test_external_legs() {
+        let bond_dims = FxHashMap::from_iter([
+            (2, 2),
+            (3, 4),
+            (4, 6),
+            (5, 8),
+            (6, 10),
+            (7, 12),
+            (8, 14),
+            (9, 16),
+        ]);
+        let mut tensor_1234 = Tensor::default();
+        let mut tensor_12 = Tensor::default();
+
+        let tensor_1 = Tensor::new(vec![2, 3, 4]);
+        let tensor_2 = Tensor::new(vec![2, 3, 5]);
+        tensor_12.push_tensors(vec![tensor_1, tensor_2], Some(&bond_dims), None);
+
+        let mut tensor_34 = Tensor::default();
+        let tensor_3 = Tensor::new(vec![6, 7, 8]);
+        let tensor_4 = Tensor::new(vec![6, 8, 9]);
+        tensor_34.push_tensors(vec![tensor_3, tensor_4], Some(&bond_dims), None);
+
+        tensor_1234.push_tensors(vec![tensor_12, tensor_34], Some(&bond_dims), None);
+
+        assert_eq!(vec![4, 5, 7, 9], tensor_1234.external_edges());
     }
 
     #[test]
