@@ -6,7 +6,9 @@ use std::{
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
-use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex, utils::HashMapInsertNew};
+use crate::{
+    tensornetwork::tensor::Tensor, types::ContractionIndex, utils::traits::HashMapInsertNew,
+};
 
 use super::{
     import::{CommunicationEvent, Direction},

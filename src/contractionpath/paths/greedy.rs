@@ -14,7 +14,7 @@ use crate::{
     },
     tensornetwork::tensor::Tensor,
     types::{calculate_hash, ContractionIndex},
-    utils::HashMapInsertNew,
+    utils::traits::HashMapInsertNew,
 };
 
 use super::{validate_path, CostFnType, CostType, OptimizePath};
