@@ -76,7 +76,7 @@ impl Node {
         } else if self.right_child.upgrade().is_none() {
             self.right_child = child;
         } else {
-            panic!("Parent already has two children");
+            panic!("Node already has two children");
         }
     }
 }
