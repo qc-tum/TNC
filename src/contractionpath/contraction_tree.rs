@@ -64,7 +64,7 @@ impl Node {
         self.left_child.upgrade().is_none() && self.right_child.upgrade().is_none()
     }
 
-    fn add_parent(&mut self, parent: WeakNodeRef) {
+    fn set_parent(&mut self, parent: WeakNodeRef) {
         assert!(parent.upgrade().is_some(), "Parent is already deallocated");
         self.parent = parent;
     }

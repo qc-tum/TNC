@@ -226,11 +226,11 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
 
         left_child
             .borrow_mut()
-            .add_parent(Rc::downgrade(&new_node_ref));
+            .set_parent(Rc::downgrade(&new_node_ref));
 
         right_child
             .borrow_mut()
-            .add_parent(Rc::downgrade(&new_node_ref));
+            .set_parent(Rc::downgrade(&new_node_ref));
 
         remaining_nodes.insert_new(tensor_count, Rc::clone(&new_node_ref));
         let cost = (*timestamp - logging_start).num_microseconds().unwrap() as f64;
@@ -452,10 +452,10 @@ fn new_intermediate_node(
     let intermediate_node_ref = Rc::new(RefCell::new(intermediate_node));
     left_child
         .borrow_mut()
-        .add_parent(Rc::downgrade(&intermediate_node_ref));
+        .set_parent(Rc::downgrade(&intermediate_node_ref));
     right_child
         .borrow_mut()
-        .add_parent(Rc::downgrade(&intermediate_node_ref));
+        .set_parent(Rc::downgrade(&intermediate_node_ref));
     intermediate_node_ref
 }
 
