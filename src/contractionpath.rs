@@ -72,7 +72,7 @@ mod tests {
 
     use crate::{
         contractionpath::{ssa_ordering, ssa_replace_ordering},
-        pair, path,
+        path,
     };
 
     #[test]
