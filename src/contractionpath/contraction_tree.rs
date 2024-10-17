@@ -90,8 +90,8 @@ pub struct ContractionTree {
 }
 
 impl ContractionTree {
-    pub fn node(&self, tensor_id: usize) -> Ref<Node> {
-        let borrow = self.nodes.get(&tensor_id).unwrap();
+    pub fn node(&self, node_id: usize) -> Ref<Node> {
+        let borrow = &self.nodes[&node_id];
         borrow.as_ref().borrow()
     }
 
