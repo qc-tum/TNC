@@ -497,6 +497,7 @@ impl Tensor {
             self.add_bond_dims(bond_dims);
         };
 
+        self.tensors.reserve(tensors.len());
         for mut tensor in tensors {
             tensor.bond_dims = Arc::clone(&self.bond_dims);
             self.update_tensor_edges(&tensor);
