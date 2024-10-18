@@ -82,15 +82,7 @@ pub fn balance_partitions_iter(
     let mut max_costs = Vec::with_capacity(iterations + 1);
     max_costs.push(intermediate_cost + communication_cost);
 
-    if let Some(settings) = dendogram_settings {
-        let dendogram_entries =
-            to_dendogram_format(&contraction_tree, tensor_network, settings.cost_function);
-        to_pdf(
-            &format!("{}_0", settings.output_file),
-            &dendogram_entries,
-            None,
-        );
-    }
+    print_dendogram(&dendogram_settings, &contraction_tree, tensor_network, 0);
 
     let mut best_iteration = 0;
     let mut best_contraction_path = path.clone();
@@ -131,19 +123,27 @@ pub fn balance_partitions_iter(
             best_tn = new_tensor_network;
             best_contraction_path = intermediate_path;
         }
-
-        if let Some(settings) = dendogram_settings {
-            let dendogram_entries =
-                to_dendogram_format(&contraction_tree, tensor_network, settings.cost_function);
-            to_pdf(
-                &format!("{}_{i}", settings.output_file),
-                &dendogram_entries,
-                None,
-            );
-        }
+        print_dendogram(&dendogram_settings, &contraction_tree, tensor_network, i);
     }
 
     (best_iteration, best_tn, best_contraction_path, max_costs)
+}
+
+fn print_dendogram(
+    dendogram_settings: &Option<DendogramSettings>,
+    contraction_tree: &ContractionTree,
+    tensor_network: &Tensor,
+    iteration: usize,
+) {
+    if let Some(settings) = dendogram_settings {
+        let dendogram_entries =
+            to_dendogram_format(contraction_tree, tensor_network, settings.cost_function);
+        to_pdf(
+            &format!("{}_{}", settings.output_file, iteration),
+            &dendogram_entries,
+            None,
+        );
+    }
 }
 
 pub(super) fn communicate_partitions(
