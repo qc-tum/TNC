@@ -139,7 +139,11 @@ pub fn contract_path_cost(inputs: &[Tensor], contract_path: &[ContractionIndex])
                 let costs = contract_path_cost(inputs[i].tensors(), path);
                 op_cost += costs.0;
                 mem_cost += costs.1;
-                inputs[i] = std::mem::take(&mut inputs[i].tensors[0]);
+                let intermediate_tensor = Tensor::new_with_bonddims(
+                    inputs[i].external_edges(),
+                    inputs[i].bond_dims.clone(),
+                );
+                inputs[i] = intermediate_tensor;
             }
         }
     }
