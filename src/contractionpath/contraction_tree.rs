@@ -203,6 +203,16 @@ impl ContractionTree {
                 index = self.next_id(index);
                 let i = &scratch[i_path];
                 let j = &scratch[j_path];
+
+                // Ensure that we are not reusing nodes that are already in another contraction path
+                assert!(
+                    i.borrow().parent_id().is_none(),
+                    "Tensor {i_path} is already used in another contraction"
+                );
+                assert!(
+                    j.borrow().parent_id().is_none(),
+                    "Tensor {j_path} is already used in another contraction"
+                );
                 let parent =
                     Node::new(index, Rc::downgrade(i), Rc::downgrade(j), Weak::new(), None);
 
