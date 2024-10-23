@@ -423,6 +423,13 @@ fn shift_node_between_subtrees(
         .iter()
         .all(|node| larger_subtree_leaf_nodes.contains(node)));
 
+    // Balancing step should not fully merge two partitions leaving one partition empty.
+    // As this affects the partitioning structure, it results in undefined behavior
+    assert_ne!(
+        rebalanced_nodes, larger_subtree_leaf_nodes,
+        "Currently, passing all leaf nodes from larger to smaller results in undefined behavior"
+    );
+
     // Remove selected tensors from bigger subtree. Add it to the smaller subtree
     larger_subtree_leaf_nodes.retain(|leaf| !rebalanced_nodes.contains(leaf));
     smaller_subtree_leaf_nodes.extend(rebalanced_nodes);
@@ -437,18 +444,32 @@ fn shift_node_between_subtrees(
         tensor_network,
     );
 
-    // Remove larger subtree
+    // Remove larger subtree and add new subtree, keep track of updated root id
     contraction_tree.remove_subtree(larger_subtree_id);
-    // Add new subtree, keep track of updated root id
-    let new_larger_subtree_id = contraction_tree.add_path_as_subtree(
-        &updated_larger_path,
-        larger_subtree_parent_id,
-        &larger_subtree_leaf_nodes,
-    );
+
+    let new_larger_subtree_id = if updated_larger_path.is_empty() {
+        // In this case, there is only one node left.
+        contraction_tree.nodes[&larger_subtree_leaf_nodes[0]]
+            .borrow_mut()
+            .set_parent(Rc::downgrade(
+                &contraction_tree.nodes[&larger_subtree_parent_id],
+            ));
+        contraction_tree.nodes[&larger_subtree_parent_id]
+            .borrow_mut()
+            .add_child(Rc::downgrade(
+                &contraction_tree.nodes[&larger_subtree_leaf_nodes[0]],
+            ));
+        larger_subtree_leaf_nodes[0]
+    } else {
+        contraction_tree.add_path_as_subtree(
+            &updated_larger_path,
+            larger_subtree_parent_id,
+            &larger_subtree_leaf_nodes,
+        )
+    };
 
     // Remove smaller subtree
     contraction_tree.remove_subtree(smaller_subtree_id);
-
     // Add new subtree, keep track of updated root id
     let new_smaller_subtree_id = contraction_tree.add_path_as_subtree(
         &updated_smaller_path,
