@@ -7,7 +7,7 @@ use communication_schemes::{
 };
 use itertools::Itertools;
 use log::info;
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{rngs::StdRng, seq::SliceRandom, Rng};
 use rustc_hash::FxHashMap;
 
 use crate::{
@@ -30,15 +30,60 @@ pub mod balancing_schemes;
 pub mod communication_schemes;
 
 #[derive(Debug, Clone, Copy)]
-pub struct BalanceSettings {
-    // if not None, randomly chooses from top `usize` options
-    // random choice is weighted by objective outcome
-    pub random_balance: Option<usize>,
+pub struct BalanceSettings<R>
+where
+    R: Sized + Rng,
+{
+    /// If not None, randomly chooses from top `usize` options. Random choice is
+    /// weighted by objective outcome.
+    pub random_balance: Option<(usize, R)>,
     pub rebalance_depth: usize,
     pub iterations: usize,
     pub objective_function: fn(&Tensor, &Tensor) -> f64,
     pub communication_scheme: CommunicationScheme,
     pub balancing_scheme: BalancingScheme,
+}
+
+impl BalanceSettings<StdRng> {
+    pub fn new(
+        rebalance_depth: usize,
+        iterations: usize,
+        objective_function: fn(&Tensor, &Tensor) -> f64,
+        communication_scheme: CommunicationScheme,
+        balancing_scheme: BalancingScheme,
+    ) -> Self {
+        BalanceSettings::<StdRng> {
+            random_balance: None,
+            rebalance_depth,
+            iterations,
+            objective_function,
+            communication_scheme,
+            balancing_scheme,
+        }
+    }
+}
+
+impl<R> BalanceSettings<R>
+where
+    R: Sized + Rng,
+{
+    pub fn new_random(
+        random_balance: Option<(usize, R)>,
+        rebalance_depth: usize,
+        iterations: usize,
+        objective_function: fn(&Tensor, &Tensor) -> f64,
+        communication_scheme: CommunicationScheme,
+        balancing_scheme: BalancingScheme,
+    ) -> Self {
+        BalanceSettings::<R> {
+            random_balance,
+            rebalance_depth,
+            iterations,
+            objective_function,
+            communication_scheme,
+            balancing_scheme,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -49,12 +94,15 @@ pub struct PartitionData {
     pub local_tensor: Tensor,
 }
 
-pub fn balance_partitions_iter(
+pub fn balance_partitions_iter<R>(
     tensor_network: &Tensor,
     path: &[ContractionIndex],
-    balance_settings: BalanceSettings,
+    mut balance_settings: BalanceSettings<R>,
     dendogram_settings: Option<&DendogramSettings>,
-) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
+) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>)
+where
+    R: Sized + Rng,
+{
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor_network, path);
 
     let communication_path = extract_communication_path(path);
@@ -99,7 +147,7 @@ pub fn balance_partitions_iter(
             &mut partition_data,
             &mut contraction_tree,
             tensor_network,
-            balance_settings,
+            &mut balance_settings,
         );
 
         assert_eq!(intermediate_path.len(), partition_number, "Tensors lost!");
@@ -110,7 +158,7 @@ pub fn balance_partitions_iter(
             &partition_data,
             &contraction_tree,
             &new_tensor_network,
-            balance_settings,
+            &balance_settings,
         );
 
         intermediate_path.extend(communication_path);
@@ -150,12 +198,15 @@ fn print_dendogram(
     }
 }
 
-pub(super) fn communicate_partitions(
+pub(super) fn communicate_partitions<R>(
     partition_data: &[PartitionData],
     _contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
-    balance_settings: BalanceSettings,
-) -> (f64, Vec<ContractionIndex>) {
+    balance_settings: &BalanceSettings<R>,
+) -> (f64, Vec<ContractionIndex>)
+where
+    R: Sized + Rng,
+{
     let communication_scheme = balance_settings.communication_scheme;
     let bond_dims = tensor_network.bond_dims();
     let children_tensors = tensor_network
@@ -185,14 +236,17 @@ pub(super) fn communicate_partitions(
     (communication_cost, communication_path)
 }
 
-pub(super) fn balance_partitions(
+pub(super) fn balance_partitions<R>(
     partition_data: &mut [PartitionData],
     contraction_tree: &mut ContractionTree,
     tensor_network: &Tensor,
-    balance_settings: BalanceSettings,
-) -> (f64, Vec<ContractionIndex>, Tensor) {
+    balance_settings: &mut BalanceSettings<R>,
+) -> (f64, Vec<ContractionIndex>, Tensor)
+where
+    R: Sized + Rng,
+{
     let BalanceSettings {
-        random_balance,
+        ref mut random_balance,
         rebalance_depth,
         objective_function,
         balancing_scheme,
@@ -212,21 +266,21 @@ pub(super) fn balance_partitions(
             partition_data,
             contraction_tree,
             random_balance,
-            objective_function,
+            *objective_function,
             tensor_network,
         ),
         BalancingScheme::Tensor => balancing_schemes::best_tensor_balancing(
             partition_data,
             contraction_tree,
             random_balance,
-            objective_function,
+            *objective_function,
             tensor_network,
         ),
         BalancingScheme::Tensors => balancing_schemes::best_tensors_balancing(
             partition_data,
             contraction_tree,
             random_balance,
-            objective_function,
+            *objective_function,
             tensor_network,
         ),
         BalancingScheme::IntermediateTensors(height_limit) => {
@@ -234,9 +288,9 @@ pub(super) fn balance_partitions(
                 partition_data,
                 contraction_tree,
                 random_balance,
-                objective_function,
+                *objective_function,
                 tensor_network,
-                height_limit,
+                *height_limit,
             )
         }
         _ => panic!("Balancing Scheme not implemented"),
@@ -261,7 +315,7 @@ pub(super) fn balance_partitions(
             smaller_subtree_cost,
         ) = shift_node_between_subtrees(
             contraction_tree,
-            rebalance_depth,
+            *rebalance_depth,
             shifted_from_id,
             shifted_to_id,
             rebalanced_nodes,
@@ -341,7 +395,7 @@ pub(super) fn balance_partitions(
 
     contraction_tree
         .partitions
-        .insert(rebalance_depth, partition_ids);
+        .insert(*rebalance_depth, partition_ids);
 
     let mut updated_tn = Tensor::default();
     updated_tn.push_tensors(partition_tensors, Some(&bond_dims), None);
@@ -354,12 +408,15 @@ pub(super) fn balance_partitions(
 /// * `larger_subtree_nodes` - A set of nodes used in comparison. Only the id from the larger subtree is returned.
 /// * `smaller_subtree_nodes` - A set of nodes used in comparison.
 /// * `objective_function` - Cost function that takes in two tensors and returns an f64 cost.
-pub(super) fn find_rebalance_node(
-    random_balance: Option<usize>,
+pub(super) fn find_rebalance_node<R>(
+    random_balance: &mut Option<(usize, R)>,
     larger_subtree_nodes: &FxHashMap<usize, Tensor>,
     smaller_subtree_nodes: &FxHashMap<usize, Tensor>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
-) -> (usize, f64) {
+) -> (usize, f64)
+where
+    R: Sized + Rng,
+{
     let node_comparison = larger_subtree_nodes
         .iter()
         .cartesian_product(smaller_subtree_nodes.iter())
@@ -369,16 +426,15 @@ pub(super) fn find_rebalance_node(
                 objective_function(larger_tensor, smaller_tensor),
             )
         });
-    if let Some(options_considered) = random_balance {
-        let mut rng = thread_rng();
+    if let Some((options_considered, ref mut rng)) = random_balance {
         let node_options = node_comparison
             .sorted_unstable_by(|a, b| b.1.total_cmp(&a.1))
-            .take(options_considered)
+            .take(*options_considered)
             .collect::<Vec<(usize, f64)>>();
         let max = node_options.first().unwrap().1;
         // Initial division done here as sum of weights can cause overflow before normalization.
         *node_options
-            .choose_weighted(&mut rng, |node_option| node_option.1 / max)
+            .choose_weighted(rng, |node_option| node_option.1 / max)
             .unwrap()
     } else {
         node_comparison.max_by(|a, b| a.1.total_cmp(&b.1)).unwrap()
@@ -500,10 +556,12 @@ fn shift_node_between_subtrees(
 mod tests {
     use std::rc::Rc;
 
+    use rand::{rngs::StdRng, SeedableRng};
     use rustc_hash::FxHashMap;
 
     use crate::{
         contractionpath::contraction_tree::{
+            balancing::find_rebalance_node,
             node::{child_node, parent_node},
             ContractionTree,
         },
@@ -620,5 +678,51 @@ mod tests {
         let (mut tree, tensor) = setup_complex();
         tree.partitions.entry(1).or_insert(vec![9, 7]);
         shift_node_between_subtrees(&mut tree, 1, 9, 7, vec![2, 3, 4], &tensor);
+    }
+
+    fn custom_weight_function(a: &Tensor, b: &Tensor) -> f64 {
+        (a & b).legs().len() as f64
+    }
+
+    #[test]
+    fn test_find_rebalance_node() {
+        let larger_hash = FxHashMap::from_iter([
+            (0, Tensor::new(vec![0, 1, 2])),
+            (1, Tensor::new(vec![1, 2, 3])),
+            (2, Tensor::new(vec![3, 4, 5])),
+        ]);
+
+        let smaller_hash = FxHashMap::from_iter([(3, Tensor::new(vec![4, 5, 6]))]);
+
+        let ref_balanced_node = 2;
+        let (node_id, cost) = find_rebalance_node::<StdRng>(
+            &mut None,
+            &larger_hash,
+            &smaller_hash,
+            custom_weight_function,
+        );
+        assert_eq!(2f64, cost);
+        assert_eq!(ref_balanced_node, node_id);
+    }
+
+    #[test]
+    fn test_find_random_rebalance_node() {
+        let larger_hash = FxHashMap::from_iter([
+            (0, Tensor::new(vec![0, 1, 2])),
+            (1, Tensor::new(vec![1, 2, 6])),
+            (2, Tensor::new(vec![3, 4, 5])),
+        ]);
+
+        let smaller_hash = FxHashMap::from_iter([(3, Tensor::new(vec![4, 5, 6]))]);
+
+        let ref_balanced_node = 1;
+        let (node_id, cost) = find_rebalance_node(
+            &mut Some((2, StdRng::seed_from_u64(1))),
+            &larger_hash,
+            &smaller_hash,
+            custom_weight_function,
+        );
+        assert_eq!(1f64, cost);
+        assert_eq!(ref_balanced_node, node_id);
     }
 }

@@ -1,3 +1,5 @@
+use rand::Rng;
+
 use super::{find_rebalance_node, PartitionData};
 
 use crate::contractionpath::contraction_tree::{
@@ -34,14 +36,17 @@ pub enum BalancingScheme {
 }
 
 /// Balancing scheme that moves a tensor from the slowest subtree to the fastest subtree each time.
-/// Chosen tensor maximizes the objective_function, which is typically memory reduction.
-pub(crate) fn best_worst_balancing(
+/// Chosen tensor maximizes the `objective_function`, which is typically memory reduction.
+pub(crate) fn best_worst_balancing<R>(
     partition_data: &mut [PartitionData],
     contraction_tree: &mut ContractionTree,
-    random_balance: Option<usize>,
+    random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
-) -> Vec<(usize, usize, Vec<usize>)> {
+) -> Vec<(usize, usize, Vec<usize>)>
+where
+    R: Sized + Rng,
+{
     // Obtain most expensive and cheapest partitions
     let larger_subtree_id = partition_data.last().unwrap().id;
     let smaller_subtree_id = partition_data.first().unwrap().id;
@@ -63,14 +68,17 @@ pub(crate) fn best_worst_balancing(
 }
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
-/// Chosen tensor maximizes the objective_function, which is typically memory reduction.
-pub(crate) fn best_tensor_balancing(
+/// Chosen tensor maximizes the `objective_function`, which is typically memory reduction.
+pub(crate) fn best_tensor_balancing<R>(
     partition_data: &mut [PartitionData],
     contraction_tree: &mut ContractionTree,
-    random_balance: Option<usize>,
+    random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
-) -> Vec<(usize, usize, Vec<usize>)> {
+) -> Vec<(usize, usize, Vec<usize>)>
+where
+    R: Sized + Rng,
+{
     // Obtain most expensive partitions
     let larger_subtree_id = partition_data.last().unwrap().id;
 
@@ -100,13 +108,16 @@ pub(crate) fn best_tensor_balancing(
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
 /// Then identifies the tensor with the largest memory reduction when passed to the fastest subtree. Both slowest and fastest subtrees are updated.
-pub(crate) fn best_tensors_balancing(
+pub(crate) fn best_tensors_balancing<R>(
     partition_data: &[PartitionData],
     contraction_tree: &mut ContractionTree,
-    random_balance: Option<usize>,
+    random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
-) -> Vec<(usize, usize, Vec<usize>)> {
+) -> Vec<(usize, usize, Vec<usize>)>
+where
+    R: Sized + Rng,
+{
     // Obtain most expensive and cheapest partitions
     let larger_subtree_id = partition_data.last().unwrap().id;
 
@@ -165,14 +176,17 @@ pub(crate) fn best_tensors_balancing(
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
 /// Then identifies the tensor with the largest memory reduction when passed to the fastest subtree. Both slowest and fastest subtrees are updated.
-pub(crate) fn best_intermediate_tensors_balancing(
+pub(crate) fn best_intermediate_tensors_balancing<R>(
     partition_data: &[PartitionData],
     contraction_tree: &mut ContractionTree,
-    random_balance: Option<usize>,
+    random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
     height_limit: usize,
-) -> Vec<(usize, usize, Vec<usize>)> {
+) -> Vec<(usize, usize, Vec<usize>)>
+where
+    R: Sized + Rng,
+{
     // Obtain most expensive and cheapest partitions
     let larger_subtree_id = partition_data.last().unwrap().id;
     // Obtain all intermediate nodes up to height `height_limit` in larger subtree

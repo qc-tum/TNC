@@ -86,14 +86,13 @@ fn main() {
         let (num, mut _new_tn, _contraction_path, costs) = balance_partitions_iter(
             &partitioned_tn,
             &path,
-            BalanceSettings {
-                random_balance: None,
+            BalanceSettings::new(
                 rebalance_depth,
-                iterations: 120,
+                120,
                 objective_function,
                 communication_scheme,
-                balancing_scheme: BalancingScheme::BestWorst,
-            },
+                BalancingScheme::BestWorst,
+            ),
             Some(&DendogramSettings {
                 output_file: format!("output/{communication_scheme:?}_trial"),
                 objective_function: contract_cost_tensors,
