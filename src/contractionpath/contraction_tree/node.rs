@@ -1,3 +1,4 @@
+use std::fmt;
 use std::rc::Weak;
 
 use std::cell::RefCell;
@@ -105,5 +106,60 @@ impl Node {
             }
         }
         panic!("No child with id {id} found.");
+    }
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Node {{ id: {}, left_child: {:?}, right_child: {:?}, parent: {:?}, tensor_index: {:?} }}",
+            self.id,
+            self.left_child_id(),
+            self.right_child_id(),
+            self.parent_id(),
+            self.tensor_index
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        cell::RefCell,
+        rc::{Rc, Weak},
+    };
+
+    use super::Node;
+
+    #[test]
+    fn test_node_format() {
+        let node3 = Rc::new(RefCell::new(Node::new(
+            0,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![0]),
+        )));
+        let node2 = Rc::new(RefCell::new(Node::new(
+            1,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![1]),
+        )));
+
+        let node5 = Node::new(
+            5,
+            Rc::downgrade(&node3),
+            Rc::downgrade(&node2),
+            Weak::new(),
+            Some(vec![5]),
+        );
+
+        assert_eq!(
+            "Node { id: 5, left_child: Some(0), right_child: Some(1), parent: None, tensor_index: Some([5]) }",
+            node5.to_string()
+        )
     }
 }
