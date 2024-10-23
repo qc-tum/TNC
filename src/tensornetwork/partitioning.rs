@@ -84,7 +84,7 @@ pub fn find_partitioning(
 }
 
 /// Repeatedly partitions a tensor network to identify a communication scheme.
-/// Returns a `Vec<ContractionIndex>` of length equal to the number of input tensors minus one, acts as a commnuication scheme.
+/// Returns a `Vec<ContractionIndex>` of length equal to the number of input tensors minus one, acts as a communication scheme.
 ///
 /// # Arguments
 ///
