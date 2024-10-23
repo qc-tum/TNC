@@ -372,7 +372,7 @@ pub(super) fn find_rebalance_node(
     if let Some(options_considered) = random_balance {
         let mut rng = thread_rng();
         let node_options = node_comparison
-            .sorted_unstable_by(|a, b| a.1.total_cmp(&b.1))
+            .sorted_unstable_by(|a, b| b.1.total_cmp(&a.1))
             .take(options_considered)
             .collect::<Vec<(usize, f64)>>();
         let max = node_options.first().unwrap().1;
