@@ -438,7 +438,7 @@ fn shift_node_between_subtrees(
     // Remove larger subtree
     contraction_tree.remove_subtree(larger_subtree_id);
     // Add new subtree, keep track of updated root id
-    let new_larger_subtree_id = contraction_tree.add_subtree(
+    let new_larger_subtree_id = contraction_tree.add_path_as_subtree(
         &updated_larger_path,
         larger_subtree_parent_id,
         &larger_subtree_leaf_nodes,
@@ -448,7 +448,7 @@ fn shift_node_between_subtrees(
     contraction_tree.remove_subtree(smaller_subtree_id);
 
     // Add new subtree, keep track of updated root id
-    let new_smaller_subtree_id = contraction_tree.add_subtree(
+    let new_smaller_subtree_id = contraction_tree.add_path_as_subtree(
         &updated_smaller_path,
         smaller_subtree_parent_id,
         &smaller_subtree_leaf_nodes,

@@ -172,12 +172,13 @@ impl ContractionTree {
     }
 
     /// Removes subtree with root at `node_id`.
-    pub fn remove_subtree(&mut self, node_id: usize) {
+    pub(crate) fn remove_subtree(&mut self, node_id: usize) {
         self.remove_subtree_recurse(node_id);
     }
 
     /// Converts a contraction path into a ContractionTree, then attaches this as a subtree at `parent_id`
-    pub fn add_subtree(
+    /// The ContractionTree should already contain the leaf nodes of the
+    pub(crate) fn add_path_as_subtree(
         &mut self,
         path: &[ContractionIndex],
         parent_id: usize,
