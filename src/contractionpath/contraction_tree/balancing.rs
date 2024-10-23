@@ -495,3 +495,281 @@ fn shift_node_between_subtrees(
         smaller_cost,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        cell::RefCell,
+        rc::{Rc, Weak},
+    };
+
+    use rustc_hash::FxHashMap;
+
+    use crate::{
+        contractionpath::contraction_tree::{node::Node, ContractionTree},
+        path,
+        tensornetwork::{create_tensor_network, tensor::Tensor},
+    };
+
+    use super::shift_node_between_subtrees;
+
+    fn setup_complex() -> (ContractionTree, Tensor) {
+        let (tensor, contraction_path) = (
+            create_tensor_network(
+                vec![
+                    Tensor::new(vec![4, 3, 2]),
+                    Tensor::new(vec![0, 1, 3, 2]),
+                    Tensor::new(vec![4, 5, 6]),
+                    Tensor::new(vec![6, 8, 9]),
+                    Tensor::new(vec![10, 8, 9]),
+                    Tensor::new(vec![5, 1, 0]),
+                ],
+                &FxHashMap::from_iter([
+                    (0, 27),
+                    (1, 18),
+                    (2, 12),
+                    (3, 15),
+                    (4, 5),
+                    (5, 3),
+                    (6, 18),
+                    (7, 22),
+                    (8, 45),
+                    (9, 65),
+                    (10, 5),
+                ]),
+                None,
+            ),
+            path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
+        );
+        (
+            ContractionTree::from_contraction_path(&tensor, &contraction_path),
+            tensor,
+        )
+    }
+
+    #[test]
+    fn test_shift_leaf_node_between_subtrees() {
+        let (mut tree, tensor) = setup_complex();
+        tree.partitions.entry(1).or_insert(vec![9, 7]);
+        shift_node_between_subtrees(&mut tree, 1, 9, 7, vec![3], &tensor);
+
+        let ContractionTree { nodes, root, .. } = tree;
+
+        let node0 = Rc::new(RefCell::new(Node::new(
+            0,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![0]),
+        )));
+        let node1 = Rc::new(RefCell::new(Node::new(
+            1,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![1]),
+        )));
+        let node2 = Rc::new(RefCell::new(Node::new(
+            2,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![2]),
+        )));
+        let node3 = Rc::new(RefCell::new(Node::new(
+            3,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![3]),
+        )));
+        let node4 = Rc::new(RefCell::new(Node::new(
+            4,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![4]),
+        )));
+        let node5 = Rc::new(RefCell::new(Node::new(
+            5,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![5]),
+        )));
+        let node6 = Rc::new(RefCell::new(Node::new(
+            6,
+            Rc::downgrade(&node1),
+            Rc::downgrade(&node5),
+            Weak::new(),
+            None,
+        )));
+        let node7 = Rc::new(RefCell::new(Node::new(
+            7,
+            Rc::downgrade(&node0),
+            Rc::downgrade(&node6),
+            Weak::new(),
+            None,
+        )));
+        let node8 = Rc::new(RefCell::new(Node::new(
+            8,
+            Rc::downgrade(&node2),
+            Rc::downgrade(&node4),
+            Weak::new(),
+            None,
+        )));
+        let node9 = Rc::new(RefCell::new(Node::new(
+            9,
+            Rc::downgrade(&node3),
+            Rc::downgrade(&node7),
+            Weak::new(),
+            None,
+        )));
+        let node10 = Rc::new(RefCell::new(Node::new(
+            10,
+            Rc::downgrade(&node9),
+            Rc::downgrade(&node8),
+            Weak::new(),
+            None,
+        )));
+        node0.borrow_mut().parent = Rc::downgrade(&node7);
+        node1.borrow_mut().parent = Rc::downgrade(&node6);
+        node2.borrow_mut().parent = Rc::downgrade(&node8);
+        node3.borrow_mut().parent = Rc::downgrade(&node9);
+        node4.borrow_mut().parent = Rc::downgrade(&node8);
+        node5.borrow_mut().parent = Rc::downgrade(&node6);
+        node6.borrow_mut().parent = Rc::downgrade(&node7);
+        node7.borrow_mut().parent = Rc::downgrade(&node9);
+        node8.borrow_mut().parent = Rc::downgrade(&node10);
+        node9.borrow_mut().parent = Rc::downgrade(&node10);
+
+        let ref_root = Rc::clone(&node10);
+        let ref_nodes = [
+            node0, node1, node2, node3, node4, node5, node6, node7, node8, node9, node10,
+        ];
+
+        for (key, ref_node) in ref_nodes.iter().enumerate().rev() {
+            let node = &nodes[&key];
+            assert_eq!(node, ref_node);
+        }
+        assert_eq!(root.upgrade().unwrap(), ref_root);
+        assert_eq!(root.upgrade().unwrap(), ref_root);
+    }
+
+    #[test]
+    fn test_shift_subtree_between_subtrees() {
+        let (mut tree, tensor) = setup_complex();
+        tree.partitions.entry(1).or_insert(vec![9, 7]);
+        shift_node_between_subtrees(&mut tree, 1, 9, 7, vec![2, 3], &tensor);
+
+        let ContractionTree { nodes, root, .. } = tree;
+
+        let node0 = Rc::new(RefCell::new(Node::new(
+            0,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![0]),
+        )));
+        let node1 = Rc::new(RefCell::new(Node::new(
+            1,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![1]),
+        )));
+        let node2 = Rc::new(RefCell::new(Node::new(
+            2,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![2]),
+        )));
+        let node3 = Rc::new(RefCell::new(Node::new(
+            3,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![3]),
+        )));
+        let node4 = Rc::new(RefCell::new(Node::new(
+            4,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![4]),
+        )));
+        let node5 = Rc::new(RefCell::new(Node::new(
+            5,
+            Weak::new(),
+            Weak::new(),
+            Weak::new(),
+            Some(vec![5]),
+        )));
+        let node6 = Rc::new(RefCell::new(Node::new(
+            6,
+            Rc::downgrade(&node1),
+            Rc::downgrade(&node5),
+            Weak::new(),
+            None,
+        )));
+        let node7 = Rc::new(RefCell::new(Node::new(
+            7,
+            Rc::downgrade(&node3),
+            Rc::downgrade(&node2),
+            Weak::new(),
+            None,
+        )));
+        let node8 = Rc::new(RefCell::new(Node::new(
+            8,
+            Rc::downgrade(&node0),
+            Rc::downgrade(&node6),
+            Weak::new(),
+            None,
+        )));
+        let node9 = Rc::new(RefCell::new(Node::new(
+            9,
+            Rc::downgrade(&node7),
+            Rc::downgrade(&node8),
+            Weak::new(),
+            None,
+        )));
+        let node10 = Rc::new(RefCell::new(Node::new(
+            10,
+            Rc::downgrade(&node9),
+            Rc::downgrade(&node4),
+            Weak::new(),
+            None,
+        )));
+        node0.borrow_mut().parent = Rc::downgrade(&node8);
+        node1.borrow_mut().parent = Rc::downgrade(&node6);
+        node2.borrow_mut().parent = Rc::downgrade(&node7);
+        node3.borrow_mut().parent = Rc::downgrade(&node7);
+        node4.borrow_mut().parent = Rc::downgrade(&node10);
+        node5.borrow_mut().parent = Rc::downgrade(&node6);
+        node6.borrow_mut().parent = Rc::downgrade(&node8);
+        node7.borrow_mut().parent = Rc::downgrade(&node9);
+        node8.borrow_mut().parent = Rc::downgrade(&node9);
+        node9.borrow_mut().parent = Rc::downgrade(&node10);
+
+        let ref_root = Rc::clone(&node10);
+        let ref_nodes = [
+            node0, node1, node2, node3, node4, node5, node6, node7, node8, node9, node10,
+        ];
+
+        for (key, ref_node) in ref_nodes.iter().enumerate().rev() {
+            let node = &nodes[&key];
+            assert_eq!(node, ref_node);
+        }
+
+        assert_eq!(root.upgrade().unwrap(), ref_root);
+    }
+
+    #[test]
+    #[should_panic = "Currently, passing all leaf nodes from larger to smaller results in undefined behavior"]
+    fn test_shift_entire_subtree_between_subtrees() {
+        let (mut tree, tensor) = setup_complex();
+        tree.partitions.entry(1).or_insert(vec![9, 7]);
+        shift_node_between_subtrees(&mut tree, 1, 9, 7, vec![2, 3, 4], &tensor);
+    }
+}
