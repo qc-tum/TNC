@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{collections::HashSet, rc::Rc};
 
 use itertools::Itertools;
 use log::info;
@@ -118,22 +118,34 @@ where
 
     let partition_number = partition_data.len();
 
-    let intermediate_cost = partition_data.last().unwrap().cost;
-
     let children_tensors = partition_data
         .iter()
         .map(|PartitionData { local_tensor, .. }| local_tensor.clone())
         .collect_vec();
 
-    let (communication_cost, _) = contract_path_cost(&children_tensors, &communication_path, true);
+    let (fan_in_cost, _) = contract_path_cost(&children_tensors, &communication_path, true);
+    let mut largest_local_cost = f64::MAX;
+    let mut contracted_tensors = HashSet::new();
+    for contraction in communication_path {
+        if let ContractionIndex::Pair { 0: i, 1: j } = contraction {
+            if !contracted_tensors.contains(&i) && !contracted_tensors.contains(&j) {
+                let local_max = partition_data[i].cost.max(partition_data[j].cost);
+                if local_max < largest_local_cost {
+                    largest_local_cost = local_max;
+                }
+            }
+            contracted_tensors.insert(i);
+            contracted_tensors.insert(j);
+        }
+    }
     let mut max_costs = Vec::with_capacity(iterations + 1);
-    max_costs.push(intermediate_cost + communication_cost);
+    max_costs.push(largest_local_cost + fan_in_cost);
 
     print_dendogram(dendogram_settings, &contraction_tree, tensor_network, 0);
 
     let mut best_iteration = 0;
     let mut best_contraction_path = path.to_owned();
-    let mut best_cost = intermediate_cost + communication_cost;
+    let mut best_cost = largest_local_cost + fan_in_cost;
 
     let mut best_tn = tensor_network.clone();
 
@@ -141,7 +153,7 @@ where
         info!("Balancing iteration {i} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
 
         // Balances and updates partitions
-        let (largest_local_cost, mut intermediate_path, new_tensor_network) = balance_partitions(
+        let (_, mut intermediate_path, new_tensor_network) = balance_partitions(
             &mut partition_data,
             &mut contraction_tree,
             tensor_network,
@@ -158,7 +170,23 @@ where
             &balance_settings,
         );
 
+        let mut largest_local_cost = f64::MAX;
+        let mut contracted_tensors = HashSet::new();
+        for contraction in communication_path.iter() {
+            if let ContractionIndex::Pair { 0: i, 1: j } = contraction {
+                if !contracted_tensors.contains(&i) && !contracted_tensors.contains(&j) {
+                    let local_max = partition_data[*i].cost.max(partition_data[*j].cost);
+                    if local_max < largest_local_cost {
+                        largest_local_cost = local_max;
+                    }
+                }
+                contracted_tensors.insert(i);
+                contracted_tensors.insert(j);
+            }
+        }
+
         intermediate_path.extend(communication_path);
+
         let new_cost = largest_local_cost + fan_in_cost;
 
         max_costs.push(new_cost);
