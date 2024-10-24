@@ -88,7 +88,7 @@ pub fn find_partitioning(
 ///
 /// # Arguments
 ///
-/// * `tensors` - &[`Tensor`] to be partitionined
+/// * `tensors` - &[(usize, `Tensor`)] to be partitioned. each tuple contains the intermediate contraction cost and intermediate tensor for communication.
 /// * `bond_dims` - bond_dims for tensors
 /// * `k` - number of partitions
 /// * `partitioning_strategy` - The strategy to pass to `KaHyPar`
