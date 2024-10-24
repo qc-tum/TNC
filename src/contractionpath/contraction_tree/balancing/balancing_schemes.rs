@@ -38,7 +38,7 @@ pub enum BalancingScheme {
 /// Balancing scheme that moves a tensor from the slowest subtree to the fastest subtree each time.
 /// Chosen tensor maximizes the `objective_function`, which is typically memory reduction.
 pub(crate) fn best_worst_balancing<R>(
-    partition_data: &mut [PartitionData],
+    partition_data: &[PartitionData],
     contraction_tree: &mut ContractionTree,
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
@@ -70,7 +70,7 @@ where
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
 /// Chosen tensor maximizes the `objective_function`, which is typically memory reduction.
 pub(crate) fn best_tensor_balancing<R>(
-    partition_data: &mut [PartitionData],
+    partition_data: &[PartitionData],
     contraction_tree: &mut ContractionTree,
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
