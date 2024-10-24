@@ -69,7 +69,7 @@ pub(super) fn weighted_branchbound_communication_scheme(
     let mut opt = WeightedBranchBound::new(
         &communication_tensors,
         None,
-        20.0,
+        2f64,
         latency_map,
         CostType::Flops,
     );
@@ -77,7 +77,6 @@ pub(super) fn weighted_branchbound_communication_scheme(
     let final_contraction = opt.get_best_replace_path();
     let contraction_tree =
         ContractionTree::from_contraction_path(&communication_tensors, &final_contraction);
-    // let (final_op_cost, _) = contract_path_cost(&children_tensors, &final_contraction);
     let (final_op_cost, _, _) = parallel_tree_contraction_cost(
         &contraction_tree,
         contraction_tree.root_id().unwrap(),
