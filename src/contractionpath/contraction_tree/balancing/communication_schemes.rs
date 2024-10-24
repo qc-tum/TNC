@@ -158,3 +158,99 @@ pub fn tensor_bipartition(
         tensor_bipartition_recursive(children_tensor, bond_dims);
     (contraction_cost, contraction_path)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        borrow::Borrow,
+        sync::{Arc, RwLock},
+    };
+
+    use rand::rngs::StdRng;
+    use rustc_hash::FxHashMap;
+
+    use crate::{
+        contractionpath::contraction_tree::{
+            balancing::{
+                communication_schemes::{
+                    bipartition_communication_scheme, greedy_communication_scheme,
+                    weighted_branchbound_communication_scheme,
+                },
+                PartitionData,
+            },
+            ContractionTree,
+        },
+        path,
+        tensornetwork::tensor::Tensor,
+    };
+
+    fn setup_simple_partition_data() -> FxHashMap<usize, f64> {
+        FxHashMap::from_iter([(0, 0f64), (1, 40f64), (2, 170f64)])
+    }
+
+    /// Tensor ids in contraction tree included in variable name for easy tracking
+    fn setup_simple() -> (Vec<Tensor>, Arc<RwLock<FxHashMap<usize, u64>>>) {
+        let bond_dims = Arc::new(RwLock::new(FxHashMap::from_iter([
+            (0, 2),
+            (1, 2),
+            (2, 2),
+            (3, 2),
+            (4, 2),
+            (5, 2),
+            (6, 2),
+            (7, 2),
+            (8, 2),
+            (9, 2),
+            (10, 2),
+        ])));
+
+        let tensor2 = Tensor::new_with_bonddims(vec![7, 9, 10], Arc::clone(&bond_dims));
+
+        let tensor7 = Tensor::new_with_bonddims(vec![0, 1, 5, 7], Arc::clone(&bond_dims));
+
+        let tensor14 = Tensor::new_with_bonddims(vec![0, 1, 2, 5, 10], Arc::clone(&bond_dims));
+
+        (vec![tensor2, tensor7, tensor14], bond_dims)
+    }
+
+    fn custom_cost_function(a: &Tensor, b: &Tensor) -> f64 {
+        (a & b).legs().len() as f64
+    }
+
+    #[test]
+    fn test_greedy_communication() {
+        let (tensors, bond_dims) = setup_simple();
+
+        let (cost, communication_scheme) =
+            greedy_communication_scheme(&tensors, &bond_dims.read().unwrap());
+
+        assert_eq!(616f64, cost);
+        assert_eq!(path![(2, 1), (0, 2)].to_vec(), communication_scheme);
+    }
+
+    #[test]
+    fn test_bipartition_communication() {
+        let (tensors, bond_dims) = setup_simple();
+
+        let (cost, communication_scheme) =
+            bipartition_communication_scheme(&tensors, &bond_dims.read().unwrap());
+
+        assert_eq!(952f64, cost);
+        assert_eq!(path![(1, 0), (2, 1)].to_vec(), communication_scheme);
+    }
+
+    #[test]
+    fn test_weighted_communication() {
+        let latency_map = setup_simple_partition_data();
+        let (tensors, bond_dims) = setup_simple();
+
+        let (cost, communication_scheme) = weighted_branchbound_communication_scheme(
+            &tensors,
+            &bond_dims.read().unwrap(),
+            latency_map,
+        );
+
+        assert_eq!(952f64, cost);
+        assert_eq!(path![(1, 0), (1, 2)].to_vec(), communication_scheme);
+    }
+}
