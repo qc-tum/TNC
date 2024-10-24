@@ -249,3 +249,186 @@ where
     shift.push((larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids));
     shift
 }
+
+#[cfg(test)]
+mod tests {
+    use rand::rngs::StdRng;
+    use rustc_hash::FxHashMap;
+
+    use crate::{
+        contractionpath::contraction_tree::{
+            balancing::{
+                balancing_schemes::{
+                    best_intermediate_tensors_balancing, best_tensor_balancing,
+                    best_tensors_balancing, best_worst_balancing,
+                },
+                PartitionData,
+            },
+            ContractionTree,
+        },
+        path,
+        tensornetwork::tensor::Tensor,
+    };
+
+    fn setup_simple_partition_data() -> Vec<PartitionData> {
+        vec![
+            PartitionData {
+                id: 2,
+                cost: 1f64,
+                contraction: Vec::new(),
+                local_tensor: Tensor::default(),
+            },
+            PartitionData {
+                id: 7,
+                cost: 2f64,
+                contraction: Vec::new(),
+                local_tensor: Tensor::default(),
+            },
+            PartitionData {
+                id: 14,
+                cost: 3f64,
+                contraction: Vec::new(),
+                local_tensor: Tensor::default(),
+            },
+        ]
+    }
+
+    /// Tensor ids in contraction tree included in variable name for easy tracking
+    fn setup_simple() -> (ContractionTree, Tensor) {
+        let bond_dims = FxHashMap::from_iter([
+            (0, 2),
+            (1, 2),
+            (2, 2),
+            (3, 2),
+            (4, 2),
+            (5, 2),
+            (6, 2),
+            (7, 2),
+            (8, 2),
+            (9, 2),
+            (10, 2),
+        ]);
+
+        let tensor0 = Tensor::new(vec![7, 8]);
+        let tensor1 = Tensor::new(vec![8, 9, 10]);
+
+        let tensor3 = Tensor::new(vec![0, 6]);
+        let tensor4 = Tensor::new(vec![1, 6]);
+        let tensor5 = Tensor::new(vec![5, 7]);
+
+        let tensor8 = Tensor::new(vec![0, 1]);
+        let tensor9 = Tensor::new(vec![2, 3]);
+        let tensor10 = Tensor::new(vec![3, 4]);
+        let tensor11 = Tensor::new(vec![4, 5, 10]);
+
+        let mut intermediate_tensor2 = Tensor::default();
+        intermediate_tensor2.push_tensors(vec![tensor0, tensor1], Some(&bond_dims), None);
+
+        let mut intermediate_tensor7 = Tensor::default();
+        intermediate_tensor7.push_tensors(vec![tensor3, tensor4, tensor5], Some(&bond_dims), None);
+
+        let mut intermediate_tensor14 = Tensor::default();
+        intermediate_tensor14.push_tensors(
+            vec![tensor8, tensor9, tensor10, tensor11],
+            Some(&bond_dims),
+            None,
+        );
+
+        let mut tensor15 = Tensor::default();
+        tensor15.push_tensors(
+            vec![
+                intermediate_tensor2,
+                intermediate_tensor7,
+                intermediate_tensor14,
+            ],
+            Some(&bond_dims),
+            None,
+        );
+
+        let contraction_path = path![
+            (0, [(0, 1)]),
+            (1, [(0, 1), (0, 2)]),
+            (2, [(0, 3), (2, 1), (0, 2)]),
+            (0, 1),
+            (0, 2)
+        ];
+
+        (
+            ContractionTree::from_contraction_path(&tensor15, contraction_path),
+            tensor15,
+        )
+    }
+
+    fn custom_cost_function(a: &Tensor, b: &Tensor) -> f64 {
+        (a & b).legs().len() as f64
+    }
+
+    #[test]
+    fn test_best_worst_balancing() {
+        let partition_data = setup_simple_partition_data();
+        let (mut contraction_tree, tensor) = setup_simple();
+
+        let output = best_worst_balancing::<StdRng>(
+            &partition_data,
+            &mut contraction_tree,
+            &mut None,
+            custom_cost_function,
+            &tensor,
+        );
+
+        let ref_output = vec![(14, 2, vec![11])];
+        assert_eq!(ref_output, output);
+    }
+
+    #[test]
+    fn test_tensor_balancing() {
+        let partition_data = setup_simple_partition_data();
+        let (mut contraction_tree, tensor) = setup_simple();
+
+        let output = best_tensor_balancing::<StdRng>(
+            &partition_data,
+            &mut contraction_tree,
+            &mut None,
+            custom_cost_function,
+            &tensor,
+        );
+
+        let ref_output = vec![(14, 7, vec![8])];
+        assert_eq!(ref_output, output);
+    }
+
+    #[test]
+    fn test_tensors_balancing() {
+        let partition_data = setup_simple_partition_data();
+        let (mut contraction_tree, tensor) = setup_simple();
+
+        let output = best_tensors_balancing::<StdRng>(
+            &partition_data,
+            &mut contraction_tree,
+            &mut None,
+            custom_cost_function,
+            &tensor,
+        );
+
+        let ref_output = vec![(14, 7, vec![8]), (7, 2, vec![5])];
+        assert_eq!(ref_output, output);
+    }
+
+    #[test]
+    fn test_intermediate_tensors_balancing() {
+        let partition_data = setup_simple_partition_data();
+        let (mut contraction_tree, tensor) = setup_simple();
+
+        let output = best_intermediate_tensors_balancing::<StdRng>(
+            &partition_data,
+            &mut contraction_tree,
+            &mut None,
+            custom_cost_function,
+            &tensor,
+            1,
+        );
+
+        let ref_output = vec![(14, 7, vec![8, 11]), (7, 2, vec![5])];
+        assert_eq!(ref_output, output);
+    }
+}
