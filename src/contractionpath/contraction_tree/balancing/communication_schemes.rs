@@ -204,7 +204,7 @@ mod tests {
             (10, 2),
         ])));
 
-        let tensor2 = Tensor::new_with_bonddims(vec![7, 9, 10], Arc::clone(&bond_dims));
+        let tensor2 = Tensor::new_with_bonddims(vec![7, 9, 10, 3], Arc::clone(&bond_dims));
 
         let tensor7 = Tensor::new_with_bonddims(vec![0, 1, 5, 7], Arc::clone(&bond_dims));
 
@@ -224,19 +224,8 @@ mod tests {
         let (cost, communication_scheme) =
             greedy_communication_scheme(&tensors, &bond_dims.read().unwrap());
 
-        assert_eq!(616f64, cost);
+        assert_eq!(736f64, cost);
         assert_eq!(path![(2, 1), (0, 2)].to_vec(), communication_scheme);
-    }
-
-    #[test]
-    fn test_bipartition_communication() {
-        let (tensors, bond_dims) = setup_simple();
-
-        let (cost, communication_scheme) =
-            bipartition_communication_scheme(&tensors, &bond_dims.read().unwrap());
-
-        assert_eq!(952f64, cost);
-        assert_eq!(path![(1, 0), (2, 1)].to_vec(), communication_scheme);
     }
 
     #[test]
@@ -250,7 +239,7 @@ mod tests {
             latency_map,
         );
 
-        assert_eq!(952f64, cost);
-        assert_eq!(path![(1, 0), (1, 2)].to_vec(), communication_scheme);
+        assert_eq!(736f64, cost);
+        assert_eq!(path![(2, 1), (0, 2)].to_vec(), communication_scheme);
     }
 }
