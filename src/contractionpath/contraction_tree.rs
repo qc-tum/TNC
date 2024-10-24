@@ -1158,6 +1158,30 @@ mod tests {
     }
 
     #[test]
+    fn test_populate_subtree_tensor_map_height_limit() {
+        let (tensor, ref_path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let mut node_tensor_map = FxHashMap::default();
+        populate_subtree_tensor_map(&tree, 10, &mut node_tensor_map, &tensor, Some(1));
+
+        let ref_node_tensor_map = FxHashMap::from_iter([
+            (0, Tensor::new(vec![4, 3, 2])),
+            (1, Tensor::new(vec![0, 1, 3, 2])),
+            (2, Tensor::new(vec![4, 5, 6])),
+            (3, Tensor::new(vec![6, 8, 9])),
+            (4, Tensor::new(vec![10, 8, 9])),
+            (5, Tensor::new(vec![5, 1, 0])),
+            (6, Tensor::new(vec![3, 2, 5])),
+            (8, Tensor::new(vec![6, 10])),
+        ]);
+
+        for (key, value) in node_tensor_map {
+            println!("key: {}", key);
+            assert_eq!(ref_node_tensor_map[&key].legs(), value.legs());
+        }
+    }
+
+    #[test]
     fn test_populate_leaf_node_tensor_map_simple() {
         let (tensor, ref_path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
