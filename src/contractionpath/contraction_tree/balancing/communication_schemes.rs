@@ -111,8 +111,8 @@ pub fn tensor_bipartition_recursive(
             (children_tensor[0].0, children_tensor[1].0)
         };
         let tensor = &children_tensor[0].1 ^ &children_tensor[1].1;
-        let contraction = &children_tensor[0].1 | &children_tensor[1].1;
-        return (t1, contraction.size() as f64, tensor, vec![pair!(t1, t2)]);
+        let contraction_cost = contract_cost_tensors(&children_tensor[0].1, &children_tensor[1].1);
+        return (t1, contraction_cost, tensor, vec![pair!(t1, t2)]);
     }
 
     let partitioning = communication_partitioning(
