@@ -88,7 +88,7 @@ pub(super) fn weighted_branchbound_communication_scheme(
 
 /// Uses recursive bipartitioning to identify a communication scheme for final tensors
 /// Returns root id of subtree, parallel contraction cost as f64, resultant tensor and prior contraction sequence
-pub(crate) fn tensor_bipartition_recursive(
+pub fn tensor_bipartition_recursive(
     children_tensor: &[(usize, Tensor)],
     bond_dims: &FxHashMap<usize, u64>,
 ) -> (usize, f64, Tensor, Vec<ContractionIndex>) {
@@ -151,7 +151,7 @@ pub(crate) fn tensor_bipartition_recursive(
 
 /// Repeatedly bipartitions tensor network to obtain communication scheme
 /// Assumes that all tensors contracted do so in parallel
-pub(crate) fn tensor_bipartition(
+pub fn tensor_bipartition(
     children_tensor: &[(usize, Tensor)],
     bond_dims: &FxHashMap<usize, u64>,
 ) -> (f64, Vec<ContractionIndex>) {
