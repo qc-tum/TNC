@@ -251,11 +251,7 @@ mod tests {
         let mut t2 = Tensor::default();
         let t2_tensors = vec![Tensor::new(vec![5, 6, 8]), Tensor::new(vec![7, 8, 9])];
         t2.push_tensors(t2_tensors, Some(&bond_dims), None);
-        create_tensor_network(
-            vec![t1, t2],
-            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-            None,
-        )
+        create_tensor_network(vec![t1, t2], &bond_dims, None)
     }
 
     #[test]
@@ -276,8 +272,8 @@ mod tests {
             tn.tensors(),
             path![(0, [(0, 1), (0, 2)]), (1, [(0, 1)]), (0, 1)],
         );
-        assert_eq!(op_cost, 12460f64);
-        assert_eq!(mem_cost, 1224f64);
+        assert_eq!(op_cost, 11188f64);
+        assert_eq!(mem_cost, 646f64);
     }
 
     #[test]
@@ -298,7 +294,7 @@ mod tests {
             tn.tensors(),
             path![(0, [(0, 1), (0, 2)]), (1, [(0, 1)]), (0, 1)],
         );
-        assert_eq!(op_cost, 1896f64);
-        assert_eq!(mem_cost, 1224f64);
+        assert_eq!(op_cost, 1464f64);
+        assert_eq!(mem_cost, 646f64);
     }
 }
