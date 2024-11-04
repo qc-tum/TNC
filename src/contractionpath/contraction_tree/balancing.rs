@@ -101,7 +101,7 @@ pub fn balance_partitions_iter(
             balance_settings,
         );
 
-        assert_eq!(partition_number, intermediate_path.len(), "Tensors lost!");
+        assert_eq!(intermediate_path.len(), partition_number, "Tensors lost!");
         validate_path(&intermediate_path);
 
         // Ensures that children tensors are mapped to their respective partition costs

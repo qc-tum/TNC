@@ -391,7 +391,7 @@ mod tests {
                 local_tensor: Tensor::new(vec![5, 7]),
             },
         ];
-        assert_eq!(ref_partition_data, partition_data);
+        assert_eq!(partition_data, ref_partition_data);
     }
 
     #[test]
@@ -422,6 +422,6 @@ mod tests {
                 local_tensor: Tensor::new(vec![2, 1, 3, 5, 7]),
             },
         ];
-        assert_eq!(ref_partition_data, partition_data);
+        assert_eq!(partition_data, ref_partition_data);
     }
 }
