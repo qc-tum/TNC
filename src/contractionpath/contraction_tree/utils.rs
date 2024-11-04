@@ -348,13 +348,13 @@ mod tests {
             subtree_contraction_path(&subtree_leaf_nodes, &contraction_tree, &tensor);
 
         assert_eq!(
+            tree_contraction_path,
             path![(1, 0), (5, 3), (1, 5)].to_vec(),
-            tree_contraction_path
         );
 
         assert_eq!(
+            local_contraction_path,
             path![(1, 0), (3, 2), (1, 3)].to_vec(),
-            local_contraction_path
         );
 
         assert_eq!(171781290f64, cost);
