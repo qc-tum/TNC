@@ -404,13 +404,6 @@ fn shift_node_between_subtrees(
         .parent_id()
         .unwrap();
 
-    // Remove the updated subtrees from the `ContractionTree` partitions member as the intermediate tensor id will be updated.
-    contraction_tree
-        .partitions
-        .get_mut(&rebalance_depth)
-        .unwrap()
-        .retain(|&e| e != smaller_subtree_id && e != larger_subtree_id);
-
     let mut larger_subtree_leaf_nodes = contraction_tree.leaf_ids(larger_subtree_id);
     let mut smaller_subtree_leaf_nodes = contraction_tree.leaf_ids(smaller_subtree_id);
     // Always check that a node can be moved over.
@@ -454,6 +447,15 @@ fn shift_node_between_subtrees(
         smaller_subtree_parent_id,
         &smaller_subtree_leaf_nodes,
     );
+
+    // Remove the old partition ids from the `ContractionTree` partitions member as the intermediate tensor id will be updated and then add the updated partition numbers.`
+    let partition = contraction_tree
+        .partitions
+        .get_mut(&rebalance_depth)
+        .unwrap();
+    partition.retain(|&e| e != smaller_subtree_id && e != larger_subtree_id);
+    partition.push(new_larger_subtree_id);
+    partition.push(new_smaller_subtree_id);
 
     (
         new_larger_subtree_id,
