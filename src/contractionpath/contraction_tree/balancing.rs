@@ -236,11 +236,9 @@ pub(super) fn balance_partitions(
     };
     let mut shifted_indices = FxHashMap::default();
     for (from_subtree_id, to_subtree_id, rebalanced_nodes) in shifted_nodes {
-        let shifted_from_id = if shifted_indices.contains_key(&from_subtree_id) {
-            *shifted_indices.get(&from_subtree_id).unwrap()
-        } else {
-            from_subtree_id
-        };
+        let shifted_from_id = *shifted_indices
+            .get(&from_subtree_id)
+            .unwrap_or(&from_subtree_id);
 
         let shifted_to_id = if shifted_indices.contains_key(&to_subtree_id) {
             *shifted_indices.get(&to_subtree_id).unwrap()
