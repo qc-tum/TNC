@@ -107,33 +107,28 @@ pub(crate) fn best_tensor_balancing(
     let (smaller_subtree_id, rebalanced_node, _) = partition_data
         .iter()
         .take(partition_data.len() - 1)
-        .map(
-            |PartitionData {
-                 id: smaller_subtree_id,
-                 ..
-             }| {
-                let mut smaller_subtree_nodes = FxHashMap::default();
-                populate_subtree_tensor_map(
-                    contraction_tree,
-                    *smaller_subtree_id,
-                    &mut smaller_subtree_nodes,
-                    tensor,
-                    None,
-                );
-                let (rebalanced_node, cost) = find_rebalance_node(
-                    random_balance,
-                    &larger_subtree_nodes,
-                    &smaller_subtree_nodes,
-                    greedy_cost_function,
-                );
-                (smaller_subtree_id, rebalanced_node, cost)
-            },
-        )
+        .map(|smaller| {
+            let mut smaller_subtree_nodes = FxHashMap::default();
+            populate_subtree_tensor_map(
+                contraction_tree,
+                smaller.id,
+                &mut smaller_subtree_nodes,
+                tensor,
+                None,
+            );
+            let (rebalanced_node, cost) = find_rebalance_node(
+                random_balance,
+                &larger_subtree_nodes,
+                &smaller_subtree_nodes,
+                greedy_cost_function,
+            );
+            (smaller.id, rebalanced_node, cost)
+        })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
 
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
-    vec![(larger_subtree_id, *smaller_subtree_id, rebalanced_leaf_ids)]
+    vec![(larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids)]
 }
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
@@ -163,32 +158,27 @@ pub(crate) fn best_tensors_balancing(
     let (smaller_subtree_id, rebalanced_node, _) = partition_data
         .iter()
         .take(partition_data.len() - 1)
-        .map(
-            |PartitionData {
-                 id: smaller_subtree_id,
-                 ..
-             }| {
-                let mut smaller_subtree_nodes = FxHashMap::default();
-                populate_subtree_tensor_map(
-                    contraction_tree,
-                    *smaller_subtree_id,
-                    &mut smaller_subtree_nodes,
-                    tensor,
-                    None,
-                );
-                let (rebalanced_node, cost) = find_rebalance_node(
-                    random_balance,
-                    &larger_subtree_nodes,
-                    &smaller_subtree_nodes,
-                    greedy_cost_function,
-                );
-                (smaller_subtree_id, rebalanced_node, cost)
-            },
-        )
+        .map(|smaller| {
+            let mut smaller_subtree_nodes = FxHashMap::default();
+            populate_subtree_tensor_map(
+                contraction_tree,
+                smaller.id,
+                &mut smaller_subtree_nodes,
+                tensor,
+                None,
+            );
+            let (rebalanced_node, cost) = find_rebalance_node(
+                random_balance,
+                &larger_subtree_nodes,
+                &smaller_subtree_nodes,
+                greedy_cost_function,
+            );
+            (smaller.id, rebalanced_node, cost)
+        })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
-    let mut shift = vec![(larger_subtree_id, *smaller_subtree_id, rebalanced_leaf_ids)];
+    let mut shift = vec![(larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids)];
 
     let PartitionData {
         id: smaller_subtree_id,
@@ -208,33 +198,28 @@ pub(crate) fn best_tensors_balancing(
         .iter()
         .skip(1)
         .take(partition_data.len() - 2)
-        .map(
-            |PartitionData {
-                 id: larger_subtree_id,
-                 ..
-             }| {
-                let mut larger_subtree_nodes = FxHashMap::default();
-                populate_leaf_node_tensor_map(
-                    contraction_tree,
-                    *larger_subtree_id,
-                    &mut larger_subtree_nodes,
-                    tensor,
-                );
-                let (rebalanced_node, cost) = find_rebalance_node(
-                    random_balance,
-                    &larger_subtree_nodes,
-                    &smaller_subtree_nodes,
-                    greedy_cost_function,
-                );
+        .map(|larger| {
+            let mut larger_subtree_nodes = FxHashMap::default();
+            populate_leaf_node_tensor_map(
+                contraction_tree,
+                larger.id,
+                &mut larger_subtree_nodes,
+                tensor,
+            );
+            let (rebalanced_node, cost) = find_rebalance_node(
+                random_balance,
+                &larger_subtree_nodes,
+                &smaller_subtree_nodes,
+                greedy_cost_function,
+            );
 
-                (larger_subtree_id, rebalanced_node, cost)
-            },
-        )
+            (larger.id, rebalanced_node, cost)
+        })
         .max_by(|(_, _, cost_a), (_, _, cost_b)| cost_a.total_cmp(cost_b))
         .unwrap();
 
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
-    shift.push((*larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids));
+    shift.push((larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids));
     shift
 }
 
@@ -267,32 +252,27 @@ pub(crate) fn best_intermediate_tensors_balancing(
     let (smaller_subtree_id, first_rebalanced_node, _) = partition_data
         .iter()
         .take(partition_data.len() - 1)
-        .map(
-            |PartitionData {
-                 id: smaller_subtree_id,
-                 ..
-             }| {
-                let mut smaller_subtree_nodes = FxHashMap::default();
-                populate_subtree_tensor_map(
-                    contraction_tree,
-                    *smaller_subtree_id,
-                    &mut smaller_subtree_nodes,
-                    tensor,
-                    None,
-                );
-                let (rebalanced_node, cost) = find_rebalance_node(
-                    random_balance,
-                    &larger_subtree_nodes,
-                    &smaller_subtree_nodes,
-                    greedy_cost_function,
-                );
-                (smaller_subtree_id, rebalanced_node, cost)
-            },
-        )
+        .map(|smaller| {
+            let mut smaller_subtree_nodes = FxHashMap::default();
+            populate_subtree_tensor_map(
+                contraction_tree,
+                smaller.id,
+                &mut smaller_subtree_nodes,
+                tensor,
+                None,
+            );
+            let (rebalanced_node, cost) = find_rebalance_node(
+                random_balance,
+                &larger_subtree_nodes,
+                &smaller_subtree_nodes,
+                greedy_cost_function,
+            );
+            (smaller.id, rebalanced_node, cost)
+        })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(first_rebalanced_node);
-    let mut shift = vec![(larger_subtree_id, *smaller_subtree_id, rebalanced_leaf_ids)];
+    let mut shift = vec![(larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids)];
 
     let PartitionData {
         id: smaller_subtree_id,
@@ -312,33 +292,28 @@ pub(crate) fn best_intermediate_tensors_balancing(
         .iter()
         .skip(1)
         .take(partition_data.len() - 2)
-        .map(
-            |PartitionData {
-                 id: larger_subtree_id,
-                 ..
-             }| {
-                let mut larger_subtree_nodes = FxHashMap::default();
-                populate_subtree_tensor_map(
-                    contraction_tree,
-                    *larger_subtree_id,
-                    &mut larger_subtree_nodes,
-                    tensor,
-                    Some(height_limit),
-                );
-                let (rebalanced_node, cost) = find_rebalance_node(
-                    random_balance,
-                    &larger_subtree_nodes,
-                    &smaller_subtree_nodes,
-                    greedy_cost_function,
-                );
+        .map(|larger| {
+            let mut larger_subtree_nodes = FxHashMap::default();
+            populate_subtree_tensor_map(
+                contraction_tree,
+                larger.id,
+                &mut larger_subtree_nodes,
+                tensor,
+                Some(height_limit),
+            );
+            let (rebalanced_node, cost) = find_rebalance_node(
+                random_balance,
+                &larger_subtree_nodes,
+                &smaller_subtree_nodes,
+                greedy_cost_function,
+            );
 
-                (larger_subtree_id, rebalanced_node, cost)
-            },
-        )
+            (larger.id, rebalanced_node, cost)
+        })
         .max_by(|(_, _, cost_a), (_, _, cost_b)| cost_a.total_cmp(cost_b))
         .unwrap();
 
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(second_rebalanced_node);
-    shift.push((*larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids));
+    shift.push((larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids));
     shift
 }
