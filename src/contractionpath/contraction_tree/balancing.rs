@@ -279,8 +279,7 @@ pub(super) fn balance_partitions(
                 *subtree_contraction = larger_contraction.clone();
                 *cost = larger_subtree_cost;
                 *local_tensor = larger_tensor.clone();
-            }
-            if *id == shifted_to_id {
+            } else if *id == shifted_to_id {
                 *id = smaller_id;
                 *subtree_contraction = smaller_contraction.clone();
                 *cost = smaller_subtree_cost;
