@@ -384,18 +384,7 @@ impl ContractionTree {
     }
 }
 
-/// Populates `node_tensor_map` with all intermediate and leaf node ids and corresponding [`Tensor`] object, with root at `node_id`.
-/// Only inserts Tensors with up to `height_limit` number of contractions.
-///
-/// # Arguments
-/// * `contraction_tree` - [`ContractionTree`] object
-/// * `node_id` - root of subtree to examine
-/// * `node_tensor_map` - empty HashMap to populate
-/// * `tensor_network` - [`Tensor`] object containing bond dimension and leaf node information
-///
-/// # Returns
-/// Empty [`Tensor`] object with dimensions of data after fully contracted and height of inserted Tensors.
-fn populate_subtree_tensor_map(
+fn populate_subtree_tensor_map_recursive(
     contraction_tree: &ContractionTree,
     node_id: usize,
     node_tensor_map: &mut FxHashMap<usize, Tensor>,
@@ -410,14 +399,14 @@ fn populate_subtree_tensor_map(
         node_tensor_map.insert(node.id, t.clone());
         (t.clone(), 0)
     } else {
-        let (t1, new_height1) = populate_subtree_tensor_map(
+        let (t1, new_height1) = populate_subtree_tensor_map_recursive(
             contraction_tree,
             node.left_child_id().unwrap(),
             node_tensor_map,
             tensor_network,
             height_limit,
         );
-        let (t2, new_height2) = populate_subtree_tensor_map(
+        let (t2, new_height2) = populate_subtree_tensor_map_recursive(
             contraction_tree,
             node.right_child_id().unwrap(),
             node_tensor_map,
@@ -437,25 +426,57 @@ fn populate_subtree_tensor_map(
     }
 }
 
-/// Populates `node_tensor_map` with all leaf node ids and corresponding [`Tensor`] object, with root at `node_id`.
+/// Populates `node_tensor_map` with all intermediate and leaf node ids and corresponding [`Tensor`] object, with root at `node_id`.
+/// Only inserts Tensors with up to `height_limit` number of contractions.
 ///
 /// # Arguments
 /// * `contraction_tree` - [`ContractionTree`] object
 /// * `node_id` - root of subtree to examine
 /// * `node_tensor_map` - empty HashMap to populate
 /// * `tensor_network` - [`Tensor`] object containing bond dimension and leaf node information
+///
+///
+/// # Returns
+/// Populated HashMap mapping intermediate node ids up to `height_limit` to Tensor objects.
+fn populate_subtree_tensor_map(
+    contraction_tree: &ContractionTree,
+    node_id: usize,
+    tensor_network: &Tensor,
+    height_limit: Option<usize>,
+) -> FxHashMap<usize, Tensor> {
+    let mut node_tensor_map = FxHashMap::default();
+    let _ = populate_subtree_tensor_map_recursive(
+        contraction_tree,
+        node_id,
+        &mut node_tensor_map,
+        tensor_network,
+        height_limit,
+    );
+    node_tensor_map
+}
+
+/// Populates `node_tensor_map` with all leaf node ids and corresponding [`Tensor`] object, with root at `node_id`.
+///
+/// # Arguments
+/// * `contraction_tree` - [`ContractionTree`] object
+/// * `node_id` - root of subtree to examine
+/// * `tensor_network` - [`Tensor`] object containing bond dimension and leaf node information
+///
+/// # Returns
+/// Populated HashMap mapping leaf node ids to Tensor objects.
 fn populate_leaf_node_tensor_map(
     contraction_tree: &ContractionTree,
     node_id: usize,
-    node_tensor_map: &mut FxHashMap<usize, Tensor>,
     tensor_network: &Tensor,
-) {
+) -> FxHashMap<usize, Tensor> {
+    let mut node_tensor_map = FxHashMap::default();
     for leaf_node_id in contraction_tree.leaf_ids(node_id) {
         node_tensor_map.insert(
             leaf_node_id,
             contraction_tree.tensor(leaf_node_id, tensor_network),
         );
     }
+    node_tensor_map
 }
 
 #[cfg(test)]
@@ -1349,7 +1370,7 @@ mod tests {
         let (tensor, ref_path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut node_tensor_map = FxHashMap::default();
-        populate_subtree_tensor_map(&tree, 4, &mut node_tensor_map, &tensor, None);
+        populate_subtree_tensor_map_recursive(&tree, 4, &mut node_tensor_map, &tensor, None);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
             (0, Tensor::new(vec![4, 3, 2])),
@@ -1369,7 +1390,7 @@ mod tests {
         let (tensor, ref_path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut node_tensor_map = FxHashMap::default();
-        populate_subtree_tensor_map(&tree, 10, &mut node_tensor_map, &tensor, None);
+        populate_subtree_tensor_map_recursive(&tree, 10, &mut node_tensor_map, &tensor, None);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
             (0, Tensor::new(vec![4, 3, 2])),
@@ -1390,11 +1411,12 @@ mod tests {
         }
     }
 
+    #[test]
     fn test_populate_leaf_node_tensor_map_simple() {
         let (tensor, ref_path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        let mut node_tensor_map = FxHashMap::default();
-        populate_leaf_node_tensor_map(&tree, 4, &mut node_tensor_map, &tensor);
+
+        let node_tensor_map = populate_leaf_node_tensor_map(&tree, 4, &tensor);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
             (0, Tensor::new(vec![4, 3, 2])),
@@ -1411,8 +1433,7 @@ mod tests {
     fn test_populate_leaf_node_tensor_map_complex() {
         let (tensor, ref_path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        let mut node_tensor_map = FxHashMap::default();
-        populate_subtree_tensor_map(&tree, 10, &mut node_tensor_map, &tensor, None);
+        let node_tensor_map = populate_subtree_tensor_map(&tree, 10, &tensor, None);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
             (0, Tensor::new(vec![4, 3, 2])),
