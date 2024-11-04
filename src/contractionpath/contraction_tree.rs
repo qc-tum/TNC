@@ -1539,16 +1539,16 @@ mod tests {
             Weak::new(),
             None,
         )));
-        node0.borrow_mut().parent = Rc::downgrade(&node7);
-        node1.borrow_mut().parent = Rc::downgrade(&node6);
-        node2.borrow_mut().parent = Rc::downgrade(&node8);
-        node3.borrow_mut().parent = Rc::downgrade(&node9);
-        node4.borrow_mut().parent = Rc::downgrade(&node8);
-        node5.borrow_mut().parent = Rc::downgrade(&node6);
-        node6.borrow_mut().parent = Rc::downgrade(&node7);
-        node7.borrow_mut().parent = Rc::downgrade(&node10);
-        node8.borrow_mut().parent = Rc::downgrade(&node9);
-        node9.borrow_mut().parent = Rc::downgrade(&node10);
+        node0.borrow_mut().set_parent(Rc::downgrade(&node7));
+        node1.borrow_mut().set_parent(Rc::downgrade(&node6));
+        node2.borrow_mut().set_parent(Rc::downgrade(&node8));
+        node3.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node4.borrow_mut().set_parent(Rc::downgrade(&node8));
+        node5.borrow_mut().set_parent(Rc::downgrade(&node6));
+        node6.borrow_mut().set_parent(Rc::downgrade(&node7));
+        node7.borrow_mut().set_parent(Rc::downgrade(&node10));
+        node8.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node9.borrow_mut().set_parent(Rc::downgrade(&node10));
 
         let ref_root = Rc::clone(&node10);
         let ref_nodes = [
