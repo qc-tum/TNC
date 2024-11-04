@@ -5,6 +5,7 @@ use node::{Node, NodeRef, WeakNodeRef};
 use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
 use std::rc::{Rc, Weak};
+use std::sync::Arc;
 
 use super::paths::validate_path;
 
@@ -373,9 +374,7 @@ impl ContractionTree {
     /// Empty tensor with legs (dimensions) of data after fully contracted.
     pub fn tensor(&self, node_id: usize, tensor: &Tensor) -> Tensor {
         let leaf_nodes = self.leaf_ids(node_id);
-        let mut new_tensor = Tensor::default();
-
-        new_tensor.insert_bond_dims(&tensor.bond_dims());
+        let mut new_tensor = Tensor::new_with_bonddims(Vec::new(), Arc::clone(&tensor.bond_dims));
 
         for leaf_id in leaf_nodes {
             new_tensor = &new_tensor
