@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
@@ -146,8 +148,8 @@ pub(super) fn characterize_partition(
             let (local_tensors, local_contraction_path) =
                 subtree_tensor_network(*child, contraction_tree, tensor_network);
 
-            let mut new_tensor = Tensor::default();
-            new_tensor.insert_bond_dims(&tensor_network.bond_dims());
+            let new_tensor =
+                Tensor::new_with_bonddims(Vec::new(), Arc::clone(&tensor_network.bond_dims));
             PartitionData {
                 id: *child,
                 cost: contract_path_cost(&local_tensors, &local_contraction_path, true).0,
