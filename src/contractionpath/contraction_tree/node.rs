@@ -12,11 +12,11 @@ pub(crate) type WeakNodeRef = Weak<RefCell<Node>>;
 /// `parent`.
 #[derive(Debug, Clone)]
 pub struct Node {
-    pub(crate) id: usize,
-    pub(crate) left_child: WeakNodeRef,
-    pub(crate) right_child: WeakNodeRef,
-    pub(crate) parent: WeakNodeRef,
-    pub(crate) tensor_index: Option<Vec<usize>>,
+    id: usize,
+    left_child: WeakNodeRef,
+    right_child: WeakNodeRef,
+    parent: WeakNodeRef,
+    tensor_index: Option<Vec<usize>>,
 }
 
 impl Node {
@@ -44,6 +44,18 @@ impl Node {
         self.right_child.upgrade().map(|node| node.borrow().id)
     }
 
+    pub fn left_child(&self) -> Option<Rc<RefCell<Node>>> {
+        self.left_child.upgrade()
+    }
+
+    pub fn right_child(&self) -> Option<Rc<RefCell<Node>>> {
+        self.right_child.upgrade()
+    }
+
+    pub fn tensor_index(&self) -> &Option<Vec<usize>> {
+        &self.tensor_index
+    }
+
     pub const fn id(&self) -> usize {
         self.id
     }
@@ -56,8 +68,15 @@ impl Node {
         self.left_child.upgrade().is_none() && self.right_child.upgrade().is_none()
     }
 
+    pub(crate) fn remove_parent(&mut self) {
+        self.parent = Default::default();
+    }
+
     pub(crate) fn set_parent(&mut self, parent: WeakNodeRef) {
-        assert!(parent.upgrade().is_some(), "Parent is already deallocated");
+        assert!(
+            self.parent.upgrade().is_none(),
+            "Parent is already allocated"
+        );
         self.parent = parent;
     }
 

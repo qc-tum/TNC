@@ -94,7 +94,7 @@ pub fn to_dendogram_format(
                     .nested_tensor(
                         contraction_tree
                             .node(leaf_id)
-                            .tensor_index
+                            .tensor_index()
                             .as_ref()
                             .unwrap(),
                     )

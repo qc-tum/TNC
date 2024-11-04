@@ -46,7 +46,11 @@ pub fn parallel_tree_contraction_cost(
             current_tensor,
         )
     } else {
-        let tensor_id = contraction_tree.node(node_id).tensor_index.clone().unwrap();
+        let tensor_id = contraction_tree
+            .node(node_id)
+            .tensor_index()
+            .clone()
+            .unwrap();
         let tensor = tensor_network.nested_tensor(&tensor_id).clone();
         (0.0, tensor.size() as f64, tensor)
     }
@@ -63,7 +67,7 @@ pub(super) fn subtree_tensor_network(
     let local_tensors = leaf_ids
         .iter()
         .map(|&id| {
-            tensor_network.nested_tensor(contraction_tree.node(id).tensor_index.as_ref().unwrap())
+            tensor_network.nested_tensor(contraction_tree.node(id).tensor_index().as_ref().unwrap())
         })
         .cloned()
         .collect_vec();
@@ -100,7 +104,7 @@ pub(super) fn subtree_contraction_path(
         .iter()
         .map(|&e| {
             tensor_network
-                .nested_tensor(contraction_tree.node(e).tensor_index.as_ref().unwrap())
+                .nested_tensor(contraction_tree.node(e).tensor_index().as_ref().unwrap())
                 .clone()
         })
         .collect();

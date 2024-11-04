@@ -323,7 +323,7 @@ pub(super) fn balance_partitions(
                     .map(|node_id| {
                         let nested_indices = contraction_tree
                             .node(*node_id)
-                            .tensor_index
+                            .tensor_index()
                             .clone()
                             .unwrap();
                         tensor_network.nested_tensor(&nested_indices).clone()

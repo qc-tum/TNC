@@ -30,7 +30,7 @@ impl ContractionTree {
     }
 
     pub fn root_id(&self) -> Option<usize> {
-        self.root.upgrade().map(|node| node.borrow().id)
+        self.root.upgrade().map(|node| node.borrow().id())
     }
 
     pub const fn partitions(&self) -> &FxHashMap<usize, Vec<usize>> {
@@ -97,8 +97,8 @@ impl ContractionTree {
                 );
 
                 let parent = Rc::new(RefCell::new(parent));
-                i.borrow_mut().parent = Rc::downgrade(&parent);
-                j.borrow_mut().parent = Rc::downgrade(&parent);
+                i.borrow_mut().set_parent(Rc::downgrade(&parent));
+                j.borrow_mut().set_parent(Rc::downgrade(&parent));
                 scratch.insert(*i_path, Rc::clone(&parent));
                 nodes.insert(nodes.len(), parent);
                 scratch.remove(j_path);
@@ -129,16 +129,10 @@ impl ContractionTree {
 
     fn leaf_ids_recurse(node: &Node, leaf_indices: &mut Vec<usize>) {
         if node.is_leaf() {
-            leaf_indices.push(node.id);
+            leaf_indices.push(node.id());
         } else {
-            Self::leaf_ids_recurse(
-                &node.left_child.upgrade().unwrap().as_ref().borrow(),
-                leaf_indices,
-            );
-            Self::leaf_ids_recurse(
-                &node.right_child.upgrade().unwrap().as_ref().borrow(),
-                leaf_indices,
-            );
+            Self::leaf_ids_recurse(&node.left_child().unwrap().as_ref().borrow(), leaf_indices);
+            Self::leaf_ids_recurse(&node.right_child().unwrap().as_ref().borrow(), leaf_indices);
         }
     }
 
@@ -162,7 +156,7 @@ impl ContractionTree {
                         .remove_child(node.borrow().id());
                 }
             }
-            node.borrow_mut().parent = Default::default();
+            node.borrow_mut().remove_parent();
             return;
         }
 
@@ -212,8 +206,8 @@ impl ContractionTree {
                     Node::new(index, Rc::downgrade(i), Rc::downgrade(j), Weak::new(), None);
 
                 let parent = Rc::new(RefCell::new(parent));
-                i.borrow_mut().parent = Rc::downgrade(&parent);
-                j.borrow_mut().parent = Rc::downgrade(&parent);
+                i.borrow_mut().set_parent(Rc::downgrade(&parent));
+                j.borrow_mut().set_parent(Rc::downgrade(&parent));
                 scratch.insert(*i_path, Rc::clone(&parent));
                 scratch.remove(j_path);
                 // Ensure that intermediate tensor information is stored in internal HashMap for reference
@@ -230,7 +224,7 @@ impl ContractionTree {
             .add_child(Rc::downgrade(&self.nodes[&index]));
 
         let new_child = &self.nodes[&index];
-        new_child.borrow_mut().parent = Rc::downgrade(new_parent);
+        new_child.borrow_mut().set_parent(Rc::downgrade(new_parent));
 
         index
     }
@@ -243,16 +237,16 @@ impl ContractionTree {
         cost_function: fn(&Tensor, &Tensor) -> f64,
     ) {
         if node.is_leaf() {
-            let Some(tensor_index) = &node.tensor_index else {
+            let Some(tensor_index) = &node.tensor_index() else {
                 panic!("All leaf nodes should have a tensor index")
             };
-            weights.insert(node.id, 0f64);
-            scratch.insert(node.id, tn.nested_tensor(tensor_index).clone());
+            weights.insert(node.id(), 0f64);
+            scratch.insert(node.id(), tn.nested_tensor(tensor_index).clone());
             return;
         }
 
-        let left_child = &node.left_child.upgrade().unwrap();
-        let right_child = &node.right_child.upgrade().unwrap();
+        let left_child = &node.left_child().unwrap();
+        let right_child = &node.right_child().unwrap();
         let left_ref = left_child.as_ref().borrow();
         let right_ref = right_child.as_ref().borrow();
 
@@ -260,13 +254,13 @@ impl ContractionTree {
         Self::tree_weights_recurse(&left_ref, tn, weights, scratch, cost_function);
         Self::tree_weights_recurse(&right_ref, tn, weights, scratch, cost_function);
 
-        let t1 = &scratch[&left_ref.id];
-        let t2 = &scratch[&right_ref.id];
+        let t1 = &scratch[&left_ref.id()];
+        let t2 = &scratch[&right_ref.id()];
 
-        let cost = weights[&left_ref.id] + weights[&right_ref.id] + cost_function(t1, t2);
+        let cost = weights[&left_ref.id()] + weights[&right_ref.id()] + cost_function(t1, t2);
 
-        weights.insert(node.id, cost);
-        scratch.insert(node.id, t1 ^ t2);
+        weights.insert(node.id(), cost);
+        scratch.insert(node.id(), t1 ^ t2);
     }
 
     /// Returns `HashMap` storing resultant tensor and its respective contraction costs calculated via `cost_function`.
@@ -303,17 +297,15 @@ impl ContractionTree {
     ) -> usize {
         if node.is_leaf() {
             if hierarchy {
-                let tn_index = node.tensor_index.as_ref().unwrap();
+                let tn_index = node.tensor_index().as_ref().unwrap();
                 return *tn_index.last().unwrap();
             } else {
-                return node.id;
+                return node.id();
             }
         }
 
         // Get children
-        let (Some(left_child), Some(right_child)) =
-            (node.left_child.upgrade(), node.right_child.upgrade())
-        else {
+        let (Some(left_child), Some(right_child)) = (node.left_child(), node.right_child()) else {
             panic!("All parents should have two children")
         };
 
@@ -341,7 +333,7 @@ impl ContractionTree {
         if replace {
             t1_id
         } else {
-            node.id
+            node.id()
         }
     }
 
@@ -378,7 +370,7 @@ impl ContractionTree {
 
         for leaf_id in leaf_nodes {
             new_tensor = &new_tensor
-                ^ tensor.nested_tensor(self.node(leaf_id).tensor_index.as_ref().unwrap());
+                ^ tensor.nested_tensor(self.node(leaf_id).tensor_index().as_ref().unwrap());
         }
         new_tensor
     }
@@ -394,9 +386,9 @@ fn populate_subtree_tensor_map_recursive(
     let node = contraction_tree.node(node_id);
 
     if node.is_leaf() {
-        let tensor_index = node.tensor_index.as_ref().unwrap();
+        let tensor_index = node.tensor_index().as_ref().unwrap();
         let t = tensor_network.nested_tensor(tensor_index);
-        node_tensor_map.insert(node.id, t.clone());
+        node_tensor_map.insert(node.id(), t.clone());
         (t.clone(), 0)
     } else {
         let (t1, new_height1) = populate_subtree_tensor_map_recursive(
@@ -416,10 +408,10 @@ fn populate_subtree_tensor_map_recursive(
         let t12 = &t1 ^ &t2;
         if let Some(height_limit) = height_limit {
             if new_height1 <= height_limit && new_height2 <= height_limit {
-                node_tensor_map.insert(node.id, t12.clone());
+                node_tensor_map.insert(node.id(), t12.clone());
             }
         } else {
-            node_tensor_map.insert(node.id, t12.clone());
+            node_tensor_map.insert(node.id(), t12.clone());
         }
 
         (t12, new_height1.max(new_height2) + 1)
@@ -659,11 +651,11 @@ mod tests {
 
     impl PartialEq for Node {
         fn eq(&self, other: &Self) -> bool {
-            self.id == other.id
+            self.id() == other.id()
                 && self.left_child_id() == other.left_child_id()
                 && self.right_child_id() == other.right_child_id()
                 && self.parent_id() == other.parent_id()
-                && self.tensor_index == other.tensor_index
+                && self.tensor_index() == other.tensor_index()
         }
     }
 
@@ -708,10 +700,10 @@ mod tests {
             Weak::new(),
             None,
         )));
-        node0.borrow_mut().parent = Rc::downgrade(&node3);
-        node1.borrow_mut().parent = Rc::downgrade(&node3);
-        node2.borrow_mut().parent = Rc::downgrade(&node4);
-        node3.borrow_mut().parent = Rc::downgrade(&node4);
+        node0.borrow_mut().set_parent(Rc::downgrade(&node3));
+        node1.borrow_mut().set_parent(Rc::downgrade(&node3));
+        node2.borrow_mut().set_parent(Rc::downgrade(&node4));
+        node3.borrow_mut().set_parent(Rc::downgrade(&node4));
 
         let ref_root = Rc::clone(&node4);
         let ref_nodes = [node0, node1, node2, node3, node4];
@@ -806,16 +798,16 @@ mod tests {
             Weak::new(),
             None,
         )));
-        node0.borrow_mut().parent = Rc::downgrade(&node7);
-        node1.borrow_mut().parent = Rc::downgrade(&node6);
-        node2.borrow_mut().parent = Rc::downgrade(&node9);
-        node3.borrow_mut().parent = Rc::downgrade(&node8);
-        node4.borrow_mut().parent = Rc::downgrade(&node8);
-        node5.borrow_mut().parent = Rc::downgrade(&node6);
-        node6.borrow_mut().parent = Rc::downgrade(&node7);
-        node7.borrow_mut().parent = Rc::downgrade(&node10);
-        node8.borrow_mut().parent = Rc::downgrade(&node9);
-        node9.borrow_mut().parent = Rc::downgrade(&node10);
+        node0.borrow_mut().set_parent(Rc::downgrade(&node7));
+        node1.borrow_mut().set_parent(Rc::downgrade(&node6));
+        node2.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node3.borrow_mut().set_parent(Rc::downgrade(&node8));
+        node4.borrow_mut().set_parent(Rc::downgrade(&node8));
+        node5.borrow_mut().set_parent(Rc::downgrade(&node6));
+        node6.borrow_mut().set_parent(Rc::downgrade(&node7));
+        node7.borrow_mut().set_parent(Rc::downgrade(&node10));
+        node8.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node9.borrow_mut().set_parent(Rc::downgrade(&node10));
 
         let ref_root = Rc::clone(&node10);
         let ref_nodes = [
@@ -912,16 +904,16 @@ mod tests {
             Weak::new(),
             None,
         )));
-        node0.borrow_mut().parent = Rc::downgrade(&node2);
-        node1.borrow_mut().parent = Rc::downgrade(&node2);
-        node2.borrow_mut().parent = Rc::downgrade(&node9);
-        node3.borrow_mut().parent = Rc::downgrade(&node5);
-        node4.borrow_mut().parent = Rc::downgrade(&node5);
-        node5.borrow_mut().parent = Rc::downgrade(&node9);
-        node6.borrow_mut().parent = Rc::downgrade(&node8);
-        node7.borrow_mut().parent = Rc::downgrade(&node8);
-        node8.borrow_mut().parent = Rc::downgrade(&node10);
-        node9.borrow_mut().parent = Rc::downgrade(&node10);
+        node0.borrow_mut().set_parent(Rc::downgrade(&node2));
+        node1.borrow_mut().set_parent(Rc::downgrade(&node2));
+        node2.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node3.borrow_mut().set_parent(Rc::downgrade(&node5));
+        node4.borrow_mut().set_parent(Rc::downgrade(&node5));
+        node5.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node6.borrow_mut().set_parent(Rc::downgrade(&node8));
+        node7.borrow_mut().set_parent(Rc::downgrade(&node8));
+        node8.borrow_mut().set_parent(Rc::downgrade(&node10));
+        node9.borrow_mut().set_parent(Rc::downgrade(&node10));
 
         let ref_root = Rc::clone(&node10);
         let ref_nodes = [
@@ -1018,16 +1010,16 @@ mod tests {
             Weak::new(),
             None,
         )));
-        node0.borrow_mut().parent = Rc::downgrade(&node2);
-        node1.borrow_mut().parent = Rc::downgrade(&node2);
-        node2.borrow_mut().parent = Rc::downgrade(&node4);
-        node3.borrow_mut().parent = Rc::downgrade(&node4);
-        node4.borrow_mut().parent = Rc::downgrade(&node10);
-        node5.borrow_mut().parent = Rc::downgrade(&node7);
-        node6.borrow_mut().parent = Rc::downgrade(&node7);
-        node7.borrow_mut().parent = Rc::downgrade(&node9);
-        node8.borrow_mut().parent = Rc::downgrade(&node9);
-        node9.borrow_mut().parent = Rc::downgrade(&node10);
+        node0.borrow_mut().set_parent(Rc::downgrade(&node2));
+        node1.borrow_mut().set_parent(Rc::downgrade(&node2));
+        node2.borrow_mut().set_parent(Rc::downgrade(&node4));
+        node3.borrow_mut().set_parent(Rc::downgrade(&node4));
+        node4.borrow_mut().set_parent(Rc::downgrade(&node10));
+        node5.borrow_mut().set_parent(Rc::downgrade(&node7));
+        node6.borrow_mut().set_parent(Rc::downgrade(&node7));
+        node7.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node8.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node9.borrow_mut().set_parent(Rc::downgrade(&node10));
 
         let ref_root = Rc::clone(&node10);
         let ref_nodes = [
@@ -1167,13 +1159,13 @@ mod tests {
             Weak::new(),
             None,
         )));
-        node0.borrow_mut().parent = Rc::downgrade(&node2);
-        node1.borrow_mut().parent = Rc::downgrade(&node2);
-        node2.borrow_mut().parent = Rc::downgrade(&node9);
-        node3.borrow_mut().parent = Rc::downgrade(&node5);
-        node4.borrow_mut().parent = Rc::downgrade(&node5);
-        node5.borrow_mut().parent = Rc::downgrade(&node9);
-        node9.borrow_mut().parent = Rc::downgrade(&node10);
+        node0.borrow_mut().set_parent(Rc::downgrade(&node2));
+        node1.borrow_mut().set_parent(Rc::downgrade(&node2));
+        node2.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node3.borrow_mut().set_parent(Rc::downgrade(&node5));
+        node4.borrow_mut().set_parent(Rc::downgrade(&node5));
+        node5.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node9.borrow_mut().set_parent(Rc::downgrade(&node10));
 
         let ref_root = Rc::clone(&node10);
         let ref_nodes = [
@@ -1274,16 +1266,15 @@ mod tests {
             Weak::new(),
             None,
         )));
-        node0.borrow_mut().parent = Rc::downgrade(&node2);
-        node1.borrow_mut().parent = Rc::downgrade(&node2);
-        node2.borrow_mut().parent = Rc::downgrade(&node9);
-        node3.borrow_mut().parent = Rc::downgrade(&node5);
-        node4.borrow_mut().parent = Rc::downgrade(&node5);
-        node5.borrow_mut().parent = Rc::downgrade(&node9);
-        node6.borrow_mut().parent = Rc::downgrade(&node8);
-        // node7.borrow_mut().parent = Rc::downgrade(&node8);
-        node8.borrow_mut().parent = Rc::downgrade(&node10);
-        node9.borrow_mut().parent = Rc::downgrade(&node10);
+        node0.borrow_mut().set_parent(Rc::downgrade(&node2));
+        node1.borrow_mut().set_parent(Rc::downgrade(&node2));
+        node2.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node3.borrow_mut().set_parent(Rc::downgrade(&node5));
+        node4.borrow_mut().set_parent(Rc::downgrade(&node5));
+        node5.borrow_mut().set_parent(Rc::downgrade(&node9));
+        node6.borrow_mut().set_parent(Rc::downgrade(&node8));
+        node8.borrow_mut().set_parent(Rc::downgrade(&node10));
+        node9.borrow_mut().set_parent(Rc::downgrade(&node10));
 
         let ref_root = Rc::clone(&node10);
         let ref_nodes = [
