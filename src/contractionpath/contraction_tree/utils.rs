@@ -88,7 +88,6 @@ pub(super) fn subtree_tensor_network(
 }
 
 /// Generates a local contraction path for a subtree in a ContractionTree, returns the local contraction path with tree node indices, the local contraction path with local indexing and the cost of contracting.
-/// One issue of generating a contraction path for a subtree is that tensor ids do not follow a strict ordering. Hence, a re-indexing is required to find the replace contraction path. This function can return the replace contraction path if `replace` is set to true.
 pub(super) fn subtree_contraction_path(
     subtree_leaf_nodes: &[usize],
     contraction_tree: &ContractionTree,
