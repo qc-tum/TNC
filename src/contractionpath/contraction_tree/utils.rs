@@ -53,7 +53,7 @@ pub fn parallel_tree_contraction_cost(
 }
 
 /// Identifies the contraction path designated by subtree rooted at `node_id` in contraction tree. Allows for Tensor to have a different structure than
-/// ContractionTree as long as leaf_ids in ContractionTree match the Tensor
+/// ContractionTree as long as `tensor_index` in ContractionTree match the Tensor
 pub(super) fn subtree_tensor_network(
     node_id: usize,
     contraction_tree: &ContractionTree,
