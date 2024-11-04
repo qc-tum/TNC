@@ -34,7 +34,7 @@ fn setup_logging_mpi(rank: Rank) {
         .unwrap();
 }
 
-fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
+fn objective_function(t1: &Tensor, t2: &Tensor) -> f64 {
     t1.size() as f64 + t2.size() as f64 - (t1 ^ t2).size() as f64
 }
 
@@ -90,13 +90,13 @@ fn main() {
                 random_balance: None,
                 rebalance_depth,
                 iterations: 120,
-                greedy_cost_function: greedy_cost_fn,
+                objective_function,
                 communication_scheme,
                 balancing_scheme: BalancingScheme::BestWorst,
             },
             Some(&DendogramSettings {
                 output_file: format!("output/{communication_scheme:?}_trial"),
-                cost_function: contract_cost_tensors,
+                objective_function: contract_cost_tensors,
             }),
         );
         let candidate = Candidate {

@@ -36,12 +36,12 @@ pub enum BalancingScheme {
 }
 
 /// Balancing scheme that moves a tensor from the slowest subtree to the fastest subtree each time.
-/// Chosen tensor maximizes the greedy_cost_function, which is typically memory reduction.
+/// Chosen tensor maximizes the objective_function, which is typically memory reduction.
 pub(crate) fn best_worst_balancing(
     partition_data: &mut [PartitionData],
     contraction_tree: &mut ContractionTree,
     random_balance: Option<usize>,
-    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
+    objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
 ) -> Vec<(usize, usize, Vec<usize>)> {
     // Obtain most expensive and cheapest partitions
@@ -69,19 +69,19 @@ pub(crate) fn best_worst_balancing(
         random_balance,
         &larger_subtree_leaf_nodes,
         &smaller_subtree_leaf_nodes,
-        greedy_cost_function,
+        objective_function,
     );
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
     vec![(larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids)]
 }
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
-/// Chosen tensor maximizes the greedy_cost_function, which is typically memory reduction.
+/// Chosen tensor maximizes the objective_function, which is typically memory reduction.
 pub(crate) fn best_tensor_balancing(
     partition_data: &mut [PartitionData],
     contraction_tree: &mut ContractionTree,
     random_balance: Option<usize>,
-    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
+    objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
 ) -> Vec<(usize, usize, Vec<usize>)> {
     // Obtain most expensive partitions
@@ -111,7 +111,7 @@ pub(crate) fn best_tensor_balancing(
                 random_balance,
                 &larger_subtree_leaf_nodes,
                 &smaller_subtree_nodes,
-                greedy_cost_function,
+                objective_function,
             );
             (smaller.id, rebalanced_node, cost)
         })
@@ -128,7 +128,7 @@ pub(crate) fn best_tensors_balancing(
     partition_data: &[PartitionData],
     contraction_tree: &mut ContractionTree,
     random_balance: Option<usize>,
-    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
+    objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
 ) -> Vec<(usize, usize, Vec<usize>)> {
     // Obtain most expensive and cheapest partitions
@@ -159,7 +159,7 @@ pub(crate) fn best_tensors_balancing(
                 random_balance,
                 &larger_subtree_leaf_nodes,
                 &smaller_subtree_nodes,
-                greedy_cost_function,
+                objective_function,
             );
             (smaller.id, rebalanced_node, cost)
         })
@@ -195,7 +195,7 @@ pub(crate) fn best_tensors_balancing(
                 random_balance,
                 &larger_subtree_nodes,
                 &smaller_subtree_nodes,
-                greedy_cost_function,
+                objective_function,
             );
 
             (larger.id, rebalanced_node, cost)
@@ -214,7 +214,7 @@ pub(crate) fn best_intermediate_tensors_balancing(
     partition_data: &[PartitionData],
     contraction_tree: &mut ContractionTree,
     random_balance: Option<usize>,
-    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
+    objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
     height_limit: usize,
 ) -> Vec<(usize, usize, Vec<usize>)> {
@@ -247,7 +247,7 @@ pub(crate) fn best_intermediate_tensors_balancing(
                 random_balance,
                 &larger_subtree_nodes,
                 &smaller_subtree_nodes,
-                greedy_cost_function,
+                objective_function,
             );
             (smaller.id, rebalanced_node, cost)
         })
@@ -284,7 +284,7 @@ pub(crate) fn best_intermediate_tensors_balancing(
                 random_balance,
                 &larger_subtree_nodes,
                 &smaller_subtree_nodes,
-                greedy_cost_function,
+                objective_function,
             );
 
             (larger.id, rebalanced_node, cost)

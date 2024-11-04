@@ -32,7 +32,7 @@ pub struct BalanceSettings {
     pub random_balance: Option<usize>,
     pub rebalance_depth: usize,
     pub iterations: usize,
-    pub greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
+    pub objective_function: fn(&Tensor, &Tensor) -> f64,
     pub communication_scheme: CommunicationScheme,
     pub balancing_scheme: BalancingScheme,
 }
@@ -133,8 +133,11 @@ fn print_dendogram(
     iteration: usize,
 ) {
     if let Some(settings) = dendogram_settings {
-        let dendogram_entries =
-            to_dendogram_format(contraction_tree, tensor_network, settings.cost_function);
+        let dendogram_entries = to_dendogram_format(
+            contraction_tree,
+            tensor_network,
+            settings.objective_function,
+        );
         to_pdf(
             &format!("{}_{}", settings.output_file, iteration),
             &dendogram_entries,
@@ -187,7 +190,7 @@ pub(super) fn balance_partitions(
     let BalanceSettings {
         random_balance,
         rebalance_depth,
-        greedy_cost_function,
+        objective_function,
         balancing_scheme,
         ..
     } = balance_settings;
@@ -205,21 +208,21 @@ pub(super) fn balance_partitions(
             partition_data,
             contraction_tree,
             random_balance,
-            greedy_cost_function,
+            objective_function,
             tensor_network,
         ),
         BalancingScheme::Tensor => balancing_schemes::best_tensor_balancing(
             partition_data,
             contraction_tree,
             random_balance,
-            greedy_cost_function,
+            objective_function,
             tensor_network,
         ),
         BalancingScheme::Tensors => balancing_schemes::best_tensors_balancing(
             partition_data,
             contraction_tree,
             random_balance,
-            greedy_cost_function,
+            objective_function,
             tensor_network,
         ),
         BalancingScheme::IntermediateTensors(height_limit) => {
@@ -227,7 +230,7 @@ pub(super) fn balance_partitions(
                 partition_data,
                 contraction_tree,
                 random_balance,
-                greedy_cost_function,
+                objective_function,
                 tensor_network,
                 height_limit,
             )
@@ -346,12 +349,12 @@ pub(super) fn balance_partitions(
 /// * `random_balance` - Allows for random selection of balanced node. If not None, identifies the best `usize` options and randomly selects one by weighted choice.
 /// * `larger_subtree_nodes` - A set of nodes used in comparison. Only the id from the larger subtree is returned.
 /// * `smaller_subtree_nodes` - A set of nodes used in comparison.
-/// * `greedy_cost_function` - Cost function that takes in two tensors and returns an f64 cost.
+/// * `objective_function` - Cost function that takes in two tensors and returns an f64 cost.
 pub(super) fn find_rebalance_node(
     random_balance: Option<usize>,
     larger_subtree_nodes: &FxHashMap<usize, Tensor>,
     smaller_subtree_nodes: &FxHashMap<usize, Tensor>,
-    greedy_cost_function: fn(&Tensor, &Tensor) -> f64,
+    objective_function: fn(&Tensor, &Tensor) -> f64,
 ) -> (usize, f64) {
     let node_comparison = larger_subtree_nodes
         .iter()
@@ -359,7 +362,7 @@ pub(super) fn find_rebalance_node(
         .map(|((larger_node_id, larger_tensor), (_, smaller_tensor))| {
             (
                 *larger_node_id,
-                greedy_cost_function(larger_tensor, smaller_tensor),
+                objective_function(larger_tensor, smaller_tensor),
             )
         });
     if let Some(options_considered) = random_balance {
