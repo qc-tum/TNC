@@ -271,6 +271,7 @@ mod tests {
         let (op_cost, mem_cost) = contract_path_cost(
             tn.tensors(),
             path![(0, [(0, 1), (0, 2)]), (1, [(0, 1)]), (0, 1)],
+            false,
         );
         assert_eq!(op_cost, 11188f64);
         assert_eq!(mem_cost, 646f64);
@@ -290,9 +291,10 @@ mod tests {
     #[test]
     fn test_contract_path_path_op_cost() {
         let tn = setup_complex();
-        let (op_cost, mem_cost) = contract_path_op_cost(
+        let (op_cost, mem_cost) = contract_path_cost(
             tn.tensors(),
             path![(0, [(0, 1), (0, 2)]), (1, [(0, 1)]), (0, 1)],
+            true,
         );
         assert_eq!(op_cost, 1464f64);
         assert_eq!(mem_cost, 646f64);
