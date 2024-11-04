@@ -78,7 +78,7 @@ pub fn balance_partitions_iter(
         .map(|PartitionData { local_tensor, .. }| local_tensor.clone())
         .collect_vec();
 
-    let (communication_cost, _) = contract_path_cost(&children_tensors, &communication_path);
+    let (communication_cost, _) = contract_path_cost(&children_tensors, &communication_path, true);
     let mut max_costs = Vec::with_capacity(iterations + 1);
     max_costs.push(intermediate_cost + communication_cost);
 

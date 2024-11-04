@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
-        contraction_cost::{contract_cost_tensors, contract_path_op_cost, contract_size_tensors},
+        contraction_cost::{contract_cost_tensors, contract_path_cost, contract_size_tensors},
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
     pair,
@@ -151,7 +151,7 @@ pub(super) fn characterize_partition(
             new_tensor.insert_bond_dims(&tensor_network.bond_dims());
             PartitionData {
                 id: *child,
-                cost: contract_path_op_cost(&local_tensors, &local_contraction_path).0,
+                cost: contract_path_cost(&local_tensors, &local_contraction_path, true).0,
                 contraction: local_contraction_path,
                 local_tensor: local_tensors.iter().fold(new_tensor, |a, b| &a ^ b),
             }

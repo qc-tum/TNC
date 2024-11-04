@@ -145,14 +145,36 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     diff.size() as f64 + t_1.size() as f64 + t_2.size() as f64
 }
 
-/// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object
-///
+/// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object.
 /// # Arguments
 ///
 /// * `inputs` - First tensor to determine contraction cost.
-/// * `ssa_path`  - Contraction order as replacement path
-/// * `bond_dims`- Dict of bond dimensions.
-pub fn contract_path_cost(inputs: &[Tensor], contract_path: &[ContractionIndex]) -> (f64, f64) {
+/// * `contract_path`  - Contraction order as replacement path
+/// * `only_count_ops` - bool. if set to true, ignores cost of complex multiplication and addition and only counts number of operations
+pub fn contract_path_cost(
+    inputs: &[Tensor],
+    contract_path: &[ContractionIndex],
+    only_count_ops: bool,
+) -> (f64, f64) {
+    let cost_function = if only_count_ops {
+        contract_op_cost_tensors
+    } else {
+        contract_cost_tensors
+    };
+    contract_path_custom_cost(inputs, contract_path, cost_function)
+}
+
+/// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object.
+/// # Arguments
+///
+/// * `inputs` - First tensor to determine contraction cost.
+/// * `contract_path`  - Contraction order as replacement path
+/// * `cost_function` - function that takes references to two Tensor objects and returns a cost as f64.
+fn contract_path_custom_cost(
+    inputs: &[Tensor],
+    contract_path: &[ContractionIndex],
+    cost_function: fn(&Tensor, &Tensor) -> f64,
+) -> (f64, f64) {
     let mut op_cost = 0f64;
     let mut mem_cost = 0f64;
     let mut inputs = inputs.to_vec();
@@ -160,14 +182,14 @@ pub fn contract_path_cost(inputs: &[Tensor], contract_path: &[ContractionIndex])
     for index in contract_path {
         match *index {
             ContractionIndex::Pair(i, j) => {
-                op_cost += contract_cost_tensors(&inputs[i], &inputs[j]);
+                op_cost += cost_function(&inputs[i], &inputs[j]);
                 let k12 = &inputs[i] ^ &inputs[j];
                 let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
                 mem_cost = mem_cost.max(new_mem_cost);
                 inputs[i] = k12;
             }
             ContractionIndex::Path(i, ref path) => {
-                let costs = contract_path_cost(inputs[i].tensors(), path);
+                let costs = contract_path_custom_cost(inputs[i].tensors(), path, cost_function);
                 op_cost += costs.0;
                 mem_cost += costs.1;
                 let intermediate_tensor = Tensor::new_with_bonddims(
@@ -183,46 +205,12 @@ pub fn contract_path_cost(inputs: &[Tensor], contract_path: &[ContractionIndex])
 }
 
 /// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object. Ignores cost of complex multiplication.
-///
-/// # Arguments
-///
-/// * `inputs` - First tensor to determine contraction cost.
-/// * `ssa_path`  - Contraction order as replacement path
-/// * `bond_dims`- Dict of bond dimensions.
-pub fn contract_path_op_cost(inputs: &[Tensor], contract_path: &[ContractionIndex]) -> (f64, f64) {
-    let mut op_cost = 0f64;
-    let mut mem_cost = 0f64;
-    let mut inputs = inputs.to_vec();
-
-    for index in contract_path {
-        match *index {
-            ContractionIndex::Pair(i, j) => {
-                op_cost += contract_op_cost_tensors(&inputs[i], &inputs[j]);
-                let k12 = &inputs[i] ^ &inputs[j];
-                let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
-                mem_cost = mem_cost.max(new_mem_cost);
-                inputs[i] = k12;
-            }
-            ContractionIndex::Path(i, ref path) => {
-                let costs = contract_path_op_cost(inputs[i].tensors(), path);
-                op_cost += costs.0;
-                mem_cost += costs.1;
-                let intermediate_tensor = Tensor::new_with_bonddims(
-                    inputs[i].external_edges(),
-                    inputs[i].bond_dims.clone(),
-                );
-                inputs[i] = intermediate_tensor;
-            }
-        }
-    }
-    (op_cost, mem_cost)
-}
 
 #[cfg(test)]
 mod tests {
     use rustc_hash::FxHashMap;
 
-    use crate::contractionpath::contraction_cost::{contract_path_cost, contract_path_op_cost};
+    use crate::contractionpath::contraction_cost::contract_path_cost;
     use crate::path;
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
@@ -242,10 +230,10 @@ mod tests {
     #[test]
     fn test_contract_path_cost() {
         let tn = setup_simple();
-        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 1), (0, 2)]);
+        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 1), (0, 2)], false);
         assert_eq!(op_cost, 4540f64);
         assert_eq!(mem_cost, 538f64);
-        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 2), (0, 1)]);
+        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 2), (0, 1)], false);
         assert_eq!(op_cost, 49296f64);
         assert_eq!(mem_cost, 1176f64);
     }
@@ -253,10 +241,10 @@ mod tests {
     #[test]
     fn test_contract_path_op_cost() {
         let tn = setup_simple();
-        let (op_cost, mem_cost) = contract_path_op_cost(tn.tensors(), path![(0, 1), (0, 2)]);
+        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 1), (0, 2)], true);
         assert_eq!(op_cost, 600f64);
         assert_eq!(mem_cost, 538f64);
-        let (op_cost, mem_cost) = contract_path_op_cost(tn.tensors(), path![(0, 2), (0, 1)]);
+        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 2), (0, 1)], true);
         assert_eq!(op_cost, 6336f64);
         assert_eq!(mem_cost, 1176f64);
     }
