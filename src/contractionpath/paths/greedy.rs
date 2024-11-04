@@ -596,7 +596,7 @@ impl<'a> OptimizePath for Greedy<'a> {
             &mut rng,
         ));
         let (op_cost, mem_cost) =
-            contract_path_cost(self.tn.tensors(), &self.get_best_replace_path());
+            contract_path_cost(self.tn.tensors(), &self.get_best_replace_path(), false);
         self.best_size = mem_cost;
         self.best_flops = op_cost;
     }

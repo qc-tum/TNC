@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-    contractionpath::contraction_tree::{export::to_pdf, Node},
+    contractionpath::contraction_tree::{export::to_pdf, node::Node},
     types::ContractionIndex,
     utils::traits::HashMapInsertNew,
 };
@@ -170,7 +170,7 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
 
     let partition_tensor_ids = partition_root_nodes
         .iter()
-        .map(|node| node.borrow().id)
+        .map(|node| node.borrow().id())
         .collect::<Vec<_>>();
 
     // Sort communication by time to ensure no violation of data dependencies

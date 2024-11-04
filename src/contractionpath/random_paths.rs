@@ -117,6 +117,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
                     let (cost, size) = contract_path_cost(
                         input_tensor.tensors(),
                         &ssa_replace_ordering(&ssa_path, input_tensor.tensors().len()),
+                        false,
                     );
                     match self.minimize {
                         CostType::Size => {
@@ -155,8 +156,11 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
                 Box::new(&Greedy::cost_memory_removed),
                 rng,
             );
-            let (cost, size) =
-                contract_path_cost(&inputs, &ssa_replace_ordering(&ssa_path, inputs.len()));
+            let (cost, size) = contract_path_cost(
+                &inputs,
+                &ssa_replace_ordering(&ssa_path, inputs.len()),
+                false,
+            );
 
             match self.minimize {
                 CostType::Size => {
@@ -175,7 +179,7 @@ impl<'a> RandomOptimizePath for Greedy<'a> {
         }
         self.best_path.append(&mut best_path);
         let (op_cost, mem_cost) =
-            contract_path_cost(self.tn.tensors(), &self.get_best_replace_path());
+            contract_path_cost(self.tn.tensors(), &self.get_best_replace_path(), false);
         self.best_size = mem_cost;
         self.best_flops = op_cost;
     }

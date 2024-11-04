@@ -47,7 +47,7 @@ fn setup_logging_mpi(rank: Rank) -> LoggerHandle {
         .unwrap()
 }
 
-fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
+fn objective_function(t1: &Tensor, t2: &Tensor) -> f64 {
     t1.size() as f64 + t2.size() as f64 - (t1 ^ t2).size() as f64
 }
 
@@ -135,16 +135,16 @@ fn main() {
                 &unopt_partitioned_tn,
                 &unopt_path,
                 BalanceSettings {
-                    random_balance: false,
+                    random_balance: None,
                     rebalance_depth,
                     iterations,
-                    greedy_cost_function: greedy_cost_fn,
+                    objective_function,
                     communication_scheme,
                     balancing_scheme,
                 },
-                &Some(DendogramSettings {
+                Some(&DendogramSettings {
                     output_file: format!("output/{name}_trial"),
-                    cost_function: contract_cost_tensors,
+                    objective_function: contract_cost_tensors,
                 }),
             );
             info!(num; "Found best balancing iteration");

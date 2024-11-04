@@ -22,7 +22,7 @@ use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partitio
 use mpi::traits::Communicator;
 use tensorcontraction::tensornetwork::tensor::Tensor;
 
-fn greedy_cost_fn(t1: &Tensor, t2: &Tensor) -> f64 {
+fn objective_function(t1: &Tensor, t2: &Tensor) -> f64 {
     t1.size() as f64 + t2.size() as f64 - (t1 ^ t2).size() as f64
 }
 // Run with at least 2 processes
@@ -68,16 +68,16 @@ fn main() {
             &partitioned_tn,
             &path,
             BalanceSettings {
-                random_balance: false,
+                random_balance: None,
                 rebalance_depth,
                 iterations: 10,
-                greedy_cost_function: greedy_cost_fn,
+                objective_function,
                 communication_scheme: CommunicationScheme::Greedy,
                 balancing_scheme: BalancingScheme::BestWorst,
             },
-            &Some(DendogramSettings {
+            Some(&DendogramSettings {
                 output_file: String::from("output/rebalance_trial"),
-                cost_function: contract_cost_tensors,
+                objective_function: contract_cost_tensors,
             }),
         );
 

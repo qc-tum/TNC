@@ -40,7 +40,7 @@ pub(super) const COLORS: [&str; 18] = [
 #[derive(Debug)]
 pub struct DendogramSettings {
     pub output_file: String,
-    pub cost_function: fn(&Tensor, &Tensor) -> f64,
+    pub objective_function: fn(&Tensor, &Tensor) -> f64,
 }
 
 #[derive(Debug)]
@@ -56,7 +56,7 @@ pub struct DendogramEntry {
 pub fn to_dendogram_format(
     contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
-    cost_function: fn(&Tensor, &Tensor) -> f64,
+    objective_function: fn(&Tensor, &Tensor) -> f64,
 ) -> Vec<DendogramEntry> {
     let length = 80f64;
     let height = 60f64;
@@ -94,7 +94,7 @@ pub fn to_dendogram_format(
                     .nested_tensor(
                         contraction_tree
                             .node(leaf_id)
-                            .tensor_index
+                            .tensor_index()
                             .as_ref()
                             .unwrap(),
                     )
@@ -150,7 +150,7 @@ pub fn to_dendogram_format(
 
         let parent_id = contraction_tree.node(node_1_id).parent_id().unwrap();
         let parent_tensor = &intermediate_tensors[&node_1_id] ^ &intermediate_tensors[&node_2_id];
-        let mut parent_cost = cost_function(
+        let mut parent_cost = objective_function(
             &intermediate_tensors[&node_1_id],
             &intermediate_tensors[&node_2_id],
         );
