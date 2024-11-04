@@ -385,15 +385,16 @@ impl ContractionTree {
 }
 
 /// Populates `node_tensor_map` with all intermediate and leaf node ids and corresponding [`Tensor`] object, with root at `node_id`.
+/// Only inserts Tensors with up to `height_limit` number of contractions.
 ///
 /// # Arguments
 /// * `contraction_tree` - [`ContractionTree`] object
 /// * `node_id` - root of subtree to examine
 /// * `node_tensor_map` - empty HashMap to populate
-/// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
+/// * `tensor_network` - [`Tensor`] object containing bond dimension and leaf node information
 ///
 /// # Returns
-/// Empty [`Tensor`] object with legs (dimensions) of data after fully contracted.
+/// Empty [`Tensor`] object with dimensions of data after fully contracted and height of inserted Tensors.
 fn populate_subtree_tensor_map(
     contraction_tree: &ContractionTree,
     node_id: usize,
