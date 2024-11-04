@@ -167,11 +167,11 @@ pub(super) fn communicate_partitions(
             bipartition_communication_scheme(&children_tensors, &bond_dims)
         }
         CommunicationScheme::WeightedBranchBound => {
-            let partition_iter = partition_data
+            let latency_map = partition_data
                 .iter()
                 .enumerate()
-                .map(|(i, partition)| (i, partition.cost));
-            let latency_map = FxHashMap::from_iter(partition_iter);
+                .map(|(i, partition)| (i, partition.cost))
+                .collect::<FxHashMap<usize, f64>>();
             weighted_branchbound_communication_scheme(&children_tensors, &bond_dims, latency_map)
         }
     };
