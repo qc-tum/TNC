@@ -68,10 +68,7 @@ pub fn balance_partitions_iter(
 
     let partition_number = partition_data.len();
 
-    let PartitionData {
-        cost: intermediate_cost,
-        ..
-    } = partition_data.last().unwrap();
+    let intermediate_cost = partition_data.last().unwrap().cost;
 
     let children_tensors = partition_data
         .iter()
@@ -173,7 +170,7 @@ pub(super) fn communicate_partitions(
             let partition_iter = partition_data
                 .iter()
                 .enumerate()
-                .map(|(i, PartitionData { cost, .. })| (i, *cost));
+                .map(|(i, partition)| (i, partition.cost));
             let latency_map = FxHashMap::from_iter(partition_iter);
             weighted_branchbound_communication_scheme(&children_tensors, &bond_dims, latency_map)
         }

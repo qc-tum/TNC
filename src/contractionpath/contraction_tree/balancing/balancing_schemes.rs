@@ -45,14 +45,8 @@ pub(crate) fn best_worst_balancing(
     tensor: &Tensor,
 ) -> Vec<(usize, usize, Vec<usize>)> {
     // Obtain most expensive and cheapest partitions
-    let PartitionData {
-        id: larger_subtree_id,
-        ..
-    } = *partition_data.last().unwrap();
-    let PartitionData {
-        id: smaller_subtree_id,
-        ..
-    } = *partition_data.first().unwrap();
+    let larger_subtree_id = partition_data.last().unwrap().id;
+    let smaller_subtree_id = partition_data.first().unwrap().id;
 
     let mut larger_subtree_leaf_nodes = FxHashMap::default();
     populate_leaf_node_tensor_map(
@@ -91,10 +85,7 @@ pub(crate) fn best_tensor_balancing(
     tensor: &Tensor,
 ) -> Vec<(usize, usize, Vec<usize>)> {
     // Obtain most expensive partitions
-    let PartitionData {
-        id: larger_subtree_id,
-        ..
-    } = *partition_data.last().unwrap();
+    let larger_subtree_id = partition_data.last().unwrap().id;
 
     let mut larger_subtree_leaf_nodes = FxHashMap::default();
     populate_leaf_node_tensor_map(
@@ -141,10 +132,7 @@ pub(crate) fn best_tensors_balancing(
     tensor: &Tensor,
 ) -> Vec<(usize, usize, Vec<usize>)> {
     // Obtain most expensive and cheapest partitions
-    let PartitionData {
-        id: larger_subtree_id,
-        ..
-    } = *partition_data.last().unwrap();
+    let larger_subtree_id = partition_data.last().unwrap().id;
 
     let mut larger_subtree_leaf_nodes = FxHashMap::default();
     populate_leaf_node_tensor_map(
@@ -180,10 +168,7 @@ pub(crate) fn best_tensors_balancing(
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
     let mut shift = vec![(larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids)];
 
-    let PartitionData {
-        id: smaller_subtree_id,
-        ..
-    } = *partition_data.first().unwrap();
+    let smaller_subtree_id = partition_data.first().unwrap().id;
 
     let mut smaller_subtree_nodes = FxHashMap::default();
     populate_subtree_tensor_map(
@@ -234,10 +219,7 @@ pub(crate) fn best_intermediate_tensors_balancing(
     height_limit: usize,
 ) -> Vec<(usize, usize, Vec<usize>)> {
     // Obtain most expensive and cheapest partitions
-    let PartitionData {
-        id: larger_subtree_id,
-        ..
-    } = *partition_data.last().unwrap();
+    let larger_subtree_id = partition_data.last().unwrap().id;
 
     let mut larger_subtree_nodes = FxHashMap::default();
     populate_subtree_tensor_map(
@@ -274,10 +256,7 @@ pub(crate) fn best_intermediate_tensors_balancing(
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(first_rebalanced_node);
     let mut shift = vec![(larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids)];
 
-    let PartitionData {
-        id: smaller_subtree_id,
-        ..
-    } = *partition_data.first().unwrap();
+    let smaller_subtree_id = partition_data.first().unwrap().id;
 
     let mut smaller_subtree_nodes = FxHashMap::default();
     populate_subtree_tensor_map(
