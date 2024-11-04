@@ -94,7 +94,7 @@ fn main() {
                 communication_scheme,
                 balancing_scheme: BalancingScheme::BestWorst,
             },
-            Some(DendogramSettings {
+            Some(&DendogramSettings {
                 output_file: format!("output/{communication_scheme:?}_trial"),
                 cost_function: contract_cost_tensors,
             }),

@@ -75,7 +75,7 @@ fn main() {
                 communication_scheme: CommunicationScheme::Greedy,
                 balancing_scheme: BalancingScheme::BestWorst,
             },
-            Some(DendogramSettings {
+            Some(&DendogramSettings {
                 output_file: String::from("output/rebalance_trial"),
                 cost_function: contract_cost_tensors,
             }),

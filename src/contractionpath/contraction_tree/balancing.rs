@@ -49,7 +49,7 @@ pub fn balance_partitions_iter(
     tensor_network: &Tensor,
     path: &[ContractionIndex],
     balance_settings: BalanceSettings,
-    dendogram_settings: Option<DendogramSettings>,
+    dendogram_settings: Option<&DendogramSettings>,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>) {
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor_network, path);
     let path = path.to_owned();
@@ -82,7 +82,7 @@ pub fn balance_partitions_iter(
     let mut max_costs = Vec::with_capacity(iterations + 1);
     max_costs.push(intermediate_cost + communication_cost);
 
-    print_dendogram(&dendogram_settings, &contraction_tree, tensor_network, 0);
+    print_dendogram(dendogram_settings, &contraction_tree, tensor_network, 0);
 
     let mut best_iteration = 0;
     let mut best_contraction_path = path.clone();
@@ -123,14 +123,14 @@ pub fn balance_partitions_iter(
             best_tn = new_tensor_network;
             best_contraction_path = intermediate_path;
         }
-        print_dendogram(&dendogram_settings, &contraction_tree, tensor_network, i);
+        print_dendogram(dendogram_settings, &contraction_tree, tensor_network, i);
     }
 
     (best_iteration, best_tn, best_contraction_path, max_costs)
 }
 
 fn print_dendogram(
-    dendogram_settings: &Option<DendogramSettings>,
+    dendogram_settings: Option<&DendogramSettings>,
     contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
     iteration: usize,
