@@ -374,6 +374,7 @@ pub(super) fn find_rebalance_node(
             .take(options_considered)
             .collect::<Vec<(usize, f64)>>();
         let max = node_options.first().unwrap().1;
+        // Initial division done here as sum of weights can cause overflow before normalization.
         *node_options
             .choose_weighted(&mut rng, |node_option| node_option.1 / max)
             .unwrap()
