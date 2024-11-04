@@ -341,7 +341,7 @@ pub(super) fn balance_partitions(
     (new_max, rebalanced_path, updated_tn)
 }
 
-/// Takes two hashmaps that contain node information. Identifies which pair of nodes from larger and smaller hashmaps maximizes the greedy cost function
+/// Takes two hashmaps that contain node information. Identifies which pair of nodes from larger and smaller hashmaps maximizes the greedy cost function and returns the node from the `larger_subtree_nodes`.
 pub(super) fn find_rebalance_node(
     random_balance: Option<usize>,
     larger_subtree_nodes: &FxHashMap<usize, Tensor>,
