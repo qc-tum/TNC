@@ -83,13 +83,13 @@ pub(crate) fn best_tensor_balancing(
         .map(|smaller| {
             let smaller_subtree_nodes =
                 populate_subtree_tensor_map(contraction_tree, smaller.id, tensor, None);
-            let (rebalanced_node, cost) = find_rebalance_node(
+            let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
                 &larger_subtree_leaf_nodes,
                 &smaller_subtree_nodes,
                 objective_function,
             );
-            (smaller.id, rebalanced_node, cost)
+            (smaller.id, rebalanced_node, objective)
         })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
@@ -121,13 +121,13 @@ pub(crate) fn best_tensors_balancing(
         .map(|smaller| {
             let smaller_subtree_nodes =
                 populate_subtree_tensor_map(contraction_tree, smaller.id, tensor, None);
-            let (rebalanced_node, cost) = find_rebalance_node(
+            let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
                 &larger_subtree_leaf_nodes,
                 &smaller_subtree_nodes,
                 objective_function,
             );
-            (smaller.id, rebalanced_node, cost)
+            (smaller.id, rebalanced_node, objective)
         })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
@@ -146,16 +146,16 @@ pub(crate) fn best_tensors_balancing(
         .map(|larger| {
             let larger_subtree_nodes =
                 populate_leaf_node_tensor_map(contraction_tree, larger.id, tensor);
-            let (rebalanced_node, cost) = find_rebalance_node(
+            let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
                 &larger_subtree_nodes,
                 &smaller_subtree_nodes,
                 objective_function,
             );
 
-            (larger.id, rebalanced_node, cost)
+            (larger.id, rebalanced_node, objective)
         })
-        .max_by(|(_, _, cost_a), (_, _, cost_b)| cost_a.total_cmp(cost_b))
+        .max_by(|(_, _, obj_a), (_, _, obj_b)| obj_a.total_cmp(obj_b))
         .unwrap();
 
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
@@ -190,13 +190,13 @@ pub(crate) fn best_intermediate_tensors_balancing(
         .map(|smaller| {
             let smaller_subtree_nodes =
                 populate_subtree_tensor_map(contraction_tree, smaller.id, tensor, None);
-            let (rebalanced_node, cost) = find_rebalance_node(
+            let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
                 &larger_subtree_nodes,
                 &smaller_subtree_nodes,
                 objective_function,
             );
-            (smaller.id, rebalanced_node, cost)
+            (smaller.id, rebalanced_node, objective)
         })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
@@ -219,16 +219,16 @@ pub(crate) fn best_intermediate_tensors_balancing(
                 tensor,
                 Some(height_limit),
             );
-            let (rebalanced_node, cost) = find_rebalance_node(
+            let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
                 &larger_subtree_nodes,
                 &smaller_subtree_nodes,
                 objective_function,
             );
 
-            (larger.id, rebalanced_node, cost)
+            (larger.id, rebalanced_node, objective)
         })
-        .max_by(|(_, _, cost_a), (_, _, cost_b)| cost_a.total_cmp(cost_b))
+        .max_by(|(_, _, obj_a), (_, _, obj_b)| obj_a.total_cmp(obj_b))
         .unwrap();
 
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(second_rebalanced_node);
