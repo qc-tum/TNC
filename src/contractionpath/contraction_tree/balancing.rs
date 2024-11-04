@@ -29,6 +29,8 @@ pub mod communication_schemes;
 
 #[derive(Debug, Clone, Copy)]
 pub struct BalanceSettings {
+    // if not None, randomly chooses from top `usize` options
+    // random choice is weighted by objective outcome
     pub random_balance: Option<usize>,
     pub rebalance_depth: usize,
     pub iterations: usize,
