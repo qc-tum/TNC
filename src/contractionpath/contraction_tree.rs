@@ -443,7 +443,7 @@ fn populate_subtree_tensor_map(
 /// * `contraction_tree` - [`ContractionTree`] object
 /// * `node_id` - root of subtree to examine
 /// * `node_tensor_map` - empty HashMap to populate
-/// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
+/// * `tensor_network` - [`Tensor`] object containing bond dimension and leaf node information
 fn populate_leaf_node_tensor_map(
     contraction_tree: &ContractionTree,
     node_id: usize,
