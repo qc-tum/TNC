@@ -91,7 +91,7 @@ pub fn balance_partitions_iter(
         info!("Balancing iteration {i} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
 
         // Balances and updates partitions
-        let (intermediate_cost, mut intermediate_path, new_tensor_network) = balance_partitions(
+        let (largest_local_cost, mut intermediate_path, new_tensor_network) = balance_partitions(
             &mut partition_data,
             &mut contraction_tree,
             tensor_network,
@@ -102,7 +102,7 @@ pub fn balance_partitions_iter(
         validate_path(&intermediate_path);
 
         // Ensures that children tensors are mapped to their respective partition costs
-        let (communication_cost, communication_path) = communicate_partitions(
+        let (fan_in_cost, communication_path) = communicate_partitions(
             &partition_data,
             &contraction_tree,
             &new_tensor_network,
@@ -110,7 +110,7 @@ pub fn balance_partitions_iter(
         );
 
         intermediate_path.extend(communication_path);
-        let new_cost = intermediate_cost + communication_cost;
+        let new_cost = largest_local_cost + fan_in_cost;
 
         max_costs.push(new_cost);
 
