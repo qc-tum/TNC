@@ -44,11 +44,11 @@ impl Node {
         self.right_child.upgrade().map(|node| node.borrow().id)
     }
 
-    pub fn left_child(&self) -> Option<Rc<RefCell<Node>>> {
+    pub fn left_child(&self) -> Option<NodeRef> {
         self.left_child.upgrade()
     }
 
-    pub fn right_child(&self) -> Option<Rc<RefCell<Node>>> {
+    pub fn right_child(&self) -> Option<NodeRef> {
         self.right_child.upgrade()
     }
 
