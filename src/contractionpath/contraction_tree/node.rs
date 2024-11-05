@@ -109,7 +109,7 @@ impl Node {
     }
 }
 
-pub(crate) fn child_node(id: usize, tensor_index: Vec<usize>) -> Rc<RefCell<Node>> {
+pub(crate) fn child_node(id: usize, tensor_index: Vec<usize>) -> NodeRef {
     Rc::new(RefCell::new(Node::new(
         id,
         Weak::new(),
@@ -119,11 +119,7 @@ pub(crate) fn child_node(id: usize, tensor_index: Vec<usize>) -> Rc<RefCell<Node
     )))
 }
 
-pub(crate) fn parent_node(
-    id: usize,
-    left_child: &Rc<RefCell<Node>>,
-    right_child: &Rc<RefCell<Node>>,
-) -> Rc<RefCell<Node>> {
+pub(crate) fn parent_node(id: usize, left_child: &NodeRef, right_child: &NodeRef) -> NodeRef {
     let parent = Rc::new(RefCell::new(Node::new(
         id,
         Rc::downgrade(left_child),
