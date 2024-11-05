@@ -418,7 +418,7 @@ fn populate_subtree_tensor_map_recursive(
         );
         let t12 = &t1 ^ &t2;
         if let Some(height_limit) = height_limit {
-            if new_height1 <= height_limit && new_height2 <= height_limit {
+            if new_height1 < height_limit && new_height2 < height_limit {
                 node_tensor_map.insert(node.id(), t12.clone());
             }
         } else {
