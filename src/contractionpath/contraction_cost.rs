@@ -227,6 +227,33 @@ mod tests {
         )
     }
 
+    fn setup_complex() -> Tensor {
+        let bond_dims = FxHashMap::from_iter([
+            (0, 5),
+            (1, 2),
+            (2, 6),
+            (3, 8),
+            (4, 1),
+            (5, 3),
+            (6, 4),
+            (7, 3),
+            (8, 2),
+            (9, 2),
+        ]);
+        let mut t1 = Tensor::default();
+        let t1_tensors = vec![
+            Tensor::new(vec![4, 3, 2]),
+            Tensor::new(vec![0, 1, 3, 2]),
+            Tensor::new(vec![4, 5, 6]),
+        ];
+        t1.push_tensors(t1_tensors, Some(&bond_dims), None);
+
+        let mut t2 = Tensor::default();
+        let t2_tensors = vec![Tensor::new(vec![5, 6, 8]), Tensor::new(vec![7, 8, 9])];
+        t2.push_tensors(t2_tensors, Some(&bond_dims), None);
+        create_tensor_network(vec![t1, t2], &bond_dims, None)
+    }
+
     #[test]
     fn test_contract_path_cost() {
         let tn = setup_simple();
@@ -239,6 +266,18 @@ mod tests {
     }
 
     #[test]
+    fn test_contract_path_path_cost() {
+        let tn = setup_complex();
+        let (op_cost, mem_cost) = contract_path_cost(
+            tn.tensors(),
+            path![(0, [(0, 1), (0, 2)]), (1, [(0, 1)]), (0, 1)],
+            false,
+        );
+        assert_eq!(op_cost, 11188f64);
+        assert_eq!(mem_cost, 646f64);
+    }
+
+    #[test]
     fn test_contract_path_op_cost() {
         let tn = setup_simple();
         let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 1), (0, 2)], true);
@@ -247,5 +286,17 @@ mod tests {
         let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 2), (0, 1)], true);
         assert_eq!(op_cost, 6336f64);
         assert_eq!(mem_cost, 1176f64);
+    }
+
+    #[test]
+    fn test_contract_path_path_op_cost() {
+        let tn = setup_complex();
+        let (op_cost, mem_cost) = contract_path_cost(
+            tn.tensors(),
+            path![(0, [(0, 1), (0, 2)]), (1, [(0, 1)]), (0, 1)],
+            true,
+        );
+        assert_eq!(op_cost, 1464f64);
+        assert_eq!(mem_cost, 646f64);
     }
 }

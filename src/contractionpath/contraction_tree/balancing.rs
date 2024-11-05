@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use balancing_schemes::BalancingScheme;
 use communication_schemes::{
     bipartition_communication_scheme, greedy_communication_scheme,
@@ -425,6 +427,13 @@ fn shift_node_between_subtrees(
     larger_subtree_leaf_nodes.retain(|leaf| !rebalanced_nodes.contains(leaf));
     smaller_subtree_leaf_nodes.extend(rebalanced_nodes);
 
+    // Balancing step should not fully merge two partitions leaving one partition empty.
+    // As this affects the partitioning structure it is prevented
+    assert!(
+        !larger_subtree_leaf_nodes.is_empty(),
+        "Currently, passing all leaf nodes from larger to smaller results is undefined"
+    );
+
     // Run Greedy on the two updated subtrees
     let (updated_larger_path, local_larger_path, larger_cost) =
         subtree_contraction_path(&larger_subtree_leaf_nodes, contraction_tree, tensor_network);
@@ -435,20 +444,34 @@ fn shift_node_between_subtrees(
         tensor_network,
     );
 
-    // Remove larger subtree
+    // Remove larger subtree and add new subtree, keep track of updated root id
     contraction_tree.remove_subtree(larger_subtree_id);
-    // Add new subtree, keep track of updated root id
-    let new_larger_subtree_id = contraction_tree.add_subtree(
-        &updated_larger_path,
-        larger_subtree_parent_id,
-        &larger_subtree_leaf_nodes,
-    );
+
+    let new_larger_subtree_id = if updated_larger_path.is_empty() {
+        // In this case, there is only one node left.
+        contraction_tree.nodes[&larger_subtree_leaf_nodes[0]]
+            .borrow_mut()
+            .set_parent(Rc::downgrade(
+                &contraction_tree.nodes[&larger_subtree_parent_id],
+            ));
+        contraction_tree.nodes[&larger_subtree_parent_id]
+            .borrow_mut()
+            .add_child(Rc::downgrade(
+                &contraction_tree.nodes[&larger_subtree_leaf_nodes[0]],
+            ));
+        larger_subtree_leaf_nodes[0]
+    } else {
+        contraction_tree.add_path_as_subtree(
+            &updated_larger_path,
+            larger_subtree_parent_id,
+            &larger_subtree_leaf_nodes,
+        )
+    };
 
     // Remove smaller subtree
     contraction_tree.remove_subtree(smaller_subtree_id);
-
     // Add new subtree, keep track of updated root id
-    let new_smaller_subtree_id = contraction_tree.add_subtree(
+    let new_smaller_subtree_id = contraction_tree.add_path_as_subtree(
         &updated_smaller_path,
         smaller_subtree_parent_id,
         &smaller_subtree_leaf_nodes,
@@ -471,4 +494,131 @@ fn shift_node_between_subtrees(
         local_smaller_path,
         smaller_cost,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use rustc_hash::FxHashMap;
+
+    use crate::{
+        contractionpath::contraction_tree::{
+            node::{child_node, parent_node},
+            ContractionTree,
+        },
+        path,
+        tensornetwork::{create_tensor_network, tensor::Tensor},
+    };
+
+    use super::shift_node_between_subtrees;
+
+    fn setup_complex() -> (ContractionTree, Tensor) {
+        let (tensor, contraction_path) = (
+            create_tensor_network(
+                vec![
+                    Tensor::new(vec![4, 3, 2]),
+                    Tensor::new(vec![0, 1, 3, 2]),
+                    Tensor::new(vec![4, 5, 6]),
+                    Tensor::new(vec![6, 8, 9]),
+                    Tensor::new(vec![10, 8, 9]),
+                    Tensor::new(vec![5, 1, 0]),
+                ],
+                &FxHashMap::from_iter([
+                    (0, 27),
+                    (1, 18),
+                    (2, 12),
+                    (3, 15),
+                    (4, 5),
+                    (5, 3),
+                    (6, 18),
+                    (7, 22),
+                    (8, 45),
+                    (9, 65),
+                    (10, 5),
+                ]),
+                None,
+            ),
+            path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
+        );
+        (
+            ContractionTree::from_contraction_path(&tensor, &contraction_path),
+            tensor,
+        )
+    }
+
+    #[test]
+    fn test_shift_leaf_node_between_subtrees() {
+        let (mut tree, tensor) = setup_complex();
+        tree.partitions.entry(1).or_insert(vec![9, 7]);
+        shift_node_between_subtrees(&mut tree, 1, 9, 7, vec![3], &tensor);
+
+        let ContractionTree { nodes, root, .. } = tree;
+
+        let node0 = child_node(0, vec![0]);
+        let node1 = child_node(1, vec![1]);
+        let node2 = child_node(2, vec![2]);
+        let node3 = child_node(3, vec![3]);
+        let node4 = child_node(4, vec![4]);
+        let node5 = child_node(5, vec![5]);
+
+        let node6 = parent_node(6, &node1, &node5);
+        let node7 = parent_node(7, &node0, &node6);
+        let node8 = parent_node(8, &node2, &node4);
+        let node9 = parent_node(9, &node3, &node7);
+        let node10 = parent_node(10, &node9, &node8);
+
+        let ref_root = Rc::clone(&node10);
+        let ref_nodes = [
+            node0, node1, node2, node3, node4, node5, node6, node7, node8, node9, node10,
+        ];
+
+        for (key, ref_node) in ref_nodes.iter().enumerate() {
+            let node = &nodes[&key];
+            assert_eq!(node, ref_node);
+        }
+        assert_eq!(root.upgrade().unwrap(), ref_root);
+    }
+
+    #[test]
+    fn test_shift_subtree_between_subtrees() {
+        let (mut tree, tensor) = setup_complex();
+        tree.partitions.entry(1).or_insert(vec![9, 7]);
+        shift_node_between_subtrees(&mut tree, 1, 9, 7, vec![2, 3], &tensor);
+
+        let ContractionTree { nodes, root, .. } = tree;
+
+        let node0 = child_node(0, vec![0]);
+        let node1 = child_node(1, vec![1]);
+        let node2 = child_node(2, vec![2]);
+        let node3 = child_node(3, vec![3]);
+        let node4 = child_node(4, vec![4]);
+        let node5 = child_node(5, vec![5]);
+
+        let node6 = parent_node(6, &node1, &node5);
+        let node7 = parent_node(7, &node3, &node2);
+        let node8 = parent_node(8, &node0, &node6);
+        let node9 = parent_node(9, &node7, &node8);
+        let node10 = parent_node(10, &node9, &node4);
+
+        let ref_root = Rc::clone(&node10);
+        let ref_nodes = [
+            node0, node1, node2, node3, node4, node5, node6, node7, node8, node9, node10,
+        ];
+
+        for (key, ref_node) in ref_nodes.iter().enumerate() {
+            let node = &nodes[&key];
+            assert_eq!(node, ref_node);
+        }
+
+        assert_eq!(root.upgrade().unwrap(), ref_root);
+    }
+
+    #[test]
+    #[should_panic = "Currently, passing all leaf nodes from larger to smaller results is undefined"]
+    fn test_shift_entire_subtree_between_subtrees() {
+        let (mut tree, tensor) = setup_complex();
+        tree.partitions.entry(1).or_insert(vec![9, 7]);
+        shift_node_between_subtrees(&mut tree, 1, 9, 7, vec![2, 3, 4], &tensor);
+    }
 }

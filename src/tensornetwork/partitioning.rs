@@ -16,22 +16,22 @@ pub mod partition_config;
 ///
 /// # Arguments
 ///
-/// * `tn` - [`Tensor`] to be partitionined
+/// * `tensor_network` - [`Tensor`] to be partitionined
 /// * `k` - imbalance parameter for `KaHyPar`
 /// * `partition_strategy` - The strategy to pass to `KaHyPar`
 /// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
 ///
 pub fn find_partitioning(
-    tn: &Tensor,
+    tensor_network: &Tensor,
     k: i32,
     partitioning_strategy: PartitioningStrategy,
     min: bool,
 ) -> Vec<usize> {
     if k == 1 {
-        return vec![0; tn.tensors().len()];
+        return vec![0; tensor_network.tensors().len()];
     }
 
-    let num_vertices = tn.tensors().len() as u32;
+    let num_vertices = tensor_network.tensors().len() as u32;
     let mut context = KaHyParContext::new();
     partitioning_strategy.apply(&mut context);
 
@@ -42,8 +42,8 @@ pub fn find_partitioning(
     let mut hyperedge_weights = vec![];
     let mut hyperedge_indices = vec![0];
     let mut hyperedges = vec![];
-    let bond_dims = tn.bond_dims();
-    for (edges, tensor_ids) in tn.edges() {
+    let bond_dims = tensor_network.bond_dims();
+    for (edges, tensor_ids) in tensor_network.edges() {
         let mut length = 0;
         // Don't add edges that connect only one vertex
         if tensor_ids.len() == 2 && tensor_ids.contains(&Vertex::Open) {
@@ -84,11 +84,11 @@ pub fn find_partitioning(
 }
 
 /// Repeatedly partitions a tensor network to identify a communication scheme.
-/// Returns a `Vec<ContractionIndex>` of length equal to the number of input tensors minus one, acts as a commnuication scheme.
+/// Returns a `Vec<ContractionIndex>` of length equal to the number of input tensors minus one, acts as a communication scheme.
 ///
 /// # Arguments
 ///
-/// * `tensors` - &[`Tensor`] to be partitionined
+/// * `tensors` - &[(usize, `Tensor`)] to be partitioned. each tuple contains the intermediate contraction cost and intermediate tensor for communication.
 /// * `bond_dims` - bond_dims for tensors
 /// * `k` - number of partitions
 /// * `partitioning_strategy` - The strategy to pass to `KaHyPar`

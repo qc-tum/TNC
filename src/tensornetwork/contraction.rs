@@ -100,7 +100,7 @@ impl TensorContraction for Tensor {
         }
     }
 
-    // Internal method to swap tensors
+    /// Internal method to swap tensors
     fn swap(&mut self, i: usize, j: usize) {
         self.tensors.swap(i, j);
     }

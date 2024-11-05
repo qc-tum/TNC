@@ -8,3 +8,5 @@ src/qasm/.antlr
 *.log
 *.log.json
 *.data
+*.profraw
+*.profdata

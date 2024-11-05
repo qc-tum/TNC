@@ -1,3 +1,4 @@
+use std::fmt;
 use std::rc::Weak;
 
 use std::cell::RefCell;
@@ -105,5 +106,61 @@ impl Node {
             }
         }
         panic!("No child with id {id} found.");
+    }
+}
+
+pub(crate) fn child_node(id: usize, tensor_index: Vec<usize>) -> NodeRef {
+    Rc::new(RefCell::new(Node::new(
+        id,
+        Weak::new(),
+        Weak::new(),
+        Weak::new(),
+        Some(tensor_index),
+    )))
+}
+
+pub(crate) fn parent_node(id: usize, left_child: &NodeRef, right_child: &NodeRef) -> NodeRef {
+    let parent = Rc::new(RefCell::new(Node::new(
+        id,
+        Rc::downgrade(left_child),
+        Rc::downgrade(right_child),
+        Weak::new(),
+        None,
+    )));
+    left_child.borrow_mut().set_parent(Rc::downgrade(&parent));
+    right_child.borrow_mut().set_parent(Rc::downgrade(&parent));
+    parent
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Node {{ id: {}, left_child: {:?}, right_child: {:?}, parent: {:?}, tensor_index: {:?} }}",
+            self.id,
+            self.left_child_id(),
+            self.right_child_id(),
+            self.parent_id(),
+            self.tensor_index
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::contractionpath::contraction_tree::node::{child_node, parent_node};
+
+    #[test]
+    fn test_node_format() {
+        let node3 = child_node(0, vec![0]);
+        let node2 = child_node(1, vec![1]);
+        let node5 = parent_node(5, &node3, &node2);
+        let node_borrow = node5.borrow();
+
+        assert_eq!(
+            "Node { id: 5, left_child: Some(0), right_child: Some(1), parent: None, tensor_index: None }",
+            node_borrow.to_string()
+        )
     }
 }
