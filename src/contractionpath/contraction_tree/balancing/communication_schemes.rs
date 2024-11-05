@@ -161,24 +161,13 @@ pub fn tensor_bipartition(
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        borrow::Borrow,
-        sync::{Arc, RwLock},
-    };
+    use std::sync::{Arc, RwLock};
 
-    use rand::rngs::StdRng;
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::contraction_tree::{
-            balancing::{
-                communication_schemes::{
-                    bipartition_communication_scheme, greedy_communication_scheme,
-                    weighted_branchbound_communication_scheme,
-                },
-                PartitionData,
-            },
-            ContractionTree,
+        contractionpath::contraction_tree::balancing::communication_schemes::{
+            greedy_communication_scheme, weighted_branchbound_communication_scheme,
         },
         path,
         tensornetwork::tensor::Tensor,
