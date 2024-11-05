@@ -653,7 +653,6 @@ mod tests {
             assert_eq!(node, ref_node);
         }
         assert_eq!(root.upgrade().unwrap(), ref_root);
-        assert_eq!(root.upgrade().unwrap(), ref_root);
     }
 
     #[test]
