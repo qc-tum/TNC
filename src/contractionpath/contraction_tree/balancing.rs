@@ -423,16 +423,16 @@ fn shift_node_between_subtrees(
         .iter()
         .all(|node| larger_subtree_leaf_nodes.contains(node)));
 
-    // Balancing step should not fully merge two partitions leaving one partition empty.
-    // As this affects the partitioning structure, it results in undefined behavior
-    assert_ne!(
-        rebalanced_nodes, larger_subtree_leaf_nodes,
-        "Currently, passing all leaf nodes from larger to smaller results in undefined behavior"
-    );
-
     // Remove selected tensors from bigger subtree. Add it to the smaller subtree
     larger_subtree_leaf_nodes.retain(|leaf| !rebalanced_nodes.contains(leaf));
     smaller_subtree_leaf_nodes.extend(rebalanced_nodes);
+
+    // Balancing step should not fully merge two partitions leaving one partition empty.
+    // As this affects the partitioning structure it is prevented
+    assert!(
+        !larger_subtree_leaf_nodes.is_empty(),
+        "Currently, passing all leaf nodes from larger to smaller results is undefined"
+    );
 
     // Run Greedy on the two updated subtrees
     let (updated_larger_path, local_larger_path, larger_cost) =
@@ -766,7 +766,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic = "Currently, passing all leaf nodes from larger to smaller results in undefined behavior"]
+    #[should_panic = "Currently, passing all leaf nodes from larger to smaller results is undefined"]
     fn test_shift_entire_subtree_between_subtrees() {
         let (mut tree, tensor) = setup_complex();
         tree.partitions.entry(1).or_insert(vec![9, 7]);
