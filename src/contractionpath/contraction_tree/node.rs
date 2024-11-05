@@ -109,6 +109,33 @@ impl Node {
     }
 }
 
+pub(crate) fn child_node(id: usize, tensor_index: Vec<usize>) -> Rc<RefCell<Node>> {
+    Rc::new(RefCell::new(Node::new(
+        id,
+        Weak::new(),
+        Weak::new(),
+        Weak::new(),
+        Some(tensor_index),
+    )))
+}
+
+pub(crate) fn parent_node(
+    id: usize,
+    left_child: &Rc<RefCell<Node>>,
+    right_child: &Rc<RefCell<Node>>,
+) -> Rc<RefCell<Node>> {
+    let parent = Rc::new(RefCell::new(Node::new(
+        id,
+        Rc::downgrade(left_child),
+        Rc::downgrade(right_child),
+        Weak::new(),
+        None,
+    )));
+    left_child.borrow_mut().set_parent(Rc::downgrade(&parent));
+    right_child.borrow_mut().set_parent(Rc::downgrade(&parent));
+    parent
+}
+
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -125,41 +152,19 @@ impl fmt::Display for Node {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        cell::RefCell,
-        rc::{Rc, Weak},
-    };
 
-    use super::Node;
+    use crate::contractionpath::contraction_tree::node::{child_node, parent_node};
 
     #[test]
     fn test_node_format() {
-        let node3 = Rc::new(RefCell::new(Node::new(
-            0,
-            Weak::new(),
-            Weak::new(),
-            Weak::new(),
-            Some(vec![0]),
-        )));
-        let node2 = Rc::new(RefCell::new(Node::new(
-            1,
-            Weak::new(),
-            Weak::new(),
-            Weak::new(),
-            Some(vec![1]),
-        )));
-
-        let node5 = Node::new(
-            5,
-            Rc::downgrade(&node3),
-            Rc::downgrade(&node2),
-            Weak::new(),
-            Some(vec![5]),
-        );
+        let node3 = child_node(0, vec![0]);
+        let node2 = child_node(1, vec![1]);
+        let node5 = parent_node(5, &node3, &node2);
+        let node_borrow = node5.borrow();
 
         assert_eq!(
-            "Node { id: 5, left_child: Some(0), right_child: Some(1), parent: None, tensor_index: Some([5]) }",
-            node5.to_string()
+            "Node { id: 5, left_child: Some(0), right_child: Some(1), parent: None, tensor_index: None }",
+            node_borrow.to_string()
         )
     }
 }
