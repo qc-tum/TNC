@@ -71,7 +71,7 @@ impl TensorNetworkCreator {
     /// Creates a |0> state vector.
     fn ket0() -> tetra::Tensor {
         let mut out = tetra::Tensor::new(&[2]);
-        out.insert(&[0], Complex64::new(1.0, 0.0));
+        out.set(&[0], Complex64::new(1.0, 0.0));
         out
     }
 

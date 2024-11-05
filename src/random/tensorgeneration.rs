@@ -100,7 +100,7 @@ where
             loc.push(rng.sample(r));
         }
         let val = Complex64::new(rng.gen(), rng.gen());
-        tensor.insert(&loc, val);
+        tensor.set(&loc, val);
         loc.clear();
         nnz += 1;
     }

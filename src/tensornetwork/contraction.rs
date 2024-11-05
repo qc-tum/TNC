@@ -140,12 +140,13 @@ impl TensorContraction for Tensor {
             edges.retain(|_, edge| edge != &vec![Vertex::Closed(tensor_a_loc)]);
         }
 
+        // TODO: Data could be freed earlier if we move the tensors into contract (currently, get_data() clones the Arc)
         tensor_symmetric_difference.set_tensor_data(TensorData::Matrix(contract(
             &tensor_symmetric_difference.legs,
             &tensor_a.legs,
-            &tensor_a.get_data(),
+            tensor_a.get_data(),
             &tensor_b.legs,
-            &tensor_b.get_data(),
+            tensor_b.get_data(),
         )));
         self.tensors[tensor_a_loc] = tensor_symmetric_difference;
     }
