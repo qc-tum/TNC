@@ -377,7 +377,7 @@ mod tests {
         );
 
         let ref_output = vec![(14, 2, vec![11])];
-        assert_eq!(ref_output, output);
+        assert_eq!(output, ref_output);
     }
 
     #[test]
@@ -394,7 +394,7 @@ mod tests {
         );
 
         let ref_output = vec![(14, 7, vec![8])];
-        assert_eq!(ref_output, output);
+        assert_eq!(output, ref_output);
     }
 
     #[test]
@@ -411,7 +411,7 @@ mod tests {
         );
 
         let ref_output = vec![(14, 7, vec![8]), (7, 2, vec![5])];
-        assert_eq!(ref_output, output);
+        assert_eq!(output, ref_output);
     }
 
     #[test]
@@ -429,6 +429,6 @@ mod tests {
         );
 
         let ref_output = vec![(14, 7, vec![8, 11]), (7, 2, vec![5])];
-        assert_eq!(ref_output, output);
+        assert_eq!(output, ref_output);
     }
 }
