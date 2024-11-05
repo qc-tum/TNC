@@ -134,14 +134,13 @@ fn main() {
             let (num, partitioned_tn, path, _costs) = balance_partitions_iter(
                 &unopt_partitioned_tn,
                 &unopt_path,
-                BalanceSettings {
-                    random_balance: None,
+                BalanceSettings::new(
                     rebalance_depth,
                     iterations,
                     objective_function,
                     communication_scheme,
                     balancing_scheme,
-                },
+                ),
                 Some(&DendogramSettings {
                     output_file: format!("output/{name}_trial"),
                     objective_function: contract_cost_tensors,
