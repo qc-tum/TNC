@@ -33,7 +33,7 @@ pub struct Tensor {
     external_hyperedge: FxHashMap<EdgeIndex, usize>,
 
     /// The data of the tensor.
-    tensordata: TensorData,
+    pub(crate) tensordata: TensorData,
 }
 
 impl Hash for Tensor {
