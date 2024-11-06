@@ -39,7 +39,7 @@ pub enum BalancingScheme {
 /// Chosen tensor maximizes the `objective_function`, which is typically memory reduction.
 pub(crate) fn best_worst_balancing<R>(
     partition_data: &[PartitionData],
-    contraction_tree: &mut ContractionTree,
+    contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
@@ -71,7 +71,7 @@ where
 /// Chosen tensor maximizes the `objective_function`, which is typically memory reduction.
 pub(crate) fn best_tensor_balancing<R>(
     partition_data: &[PartitionData],
-    contraction_tree: &mut ContractionTree,
+    contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
@@ -110,7 +110,7 @@ where
 /// Then identifies the tensor with the largest memory reduction when passed to the fastest subtree. Both slowest and fastest subtrees are updated.
 pub(crate) fn best_tensors_balancing<R>(
     partition_data: &[PartitionData],
-    contraction_tree: &mut ContractionTree,
+    contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
@@ -178,7 +178,7 @@ where
 /// Then identifies the tensor with the largest memory reduction when passed to the fastest subtree. Both slowest and fastest subtrees are updated.
 pub(crate) fn best_intermediate_tensors_balancing<R>(
     partition_data: &[PartitionData],
-    contraction_tree: &mut ContractionTree,
+    contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
@@ -366,11 +366,11 @@ mod tests {
     #[test]
     fn test_best_worst_balancing() {
         let partition_data = setup_simple_partition_data();
-        let (mut contraction_tree, tensor) = setup_simple();
+        let (contraction_tree, tensor) = setup_simple();
 
         let output = best_worst_balancing::<StdRng>(
             &partition_data,
-            &mut contraction_tree,
+            &contraction_tree,
             &mut None,
             custom_cost_function,
             &tensor,
@@ -383,11 +383,11 @@ mod tests {
     #[test]
     fn test_tensor_balancing() {
         let partition_data = setup_simple_partition_data();
-        let (mut contraction_tree, tensor) = setup_simple();
+        let (contraction_tree, tensor) = setup_simple();
 
         let output = best_tensor_balancing::<StdRng>(
             &partition_data,
-            &mut contraction_tree,
+            &contraction_tree,
             &mut None,
             custom_cost_function,
             &tensor,
@@ -400,11 +400,11 @@ mod tests {
     #[test]
     fn test_tensors_balancing() {
         let partition_data = setup_simple_partition_data();
-        let (mut contraction_tree, tensor) = setup_simple();
+        let (contraction_tree, tensor) = setup_simple();
 
         let output = best_tensors_balancing::<StdRng>(
             &partition_data,
-            &mut contraction_tree,
+            &contraction_tree,
             &mut None,
             custom_cost_function,
             &tensor,
@@ -417,11 +417,11 @@ mod tests {
     #[test]
     fn test_intermediate_tensors_balancing() {
         let partition_data = setup_simple_partition_data();
-        let (mut contraction_tree, tensor) = setup_simple();
+        let (contraction_tree, tensor) = setup_simple();
 
         let output = best_intermediate_tensors_balancing::<StdRng>(
             &partition_data,
-            &mut contraction_tree,
+            &contraction_tree,
             &mut None,
             custom_cost_function,
             &tensor,
