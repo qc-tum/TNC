@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use num_complex::Complex64;
 use tetra::{all_close, Layout, Tensor as DataTensor};
 
+use crate::{gates::load_gate, io::load_data};
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub enum TensorData {
     #[default]
@@ -22,6 +24,8 @@ impl TensorData {
         Self::Matrix(DataTensor::new_from_flat(dimensions, data, layout))
     }
 
+    /// Checks for equality of two tensor sources. Does not check between different
+    /// types (e.g. File and Matrix).
     pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
         match (self, other) {
             (Self::File(l0), Self::File(r0)) => l0 == r0,
@@ -39,6 +43,16 @@ impl TensorData {
             (Self::Matrix(l0), Self::Matrix(r0)) => all_close(l0, r0, epsilon),
             (Self::Uncontracted, Self::Uncontracted) => true,
             _ => false,
+        }
+    }
+
+    /// Consumes the tensor data and returns the contained tensor.
+    pub fn into_data(self) -> DataTensor {
+        match self {
+            TensorData::Uncontracted => panic!("Cannot convert uncontracted tensor to data"),
+            TensorData::File(filename) => load_data(filename).unwrap(),
+            TensorData::Gate((gatename, angles)) => load_gate(&gatename, &angles),
+            TensorData::Matrix(tensor) => tensor,
         }
     }
 }

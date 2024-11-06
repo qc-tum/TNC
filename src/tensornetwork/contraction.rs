@@ -5,8 +5,6 @@ use rustc_hash::FxHashMap;
 use tetra::{contract, Tensor as DataTensor};
 
 use crate::{
-    gates::load_gate,
-    io::load_data,
     tensornetwork::Tensor,
     types::{ContractionIndex, EdgeIndex, Vertex},
 };
@@ -92,12 +90,7 @@ impl TensorContraction for Tensor {
 
     /// Getter for underlying raw data
     fn get_data(&self) -> DataTensor {
-        match self.tensor_data() {
-            TensorData::File(filename) => load_data(filename).unwrap(),
-            TensorData::Gate((gatename, angles)) => load_gate(gatename, angles),
-            TensorData::Matrix(rawdata) => rawdata.clone(),
-            TensorData::Uncontracted => panic!("Cannot get data from uncontracted/empty tensor"),
-        }
+        self.tensor_data().clone().into_data()
     }
 
     /// Internal method to swap tensors
@@ -140,14 +133,27 @@ impl TensorContraction for Tensor {
             edges.retain(|_, edge| edge != &vec![Vertex::Closed(tensor_a_loc)]);
         }
 
-        // TODO: Data could be freed earlier if we move the tensors into contract (currently, get_data() clones the Arc)
-        tensor_symmetric_difference.set_tensor_data(TensorData::Matrix(contract(
+        let Tensor {
+            legs: a_legs,
+            tensordata: a_data,
+            ..
+        } = tensor_a;
+
+        let Tensor {
+            legs: b_legs,
+            tensordata: b_data,
+            ..
+        } = tensor_b;
+
+        let result = contract(
             &tensor_symmetric_difference.legs,
-            &tensor_a.legs,
-            tensor_a.get_data(),
-            &tensor_b.legs,
-            tensor_b.get_data(),
-        )));
+            &a_legs,
+            a_data.into_data(),
+            &b_legs,
+            b_data.into_data(),
+        );
+
+        tensor_symmetric_difference.set_tensor_data(TensorData::Matrix(result));
         self.tensors[tensor_a_loc] = tensor_symmetric_difference;
     }
 }
