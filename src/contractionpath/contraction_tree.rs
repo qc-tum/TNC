@@ -1174,9 +1174,8 @@ mod tests {
             (8, Tensor::new(vec![6, 10])),
         ]);
 
-        for (key, value) in node_tensor_map {
-            println!("key: {}", key);
-            assert_eq!(ref_node_tensor_map[&key].legs(), value.legs());
+        for (key, value) in ref_node_tensor_map {
+            assert_eq!(node_tensor_map[&key].legs(), value.legs());
         }
     }
 
