@@ -1,5 +1,3 @@
-use std::ops::RangeBounds;
-
 use log::debug;
 use rustc_hash::FxHashMap;
 use tetra::{contract, Tensor as DataTensor};
@@ -77,10 +75,6 @@ pub(crate) trait TensorContraction {
     fn get_data(&self) -> DataTensor;
     /// Internal method to swap tensors
     fn swap(&mut self, i: usize, j: usize);
-    /// Drains the `tensor` vector. Mainly used to clear data after contraction.
-    fn drain<R>(&mut self, range: R)
-    where
-        R: RangeBounds<usize>;
     /// Contracts two tensors
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize);
 }
@@ -100,13 +94,6 @@ impl TensorContraction for Tensor {
 
     fn swap(&mut self, i: usize, j: usize) {
         self.tensors.swap(i, j);
-    }
-
-    fn drain<R>(&mut self, range: R)
-    where
-        R: RangeBounds<usize>,
-    {
-        self.tensors.drain(range);
     }
 
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) {
