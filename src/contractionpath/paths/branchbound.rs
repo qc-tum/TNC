@@ -69,6 +69,11 @@ impl<'a> BranchBound<'a> {
         let k12_tensor: Tensor;
         let mut current_flops = flops;
         let mut current_size = size;
+        // Ensure that larger tensor is always to the left.
+        if self.tensor_cache[&j].size() > self.tensor_cache[&i].size() {
+            (i, j) = (j, i);
+        }
+
         if self.result_cache.contains_key(&(i, j)) {
             k12 = self.result_cache[&(i, j)];
             flops_12 = self.flop_cache[&k12];
@@ -100,10 +105,7 @@ impl<'a> BranchBound<'a> {
         } else if current_flops > self.cutoff_flops_factor * best_flops {
             return None;
         }
-        // Ensure that larger tensor is always to the left.
-        if self.size_cache[&j] > self.size_cache[&i] {
-            (i, j) = (j, i);
-        }
+
         Some(Candidate {
             flop_cost: current_flops,
             size_cost: current_size,
@@ -288,8 +290,8 @@ mod tests {
 
         assert_eq!(opt.best_flops, 4540f64);
         assert_eq!(opt.best_size, 538f64);
-        assert_eq!(opt.get_best_path(), &path![(1, 0), (3, 2)]);
-        assert_eq!(opt.get_best_replace_path(), path![(1, 0), (1, 2)]);
+        assert_eq!(opt.get_best_path(), &path![(1, 0), (2, 3)]);
+        assert_eq!(opt.get_best_replace_path(), path![(1, 0), (2, 1)]);
     }
 
     #[test]
@@ -300,10 +302,10 @@ mod tests {
 
         assert_eq!(opt.best_flops, 2654474f64);
         assert_eq!(opt.best_size, 89478f64);
-        assert_eq!(opt.best_path, path![(1, 5), (6, 0), (7, 2), (3, 8), (9, 4)]);
+        assert_eq!(opt.best_path, path![(1, 5), (0, 6), (2, 7), (3, 8), (4, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),
-            path![(1, 5), (1, 0), (1, 2), (3, 1), (3, 4)]
+            path![(1, 5), (0, 1), (2, 0), (3, 2), (4, 3)]
         );
     }
 }

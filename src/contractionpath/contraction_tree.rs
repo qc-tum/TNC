@@ -418,7 +418,7 @@ fn populate_subtree_tensor_map_recursive(
         );
         let t12 = &t1 ^ &t2;
         if let Some(height_limit) = height_limit {
-            if new_height1 <= height_limit && new_height2 <= height_limit {
+            if new_height1 < height_limit && new_height2 < height_limit {
                 node_tensor_map.insert(node.id(), t12.clone());
             }
         } else {
@@ -1150,6 +1150,28 @@ mod tests {
             (8, Tensor::new(vec![6, 10])),
             (9, Tensor::new(vec![4, 5, 10])),
             (10, Tensor::new(vec![10])),
+        ]);
+
+        for (key, value) in ref_node_tensor_map {
+            assert_eq!(node_tensor_map[&key].legs(), value.legs());
+        }
+    }
+
+    #[test]
+    fn test_populate_subtree_tensor_map_height_limit() {
+        let (tensor, ref_path) = setup_complex();
+        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let node_tensor_map = populate_subtree_tensor_map(&tree, 10, &tensor, Some(1));
+
+        let ref_node_tensor_map = FxHashMap::from_iter([
+            (0, Tensor::new(vec![4, 3, 2])),
+            (1, Tensor::new(vec![0, 1, 3, 2])),
+            (2, Tensor::new(vec![4, 5, 6])),
+            (3, Tensor::new(vec![6, 8, 9])),
+            (4, Tensor::new(vec![10, 8, 9])),
+            (5, Tensor::new(vec![5, 1, 0])),
+            (6, Tensor::new(vec![3, 2, 5])),
+            (8, Tensor::new(vec![6, 10])),
         ]);
 
         for (key, value) in ref_node_tensor_map {

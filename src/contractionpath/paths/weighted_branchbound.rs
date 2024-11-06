@@ -70,6 +70,11 @@ impl<'a> WeightedBranchBound<'a> {
         let k12: usize;
         let k12_tensor: Tensor;
         let mut current_size = size;
+
+        if self.tensor_cache[&j].size() > self.tensor_cache[&i].size() {
+            (i, j) = (j, i);
+        }
+
         if self.result_cache.contains_key(&(i, j)) {
             k12 = self.result_cache[&(i, j)];
             flops_12 = self.flop_cache[&k12];
@@ -100,10 +105,6 @@ impl<'a> WeightedBranchBound<'a> {
             self.best_progress.insert(remaining_len, current_flops);
         } else if current_flops > self.cutoff_flops_factor * best_flops {
             return None;
-        }
-
-        if self.size_cache[&j] > self.size_cache[&i] {
-            (i, j) = (j, i);
         }
 
         Some(Candidate {
@@ -311,8 +312,8 @@ mod tests {
 
         assert_eq!(opt.best_flops, 4580f64);
         assert_eq!(opt.best_size, 538f64);
-        assert_eq!(opt.get_best_path(), &path![(1, 0), (3, 2)]);
-        assert_eq!(opt.get_best_replace_path(), path![(1, 0), (1, 2)]);
+        assert_eq!(opt.get_best_path(), &path![(1, 0), (2, 3)]);
+        assert_eq!(opt.get_best_replace_path(), path![(1, 0), (2, 1)]);
     }
 
     #[test]
@@ -323,10 +324,10 @@ mod tests {
 
         assert_eq!(opt.best_flops, 2120615.0f64);
         assert_eq!(opt.best_size, 89478f64);
-        assert_eq!(opt.best_path, path![(3, 4), (6, 2), (1, 5), (8, 0), (9, 7)]);
+        assert_eq!(opt.best_path, path![(3, 4), (2, 6), (1, 5), (0, 8), (7, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),
-            path![(3, 4), (3, 2), (1, 5), (1, 0), (1, 3)]
+            path![(3, 4), (2, 3), (1, 5), (0, 1), (2, 0)]
         );
     }
 }
