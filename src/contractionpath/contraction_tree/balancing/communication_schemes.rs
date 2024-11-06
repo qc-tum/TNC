@@ -213,8 +213,8 @@ mod tests {
         let (cost, communication_scheme) =
             greedy_communication_scheme(&tensors, &bond_dims.read().unwrap());
 
-        assert_eq!(736f64, cost);
-        assert_eq!(path![(2, 1), (0, 2)].to_vec(), communication_scheme);
+        assert_eq!(cost, 736f64);
+        assert_eq!(communication_scheme, path![(2, 1), (0, 2)].to_vec());
     }
 
     #[test]
@@ -228,7 +228,7 @@ mod tests {
             latency_map,
         );
 
-        assert_eq!(736f64, cost);
-        assert_eq!(path![(2, 1), (0, 2)].to_vec(), communication_scheme);
+        assert_eq!(cost, 736f64);
+        assert_eq!(communication_scheme, path![(2, 1), (0, 2)].to_vec());
     }
 }
