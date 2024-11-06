@@ -69,12 +69,17 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
 pub(crate) trait TensorContraction {
     /// Internal method to permute tensor
     fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor;
+    /// Internal method to update edges
     fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, Vec<Vertex>>;
+    /// Getter for underlying raw data
     fn get_data(&self) -> DataTensor;
+    /// Internal method to swap tensors
     fn swap(&mut self, i: usize, j: usize);
+    /// Drains the `tensor` vector. Mainly used to clear data after contraction.
     fn drain<R>(&mut self, range: R)
     where
         R: RangeBounds<usize>;
+    /// Contracts two tensors
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize);
 }
 
@@ -83,22 +88,18 @@ impl TensorContraction for Tensor {
         &mut self.tensors[i]
     }
 
-    // Internal method to update edges
     fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, Vec<Vertex>> {
         &mut self.edges
     }
 
-    /// Getter for underlying raw data
     fn get_data(&self) -> DataTensor {
         self.tensor_data().clone().into_data()
     }
 
-    /// Internal method to swap tensors
     fn swap(&mut self, i: usize, j: usize) {
         self.tensors.swap(i, j);
     }
 
-    /// Drains the `tensor` vector. Mainly used to clear data after contraction.
     fn drain<R>(&mut self, range: R)
     where
         R: RangeBounds<usize>,
