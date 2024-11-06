@@ -59,10 +59,12 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
         !x.tensor_data().approx_eq(&TensorData::Uncontracted, 1e-12) || x.is_composite()
     });
     if tn.tensors.len() == 1 {
-        tn.set_legs(tn.tensors[0].legs().clone());
-        let tmp_data = tn.tensor(0).tensor_data().to_owned();
-        tn.tensors.drain(0..);
-        tn.set_tensor_data(tmp_data);
+        let Tensor {
+            legs, tensordata, ..
+        } = tn.tensors.pop().unwrap();
+
+        tn.set_legs(legs);
+        tn.set_tensor_data(tensordata);
     }
 }
 
