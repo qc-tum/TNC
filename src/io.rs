@@ -1,6 +1,8 @@
 use std::path::Path;
 
 use hdf5::{File, Result};
+use itertools::Itertools;
+use ndarray::Array;
 use num_complex::Complex64;
 
 use rustc_hash::FxHashMap;
@@ -24,6 +26,15 @@ where
 {
     let file = File::open(filename)?;
     read_data(&file)
+}
+
+/// Stores a single tensor in a HDF5 file.
+pub fn store_data<P>(filename: P, tensor: &DataTensor) -> Result<()>
+where
+    P: AsRef<Path>,
+{
+    let file = File::create(filename)?;
+    write_data(&file, tensor)
 }
 
 fn read_tensor(file: &File) -> Result<Tensor> {
@@ -87,6 +98,21 @@ fn read_data(file: &File) -> Result<DataTensor> {
     ))
 }
 
+fn write_data(file: &File, tensor: &DataTensor) -> Result<()> {
+    let gr = file.create_group("/tensors")?;
+    let data = tensor.elements().into_owned();
+    let data = Array::from(data);
+    let shape = tensor
+        .shape()
+        .into_iter()
+        .map(|e| TryInto::<usize>::try_into(e).unwrap())
+        .collect_vec();
+    let data = data.into_shape(shape)?;
+    let tensor_dataset = gr.new_dataset_builder().with_data(&data);
+    tensor_dataset.create("-1")?;
+    file.flush()
+}
+
 #[cfg(test)]
 mod tests {
     use std::iter::zip;
@@ -103,7 +129,9 @@ mod tests {
 
     use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
 
-    use super::{read_data, read_tensor};
+    use tetra::{all_close, Tensor as DataTensor};
+
+    use super::{read_data, read_tensor, write_data};
 
     /// Creates a new HDF5 file in memory.
     /// This method is taken from the hdf5 crate integration tests:
@@ -198,5 +226,24 @@ mod tests {
         ref_tn.push_tensor(ref_tensor, Some(&FxHashMap::from_iter([(0, 2), (1, 2)])));
         ref_tn.set_legs(vec![0, 1]);
         assert!(tensor.approx_eq(&ref_tn, 1e-12));
+    }
+
+    #[test]
+    fn test_write_read() {
+        let file = new_in_memory_file().unwrap();
+        let data = vec![
+            Complex64::new(1.0, 0.0),
+            Complex64::new(0.0, -2.0),
+            Complex64::new(-3.0, 0.0),
+            Complex64::new(-2.0, -1.0),
+            Complex64::new(0.0, 0.0),
+            Complex64::new(0.5, 2.0),
+        ];
+        let tensor = DataTensor::new_from_flat(&[2, 3], data, None);
+
+        write_data(&file, &tensor).unwrap();
+        let read = read_data(&file).unwrap();
+
+        assert!(all_close(&tensor, &read, 1e-10));
     }
 }
