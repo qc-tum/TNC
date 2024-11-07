@@ -124,14 +124,14 @@ where
         .collect_vec();
 
     let (fan_in_cost, _) = contract_path_cost(&children_tensors, &communication_path, true);
-    let mut largest_local_cost = f64::MAX;
+    let mut intermediate_cost = f64::INFINITY;
     let mut contracted_tensors = HashSet::new();
     for contraction in communication_path {
         if let ContractionIndex::Pair { 0: i, 1: j } = contraction {
             if !contracted_tensors.contains(&i) && !contracted_tensors.contains(&j) {
                 let local_max = partition_data[i].cost.max(partition_data[j].cost);
-                if local_max < largest_local_cost {
-                    largest_local_cost = local_max;
+                if local_max < intermediate_cost {
+                    intermediate_cost = local_max;
                 }
             }
             contracted_tensors.insert(i);
@@ -139,13 +139,13 @@ where
         }
     }
     let mut max_costs = Vec::with_capacity(iterations + 1);
-    max_costs.push(largest_local_cost + fan_in_cost);
+    max_costs.push(intermediate_cost + fan_in_cost);
 
     print_dendogram(dendogram_settings, &contraction_tree, tensor_network, 0);
 
     let mut best_iteration = 0;
     let mut best_contraction_path = path.to_owned();
-    let mut best_cost = largest_local_cost + fan_in_cost;
+    let mut best_cost = intermediate_cost + fan_in_cost;
 
     let mut best_tn = tensor_network.clone();
 
@@ -170,14 +170,14 @@ where
             &balance_settings,
         );
 
-        let mut largest_local_cost = f64::MAX;
+        let mut intermediate_cost = f64::INFINITY;
         let mut contracted_tensors = HashSet::new();
         for contraction in communication_path.iter() {
             if let ContractionIndex::Pair { 0: i, 1: j } = contraction {
                 if !contracted_tensors.contains(&i) && !contracted_tensors.contains(&j) {
                     let local_max = partition_data[*i].cost.max(partition_data[*j].cost);
-                    if local_max < largest_local_cost {
-                        largest_local_cost = local_max;
+                    if local_max < intermediate_cost {
+                        intermediate_cost = local_max;
                     }
                 }
                 contracted_tensors.insert(i);
@@ -187,7 +187,7 @@ where
 
         intermediate_path.extend(communication_path);
 
-        let new_cost = largest_local_cost + fan_in_cost;
+        let new_cost = intermediate_cost + fan_in_cost;
 
         max_costs.push(new_cost);
 
