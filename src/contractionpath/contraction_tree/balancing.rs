@@ -127,7 +127,7 @@ where
     let mut intermediate_cost = f64::INFINITY;
     let mut contracted_tensors = HashSet::new();
     for contraction in communication_path {
-        if let ContractionIndex::Pair { 0: i, 1: j } = contraction {
+        if let ContractionIndex::Pair(i, j) = contraction {
             if !contracted_tensors.contains(&i) && !contracted_tensors.contains(&j) {
                 let local_max = partition_data[i].cost.max(partition_data[j].cost);
                 if local_max < intermediate_cost {
@@ -173,7 +173,7 @@ where
         let mut intermediate_cost = f64::INFINITY;
         let mut contracted_tensors = HashSet::new();
         for contraction in communication_path.iter() {
-            if let ContractionIndex::Pair { 0: i, 1: j } = contraction {
+            if let ContractionIndex::Pair(i, j) = contraction {
                 if !contracted_tensors.contains(&i) && !contracted_tensors.contains(&j) {
                     let local_max = partition_data[*i].cost.max(partition_data[*j].cost);
                     if local_max < intermediate_cost {
