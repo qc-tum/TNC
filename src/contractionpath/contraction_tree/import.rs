@@ -2,11 +2,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use regex::RegexSet;
 use rustc_hash::FxHashMap;
-use std::{
-    cell::RefCell,
-    fs,
-    rc::{Rc, Weak},
-};
+use std::{cell::RefCell, fs, rc::Rc};
 
 use crate::{
     contractionpath::contraction_tree::{export::to_pdf, node::Node},
@@ -15,7 +11,9 @@ use crate::{
 };
 
 use super::{
+    child_node,
     export::{DendogramEntry, COLORS, COMMUNICATION_COLOR},
+    node::parent_node,
     ContractionTree,
 };
 
@@ -214,23 +212,7 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
             );
         };
 
-        let new_node = Node::new(
-            tensor_count,
-            Rc::downgrade(&left_child),
-            Rc::downgrade(&right_child),
-            Weak::new(),
-            None,
-        );
-
-        let new_node_ref = Rc::new(RefCell::new(new_node));
-
-        left_child
-            .borrow_mut()
-            .set_parent(Rc::downgrade(&new_node_ref));
-
-        right_child
-            .borrow_mut()
-            .set_parent(Rc::downgrade(&new_node_ref));
+        let new_node_ref = parent_node(tensor_count, &left_child, &right_child);
 
         remaining_nodes.insert_new(tensor_count, Rc::clone(&new_node_ref));
         let cost = (*timestamp - logging_start).num_microseconds().unwrap() as f64;
@@ -362,9 +344,7 @@ fn log_to_subtree(
 
                 for &tensor_id in &ij {
                     if !replace_to_ssa.contains_key(&tensor_id) {
-                        let leaf_node =
-                            Node::new(*tensor_count, Weak::new(), Weak::new(), Weak::new(), None);
-                        let leaf_node_ref = Rc::new(RefCell::new(leaf_node));
+                        let leaf_node_ref = child_node(*tensor_count, vec![]);
 
                         replace_to_ssa.insert_new(tensor_id, *tensor_count);
                         tensor_cost.insert_new(*tensor_count, DateTime::default());
@@ -441,22 +421,7 @@ fn new_intermediate_node(
 ) -> Rc<RefCell<Node>> {
     let left_child = Rc::clone(&remaining_nodes[&replace_to_ssa[&ij[0]]]);
     let right_child = Rc::clone(&remaining_nodes[&replace_to_ssa[&ij[1]]]);
-    let intermediate_node = Node::new(
-        tensor_count,
-        Rc::downgrade(&left_child),
-        Rc::downgrade(&right_child),
-        Weak::new(),
-        None,
-    );
-
-    let intermediate_node_ref = Rc::new(RefCell::new(intermediate_node));
-    left_child
-        .borrow_mut()
-        .set_parent(Rc::downgrade(&intermediate_node_ref));
-    right_child
-        .borrow_mut()
-        .set_parent(Rc::downgrade(&intermediate_node_ref));
-    intermediate_node_ref
+    parent_node(tensor_count, &left_child, &right_child)
 }
 
 fn contraction_timing(
