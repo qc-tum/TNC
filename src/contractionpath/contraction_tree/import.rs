@@ -174,7 +174,7 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
     // Sort communication by time to ensure no violation of data dependencies
     let communication_path = communication_path
         .iter_mut()
-        .sorted_unstable()
+        .sorted_unstable_by_key(|(_, _, timestamp)| *timestamp)
         .collect::<Vec<_>>();
 
     let mut communication_data = FxHashMap::default();
