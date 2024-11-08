@@ -296,16 +296,15 @@ where
         _ => panic!("Balancing Scheme not implemented"),
     };
     let mut shifted_indices = FxHashMap::default();
-    for (from_subtree_id, to_subtree_id, rebalanced_nodes) in shifted_nodes {
+    for shift in shifted_nodes {
         let shifted_from_id = *shifted_indices
-            .get(&from_subtree_id)
-            .unwrap_or(&from_subtree_id);
+            .get(&shift.from_subtree_id)
+            .unwrap_or(&shift.from_subtree_id);
 
-        let shifted_to_id = if shifted_indices.contains_key(&to_subtree_id) {
-            *shifted_indices.get(&to_subtree_id).unwrap()
-        } else {
-            to_subtree_id
-        };
+        let shifted_to_id = *shifted_indices
+            .get(&shift.to_subtree_id)
+            .unwrap_or(&shift.to_subtree_id);
+
         let (
             larger_id,
             larger_contraction,
@@ -318,11 +317,11 @@ where
             *rebalance_depth,
             shifted_from_id,
             shifted_to_id,
-            rebalanced_nodes,
+            shift.moved_leaf_ids,
             tensor_network,
         );
-        shifted_indices.insert(from_subtree_id, larger_id);
-        shifted_indices.insert(to_subtree_id, smaller_id);
+        shifted_indices.insert(shift.from_subtree_id, larger_id);
+        shifted_indices.insert(shift.to_subtree_id, smaller_id);
 
         let larger_tensor = contraction_tree.tensor(larger_id, tensor_network);
         let smaller_tensor = contraction_tree.tensor(smaller_id, tensor_network);

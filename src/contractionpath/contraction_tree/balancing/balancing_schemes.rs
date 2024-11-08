@@ -35,6 +35,17 @@ pub enum BalancingScheme {
     Configuration,
 }
 
+/// Shift of tensors between partitions.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct Shift {
+    /// Id of the source partition.
+    pub from_subtree_id: usize,
+    /// Id of the destination partition.
+    pub to_subtree_id: usize,
+    /// Ids of the leaf nodes that are moved.
+    pub moved_leaf_ids: Vec<usize>,
+}
+
 /// Balancing scheme that moves a tensor from the slowest subtree to the fastest subtree each time.
 /// Chosen tensor maximizes the `objective_function`, which is typically memory reduction.
 pub(super) fn best_worst_balancing<R>(
@@ -43,7 +54,7 @@ pub(super) fn best_worst_balancing<R>(
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
-) -> Vec<(usize, usize, Vec<usize>)>
+) -> Vec<Shift>
 where
     R: Sized + Rng,
 {
@@ -64,7 +75,11 @@ where
         objective_function,
     );
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
-    vec![(larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids)]
+    vec![Shift {
+        from_subtree_id: larger_subtree_id,
+        to_subtree_id: smaller_subtree_id,
+        moved_leaf_ids: rebalanced_leaf_ids,
+    }]
 }
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
@@ -75,7 +90,7 @@ pub(super) fn best_tensor_balancing<R>(
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
-) -> Vec<(usize, usize, Vec<usize>)>
+) -> Vec<Shift>
 where
     R: Sized + Rng,
 {
@@ -103,7 +118,11 @@ where
         .unwrap();
 
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
-    vec![(larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids)]
+    vec![Shift {
+        from_subtree_id: larger_subtree_id,
+        to_subtree_id: smaller_subtree_id,
+        moved_leaf_ids: rebalanced_leaf_ids,
+    }]
 }
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
@@ -114,7 +133,7 @@ pub(super) fn best_tensors_balancing<R>(
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
-) -> Vec<(usize, usize, Vec<usize>)>
+) -> Vec<Shift>
 where
     R: Sized + Rng,
 {
@@ -143,7 +162,13 @@ where
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
-    let mut shift = vec![(larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids)];
+
+    let mut shifts = Vec::with_capacity(2);
+    shifts.push(Shift {
+        from_subtree_id: larger_subtree_id,
+        to_subtree_id: smaller_subtree_id,
+        moved_leaf_ids: rebalanced_leaf_ids,
+    });
 
     let smaller_subtree_id = partition_data.first().unwrap().id;
 
@@ -170,8 +195,12 @@ where
         .unwrap();
 
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
-    shift.push((larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids));
-    shift
+    shifts.push(Shift {
+        from_subtree_id: larger_subtree_id,
+        to_subtree_id: smaller_subtree_id,
+        moved_leaf_ids: rebalanced_leaf_ids,
+    });
+    shifts
 }
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
@@ -183,7 +212,7 @@ pub(super) fn best_intermediate_tensors_balancing<R>(
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
     height_limit: usize,
-) -> Vec<(usize, usize, Vec<usize>)>
+) -> Vec<Shift>
 where
     R: Sized + Rng,
 {
@@ -215,7 +244,13 @@ where
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(first_rebalanced_node);
-    let mut shift = vec![(larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids)];
+
+    let mut shifts = Vec::with_capacity(2);
+    shifts.push(Shift {
+        from_subtree_id: larger_subtree_id,
+        to_subtree_id: smaller_subtree_id,
+        moved_leaf_ids: rebalanced_leaf_ids,
+    });
 
     let smaller_subtree_id = partition_data.first().unwrap().id;
 
@@ -246,8 +281,12 @@ where
         .unwrap();
 
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(second_rebalanced_node);
-    shift.push((larger_subtree_id, smaller_subtree_id, rebalanced_leaf_ids));
-    shift
+    shifts.push(Shift {
+        from_subtree_id: larger_subtree_id,
+        to_subtree_id: smaller_subtree_id,
+        moved_leaf_ids: rebalanced_leaf_ids,
+    });
+    shifts
 }
 
 #[cfg(test)]
@@ -260,7 +299,7 @@ mod tests {
             balancing::{
                 balancing_schemes::{
                     best_intermediate_tensors_balancing, best_tensor_balancing,
-                    best_tensors_balancing, best_worst_balancing,
+                    best_tensors_balancing, best_worst_balancing, Shift,
                 },
                 PartitionData,
             },
@@ -376,7 +415,11 @@ mod tests {
             &tensor,
         );
 
-        let ref_output = vec![(14, 2, vec![11])];
+        let ref_output = vec![Shift {
+            from_subtree_id: 14,
+            to_subtree_id: 2,
+            moved_leaf_ids: vec![11],
+        }];
         assert_eq!(output, ref_output);
     }
 
@@ -393,7 +436,11 @@ mod tests {
             &tensor,
         );
 
-        let ref_output = vec![(14, 7, vec![8])];
+        let ref_output = vec![Shift {
+            from_subtree_id: 14,
+            to_subtree_id: 7,
+            moved_leaf_ids: vec![8],
+        }];
         assert_eq!(output, ref_output);
     }
 
@@ -410,7 +457,18 @@ mod tests {
             &tensor,
         );
 
-        let ref_output = vec![(14, 7, vec![8]), (7, 2, vec![5])];
+        let ref_output = vec![
+            Shift {
+                from_subtree_id: 14,
+                to_subtree_id: 7,
+                moved_leaf_ids: vec![8],
+            },
+            Shift {
+                from_subtree_id: 7,
+                to_subtree_id: 2,
+                moved_leaf_ids: vec![5],
+            },
+        ];
         assert_eq!(output, ref_output);
     }
 
@@ -428,7 +486,18 @@ mod tests {
             1,
         );
 
-        let ref_output = vec![(14, 7, vec![8, 11]), (7, 2, vec![5])];
+        let ref_output = vec![
+            Shift {
+                from_subtree_id: 14,
+                to_subtree_id: 7,
+                moved_leaf_ids: vec![8, 11],
+            },
+            Shift {
+                from_subtree_id: 7,
+                to_subtree_id: 2,
+                moved_leaf_ids: vec![5],
+            },
+        ];
         assert_eq!(output, ref_output);
     }
 }
