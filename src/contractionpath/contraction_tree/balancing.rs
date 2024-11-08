@@ -153,7 +153,6 @@ where
         assert_eq!(intermediate_path.len(), partition_number, "Tensors lost!");
         validate_path(&intermediate_path);
 
-        // Ensures that children tensors are mapped to their respective partition costs
         let (fan_in_cost, communication_path) = communicate_partitions(
             &partition_data,
             &contraction_tree,
@@ -259,7 +258,7 @@ where
     }
     // Will cause strange errors (picking of same partition multiple times if this is not true.Better to panic here.)
     assert!(partition_data.len() > 1);
-    // Use memory reduction to identify which leaf node to shift between partitions.
+
     let bond_dims = tensor_network.bond_dims();
     let shifted_nodes = match balancing_scheme {
         BalancingScheme::BestWorst => balancing_schemes::best_worst_balancing(
@@ -469,8 +468,8 @@ fn shift_node_between_subtrees(
 
     let mut larger_subtree_leaf_nodes = contraction_tree.leaf_ids(larger_subtree_id);
     let mut smaller_subtree_leaf_nodes = contraction_tree.leaf_ids(smaller_subtree_id);
-    // Always check that a node can be moved over.
 
+    // Always check that a node can be moved over.
     assert!(rebalanced_nodes
         .iter()
         .all(|node| !smaller_subtree_leaf_nodes.contains(node)));
