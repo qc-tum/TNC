@@ -13,24 +13,27 @@ pub enum BalancingScheme {
     /// Moves a tensor from the slowest subtree to the fastest subtree each time.
     BestWorst,
 
-    /// Identifies the tensor in the slowest subtree and passes it to the subtree with
-    /// largest memory reduction.
+    /// Identifies the tensor in the slowest subtree and passes it to the subtree
+    /// with largest memory reduction.
     Tensor,
 
-    /// Identifies the tensor in the slowest subtree and passes it to the subtree with
-    /// largest memory reduction. Then identifies the tensor with the largest memory
-    /// reduction when passed to the fastest subtree. Both slowest and fastest
+    /// Identifies the tensor in the slowest subtree and passes it to the subtree
+    /// with largest memory reduction. Then identifies the tensor with the largest
+    /// memory reduction when passed to the fastest subtree. Both slowest and fastest
     /// subtrees are updated.
     Tensors,
 
-    /// Identifies the intermediate tensor in the slowest subtree and passes it to the subtree with
-    /// largest memory reduction. Then identifies the intermediate tensor with the largest memory
-    /// reduction when passed to the fastest subtree. Both slowest and fastest
-    /// subtrees are updated. The usize parameter indicates the `height` up the contraction tree
-    /// we look when passing intermediate tensors between partitions.
-    /// A value of `1` allows intermediate tensors that are a product of at most 1 contraction process.
-    /// Using the value of `0` is then equivalent to the `Tensors` method.
-    IntermediateTensors(usize),
+    /// Identifies the intermediate tensor in the slowest subtree and passes it to
+    /// the subtree with largest memory reduction. Then identifies the intermediate
+    /// tensor with the largest memory reduction when passed to the fastest subtree.
+    /// Both slowest and fastest subtrees are updated.
+    IntermediateTensors {
+        /// The `height` up the contraction tree we look when passing intermediate
+        /// tensors between partitions. A value of `1` allows intermediate tensors
+        /// that are a product of at most 1 contraction process. Using the value of
+        /// `0` is then equivalent to the `Tensors` method.
+        height_limit: usize,
+    },
 
     Configuration,
 }

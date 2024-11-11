@@ -282,7 +282,7 @@ where
             *objective_function,
             tensor_network,
         ),
-        BalancingScheme::IntermediateTensors(height_limit) => {
+        BalancingScheme::IntermediateTensors { height_limit } => {
             balancing_schemes::best_intermediate_tensors_balancing(
                 partition_data,
                 contraction_tree,
