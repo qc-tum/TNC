@@ -14,7 +14,7 @@ use super::{
     child_node,
     export::{DendogramEntry, COLORS, COMMUNICATION_COLOR},
     node::parent_node,
-    ContractionTree,
+    ContractionTree, NodeRef,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -241,7 +241,7 @@ pub type TimeRange = (DateTime<chrono::FixedOffset>, DateTime<chrono::FixedOffse
 #[derive(Debug, Clone)]
 struct LogToSubtreeResult {
     /// Dict of remaining nodes to process, keeps track of intermediate tensors
-    nodes: FxHashMap<usize, Rc<RefCell<Node>>>,
+    nodes: FxHashMap<usize, NodeRef>,
     /// Keeps track of communication with time stamps
     local_communication_path: Vec<(usize, usize, DateTime<chrono::FixedOffset>)>,
     /// Keeps track of communication time stamps
@@ -414,11 +414,11 @@ fn log_to_subtree(
 }
 
 fn new_intermediate_node(
-    remaining_nodes: &FxHashMap<usize, Rc<RefCell<Node>>>,
+    remaining_nodes: &FxHashMap<usize, NodeRef>,
     replace_to_ssa: &FxHashMap<usize, usize>,
     ij: &[usize],
     tensor_count: usize,
-) -> Rc<RefCell<Node>> {
+) -> NodeRef {
     let left_child = Rc::clone(&remaining_nodes[&replace_to_ssa[&ij[0]]]);
     let right_child = Rc::clone(&remaining_nodes[&replace_to_ssa[&ij[1]]]);
     parent_node(tensor_count, &left_child, &right_child)
