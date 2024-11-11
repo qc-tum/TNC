@@ -1,10 +1,7 @@
 use std::rc::Rc;
 
 use balancing_schemes::BalancingScheme;
-use communication_schemes::{
-    bipartition_communication_scheme, greedy_communication_scheme,
-    weighted_branchbound_communication_scheme, CommunicationScheme,
-};
+use communication_schemes::CommunicationScheme;
 use itertools::Itertools;
 use log::info;
 use rand::{rngs::StdRng, seq::SliceRandom, Rng};
@@ -219,9 +216,11 @@ where
         .collect_vec();
 
     let (communication_cost, communication_path) = match communication_scheme {
-        CommunicationScheme::Greedy => greedy_communication_scheme(&children_tensors, &bond_dims),
+        CommunicationScheme::Greedy => {
+            communication_schemes::greedy_communication_scheme(&children_tensors, &bond_dims)
+        }
         CommunicationScheme::Bipartition => {
-            bipartition_communication_scheme(&children_tensors, &bond_dims)
+            communication_schemes::bipartition_communication_scheme(&children_tensors, &bond_dims)
         }
         CommunicationScheme::WeightedBranchBound => {
             let latency_map = partition_data
@@ -229,7 +228,11 @@ where
                 .enumerate()
                 .map(|(i, partition)| (i, partition.cost))
                 .collect::<FxHashMap<usize, f64>>();
-            weighted_branchbound_communication_scheme(&children_tensors, &bond_dims, latency_map)
+            communication_schemes::weighted_branchbound_communication_scheme(
+                &children_tensors,
+                &bond_dims,
+                latency_map,
+            )
         }
     };
     (communication_cost, communication_path)
