@@ -197,7 +197,7 @@ fn print_dendogram(
     }
 }
 
-pub(super) fn communicate_partitions<R>(
+fn communicate_partitions<R>(
     partition_data: &[PartitionData],
     _contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
@@ -235,7 +235,7 @@ where
     (communication_cost, communication_path)
 }
 
-pub(super) fn balance_partitions<R>(
+fn balance_partitions<R>(
     partition_data: &mut [PartitionData],
     contraction_tree: &mut ContractionTree,
     tensor_network: &Tensor,
@@ -406,7 +406,7 @@ where
 /// * `larger_subtree_nodes` - A set of nodes used in comparison. Only the id from the larger subtree is returned.
 /// * `smaller_subtree_nodes` - A set of nodes used in comparison.
 /// * `objective_function` - Cost function that takes in two tensors and returns an f64 cost.
-pub(super) fn find_rebalance_node<R>(
+fn find_rebalance_node<R>(
     random_balance: &mut Option<(usize, R)>,
     larger_subtree_nodes: &FxHashMap<usize, Tensor>,
     smaller_subtree_nodes: &FxHashMap<usize, Tensor>,
