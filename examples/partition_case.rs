@@ -1,10 +1,8 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
-use tensorcontraction::contractionpath::contraction_tree::balancing::balancing_schemes::BalancingScheme;
-use tensorcontraction::contractionpath::contraction_tree::balancing::communication_schemes::CommunicationScheme;
 use tensorcontraction::contractionpath::contraction_tree::balancing::{
-    balance_partitions_iter, BalanceSettings,
+    balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
 };
 
 use tensorcontraction::contractionpath::contraction_tree::export::DendogramSettings;

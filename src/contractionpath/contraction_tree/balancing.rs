@@ -1,7 +1,5 @@
 use std::rc::Rc;
 
-use balancing_schemes::BalancingScheme;
-use communication_schemes::CommunicationScheme;
 use itertools::Itertools;
 use log::info;
 use rand::{rngs::StdRng, seq::SliceRandom, Rng};
@@ -23,8 +21,11 @@ use crate::{
 
 use super::{export::DendogramSettings, ContractionTree};
 
-pub mod balancing_schemes;
-pub mod communication_schemes;
+mod balancing_schemes;
+mod communication_schemes;
+
+pub use balancing_schemes::BalancingScheme;
+pub use communication_schemes::CommunicationScheme;
 
 #[derive(Debug, Clone, Copy)]
 pub struct BalanceSettings<R>
