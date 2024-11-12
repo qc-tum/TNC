@@ -260,7 +260,7 @@ where
         .iter()
         .enumerate()
         .map(|(i, partition)| (i, partition.cost))
-        .collect::<FxHashMap<usize, f64>>();
+        .collect::<FxHashMap<_, _>>();
     let (communication_cost, communication_path) = match communication_scheme {
         CommunicationScheme::Greedy => {
             greedy_communication_scheme(&children_tensors, &bond_dims, &latency_map)
