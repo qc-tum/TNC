@@ -228,7 +228,7 @@ mod tests {
         // Cost: (2, 1) = 960, Tensor cost = 250, Total = 1210
         // Cost: (0, 2) = 248, Tensor cost = 40
         // max(40, 1210) + 248 = 1458
-        assert_eq!(communication_scheme, path![(2, 1), (2, 0)].to_vec());
+        assert_eq!(&communication_scheme, path![(2, 1), (2, 0)]);
         assert_eq!(cost, 1458f64);
     }
 
@@ -245,7 +245,7 @@ mod tests {
         // Cost: (1, 0) = 240 , Tensor cost = 40, Total = 280
         // Cost: (2, 1) = 248, Tensor cost = 250
         // max(280, 250) + 248 = 1458
-        assert_eq!(communication_scheme, path![(1, 0), (2, 1)].to_vec());
+        assert_eq!(&communication_scheme, path![(1, 0), (2, 1)]);
         assert_eq!(cost, 528f64);
     }
 
@@ -260,7 +260,7 @@ mod tests {
         // Cost: (2, 0) = 248 , Tensor cost = 40
 
         // max(498, 40) + 248 = 1458
-        assert_eq!(communication_scheme, path![(2, 1), (2, 0)].to_vec());
+        assert_eq!(&communication_scheme, path![(2, 1), (2, 0)]);
         assert_eq!(cost, 1458f64);
     }
 }
