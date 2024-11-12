@@ -257,11 +257,11 @@ pub fn to_pdf(
     "#,
             ));
             tikz_picture.push_str(&format!(
-                r#"    \path[draw, color={color}] ({node_1_id}) -- ({x1}, {y}) -- ({id}.center);
+                r#"    \path[draw, color={color}] ({node_1_id}.north) -- ({x1}, {y}) -- ({id}.center);
     "#,
             ));
             tikz_picture.push_str(&format!(
-                r#"    \path[draw, color={color}] ({node_2_id}) -- ({x2}, {y}) -- ({id}.center);
+                r#"    \path[draw, color={color}] ({node_2_id}.north) -- ({x2}, {y}) -- ({id}.center);
     "#,
             ));
         } else {
