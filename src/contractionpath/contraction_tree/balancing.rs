@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
-        contraction_cost::contract_path_cost,
+        contraction_cost::communication_path_cost,
         contraction_tree::{
             export::{to_dendogram_format, to_pdf},
             utils::{characterize_partition, subtree_contraction_path},
@@ -123,7 +123,17 @@ where
         .map(|PartitionData { local_tensor, .. }| local_tensor.clone())
         .collect_vec();
 
-    let (fan_in_cost, _) = contract_path_cost(&children_tensors, &communication_path, true);
+    let partition_tensor_costs = partition_data
+        .iter()
+        .enumerate()
+        .map(|(i, partition)| (i, partition.cost))
+        .collect();
+    let (mut best_cost, _) = communication_path_cost(
+        &children_tensors,
+        &communication_path,
+        true,
+        Some(&partition_tensor_costs),
+    );
     let mut intermediate_cost = f64::INFINITY;
     let mut contracted_tensors = HashSet::new();
     for contraction in communication_path {
@@ -139,13 +149,12 @@ where
         }
     }
     let mut max_costs = Vec::with_capacity(iterations + 1);
-    max_costs.push(intermediate_cost + fan_in_cost);
+    max_costs.push(best_cost);
 
     print_dendogram(dendogram_settings, &contraction_tree, tensor_network, 0);
 
     let mut best_iteration = 0;
     let mut best_contraction_path = path.to_owned();
-    let mut best_cost = intermediate_cost + fan_in_cost;
 
     let mut best_tn = tensor_network.clone();
 
@@ -163,7 +172,9 @@ where
         assert_eq!(intermediate_path.len(), partition_number, "Tensors lost!");
         validate_path(&intermediate_path);
 
-        let (fan_in_cost, communication_path) = communicate_partitions(
+        // Ensures that children tensors are mapped to their respective partition costs
+        // Communication costs include intermediate costs
+        let (new_cost, communication_path) = communicate_partitions(
             &partition_data,
             &contraction_tree,
             &new_tensor_network,
@@ -186,8 +197,6 @@ where
         }
 
         intermediate_path.extend(communication_path);
-
-        let new_cost = intermediate_cost + fan_in_cost;
 
         max_costs.push(new_cost);
 
