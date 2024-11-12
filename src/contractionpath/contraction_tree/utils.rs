@@ -349,12 +349,12 @@ mod tests {
 
         assert_eq!(
             tree_contraction_path,
-            path![(1, 0), (5, 3), (1, 5)].to_vec(),
+            path![(1, 0), (5, 3), (5, 1)].to_vec(),
         );
 
         assert_eq!(
             local_contraction_path,
-            path![(1, 0), (3, 2), (1, 3)].to_vec(),
+            path![(1, 0), (3, 2), (3, 1)].to_vec(),
         );
 
         assert_eq!(171781290f64, cost);
