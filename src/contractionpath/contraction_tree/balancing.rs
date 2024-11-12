@@ -1,5 +1,9 @@
 use std::{collections::HashSet, rc::Rc};
 
+use communication_schemes::{
+    bipartition_communication_scheme, greedy_communication_scheme,
+    weighted_branchbound_communication_scheme,
+};
 use itertools::Itertools;
 use log::info;
 use rand::{rngs::StdRng, seq::SliceRandom, Rng};
