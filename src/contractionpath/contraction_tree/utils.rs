@@ -62,11 +62,9 @@ pub fn parallel_tree_contraction_cost(
             .clone()
             .unwrap();
         let tensor = tensor_network.nested_tensor(&tensor_id).clone();
-        let tensor_cost = if let Some(tensor_partition_cost) = tensor_partition_cost {
-            tensor_partition_cost.get(&node_id).unwrap_or(&0.0)
-        } else {
-            &0.0
-        };
+        let tensor_cost = tensor_partition_cost
+            .and_then(|costs| costs.get(&node_id))
+            .unwrap_or(&0.0);
         (*tensor_cost, tensor.size() as f64, tensor)
     }
 }
