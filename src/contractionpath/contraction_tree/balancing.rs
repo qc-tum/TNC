@@ -243,25 +243,20 @@ where
             tc
         })
         .collect_vec();
-
+    let latency_map = partition_data
+        .iter()
+        .enumerate()
+        .map(|(i, partition)| (i, partition.cost))
+        .collect::<FxHashMap<usize, f64>>();
     let (communication_cost, communication_path) = match communication_scheme {
         CommunicationScheme::Greedy => {
-            communication_schemes::greedy_communication_scheme(&children_tensors, &bond_dims)
+            greedy_communication_scheme(&children_tensors, &bond_dims, &latency_map)
         }
         CommunicationScheme::Bipartition => {
-            communication_schemes::bipartition_communication_scheme(&children_tensors, &bond_dims)
+            bipartition_communication_scheme(&children_tensors, &bond_dims, &latency_map)
         }
         CommunicationScheme::WeightedBranchBound => {
-            let latency_map = partition_data
-                .iter()
-                .enumerate()
-                .map(|(i, partition)| (i, partition.cost))
-                .collect::<FxHashMap<usize, f64>>();
-            communication_schemes::weighted_branchbound_communication_scheme(
-                &children_tensors,
-                &bond_dims,
-                latency_map,
-            )
+            weighted_branchbound_communication_scheme(&children_tensors, &bond_dims, &latency_map)
         }
     };
     (communication_cost, communication_path)
