@@ -2,11 +2,10 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use regex::RegexSet;
 use rustc_hash::FxHashMap;
-use std::{cell::RefCell, fs, rc::Rc};
+use std::{fs, rc::Rc};
 
 use crate::{
-    contractionpath::contraction_tree::{export::to_pdf, node::Node},
-    types::ContractionIndex,
+    contractionpath::contraction_tree::export::to_pdf, types::ContractionIndex,
     utils::traits::HashMapInsertNew,
 };
 
