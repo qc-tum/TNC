@@ -224,20 +224,10 @@ pub fn communication_path_cost(
     } else {
         contract_cost_tensors
     };
-    let new_hashmap = if tensor_cost.is_none() {
-        let mut new_hashmap = FxHashMap::default();
-        for i in 0..inputs.len() {
-            new_hashmap.entry(i).or_default();
-        }
-        new_hashmap
-    } else {
-        Default::default()
-    };
-
     let tensor_cost = if let Some(tensor_cost) = tensor_cost {
         tensor_cost
     } else {
-        &new_hashmap
+        &FxHashMap::from_iter((0..inputs.len()).map(|i| (i, 0f64)))
     };
 
     communication_path_custom_cost(inputs, contract_path, cost_function, tensor_cost)
