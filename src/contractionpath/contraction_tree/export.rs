@@ -378,7 +378,7 @@ pub fn to_dendogram(
 fn compile_tex(pdf_name: &str, tex_code: &str) {
     fs::write("final.tex", tex_code).unwrap();
 
-    let compilation_status = Command::new("pdflatex")
+    let compilation_status = Command::new("lualatex")
         .arg(format!("-jobname={pdf_name}"))
         .arg("final.tex")
         .stdout(Stdio::null())
