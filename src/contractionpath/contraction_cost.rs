@@ -250,9 +250,8 @@ fn communication_path_custom_cost(
             ContractionIndex::Pair(i, j) => {
                 let k12 = &inputs[i] ^ &inputs[j];
                 let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
-
                 mem_cost = mem_cost.max(new_mem_cost);
-                println!("mem_cost: {:?}", mem_cost);
+
                 let costs_i = *current_tensor_costs.entry(i).or_insert(tensor_cost[&i]);
                 let costs_j = *current_tensor_costs.entry(j).or_insert(tensor_cost[&j]);
                 current_tensor_costs.entry(i).and_modify(|a| {
