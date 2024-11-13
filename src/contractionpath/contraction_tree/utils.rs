@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
-        contraction_cost::{contract_cost_tensors, contract_path_cost, contract_size_tensors},
+        contraction_cost::{contract_op_cost_tensors, contract_path_cost, contract_size_tensors},
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
     pair,
@@ -15,12 +15,13 @@ use crate::{
 
 use super::{balancing::PartitionData, ContractionTree};
 
-/// Returns contraction cost of subtree in `contraction_tree` if all subtrees can be contracted in parallel..
+/// Returns contraction cost of subtree in `contraction_tree` if all subtrees can be contracted in parallel.
 ///
 /// # Arguments
 /// * `contraction_tree` - [`ContractionTree`] object
 /// * `node_id` - root of subtree to examine
-/// * `tn` - [`Tensor`] object containing bond dimension and leaf node information
+/// * `tensor_network` - [`Tensor`] object containing bond dimension and leaf node information
+/// * `tensor_cost` - Optional HashMap that tracks starting costs of base tensors
 ///
 /// # Returns
 /// Total op cost and maximum memory required of fully contracting subtree rooted at `node_id` in parallel
@@ -28,16 +29,25 @@ pub fn parallel_tree_contraction_cost(
     contraction_tree: &ContractionTree,
     node_id: usize,
     tensor_network: &Tensor,
+    tensor_partition_cost: Option<&FxHashMap<usize, f64>>,
 ) -> (f64, f64, Tensor) {
     let left_child_id = contraction_tree.node(node_id).left_child_id();
     let right_child_id = contraction_tree.node(node_id).right_child_id();
     if let (Some(left_child_id), Some(right_child_id)) = (left_child_id, right_child_id) {
-        let (left_op_cost, left_mem_cost, t1) =
-            parallel_tree_contraction_cost(contraction_tree, left_child_id, tensor_network);
-        let (right_op_cost, right_mem_cost, t2) =
-            parallel_tree_contraction_cost(contraction_tree, right_child_id, tensor_network);
+        let (left_op_cost, left_mem_cost, t1) = parallel_tree_contraction_cost(
+            contraction_tree,
+            left_child_id,
+            tensor_network,
+            tensor_partition_cost,
+        );
+        let (right_op_cost, right_mem_cost, t2) = parallel_tree_contraction_cost(
+            contraction_tree,
+            right_child_id,
+            tensor_network,
+            tensor_partition_cost,
+        );
         let current_tensor = &t1 ^ &t2;
-        let contraction_cost = contract_cost_tensors(&t1, &t2);
+        let contraction_cost = contract_op_cost_tensors(&t1, &t2);
         let current_mem_cost = contract_size_tensors(&t1, &t2);
 
         (
@@ -52,7 +62,10 @@ pub fn parallel_tree_contraction_cost(
             .clone()
             .unwrap();
         let tensor = tensor_network.nested_tensor(&tensor_id).clone();
-        (0.0, tensor.size() as f64, tensor)
+        let tensor_cost = tensor_partition_cost
+            .and_then(|costs| costs.get(&node_id))
+            .unwrap_or(&0.0);
+        (*tensor_cost, tensor.size() as f64, tensor)
     }
 }
 
@@ -321,9 +334,9 @@ mod tests {
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
 
         let (op_cost, mem_cost, _) =
-            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor, None);
 
-        assert_eq!(op_cost, 4540f64);
+        assert_eq!(op_cost, 600f64);
         assert_eq!(mem_cost, 538f64);
     }
 
@@ -333,9 +346,9 @@ mod tests {
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
 
         let (op_cost, mem_cost, _) =
-            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor);
+            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor, None);
 
-        assert_eq!(op_cost, 2120600f64);
+        assert_eq!(op_cost, 265215f64);
         assert_eq!(mem_cost, 89478f64);
     }
 
@@ -349,12 +362,12 @@ mod tests {
 
         assert_eq!(
             tree_contraction_path,
-            path![(1, 0), (5, 3), (1, 5)].to_vec(),
+            path![(1, 0), (5, 3), (5, 1)].to_vec(),
         );
 
         assert_eq!(
             local_contraction_path,
-            path![(1, 0), (3, 2), (1, 3)].to_vec(),
+            path![(1, 0), (3, 2), (3, 1)].to_vec(),
         );
 
         assert_eq!(171781290f64, cost);

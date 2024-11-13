@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
-        contraction_cost::contract_path_cost,
+        contraction_cost::communication_path_cost,
         contraction_tree::{
             export::{to_dendogram_format, to_pdf},
             utils::{characterize_partition, subtree_contraction_path},
@@ -118,22 +118,30 @@ where
 
     let partition_number = partition_data.len();
 
-    let intermediate_cost = partition_data.last().unwrap().cost;
-
     let children_tensors = partition_data
         .iter()
         .map(|PartitionData { local_tensor, .. }| local_tensor.clone())
         .collect_vec();
 
-    let (communication_cost, _) = contract_path_cost(&children_tensors, &communication_path, true);
+    let partition_tensor_costs = partition_data
+        .iter()
+        .enumerate()
+        .map(|(i, partition)| (i, partition.cost))
+        .collect();
+    let (mut best_cost, _) = communication_path_cost(
+        &children_tensors,
+        &communication_path,
+        true,
+        Some(&partition_tensor_costs),
+    );
+
     let mut max_costs = Vec::with_capacity(iterations + 1);
-    max_costs.push(intermediate_cost + communication_cost);
+    max_costs.push(best_cost);
 
     print_dendogram(dendogram_settings, &contraction_tree, tensor_network, 0);
 
     let mut best_iteration = 0;
     let mut best_contraction_path = path.to_owned();
-    let mut best_cost = intermediate_cost + communication_cost;
 
     let mut best_tn = tensor_network.clone();
 
@@ -141,7 +149,7 @@ where
         info!("Balancing iteration {i} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
 
         // Balances and updates partitions
-        let (largest_local_cost, mut intermediate_path, new_tensor_network) = balance_partitions(
+        let (mut intermediate_path, new_tensor_network) = balance_partitions(
             &mut partition_data,
             &mut contraction_tree,
             tensor_network,
@@ -151,7 +159,9 @@ where
         assert_eq!(intermediate_path.len(), partition_number, "Tensors lost!");
         validate_path(&intermediate_path);
 
-        let (fan_in_cost, communication_path) = communicate_partitions(
+        // Ensures that children tensors are mapped to their respective partition costs
+        // Communication costs include intermediate costs
+        let (new_cost, communication_path) = communicate_partitions(
             &partition_data,
             &contraction_tree,
             &new_tensor_network,
@@ -159,7 +169,6 @@ where
         );
 
         intermediate_path.extend(communication_path);
-        let new_cost = largest_local_cost + fan_in_cost;
 
         max_costs.push(new_cost);
 
@@ -215,24 +224,29 @@ where
             tc
         })
         .collect_vec();
-
+    let latency_map = partition_data
+        .iter()
+        .enumerate()
+        .map(|(i, partition)| (i, partition.cost))
+        .collect::<FxHashMap<_, _>>();
     let (communication_cost, communication_path) = match communication_scheme {
-        CommunicationScheme::Greedy => {
-            communication_schemes::greedy_communication_scheme(&children_tensors, &bond_dims)
-        }
+        CommunicationScheme::Greedy => communication_schemes::greedy_communication_scheme(
+            &children_tensors,
+            &bond_dims,
+            &latency_map,
+        ),
         CommunicationScheme::Bipartition => {
-            communication_schemes::bipartition_communication_scheme(&children_tensors, &bond_dims)
+            communication_schemes::bipartition_communication_scheme(
+                &children_tensors,
+                &bond_dims,
+                &latency_map,
+            )
         }
         CommunicationScheme::WeightedBranchBound => {
-            let latency_map = partition_data
-                .iter()
-                .enumerate()
-                .map(|(i, partition)| (i, partition.cost))
-                .collect::<FxHashMap<usize, f64>>();
             communication_schemes::weighted_branchbound_communication_scheme(
                 &children_tensors,
                 &bond_dims,
-                latency_map,
+                &latency_map,
             )
         }
     };
@@ -244,7 +258,7 @@ fn balance_partitions<R>(
     contraction_tree: &mut ContractionTree,
     tensor_network: &Tensor,
     balance_settings: &mut BalanceSettings<R>,
-) -> (f64, Vec<ContractionIndex>, Tensor)
+) -> (Vec<ContractionIndex>, Tensor)
 where
     R: Sized + Rng,
 {
@@ -357,7 +371,6 @@ where
         },
     );
 
-    let mut new_max = 0.0;
     let mut rebalanced_path = Vec::new();
     let (partition_tensors, partition_ids): (Vec<_>, Vec<_>) = partition_data
         .iter()
@@ -367,14 +380,10 @@ where
                 i,
                 PartitionData {
                     id,
-                    cost,
                     contraction: subtree_contraction,
                     ..
                 },
             )| {
-                if *cost > new_max {
-                    new_max = *cost;
-                }
                 rebalanced_path.push(ContractionIndex::Path(i, subtree_contraction.clone()));
                 let mut child_tensor = Tensor::default();
                 let leaf_ids = contraction_tree.leaf_ids(*id);
@@ -401,7 +410,7 @@ where
 
     let mut updated_tn = Tensor::default();
     updated_tn.push_tensors(partition_tensors, Some(&bond_dims), None);
-    (new_max, rebalanced_path, updated_tn)
+    (rebalanced_path, updated_tn)
 }
 
 /// Takes two hashmaps that contain node information. Identifies which pair of nodes from larger and smaller hashmaps maximizes the greedy cost function and returns the node from the `larger_subtree_nodes`.

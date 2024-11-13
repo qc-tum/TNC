@@ -1,3 +1,5 @@
+use rustc_hash::FxHashMap;
+
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 
@@ -191,7 +193,7 @@ fn contract_path_custom_cost(
             ContractionIndex::Path(i, ref path) => {
                 let costs = contract_path_custom_cost(inputs[i].tensors(), path, cost_function);
                 op_cost += costs.0;
-                mem_cost += costs.1;
+                mem_cost = mem_cost.max(costs.1);
                 let intermediate_tensor = Tensor::new_with_bonddims(
                     inputs[i].external_edges(),
                     inputs[i].bond_dims.clone(),
@@ -204,13 +206,75 @@ fn contract_path_custom_cost(
     (op_cost, mem_cost)
 }
 
-/// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object. Ignores cost of complex multiplication.
+/// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object assuming all operations occur in parallel.
+/// # Arguments
+///
+/// * `inputs` - First tensor to determine contraction cost.
+/// * `contract_path`  - Contraction order as replacement path
+/// * `only_count_ops` - bool. if set to true, ignores cost of complex multiplication and addition and only counts number of operations
+/// * `tensor_costs` - Optional HashMap mapping tensor id to the serial cost of each tensor
+pub fn communication_path_cost(
+    inputs: &[Tensor],
+    contract_path: &[ContractionIndex],
+    only_count_ops: bool,
+    tensor_cost: Option<&FxHashMap<usize, f64>>,
+) -> (f64, f64) {
+    let cost_function = if only_count_ops {
+        contract_op_cost_tensors
+    } else {
+        contract_cost_tensors
+    };
+    let tensor_cost = if let Some(tensor_cost) = tensor_cost {
+        tensor_cost
+    } else {
+        &FxHashMap::from_iter((0..inputs.len()).map(|i| (i, 0f64)))
+    };
+
+    communication_path_custom_cost(inputs, contract_path, cost_function, tensor_cost)
+}
+
+/// Recursive portion of `contract_parallel_path_cost`
+fn communication_path_custom_cost(
+    inputs: &[Tensor],
+    contract_path: &[ContractionIndex],
+    cost_function: fn(&Tensor, &Tensor) -> f64,
+    tensor_cost: &FxHashMap<usize, f64>,
+) -> (f64, f64) {
+    let mut op_cost = 0f64;
+    let mut mem_cost = 0f64;
+    let mut inputs = inputs.to_vec();
+    let mut current_tensor_costs = FxHashMap::default();
+
+    for index in contract_path {
+        match *index {
+            ContractionIndex::Pair(i, j) => {
+                let k12 = &inputs[i] ^ &inputs[j];
+                let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
+                mem_cost = mem_cost.max(new_mem_cost);
+
+                let costs_i = *current_tensor_costs.entry(i).or_insert(tensor_cost[&i]);
+                let costs_j = *current_tensor_costs.entry(j).or_insert(tensor_cost[&j]);
+                current_tensor_costs.entry(i).and_modify(|a| {
+                    *a = cost_function(&inputs[i], &inputs[j]) + costs_i.max(costs_j)
+                });
+                op_cost = current_tensor_costs[&i];
+                inputs[i] = k12;
+            }
+            ContractionIndex::Path(..) => {
+                panic!("Nested paths not supported for contracting communication path");
+            }
+        }
+    }
+
+    (op_cost, mem_cost)
+}
 
 #[cfg(test)]
 mod tests {
+
     use rustc_hash::FxHashMap;
 
-    use crate::contractionpath::contraction_cost::contract_path_cost;
+    use crate::contractionpath::contraction_cost::{communication_path_cost, contract_path_cost};
     use crate::path;
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
@@ -254,6 +318,19 @@ mod tests {
         create_tensor_network(vec![t1, t2], &bond_dims, None)
     }
 
+    fn setup_parallel() -> Tensor {
+        create_tensor_network(
+            vec![
+                Tensor::new(vec![4, 3, 2]),
+                Tensor::new(vec![0, 1, 3, 2]),
+                Tensor::new(vec![4, 5, 6]),
+                Tensor::new(vec![5, 6]),
+            ],
+            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
+            None,
+        )
+    }
+
     #[test]
     fn test_contract_path_cost() {
         let tn = setup_simple();
@@ -266,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_path_path_cost() {
+    fn test_contract_complex_path_cost() {
         let tn = setup_complex();
         let (op_cost, mem_cost) = contract_path_cost(
             tn.tensors(),
@@ -274,7 +351,7 @@ mod tests {
             false,
         );
         assert_eq!(op_cost, 11188f64);
-        assert_eq!(mem_cost, 646f64);
+        assert_eq!(mem_cost, 538f64);
     }
 
     #[test]
@@ -289,7 +366,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_path_path_op_cost() {
+    fn test_contract_path_complex_op_cost() {
         let tn = setup_complex();
         let (op_cost, mem_cost) = contract_path_cost(
             tn.tensors(),
@@ -297,6 +374,52 @@ mod tests {
             true,
         );
         assert_eq!(op_cost, 1464f64);
-        assert_eq!(mem_cost, 646f64);
+        assert_eq!(mem_cost, 538f64);
+    }
+
+    #[test]
+    fn test_contract_parallel_path_op_cost() {
+        let tn = setup_parallel();
+        let (op_cost, mem_cost) =
+            communication_path_cost(tn.tensors(), path![(0, 1), (2, 3), (0, 2)], true, None);
+        assert_eq!(op_cost, 490f64);
+        assert_eq!(mem_cost, 538f64);
+    }
+
+    #[test]
+    fn test_contract_parallel_path_cost() {
+        let tn = setup_parallel();
+        let (op_cost, mem_cost) =
+            communication_path_cost(tn.tensors(), path![(0, 1), (2, 3), (0, 1)], false, None);
+        assert_eq!(op_cost, 7564f64);
+        assert_eq!(mem_cost, 538f64);
+    }
+
+    #[test]
+    fn test_contract_parallel_path_op_cost_with_partition_cost() {
+        let tn = setup_parallel();
+        let tensor_cost = FxHashMap::from_iter([(0, 20f64), (1, 30f64), (2, 80f64), (3, 10f64)]);
+        let (op_cost, mem_cost) = communication_path_cost(
+            tn.tensors(),
+            path![(0, 1), (2, 3), (0, 2)],
+            true,
+            Some(&tensor_cost),
+        );
+        assert_eq!(op_cost, 520f64);
+        assert_eq!(mem_cost, 538f64);
+    }
+
+    #[test]
+    fn test_contract_parallel_path_cost_with_partition_cost() {
+        let tn = setup_parallel();
+        let tensor_cost = FxHashMap::from_iter([(0, 20f64), (1, 30f64), (2, 80f64), (3, 10f64)]);
+        let (op_cost, mem_cost) = communication_path_cost(
+            tn.tensors(),
+            path![(0, 1), (2, 3), (0, 1)],
+            false,
+            Some(&tensor_cost),
+        );
+        assert_eq!(op_cost, 7594f64);
+        assert_eq!(mem_cost, 538f64);
     }
 }
