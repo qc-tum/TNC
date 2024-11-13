@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
-use crate::contractionpath::contraction_cost::contract_cost_tensors;
+use crate::contractionpath::contraction_cost::contract_op_cost_tensors;
 use crate::contractionpath::contraction_tree::utils::parallel_tree_contraction_cost;
 use crate::contractionpath::contraction_tree::ContractionTree;
 use crate::contractionpath::paths::greedy::Greedy;
@@ -119,8 +119,9 @@ pub fn tensor_bipartition_recursive(
             (children_tensor[0].0, children_tensor[1].0)
         };
         let tensor = &children_tensor[0].1 ^ &children_tensor[1].1;
-        let contraction_cost = contract_cost_tensors(&children_tensor[0].1, &children_tensor[1].1)
-            + latency_map[&children_tensor[0].0].max(latency_map[&children_tensor[1].0]);
+        let contraction_cost =
+            contract_op_cost_tensors(&children_tensor[0].1, &children_tensor[1].1)
+                + latency_map[&children_tensor[0].0].max(latency_map[&children_tensor[1].0]);
         return (t1, contraction_cost, tensor, vec![pair!(t1, t2)]);
     }
 
@@ -144,7 +145,7 @@ pub fn tensor_bipartition_recursive(
     let (id_2, cost_2, t2, mut contraction_2) =
         tensor_bipartition_recursive(&children_2, bond_dims, latency_map);
 
-    let cost = cost_1.max(cost_2) + contract_cost_tensors(&t1, &t2);
+    let cost = cost_1.max(cost_2) + contract_op_cost_tensors(&t1, &t2);
     let tensor = &t1 ^ &t2;
 
     contraction_1.append(&mut contraction_2);
@@ -186,7 +187,7 @@ mod tests {
     };
 
     fn setup_simple_partition_data() -> FxHashMap<usize, f64> {
-        FxHashMap::from_iter([(0, 40f64), (1, 40f64), (2, 250f64)])
+        FxHashMap::from_iter([(0, 40f64), (1, 30f64), (2, 50f64)])
     }
 
     /// Tensor ids in contraction tree included in variable name for easy tracking
@@ -225,11 +226,11 @@ mod tests {
             &bond_dims.read().unwrap(),
             &tensor_partition_costs,
         );
-        // Cost: (2, 1) = 960, Tensor cost = 250, Total = 1210
-        // Cost: (0, 2) = 248, Tensor cost = 40
-        // max(40, 1210) + 248 = 1458
+        // Cost: (2, 1) = 128, Tensor cost = 50, Total = 178
+        // Cost: (0, 2) = 32, Tensor cost = 40
+        // max(40, 178) + 32 = 210
         assert_eq!(&communication_scheme, path![(2, 1), (2, 0)]);
-        assert_eq!(cost, 1458f64);
+        assert_eq!(cost, 210f64);
     }
 
     #[test]
@@ -242,11 +243,11 @@ mod tests {
             &bond_dims.read().unwrap(),
             &latency_map,
         );
-        // Cost: (1, 0) = 240 , Tensor cost = 40, Total = 280
-        // Cost: (2, 1) = 248, Tensor cost = 250
-        // max(280, 250) + 248 = 1458
+        // Cost: (1, 0) = 32 , Tensor cost = 40, Total = 72
+        // Cost: (2, 1) = 32, Tensor cost = 50
+        // max(72, 50) + 32 = 104
         assert_eq!(&communication_scheme, path![(1, 0), (2, 1)]);
-        assert_eq!(cost, 528f64);
+        assert_eq!(cost, 104f64);
     }
 
     #[test]
@@ -256,11 +257,10 @@ mod tests {
 
         let (cost, communication_scheme) =
             bipartition_communication_scheme(&tensors, &bond_dims.read().unwrap(), &latency_map);
-        // Cost: (2, 1) = 960, Tensor cost = 250
-        // Cost: (2, 0) = 248 , Tensor cost = 40
-
-        // max(498, 40) + 248 = 1458
+        // Cost: (2, 1) = 128, Tensor cost = 50, Total = 178
+        // Cost: (2, 0) = 32 , Tensor cost = 40
+        // max(178, 40) + 32 = 210
         assert_eq!(&communication_scheme, path![(2, 1), (2, 0)]);
-        assert_eq!(cost, 1458f64);
+        assert_eq!(cost, 210f64);
     }
 }

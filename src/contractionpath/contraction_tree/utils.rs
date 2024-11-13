@@ -336,7 +336,7 @@ mod tests {
         let (op_cost, mem_cost, _) =
             parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor, None);
 
-        assert_eq!(op_cost, 4540f64);
+        assert_eq!(op_cost, 600f64);
         assert_eq!(mem_cost, 538f64);
     }
 
@@ -348,7 +348,7 @@ mod tests {
         let (op_cost, mem_cost, _) =
             parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor, None);
 
-        assert_eq!(op_cost, 2120600f64);
+        assert_eq!(op_cost, 265215f64);
         assert_eq!(mem_cost, 89478f64);
     }
 
