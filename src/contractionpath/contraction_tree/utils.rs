@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
-        contraction_cost::{contract_cost_tensors, contract_path_cost, contract_size_tensors},
+        contraction_cost::{contract_op_cost_tensors, contract_path_cost, contract_size_tensors},
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
     pair,
@@ -15,7 +15,7 @@ use crate::{
 
 use super::{balancing::PartitionData, ContractionTree};
 
-/// Returns contraction cost of subtree in `contraction_tree` if all subtrees can be contracted in parallel..
+/// Returns contraction cost of subtree in `contraction_tree` if all subtrees can be contracted in parallel.
 ///
 /// # Arguments
 /// * `contraction_tree` - [`ContractionTree`] object
@@ -47,7 +47,7 @@ pub fn parallel_tree_contraction_cost(
             tensor_partition_cost,
         );
         let current_tensor = &t1 ^ &t2;
-        let contraction_cost = contract_cost_tensors(&t1, &t2);
+        let contraction_cost = contract_op_cost_tensors(&t1, &t2);
         let current_mem_cost = contract_size_tensors(&t1, &t2);
 
         (
