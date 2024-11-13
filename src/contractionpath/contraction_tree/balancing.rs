@@ -1,9 +1,5 @@
 use std::{collections::HashSet, rc::Rc};
 
-use communication_schemes::{
-    bipartition_communication_scheme, greedy_communication_scheme,
-    weighted_branchbound_communication_scheme,
-};
 use itertools::Itertools;
 use log::info;
 use rand::{rngs::StdRng, seq::SliceRandom, Rng};
@@ -262,14 +258,24 @@ where
         .map(|(i, partition)| (i, partition.cost))
         .collect::<FxHashMap<_, _>>();
     let (communication_cost, communication_path) = match communication_scheme {
-        CommunicationScheme::Greedy => {
-            greedy_communication_scheme(&children_tensors, &bond_dims, &latency_map)
-        }
+        CommunicationScheme::Greedy => communication_schemes::greedy_communication_scheme(
+            &children_tensors,
+            &bond_dims,
+            &latency_map,
+        ),
         CommunicationScheme::Bipartition => {
-            bipartition_communication_scheme(&children_tensors, &bond_dims, &latency_map)
+            communication_schemes::bipartition_communication_scheme(
+                &children_tensors,
+                &bond_dims,
+                &latency_map,
+            )
         }
         CommunicationScheme::WeightedBranchBound => {
-            weighted_branchbound_communication_scheme(&children_tensors, &bond_dims, &latency_map)
+            communication_schemes::weighted_branchbound_communication_scheme(
+                &children_tensors,
+                &bond_dims,
+                &latency_map,
+            )
         }
     };
     (communication_cost, communication_path)
