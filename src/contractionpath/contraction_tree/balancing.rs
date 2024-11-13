@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc};
+use std::rc::Rc;
 
 use itertools::Itertools;
 use log::info;
@@ -134,20 +134,7 @@ where
         true,
         Some(&partition_tensor_costs),
     );
-    let mut intermediate_cost = f64::INFINITY;
-    let mut contracted_tensors = HashSet::new();
-    for contraction in communication_path {
-        if let ContractionIndex::Pair(i, j) = contraction {
-            if !contracted_tensors.contains(&i) && !contracted_tensors.contains(&j) {
-                let local_max = partition_data[i].cost.max(partition_data[j].cost);
-                if local_max < intermediate_cost {
-                    intermediate_cost = local_max;
-                }
-            }
-            contracted_tensors.insert(i);
-            contracted_tensors.insert(j);
-        }
-    }
+
     let mut max_costs = Vec::with_capacity(iterations + 1);
     max_costs.push(best_cost);
 
@@ -180,21 +167,6 @@ where
             &new_tensor_network,
             &balance_settings,
         );
-
-        let mut intermediate_cost = f64::INFINITY;
-        let mut contracted_tensors = HashSet::new();
-        for contraction in communication_path.iter() {
-            if let ContractionIndex::Pair(i, j) = contraction {
-                if !contracted_tensors.contains(&i) && !contracted_tensors.contains(&j) {
-                    let local_max = partition_data[*i].cost.max(partition_data[*j].cost);
-                    if local_max < intermediate_cost {
-                        intermediate_cost = local_max;
-                    }
-                }
-                contracted_tensors.insert(i);
-                contracted_tensors.insert(j);
-            }
-        }
 
         intermediate_path.extend(communication_path);
 
