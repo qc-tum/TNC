@@ -149,7 +149,7 @@ where
         info!("Balancing iteration {i} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
 
         // Balances and updates partitions
-        let (_, mut intermediate_path, new_tensor_network) = balance_partitions(
+        let (mut intermediate_path, new_tensor_network) = balance_partitions(
             &mut partition_data,
             &mut contraction_tree,
             tensor_network,
@@ -258,7 +258,7 @@ fn balance_partitions<R>(
     contraction_tree: &mut ContractionTree,
     tensor_network: &Tensor,
     balance_settings: &mut BalanceSettings<R>,
-) -> (f64, Vec<ContractionIndex>, Tensor)
+) -> (Vec<ContractionIndex>, Tensor)
 where
     R: Sized + Rng,
 {
@@ -371,7 +371,6 @@ where
         },
     );
 
-    let mut new_max = 0.0;
     let mut rebalanced_path = Vec::new();
     let (partition_tensors, partition_ids): (Vec<_>, Vec<_>) = partition_data
         .iter()
@@ -381,14 +380,10 @@ where
                 i,
                 PartitionData {
                     id,
-                    cost,
                     contraction: subtree_contraction,
                     ..
                 },
             )| {
-                if *cost > new_max {
-                    new_max = *cost;
-                }
                 rebalanced_path.push(ContractionIndex::Path(i, subtree_contraction.clone()));
                 let mut child_tensor = Tensor::default();
                 let leaf_ids = contraction_tree.leaf_ids(*id);
@@ -415,7 +410,7 @@ where
 
     let mut updated_tn = Tensor::default();
     updated_tn.push_tensors(partition_tensors, Some(&bond_dims), None);
-    (new_max, rebalanced_path, updated_tn)
+    (rebalanced_path, updated_tn)
 }
 
 /// Takes two hashmaps that contain node information. Identifies which pair of nodes from larger and smaller hashmaps maximizes the greedy cost function and returns the node from the `larger_subtree_nodes`.
