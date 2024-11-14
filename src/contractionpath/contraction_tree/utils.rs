@@ -147,19 +147,16 @@ pub(super) fn subtree_contraction_path(
     )
 }
 
-/// Calculate local contraction path and corresponding cost at `rebalance_depth`
-/// Returns a vector of tuples, where each tuple has the tensor_id of the child and its contraction cost.
-/// tensor_id is required to identify the partition if it is sorted.
+/// Calculate local contraction path and corresponding cost at `rebalance_depth`.
 pub(super) fn characterize_partition(
     contraction_tree: &ContractionTree,
     rebalance_depth: usize,
     tensor_network: &Tensor,
-    sort: bool,
 ) -> Vec<PartitionData> {
     let children = &contraction_tree.partitions()[&rebalance_depth];
 
     // Identify the contraction cost of each partition
-    let mut partition_costs = children
+    let partition_data = children
         .iter()
         .map(|child| {
             let (local_tensors, local_contraction_path) =
@@ -175,11 +172,8 @@ pub(super) fn characterize_partition(
             }
         })
         .collect_vec();
-    if sort {
-        partition_costs.sort_unstable_by(|a, b| a.cost.total_cmp(&b.cost));
-    }
 
-    partition_costs
+    partition_data
 }
 
 #[cfg(test)]
@@ -388,8 +382,7 @@ mod tests {
         let mut contraction_tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         contraction_tree.partitions.insert(1, vec![4, 9, 12]);
         let rebalance_depth = 1;
-        let partition_data =
-            characterize_partition(&contraction_tree, rebalance_depth, &tensor, false);
+        let partition_data = characterize_partition(&contraction_tree, rebalance_depth, &tensor);
         let ref_partition_data = vec![
             PartitionData {
                 id: 4,
@@ -408,37 +401,6 @@ mod tests {
                 cost: 140f64,
                 contraction: path![(0, 1)].to_vec(),
                 local_tensor: Tensor::new(vec![5, 7]),
-            },
-        ];
-        assert_eq!(partition_data, ref_partition_data);
-    }
-
-    #[test]
-    fn test_characterize_partitions_sorted() {
-        let (tensor, ref_path) = setup_nested();
-        let mut contraction_tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-        contraction_tree.partitions.insert(1, vec![4, 9, 12]);
-        let rebalance_depth = 1;
-        let partition_data =
-            characterize_partition(&contraction_tree, rebalance_depth, &tensor, true);
-        let ref_partition_data = vec![
-            PartitionData {
-                id: 4,
-                cost: 84f64,
-                contraction: path![(0, 1), (0, 2)].to_vec(),
-                local_tensor: Tensor::new(vec![1, 2, 3]),
-            },
-            PartitionData {
-                id: 12,
-                cost: 140f64,
-                contraction: path![(0, 1)].to_vec(),
-                local_tensor: Tensor::new(vec![5, 7]),
-            },
-            PartitionData {
-                id: 9,
-                cost: 3456f64,
-                contraction: path![(0, 1), (0, 2)].to_vec(),
-                local_tensor: Tensor::new(vec![2, 1, 3, 5, 7]),
             },
         ];
         assert_eq!(partition_data, ref_partition_data);

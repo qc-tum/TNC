@@ -112,7 +112,7 @@ where
         ..
     } = balance_settings;
     let mut partition_data =
-        characterize_partition(&contraction_tree, rebalance_depth, tensor_network, false);
+        characterize_partition(&contraction_tree, rebalance_depth, tensor_network);
 
     assert!(partition_data.len() > 1);
 
