@@ -112,7 +112,7 @@ where
         ..
     } = balance_settings;
     let mut partition_data =
-        characterize_partition(&contraction_tree, rebalance_depth, tensor_network, true);
+        characterize_partition(&contraction_tree, rebalance_depth, tensor_network, false);
 
     assert!(partition_data.len() > 1);
 
@@ -276,6 +276,12 @@ where
     }
     // Will cause strange errors (picking of same partition multiple times if this is not true.Better to panic here.)
     assert!(partition_data.len() > 1);
+
+    partition_data.sort_unstable_by(
+        |PartitionData { cost: cost_a, .. }, PartitionData { cost: cost_b, .. }| {
+            cost_a.total_cmp(cost_b)
+        },
+    );
 
     let bond_dims = tensor_network.bond_dims();
     let shifted_nodes = match balancing_scheme {
