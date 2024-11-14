@@ -277,11 +277,7 @@ where
     // Will cause strange errors (picking of same partition multiple times if this is not true.Better to panic here.)
     assert!(partition_data.len() > 1);
 
-    partition_data.sort_unstable_by(
-        |PartitionData { cost: cost_a, .. }, PartitionData { cost: cost_b, .. }| {
-            cost_a.total_cmp(cost_b)
-        },
-    );
+    partition_data.sort_unstable_by(|a, b| a.cost.total_cmp(&b.cost));
 
     let bond_dims = tensor_network.bond_dims();
     let shifted_nodes = match balancing_scheme {
