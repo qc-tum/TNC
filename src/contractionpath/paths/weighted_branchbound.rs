@@ -65,33 +65,28 @@ impl<'a> WeightedBranchBound<'a> {
         size: f64,
         remaining_len: usize,
     ) -> Option<Candidate> {
-        let flops_12: f64;
-        let size_12: f64;
-        let k12: usize;
-        let k12_tensor: Tensor;
-        let mut current_size = size;
-
         if self.tensor_cache[&j].size() > self.tensor_cache[&i].size() {
             (i, j) = (j, i);
         }
 
-        if self.result_cache.contains_key(&(i, j)) {
-            k12 = self.result_cache[&(i, j)];
-            flops_12 = self.flop_cache[&k12];
-            size_12 = self.size_cache[&k12];
+        let (k12, flops_12, size_12) = if let Some(&k12) = self.result_cache.get(&(i, j)) {
+            let flops_12 = self.flop_cache[&k12];
+            let size_12 = self.size_cache[&k12];
+            (k12, flops_12, size_12)
         } else {
-            k12 = self.tensor_cache.len();
-            flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
-            size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
-            k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
-            self.result_cache.entry((i, j)).or_insert_with(|| k12);
-            self.flop_cache.entry(k12).or_insert_with(|| flops_12);
-            self.size_cache.entry(k12).or_insert_with(|| size_12);
+            let k12 = self.tensor_cache.len();
+            let flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
+            let size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
+            let k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
+            self.result_cache.insert_new((i, j), k12);
+            self.flop_cache.insert_new(k12, flops_12);
+            self.size_cache.insert_new(k12, size_12);
             self.tensor_cache.insert_new(k12, k12_tensor);
-        }
+            (k12, flops_12, size_12)
+        };
         let current_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
-        self.comm_cache.entry(k12).or_insert_with(|| current_flops);
-        current_size = current_size.max(size_12);
+        self.comm_cache.entry(k12).or_insert(current_flops);
+        let current_size = size.max(size_12);
 
         if current_flops > self.best_flops && current_size > self.best_size {
             return None;
@@ -146,16 +141,14 @@ impl<'a> WeightedBranchBound<'a> {
             return;
         }
 
-        let mut candidates = BinaryHeap::<Candidate>::new();
-        for i in remaining.iter().copied().combinations(2) {
-            let candidate = self.assess_candidate(i[0], i[1], size, remaining.len());
+        let mut candidates = BinaryHeap::with_capacity(remaining.len() * (remaining.len() - 1) / 2);
+        for pair in remaining.iter().copied().combinations(2) {
+            let candidate = self.assess_candidate(pair[0], pair[1], size, remaining.len());
             if let Some(new_candidate) = candidate {
                 candidates.push(new_candidate);
             }
         }
 
-        let mut new_remaining;
-        let mut new_path: Vec<(usize, usize, usize)>;
         let mut bi = 0;
         while self.nbranch.is_none() || bi < self.nbranch.unwrap() {
             bi += 1;
@@ -168,10 +161,10 @@ impl<'a> WeightedBranchBound<'a> {
             else {
                 break;
             };
-            new_remaining = remaining.to_vec();
+            let mut new_remaining = remaining.to_vec();
             new_remaining.retain(|e| *e != parent_ids.0 && *e != parent_ids.1);
             new_remaining.push(child_id);
-            new_path = path.to_vec();
+            let mut new_path = path.to_vec();
             new_path.push((parent_ids.0, parent_ids.1, child_id));
             WeightedBranchBound::branch_iterate(
                 self,
@@ -211,9 +204,6 @@ impl<'a> OptimizePath for WeightedBranchBound<'a> {
                     .push(ContractionIndex::Path(index, bb.get_best_path().clone()));
                 tensor.set_legs(tensor.external_edges());
             }
-            self.size_cache
-                .entry(index)
-                .or_insert_with(|| tensor.shape().iter().product::<u64>() as f64);
             self.tensor_cache.insert_new(index, tensor);
         }
         let remaining = (0..self.tn.tensors().len()).collect_vec();
