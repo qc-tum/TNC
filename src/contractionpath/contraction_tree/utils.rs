@@ -364,7 +364,7 @@ mod tests {
             path![(1, 0), (3, 2), (3, 1)].to_vec(),
         );
 
-        assert_eq!(171781290f64, cost);
+        assert_eq!(22550400f64, cost);
     }
 
     impl PartialEq for PartitionData {

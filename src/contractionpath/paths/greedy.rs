@@ -596,7 +596,7 @@ impl<'a> OptimizePath for Greedy<'a> {
             &mut rng,
         ));
         let (op_cost, mem_cost) =
-            contract_path_cost(self.tn.tensors(), &self.get_best_replace_path(), false);
+            contract_path_cost(self.tn.tensors(), &self.get_best_replace_path(), true);
         self.best_size = mem_cost;
         self.best_flops = op_cost;
     }
@@ -821,7 +821,7 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 4540f64);
+        assert_eq!(opt.best_flops, 600f64);
         assert_eq!(opt.best_size, 538f64);
         assert_eq!(opt.best_path, path![(1, 0), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 0), (2, 1)]);
@@ -833,7 +833,7 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 1582f64);
+        assert_eq!(opt.best_flops, 228f64);
         assert_eq!(opt.best_size, 121f64);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
@@ -845,7 +845,7 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 96f64);
+        assert_eq!(opt.best_flops, 16f64);
         assert_eq!(opt.best_size, 19f64);
         assert_eq!(opt.best_path, path![(1, 2), (0, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 2), (0, 1)]);
@@ -857,7 +857,7 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 74f64);
+        assert_eq!(opt.best_flops, 10f64);
         assert_eq!(opt.best_size, 11f64);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
@@ -869,7 +869,7 @@ mod tests {
         let mut opt = Greedy::new(&tn, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 4237070f64);
+        assert_eq!(opt.best_flops, 529815f64);
         assert_eq!(opt.best_size, 89478f64);
         assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 7), (9, 8)]);
         assert_eq!(
