@@ -1,9 +1,6 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
-use crate::contractionpath::contraction_cost::contract_op_cost_tensors;
-use crate::contractionpath::contraction_tree::utils::parallel_tree_contraction_cost;
-use crate::contractionpath::contraction_tree::ContractionTree;
 use crate::contractionpath::paths::greedy::Greedy;
 use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
 use crate::contractionpath::paths::{CostType, OptimizePath};
@@ -30,43 +27,30 @@ pub enum CommunicationScheme {
 pub(crate) fn greedy(
     children_tensors: &[Tensor],
     bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
-    latency_map: &FxHashMap<usize, f64>,
-) -> (f64, Vec<ContractionIndex>) {
+    _latency_map: &FxHashMap<usize, f64>,
+) -> Vec<ContractionIndex> {
     let mut communication_tensors = Tensor::default();
     communication_tensors.push_tensors(children_tensors.to_vec(), Some(bond_dims), None);
 
     let mut opt = Greedy::new(&communication_tensors, CostType::Flops);
     opt.optimize_path();
-    let final_contraction = opt.get_best_replace_path();
-    let contraction_tree =
-        ContractionTree::from_contraction_path(&communication_tensors, &final_contraction);
-
-    let (final_op_cost, _, _) = parallel_tree_contraction_cost(
-        &contraction_tree,
-        contraction_tree.root_id().unwrap(),
-        &communication_tensors,
-        Some(latency_map),
-    );
-    (final_op_cost, final_contraction)
+    opt.get_best_replace_path()
 }
 
 pub(crate) fn bipartition(
     children_tensors: &[Tensor],
     bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
-    latency_map: &FxHashMap<usize, f64>,
-) -> (f64, Vec<ContractionIndex>) {
+    _latency_map: &FxHashMap<usize, f64>,
+) -> Vec<ContractionIndex> {
     let children_tensors = children_tensors.iter().cloned().enumerate().collect_vec();
-    let (final_op_cost, final_contraction) =
-        tensor_bipartition(&children_tensors, bond_dims, latency_map);
-
-    (final_op_cost, final_contraction)
+    tensor_bipartition(&children_tensors, bond_dims)
 }
 
 pub(crate) fn weighted_branchbound(
     children_tensors: &[Tensor],
     bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
     latency_map: &FxHashMap<usize, f64>,
-) -> (f64, Vec<ContractionIndex>) {
+) -> Vec<ContractionIndex> {
     let mut communication_tensors = Tensor::default();
     communication_tensors.push_tensors(children_tensors.to_vec(), Some(bond_dims), None);
 
@@ -78,16 +62,7 @@ pub(crate) fn weighted_branchbound(
         CostType::Flops,
     );
     opt.optimize_path();
-    let final_contraction = opt.get_best_replace_path();
-    let contraction_tree =
-        ContractionTree::from_contraction_path(&communication_tensors, &final_contraction);
-    let (final_op_cost, _, _) = parallel_tree_contraction_cost(
-        &contraction_tree,
-        contraction_tree.root_id().unwrap(),
-        &communication_tensors,
-        Some(latency_map),
-    );
-    (final_op_cost, final_contraction)
+    opt.get_best_replace_path()
 }
 
 /// Uses recursive bipartitioning to identify a communication scheme for final tensors
@@ -95,8 +70,7 @@ pub(crate) fn weighted_branchbound(
 pub fn tensor_bipartition_recursive(
     children_tensor: &[(usize, Tensor)],
     bond_dims: &FxHashMap<usize, u64>,
-    latency_map: &FxHashMap<usize, f64>,
-) -> (usize, f64, Tensor, Vec<ContractionIndex>) {
+) -> (usize, Tensor, Vec<ContractionIndex>) {
     let k = 2;
     let min = true;
 
@@ -104,7 +78,6 @@ pub fn tensor_bipartition_recursive(
     if children_tensor.len() == 1 {
         return (
             children_tensor[0].0,
-            latency_map[&children_tensor[0].0],
             children_tensor[0].1.clone(),
             Vec::new(),
         );
@@ -119,10 +92,8 @@ pub fn tensor_bipartition_recursive(
             (children_tensor[0].0, children_tensor[1].0)
         };
         let tensor = &children_tensor[0].1 ^ &children_tensor[1].1;
-        let contraction_cost =
-            contract_op_cost_tensors(&children_tensor[0].1, &children_tensor[1].1)
-                + latency_map[&children_tensor[0].0].max(latency_map[&children_tensor[1].0]);
-        return (t1, contraction_cost, tensor, vec![pair!(t1, t2)]);
+
+        return (t1, tensor, vec![pair!(t1, t2)]);
     }
 
     let partitioning = communication_partitioning(
@@ -139,13 +110,10 @@ pub fn tensor_bipartition_recursive(
         .cloned()
         .partition(|_| partition_iter.next() == Some(&0));
 
-    let (id_1, cost_1, t1, mut contraction_1) =
-        tensor_bipartition_recursive(&children_1, bond_dims, latency_map);
+    let (id_1, t1, mut contraction_1) = tensor_bipartition_recursive(&children_1, bond_dims);
 
-    let (id_2, cost_2, t2, mut contraction_2) =
-        tensor_bipartition_recursive(&children_2, bond_dims, latency_map);
+    let (id_2, t2, mut contraction_2) = tensor_bipartition_recursive(&children_2, bond_dims);
 
-    let cost = cost_1.max(cost_2) + contract_op_cost_tensors(&t1, &t2);
     let tensor = &t1 ^ &t2;
 
     contraction_1.append(&mut contraction_2);
@@ -156,7 +124,7 @@ pub fn tensor_bipartition_recursive(
     };
 
     contraction_1.push(pair!(id_1, id_2));
-    (id_1, cost, tensor, contraction_1)
+    (id_1, tensor, contraction_1)
 }
 
 /// Repeatedly bipartitions tensor network to obtain communication scheme
@@ -164,11 +132,9 @@ pub fn tensor_bipartition_recursive(
 pub fn tensor_bipartition(
     children_tensor: &[(usize, Tensor)],
     bond_dims: &FxHashMap<usize, u64>,
-    latency_map: &FxHashMap<usize, f64>,
-) -> (f64, Vec<ContractionIndex>) {
-    let (_, contraction_cost, _, contraction_path) =
-        tensor_bipartition_recursive(children_tensor, bond_dims, latency_map);
-    (contraction_cost, contraction_path)
+) -> Vec<ContractionIndex> {
+    let (_, _, contraction_path) = tensor_bipartition_recursive(children_tensor, bond_dims);
+    contraction_path
 }
 
 #[cfg(test)]
@@ -178,8 +144,9 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::contraction_tree::balancing::communication_schemes::{
-            bipartition, greedy, weighted_branchbound,
+        contractionpath::{
+            contraction_cost::communication_path_cost,
+            contraction_tree::balancing::communication_schemes,
         },
         path,
         tensornetwork::tensor::Tensor,
@@ -219,44 +186,62 @@ mod tests {
     #[test]
     fn test_greedy_communication() {
         let (tensors, bond_dims) = setup_simple();
-        let tensor_partition_costs = setup_simple_partition_data();
-        let (cost, communication_scheme) = greedy(
-            &tensors,
-            &bond_dims.read().unwrap(),
-            &tensor_partition_costs,
-        );
-        // Cost: (2, 1) = 128, Tensor cost = 50, Total = 178
-        // Cost: (0, 2) = 32, Tensor cost = 40
-        // max(40, 178) + 32 = 210
+        let latency_map = setup_simple_partition_data();
+        let communication_scheme =
+            communication_schemes::greedy(&tensors, &bond_dims.read().unwrap(), &latency_map);
+
         assert_eq!(&communication_scheme, path![(2, 1), (2, 0)]);
-        assert_eq!(cost, 210f64);
+        // Flop Cost: (2, 1) = 128, Tensor cost = 50, Total = 178
+        // Flop Cost: (0, 2) = 32, Tensor cost = 40
+        // max(40, 178) + 32 = 210
+        // Mem Cost: (2, 1) = 2^4 + 2^5 + 2^5 = 80
+        let (flop_cost, mem_cost) =
+            communication_path_cost(&tensors, &communication_scheme, true, Some(&latency_map));
+        assert_eq!(flop_cost, 210f64);
+        assert_eq!(mem_cost, 80f64);
     }
 
     #[test]
     fn test_weighted_communication() {
-        let latency_map = setup_simple_partition_data();
         let (tensors, bond_dims) = setup_simple();
+        let latency_map = setup_simple_partition_data();
 
-        let (cost, communication_scheme) =
-            weighted_branchbound(&tensors, &bond_dims.read().unwrap(), &latency_map);
-        // Cost: (1, 0) = 32 , Tensor cost = 40, Total = 72
-        // Cost: (2, 1) = 32, Tensor cost = 50
-        // max(72, 50) + 32 = 104
+        let communication_scheme = communication_schemes::weighted_branchbound(
+            &tensors,
+            &bond_dims.read().unwrap(),
+            &latency_map,
+        );
+
         assert_eq!(&communication_scheme, path![(1, 0), (2, 1)]);
-        assert_eq!(cost, 104f64);
+        // Flop Cost: (1, 0) = 32 , Tensor cost = 40, Total = 72
+        // Flop Cost: (2, 1) = 32, Tensor cost = 50
+        // max(72, 50) + 32 = 104
+        // Mem Cost: (2, 1) = 2^3 + 2^5 + 2^2 = 44
+        let (flop_cost, mem_cost) =
+            communication_path_cost(&tensors, &communication_scheme, true, Some(&latency_map));
+
+        assert_eq!(flop_cost, 104f64);
+        assert_eq!(mem_cost, 44f64);
     }
 
     #[test]
     fn test_bi_partition_communication() {
-        let latency_map = setup_simple_partition_data();
         let (tensors, bond_dims) = setup_simple();
+        let latency_map = setup_simple_partition_data();
 
-        let (cost, communication_scheme) =
-            bipartition(&tensors, &bond_dims.read().unwrap(), &latency_map);
-        // Cost: (2, 1) = 128, Tensor cost = 50, Total = 178
-        // Cost: (2, 0) = 32 , Tensor cost = 40
-        // max(178, 40) + 32 = 210
+        let communication_scheme =
+            communication_schemes::bipartition(&tensors, &bond_dims.read().unwrap(), &latency_map);
+
         assert_eq!(&communication_scheme, path![(2, 1), (2, 0)]);
-        assert_eq!(cost, 210f64);
+
+        // Flop Cost: (2, 1) = 128, Tensor cost = 50, Total = 178
+        // Flop Cost: (2, 0) = 32 , Tensor cost = 40
+        // max(178, 40) + 32 = 210
+        // Mem Cost: (2, 1) = 2^4 + 2^5 + 2^5 = 80
+        let (flop_cost, mem_cost) =
+            communication_path_cost(&tensors, &communication_scheme, true, Some(&latency_map));
+
+        assert_eq!(flop_cost, 210f64);
+        assert_eq!(mem_cost, 80f64);
     }
 }

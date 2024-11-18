@@ -1,6 +1,6 @@
 use crate::{
     contractionpath::{
-        contraction_cost::contract_path_cost,
+        contraction_cost::{communication_path_cost, contract_path_cost},
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
     tensornetwork::{partitioning::partition_tensor_network, tensor::Tensor},
@@ -48,7 +48,7 @@ pub fn compute_solution(
         .iter()
         .map(|t| Tensor::new_with_bonddims(t.external_edges(), Arc::clone(&t.bond_dims)))
         .collect_vec();
-    let (communication_cost, mut communication_path) = {
+    let mut communication_path = {
         let bond_dims = partitioned_tn.bond_dims();
         match communication_scheme {
             CommunicationScheme::Greedy => {
@@ -66,6 +66,12 @@ pub fn compute_solution(
             }
         }
     };
+    let (communication_cost, _) = communication_path_cost(
+        &children_tensors,
+        &communication_path,
+        true,
+        Some(&latency_map),
+    );
 
     // Add the communication path to the local paths
     final_path.append(&mut communication_path);

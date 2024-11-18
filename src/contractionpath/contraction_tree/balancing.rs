@@ -162,19 +162,41 @@ where
 
         // Ensures that children tensors are mapped to their respective partition costs
         // Communication costs include intermediate costs
-        let (new_cost, communication_path) = communicate_partitions(
+        let communication_path = communicate_partitions(
             &partition_data,
             &mut contraction_tree,
             &new_tensor_network,
             &balance_settings,
         );
 
+        let (partition_tensors, partition_costs): (Vec<_>, FxHashMap<_, _>) = partition_data
+            .iter()
+            .enumerate()
+            .map(
+                |(
+                    i,
+                    PartitionData {
+                        local_tensor,
+                        flop_cost,
+                        ..
+                    },
+                )| (local_tensor.clone(), (i, *flop_cost)),
+            )
+            .collect();
+
+        let (flop_cost, _mem_cost) = communication_path_cost(
+            &partition_tensors,
+            &communication_path,
+            true,
+            Some(&partition_costs),
+        );
+
         intermediate_path.extend(communication_path);
 
-        max_costs.push(new_cost);
+        max_costs.push(flop_cost);
 
-        if new_cost < best_cost {
-            best_cost = new_cost;
+        if flop_cost < best_cost {
+            best_cost = flop_cost;
             best_iteration = i;
             best_tn = new_tensor_network;
             best_contraction_path = intermediate_path;
@@ -210,7 +232,7 @@ fn communicate_partitions<R>(
     contraction_tree: &mut ContractionTree,
     tensor_network: &Tensor,
     balance_settings: &BalanceSettings<R>,
-) -> (f64, Vec<ContractionIndex>)
+) -> Vec<ContractionIndex>
 where
     R: Sized + Rng,
 {
@@ -231,7 +253,7 @@ where
         .iter()
         .map(|partition| partition.id)
         .collect::<Vec<usize>>();
-    let (communication_cost, communication_path) = match communication_scheme {
+    let communication_path = match communication_scheme {
         CommunicationScheme::Greedy => {
             communication_schemes::greedy(&children_tensors, &bond_dims, &latency_map)
         }
@@ -245,7 +267,7 @@ where
 
     contraction_tree.replace_communication_path(partition_ids, &communication_path);
 
-    (communication_cost, communication_path)
+    communication_path
 }
 
 fn balance_partitions<R>(
