@@ -16,7 +16,7 @@ use super::{
 };
 
 pub(super) const COMMUNICATION_COLOR: &str = "black";
-pub(super) const COLORS: [&str; 18] = [
+pub(super) const COLORS: [&str; 16] = [
     "blue",
     "brown",
     "cyan",
@@ -31,8 +31,6 @@ pub(super) const COLORS: [&str; 18] = [
     "red",
     "teal",
     "violet",
-    "white",
-    "yellow",
     "darkgray",
     "gray",
 ];
