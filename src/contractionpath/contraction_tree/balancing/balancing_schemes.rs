@@ -222,12 +222,13 @@ where
     // Obtain most expensive and cheapest partitions
     let larger_subtree_id = partition_data.last().unwrap().id;
     // Obtain all intermediate nodes up to height `height_limit` in larger subtree
-    let larger_subtree_nodes = populate_subtree_tensor_map(
+    let mut larger_subtree_nodes = populate_subtree_tensor_map(
         contraction_tree,
         larger_subtree_id,
         tensor,
         Some(height_limit),
     );
+    larger_subtree_nodes.remove(&larger_subtree_id);
 
     // Find the subtree shift that results in the largest memory savings
     let (smaller_subtree_id, first_rebalanced_node, _) = partition_data
