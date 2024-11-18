@@ -252,7 +252,7 @@ where
         }
     };
 
-    contraction_tree.replace_communication_path(&partition_ids, &communication_path);
+    contraction_tree.replace_communication_path(partition_ids, &communication_path);
 
     (communication_cost, communication_path)
 }

@@ -232,26 +232,29 @@ impl ContractionTree {
 
     fn replace_communication_path(
         &mut self,
-        partition_ids: &[usize],
+        partition_ids: Vec<usize>,
         communication_path: &[ContractionIndex],
     ) {
-        let mut communication_ids = partition_ids.to_vec();
-        self.remove_communication_path(partition_ids);
+        // Remove all nodes involved in communication path
+        self.remove_communication_path(&partition_ids);
+
+        // Rebuild the communication-part of the tree
+        let mut communication_ids = partition_ids;
         let mut next_id = self.next_id(0);
         for contraction_index in communication_path {
             if let ContractionIndex::Pair(i, j) = contraction_index {
-                {
-                    let left_child = communication_ids[*i];
-                    let right_child = communication_ids[*j];
-                    let new_parent =
-                        parent_node(next_id, &self.nodes[&left_child], &self.nodes[&right_child]);
-                    self.nodes.insert(next_id, new_parent);
-                }
+                let left_child = communication_ids[*i];
+                let right_child = communication_ids[*j];
+                let new_parent =
+                    parent_node(next_id, &self.nodes[&left_child], &self.nodes[&right_child]);
+                self.nodes.insert(next_id, new_parent);
+
                 communication_ids[*i] = next_id;
                 next_id = self.next_id(next_id);
             }
         }
 
+        // Update root
         self.root = Rc::downgrade(self.nodes.iter().max_by_key(|entry| entry.0).unwrap().1);
     }
 
@@ -1169,7 +1172,7 @@ mod tests {
         let mut complex_tree = ContractionTree::from_contraction_path(&tensor, &path);
         let partition_ids = vec![2, 5, 8];
         complex_tree.replace_communication_path(
-            &partition_ids,
+            partition_ids,
             &[ContractionIndex::Pair(0, 2), ContractionIndex::Pair(1, 0)],
         );
 
