@@ -1,3 +1,4 @@
+use core::f64;
 use std::{rc::Rc, sync::Arc};
 
 use itertools::Itertools;
@@ -40,6 +41,7 @@ where
     pub objective_function: fn(&Tensor, &Tensor) -> f64,
     pub communication_scheme: CommunicationScheme,
     pub balancing_scheme: BalancingScheme,
+    pub max_memory: Option<f64>,
 }
 
 impl BalanceSettings<StdRng> {
@@ -49,6 +51,7 @@ impl BalanceSettings<StdRng> {
         objective_function: fn(&Tensor, &Tensor) -> f64,
         communication_scheme: CommunicationScheme,
         balancing_scheme: BalancingScheme,
+        max_memory: Option<f64>,
     ) -> Self {
         BalanceSettings::<StdRng> {
             random_balance: None,
@@ -57,6 +60,7 @@ impl BalanceSettings<StdRng> {
             objective_function,
             communication_scheme,
             balancing_scheme,
+            max_memory,
         }
     }
 }
@@ -72,6 +76,7 @@ where
         objective_function: fn(&Tensor, &Tensor) -> f64,
         communication_scheme: CommunicationScheme,
         balancing_scheme: BalancingScheme,
+        max_memory: Option<f64>,
     ) -> Self {
         BalanceSettings::<R> {
             random_balance,
@@ -80,6 +85,7 @@ where
             objective_function,
             communication_scheme,
             balancing_scheme,
+            max_memory,
         }
     }
 }
@@ -110,8 +116,10 @@ where
         iterations,
         balancing_scheme,
         communication_scheme,
+        max_memory,
         ..
     } = balance_settings;
+    let max_memory = max_memory.unwrap_or(f64::MAX);
     let mut partition_data =
         characterize_partition(&contraction_tree, rebalance_depth, tensor_network);
 
@@ -184,7 +192,7 @@ where
             )
             .collect();
 
-        let (flop_cost, _mem_cost) = communication_path_cost(
+        let (flop_cost, mem_cost) = communication_path_cost(
             &partition_tensors,
             &communication_path,
             true,
@@ -195,7 +203,7 @@ where
 
         max_costs.push(flop_cost);
 
-        if flop_cost < best_cost {
+        if flop_cost < best_cost && mem_cost < max_memory {
             best_cost = flop_cost;
             best_iteration = i;
             best_tn = new_tensor_network;

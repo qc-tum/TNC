@@ -90,6 +90,7 @@ fn main() {
                 objective_function,
                 communication_scheme,
                 BalancingScheme::BestWorst,
+                None,
             ),
             Some(&DendogramSettings {
                 output_file: format!("output/{communication_scheme:?}_trial"),

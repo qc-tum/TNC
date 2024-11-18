@@ -71,6 +71,7 @@ fn main() {
                 objective_function,
                 CommunicationScheme::Greedy,
                 BalancingScheme::BestWorst,
+                None,
             ),
             Some(&DendogramSettings {
                 output_file: String::from("output/rebalance_trial"),
