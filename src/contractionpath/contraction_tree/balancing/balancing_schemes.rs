@@ -317,19 +317,22 @@ mod tests {
         vec![
             PartitionData {
                 id: 2,
-                cost: 1f64,
+                flop_cost: 1f64,
+                mem_cost: 0f64,
                 contraction: Vec::new(),
                 local_tensor: Tensor::default(),
             },
             PartitionData {
                 id: 7,
-                cost: 2f64,
+                flop_cost: 2f64,
+                mem_cost: 0f64,
                 contraction: Vec::new(),
                 local_tensor: Tensor::default(),
             },
             PartitionData {
                 id: 14,
-                cost: 3f64,
+                flop_cost: 3f64,
+                mem_cost: 0f64,
                 contraction: Vec::new(),
                 local_tensor: Tensor::default(),
             },

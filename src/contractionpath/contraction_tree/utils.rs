@@ -111,7 +111,7 @@ pub(super) fn subtree_contraction_path(
     subtree_leaf_nodes: &[usize],
     contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
-) -> (Vec<ContractionIndex>, Vec<ContractionIndex>, f64) {
+) -> (Vec<ContractionIndex>, Vec<ContractionIndex>, f64, f64) {
     // Obtain the flattened list of Tensors corresponding to `indices`. Introduces a new indexing to find the replace contraction path.
     let tensors = subtree_leaf_nodes
         .iter()
@@ -120,7 +120,8 @@ pub(super) fn subtree_contraction_path(
                 .nested_tensor(contraction_tree.node(e).tensor_index().as_ref().unwrap())
                 .clone()
         })
-        .collect();
+        .collect::<Vec<_>>();
+
     // Obtain tensor network corresponding to subtree
     let subtree_tensor_network = create_tensor_network(tensors, &tensor_network.bond_dims(), None);
 
@@ -144,6 +145,7 @@ pub(super) fn subtree_contraction_path(
         smaller_path_node_index,
         smaller_path_new_index,
         opt.get_best_flops(),
+        opt.get_best_size(),
     )
 }
 
@@ -164,9 +166,12 @@ pub(super) fn characterize_partition(
 
             let new_tensor =
                 Tensor::new_with_bonddims(Vec::new(), Arc::clone(&tensor_network.bond_dims));
+            let (flop_cost, mem_cost) =
+                contract_path_cost(&local_tensors, &local_contraction_path, true);
             PartitionData {
                 id: *child,
-                cost: contract_path_cost(&local_tensors, &local_contraction_path, true).0,
+                flop_cost,
+                mem_cost,
                 contraction: local_contraction_path,
                 local_tensor: local_tensors.iter().fold(new_tensor, |a, b| &a ^ b),
             }
@@ -178,6 +183,8 @@ pub(super) fn characterize_partition(
 
 #[cfg(test)]
 mod tests {
+    use std::iter::zip;
+
     use super::*;
     use crate::path;
 
@@ -230,18 +237,18 @@ mod tests {
 
     fn setup_double_nested() -> (Tensor, Vec<ContractionIndex>) {
         let bond_dims = FxHashMap::from_iter([
-            (0, 27),
-            (1, 18),
-            (2, 12),
-            (3, 15),
+            (0, 1),
+            (1, 2),
+            (2, 3),
+            (3, 4),
             (4, 5),
-            (5, 3),
-            (6, 18),
-            (7, 22),
-            (8, 45),
-            (9, 65),
-            (10, 5),
-            (11, 17),
+            (5, 6),
+            (6, 7),
+            (7, 8),
+            (8, 9),
+            (9, 10),
+            (10, 11),
+            (11, 12),
         ]);
 
         let t0 = Tensor::new(vec![4, 3, 2]);
@@ -350,19 +357,28 @@ mod tests {
     fn test_subtree_contraction_path() {
         let (tensor, ref_path) = setup_double_nested();
         let contraction_tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        // Subtree tensors:
+        // 0: [4, 3, 2]
+        // 1: [0, 1, 3, 2]
+        // 3: [4, 5, 6]
+        // 5: [10, 8, 9]
         let subtree_leaf_nodes = vec![0, 1, 3, 5];
-        let (tree_contraction_path, local_contraction_path, cost) =
+        let (tree_contraction_path, local_contraction_path, flop_cost, mem_cost) =
             subtree_contraction_path(&subtree_leaf_nodes, &contraction_tree, &tensor);
 
         assert_eq!(
             tree_contraction_path,
-            path![(1, 0), (5, 3), (5, 1)].to_vec(),
+            path![(0, 1), (3, 0), (5, 3)].to_vec(),
         );
 
         assert_eq!(
             local_contraction_path,
-            path![(1, 0), (3, 2), (3, 1)].to_vec(),
+            path![(0, 1), (2, 0), (3, 2)].to_vec(),
         );
+
+        assert_eq!(flop_cost, 8100f64); // 120 + 420 + 7560
+        assert_eq!(mem_cost, 1794f64); // 84 + 630 +1080
+    }
 
     #[test]
     fn test_subtree_tensor_network() {
@@ -401,7 +417,7 @@ mod tests {
     impl PartialEq for PartitionData {
         fn eq(&self, other: &Self) -> bool {
             self.id == other.id
-                && self.cost == other.cost
+                && self.flop_cost == other.flop_cost
                 && self.contraction == other.contraction
                 && self.local_tensor.legs() == other.local_tensor.legs()
         }
@@ -417,19 +433,22 @@ mod tests {
         let ref_partition_data = vec![
             PartitionData {
                 id: 4,
-                cost: 84f64,
+                flop_cost: 84f64, // (0, 1, 2) + (1, 2, 3) = 84
+                mem_cost: 44f64,  // (0, 1) + (0, 2) + (0, 1, 2) = 44
                 contraction: path![(0, 1), (0, 2)].to_vec(),
                 local_tensor: Tensor::new(vec![1, 2, 3]),
             },
             PartitionData {
                 id: 9,
-                cost: 3456f64,
+                flop_cost: 3456f64, // (1, 2, 3, 4, 5, 8) + (1, 2, 3, 4, 5, 7, 8) = 3456
+                mem_cost: 864f64,   // (1, 2, 3, 4, 5, 8) + (4, 7, 8) + (1, 2, 3, 5) = 864
                 contraction: path![(0, 1), (0, 2)].to_vec(),
                 local_tensor: Tensor::new(vec![2, 1, 3, 5, 7]),
             },
             PartitionData {
                 id: 12,
-                cost: 140f64,
+                flop_cost: 140f64, // (5, 6, 7) = 140
+                mem_cost: 167f64,  // (5, 6, 7) + (6) + (5, 7) = 167
                 contraction: path![(0, 1)].to_vec(),
                 local_tensor: Tensor::new(vec![5, 7]),
             },

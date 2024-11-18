@@ -87,7 +87,8 @@ where
 #[derive(Debug, Clone)]
 pub struct PartitionData {
     pub id: usize,
-    pub cost: f64,
+    pub flop_cost: f64,
+    pub mem_cost: f64,
     pub contraction: Vec<ContractionIndex>,
     pub local_tensor: Tensor,
 }
@@ -126,7 +127,7 @@ where
     let partition_tensor_costs = partition_data
         .iter()
         .enumerate()
-        .map(|(i, partition)| (i, partition.cost))
+        .map(|(i, partition)| (i, partition.flop_cost))
         .collect();
     let (mut best_cost, _) = communication_path_cost(
         &children_tensors,
@@ -223,7 +224,7 @@ where
     let latency_map = partition_data
         .iter()
         .enumerate()
-        .map(|(i, partition)| (i, partition.cost))
+        .map(|(i, partition)| (i, partition.flop_cost))
         .collect::<FxHashMap<_, _>>();
 
     let partition_ids = partition_data
@@ -271,7 +272,7 @@ where
     // Will cause strange errors (picking of same partition multiple times if this is not true.Better to panic here.)
     assert!(partition_data.len() > 1);
 
-    partition_data.sort_unstable_by(|a, b| a.cost.total_cmp(&b.cost));
+    partition_data.sort_unstable_by(|a, b| a.flop_cost.total_cmp(&b.flop_cost));
 
     let bond_dims = tensor_network.bond_dims();
     let shifted_nodes = match balancing_scheme {
@@ -321,10 +322,12 @@ where
         let (
             larger_id,
             larger_contraction,
-            larger_subtree_cost,
+            larger_subtree_flop_cost,
+            larger_subtree_mem_cost,
             smaller_id,
             smaller_contraction,
-            smaller_subtree_cost,
+            smaller_subtree_flop_cost,
+            smaller_subtree_mem_cost,
         ) = shift_node_between_subtrees(
             contraction_tree,
             *rebalance_depth,
@@ -342,7 +345,8 @@ where
         // Update partition data based on shift
         for PartitionData {
             id,
-            cost,
+            flop_cost,
+            mem_cost,
             contraction: subtree_contraction,
             local_tensor,
         } in partition_data.iter_mut()
@@ -350,21 +354,26 @@ where
             if *id == shifted_from_id {
                 *id = larger_id;
                 *subtree_contraction = larger_contraction.clone();
-                *cost = larger_subtree_cost;
+                *flop_cost = larger_subtree_flop_cost;
+                *mem_cost = larger_subtree_mem_cost;
                 *local_tensor = larger_tensor.clone();
             } else if *id == shifted_to_id {
                 *id = smaller_id;
                 *subtree_contraction = smaller_contraction.clone();
-                *cost = smaller_subtree_cost;
+                *flop_cost = smaller_subtree_flop_cost;
+                *mem_cost = smaller_subtree_mem_cost;
                 *local_tensor = smaller_tensor.clone();
             }
         }
     }
 
     partition_data.sort_unstable_by(
-        |PartitionData { cost: cost_a, .. }, PartitionData { cost: cost_b, .. }| {
-            cost_a.total_cmp(cost_b)
-        },
+        |PartitionData {
+             flop_cost: cost_a, ..
+         },
+         PartitionData {
+             flop_cost: cost_b, ..
+         }| { cost_a.total_cmp(cost_b) },
     );
 
     let mut rebalanced_path = Vec::new();
@@ -461,8 +470,10 @@ fn shift_node_between_subtrees(
     usize,
     Vec<ContractionIndex>,
     f64,
+    f64,
     usize,
     Vec<ContractionIndex>,
+    f64,
     f64,
 ) {
     // Obtain parents of the two subtrees that are being updated.
@@ -491,14 +502,15 @@ fn shift_node_between_subtrees(
     smaller_subtree_leaf_nodes.extend(rebalanced_nodes);
 
     // Run Greedy on the two updated subtrees
-    let (updated_larger_path, local_larger_path, larger_cost) =
+    let (updated_larger_path, local_larger_path, larger_flop_cost, larger_mem_cost) =
         subtree_contraction_path(&larger_subtree_leaf_nodes, contraction_tree, tensor_network);
 
-    let (updated_smaller_path, local_smaller_path, smaller_cost) = subtree_contraction_path(
-        &smaller_subtree_leaf_nodes,
-        contraction_tree,
-        tensor_network,
-    );
+    let (updated_smaller_path, local_smaller_path, smaller_flop_cost, smaller_mem_cost) =
+        subtree_contraction_path(
+            &smaller_subtree_leaf_nodes,
+            contraction_tree,
+            tensor_network,
+        );
 
     // Remove larger subtree and add new subtree, keep track of updated root id
     contraction_tree.remove_subtree(larger_subtree_id);
@@ -545,10 +557,12 @@ fn shift_node_between_subtrees(
     (
         new_larger_subtree_id,
         local_larger_path,
-        larger_cost,
+        larger_flop_cost,
+        larger_mem_cost,
         new_smaller_subtree_id,
         local_smaller_path,
-        smaller_cost,
+        smaller_flop_cost,
+        smaller_mem_cost,
     )
 }
 
