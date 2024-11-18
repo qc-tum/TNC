@@ -347,7 +347,7 @@ mod tests {
     }
 
     #[test]
-    fn test_subtree_network() {
+    fn test_subtree_contraction_path() {
         let (tensor, ref_path) = setup_double_nested();
         let contraction_tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let subtree_leaf_nodes = vec![0, 1, 3, 5];
@@ -364,7 +364,38 @@ mod tests {
             path![(1, 0), (3, 2), (3, 1)].to_vec(),
         );
 
-        assert_eq!(22550400f64, cost);
+    #[test]
+    fn test_subtree_tensor_network() {
+        let (tensor, ref_path) = setup_complex();
+        let contraction_tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let node_id = 7;
+        let (subtree_tensors, contraction_path) =
+            subtree_tensor_network(node_id, &contraction_tree, &tensor);
+
+        let tensor0 = Tensor::new(vec![4, 3, 2]);
+        let tensor1 = Tensor::new(vec![0, 1, 3, 2]);
+        let tensor2 = Tensor::new(vec![4, 5, 6]);
+        let tensor3 = Tensor::new(vec![6, 8, 9]);
+        let tensor4 = Tensor::new(vec![10, 8, 9]);
+        let tensor5 = Tensor::new(vec![5, 1, 0]);
+
+        let subtree7 = vec![tensor0, tensor1, tensor5];
+        for (tensor, ref_tensor) in zip(subtree_tensors, subtree7) {
+            assert_eq!(tensor.legs(), ref_tensor.legs());
+        }
+
+        assert_eq!(contraction_path, path![(1, 2), (0, 1)]);
+
+        let node_id = 9;
+        let (subtree_tensors, contraction_path) =
+            subtree_tensor_network(node_id, &contraction_tree, &tensor);
+
+        let subtree9 = vec![tensor2, tensor3, tensor4];
+        for (tensor, ref_tensor) in zip(subtree_tensors, subtree9) {
+            assert_eq!(tensor.legs(), ref_tensor.legs());
+        }
+
+        assert_eq!(contraction_path, path![(1, 2), (0, 1)]);
     }
 
     impl PartialEq for PartitionData {
