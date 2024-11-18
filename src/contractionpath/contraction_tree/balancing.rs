@@ -500,13 +500,6 @@ fn shift_node_between_subtrees(
     larger_subtree_leaf_nodes.retain(|leaf| !rebalanced_nodes.contains(leaf));
     smaller_subtree_leaf_nodes.extend(rebalanced_nodes);
 
-    // Balancing step should not fully merge two partitions leaving one partition empty.
-    // As this affects the partitioning structure it is prevented
-    assert!(
-        !larger_subtree_leaf_nodes.is_empty(),
-        "Currently, passing all leaf nodes from larger to smaller results is undefined"
-    );
-
     // Run Greedy on the two updated subtrees
     let (updated_larger_path, local_larger_path, larger_cost) =
         subtree_contraction_path(&larger_subtree_leaf_nodes, contraction_tree, tensor_network);
@@ -687,14 +680,6 @@ mod tests {
         }
 
         assert_eq!(root.upgrade().unwrap(), ref_root);
-    }
-
-    #[test]
-    #[should_panic = "Currently, passing all leaf nodes from larger to smaller results is undefined"]
-    fn test_shift_entire_subtree_between_subtrees() {
-        let (mut tree, tensor) = setup_complex();
-        tree.partitions.entry(1).or_insert(vec![9, 7]);
-        shift_node_between_subtrees(&mut tree, 1, 9, 7, vec![2, 3, 4], &tensor);
     }
 
     fn custom_weight_function(a: &Tensor, b: &Tensor) -> f64 {
