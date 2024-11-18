@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use itertools::Itertools;
 use log::info;
@@ -163,7 +163,7 @@ where
         // Communication costs include intermediate costs
         let (new_cost, communication_path) = communicate_partitions(
             &partition_data,
-            &contraction_tree,
+            &mut contraction_tree,
             &new_tensor_network,
             &balance_settings,
         );
@@ -206,7 +206,7 @@ fn print_dendogram(
 
 fn communicate_partitions<R>(
     partition_data: &[PartitionData],
-    _contraction_tree: &ContractionTree,
+    contraction_tree: &mut ContractionTree,
     tensor_network: &Tensor,
     balance_settings: &BalanceSettings<R>,
 ) -> (f64, Vec<ContractionIndex>)
@@ -218,17 +218,18 @@ where
     let children_tensors = tensor_network
         .tensors()
         .iter()
-        .map(|t| {
-            let mut tc = Tensor::new(t.external_edges());
-            tc.bond_dims = t.bond_dims.clone();
-            tc
-        })
+        .map(|t| Tensor::new_with_bonddims(t.external_edges(), Arc::clone(&t.bond_dims)))
         .collect_vec();
     let latency_map = partition_data
         .iter()
         .enumerate()
         .map(|(i, partition)| (i, partition.cost))
         .collect::<FxHashMap<_, _>>();
+
+    let partition_ids = partition_data
+        .iter()
+        .map(|partition| partition.id)
+        .collect::<Vec<usize>>();
     let (communication_cost, communication_path) = match communication_scheme {
         CommunicationScheme::Greedy => communication_schemes::greedy_communication_scheme(
             &children_tensors,
@@ -250,6 +251,9 @@ where
             )
         }
     };
+
+    contraction_tree.replace_communication_path(partition_ids, &communication_path);
+
     (communication_cost, communication_path)
 }
 
