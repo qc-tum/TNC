@@ -220,6 +220,41 @@ impl ContractionTree {
         index
     }
 
+    fn remove_communication_path(&mut self, partition_ids: &[usize]) {
+        for partition_id in partition_ids {
+            let mut parent_id = self.node(*partition_id).parent_id();
+            while let Some(tensor_id) = parent_id {
+                parent_id = self.node(tensor_id).parent_id();
+                self.nodes.remove(&tensor_id);
+            }
+        }
+    }
+
+    fn replace_communication_path(
+        &mut self,
+        partition_ids: &[usize],
+        communication_path: &[ContractionIndex],
+    ) {
+        let mut communication_ids = partition_ids.to_vec();
+        self.remove_communication_path(partition_ids);
+        let mut next_id = self.next_id(0);
+        for contraction_index in communication_path {
+            if let ContractionIndex::Pair(i, j) = contraction_index {
+                {
+                    let left_child = communication_ids[*i];
+                    let right_child = communication_ids[*j];
+                    let new_parent =
+                        parent_node(next_id, &self.nodes[&left_child], &self.nodes[&right_child]);
+                    self.nodes.insert(next_id, new_parent);
+                }
+                communication_ids[*i] = next_id;
+                next_id = self.next_id(next_id);
+            }
+        }
+
+        self.root = Rc::downgrade(self.nodes.iter().max_by_key(|entry| entry.0).unwrap().1);
+    }
+
     fn tree_weights_recurse(
         node: &Node,
         tn: &Tensor,
@@ -1115,5 +1150,39 @@ mod tests {
         let new_path = path![(4, 2), (4, 3)];
 
         complex_tree.add_path_as_subtree(new_path, 9, &[3, 4, 2]);
+    }
+
+    #[test]
+    fn test_remove_communication_path() {
+        let (tensor, path) = setup_nested();
+        let mut complex_tree = ContractionTree::from_contraction_path(&tensor, &path);
+        let partition_ids = vec![2, 5, 8];
+        complex_tree.remove_communication_path(&partition_ids);
+        assert!(!complex_tree.nodes.contains_key(&9));
+        assert!(!complex_tree.nodes.contains_key(&10));
+        assert!(complex_tree.root_id().is_none());
+    }
+
+    #[test]
+    fn test_replace_communication_path() {
+        let (tensor, path) = setup_nested();
+        let mut complex_tree = ContractionTree::from_contraction_path(&tensor, &path);
+        let partition_ids = vec![2, 5, 8];
+        complex_tree.replace_communication_path(
+            &partition_ids,
+            &[ContractionIndex::Pair(0, 2), ContractionIndex::Pair(1, 0)],
+        );
+
+        let ContractionTree { nodes, root, .. } = complex_tree;
+
+        let node2 = child_node(2, vec![]);
+        let node5 = child_node(5, vec![]);
+        let node8 = child_node(8, vec![]);
+        let node9 = parent_node(9, &node2, &node8);
+        let node10 = parent_node(10, &node5, &node9);
+
+        assert_eq!(nodes[&9], node9);
+        assert_eq!(nodes[&10], node10);
+        assert_eq!(root.upgrade().unwrap(), node10);
     }
 }
