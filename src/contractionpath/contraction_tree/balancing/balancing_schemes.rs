@@ -51,7 +51,7 @@ pub(super) struct Shift {
 
 /// Balancing scheme that moves a tensor from the slowest subtree to the fastest subtree each time.
 /// Chosen tensor maximizes the `objective_function`, which is typically memory reduction.
-pub(super) fn best_worst_balancing<R>(
+pub(super) fn best_worst<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
@@ -87,7 +87,7 @@ where
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
 /// Chosen tensor maximizes the `objective_function`, which is typically memory reduction.
-pub(super) fn best_tensor_balancing<R>(
+pub(super) fn best_tensor<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
@@ -130,7 +130,7 @@ where
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
 /// Then identifies the tensor with the largest memory reduction when passed to the fastest subtree. Both slowest and fastest subtrees are updated.
-pub(super) fn best_tensors_balancing<R>(
+pub(super) fn best_tensors<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
@@ -208,7 +208,7 @@ where
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
 /// Then identifies the tensor with the largest memory reduction when passed to the fastest subtree. Both slowest and fastest subtrees are updated.
-pub(super) fn best_intermediate_tensors_balancing<R>(
+pub(super) fn best_intermediate_tensors<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
@@ -302,8 +302,7 @@ mod tests {
         contractionpath::contraction_tree::{
             balancing::{
                 balancing_schemes::{
-                    best_intermediate_tensors_balancing, best_tensor_balancing,
-                    best_tensors_balancing, best_worst_balancing, Shift,
+                    best_intermediate_tensors, best_tensor, best_tensors, best_worst, Shift,
                 },
                 PartitionData,
             },
@@ -411,7 +410,7 @@ mod tests {
         let partition_data = setup_simple_partition_data();
         let (contraction_tree, tensor) = setup_simple();
 
-        let output = best_worst_balancing::<StdRng>(
+        let output = best_worst::<StdRng>(
             &partition_data,
             &contraction_tree,
             &mut None,
@@ -432,7 +431,7 @@ mod tests {
         let partition_data = setup_simple_partition_data();
         let (contraction_tree, tensor) = setup_simple();
 
-        let output = best_tensor_balancing::<StdRng>(
+        let output = best_tensor::<StdRng>(
             &partition_data,
             &contraction_tree,
             &mut None,
@@ -453,7 +452,7 @@ mod tests {
         let partition_data = setup_simple_partition_data();
         let (contraction_tree, tensor) = setup_simple();
 
-        let output = best_tensors_balancing::<StdRng>(
+        let output = best_tensors::<StdRng>(
             &partition_data,
             &contraction_tree,
             &mut None,
@@ -481,7 +480,7 @@ mod tests {
         let partition_data = setup_simple_partition_data();
         let (contraction_tree, tensor) = setup_simple();
 
-        let output = best_intermediate_tensors_balancing::<StdRng>(
+        let output = best_intermediate_tensors::<StdRng>(
             &partition_data,
             &contraction_tree,
             &mut None,

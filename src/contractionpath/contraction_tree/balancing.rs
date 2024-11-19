@@ -231,24 +231,14 @@ where
         .map(|partition| partition.id)
         .collect::<Vec<usize>>();
     let (communication_cost, communication_path) = match communication_scheme {
-        CommunicationScheme::Greedy => communication_schemes::greedy_communication_scheme(
-            &children_tensors,
-            &bond_dims,
-            &latency_map,
-        ),
+        CommunicationScheme::Greedy => {
+            communication_schemes::greedy(&children_tensors, &bond_dims, &latency_map)
+        }
         CommunicationScheme::Bipartition => {
-            communication_schemes::bipartition_communication_scheme(
-                &children_tensors,
-                &bond_dims,
-                &latency_map,
-            )
+            communication_schemes::bipartition(&children_tensors, &bond_dims, &latency_map)
         }
         CommunicationScheme::WeightedBranchBound => {
-            communication_schemes::weighted_branchbound_communication_scheme(
-                &children_tensors,
-                &bond_dims,
-                &latency_map,
-            )
+            communication_schemes::weighted_branchbound(&children_tensors, &bond_dims, &latency_map)
         }
     };
 
@@ -285,21 +275,21 @@ where
 
     let bond_dims = tensor_network.bond_dims();
     let shifted_nodes = match balancing_scheme {
-        BalancingScheme::BestWorst => balancing_schemes::best_worst_balancing(
+        BalancingScheme::BestWorst => balancing_schemes::best_worst(
             partition_data,
             contraction_tree,
             random_balance,
             *objective_function,
             tensor_network,
         ),
-        BalancingScheme::Tensor => balancing_schemes::best_tensor_balancing(
+        BalancingScheme::Tensor => balancing_schemes::best_tensor(
             partition_data,
             contraction_tree,
             random_balance,
             *objective_function,
             tensor_network,
         ),
-        BalancingScheme::Tensors => balancing_schemes::best_tensors_balancing(
+        BalancingScheme::Tensors => balancing_schemes::best_tensors(
             partition_data,
             contraction_tree,
             random_balance,
@@ -307,7 +297,7 @@ where
             tensor_network,
         ),
         BalancingScheme::IntermediateTensors { height_limit } => {
-            balancing_schemes::best_intermediate_tensors_balancing(
+            balancing_schemes::best_intermediate_tensors(
                 partition_data,
                 contraction_tree,
                 random_balance,

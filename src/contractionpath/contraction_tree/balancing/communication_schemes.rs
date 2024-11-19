@@ -27,7 +27,7 @@ pub enum CommunicationScheme {
     WeightedBranchBound,
 }
 
-pub(super) fn greedy_communication_scheme(
+pub(super) fn greedy(
     children_tensors: &[Tensor],
     bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
     latency_map: &FxHashMap<usize, f64>,
@@ -50,7 +50,7 @@ pub(super) fn greedy_communication_scheme(
     (final_op_cost, final_contraction)
 }
 
-pub(super) fn bipartition_communication_scheme(
+pub(super) fn bipartition(
     children_tensors: &[Tensor],
     bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
     latency_map: &FxHashMap<usize, f64>,
@@ -62,7 +62,7 @@ pub(super) fn bipartition_communication_scheme(
     (final_op_cost, final_contraction)
 }
 
-pub(super) fn weighted_branchbound_communication_scheme(
+pub(super) fn weighted_branchbound(
     children_tensors: &[Tensor],
     bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
     latency_map: &FxHashMap<usize, f64>,
@@ -179,8 +179,7 @@ mod tests {
 
     use crate::{
         contractionpath::contraction_tree::balancing::communication_schemes::{
-            bipartition_communication_scheme, greedy_communication_scheme,
-            weighted_branchbound_communication_scheme,
+            bipartition, greedy, weighted_branchbound,
         },
         path,
         tensornetwork::tensor::Tensor,
@@ -221,7 +220,7 @@ mod tests {
     fn test_greedy_communication() {
         let (tensors, bond_dims) = setup_simple();
         let tensor_partition_costs = setup_simple_partition_data();
-        let (cost, communication_scheme) = greedy_communication_scheme(
+        let (cost, communication_scheme) = greedy(
             &tensors,
             &bond_dims.read().unwrap(),
             &tensor_partition_costs,
@@ -238,11 +237,8 @@ mod tests {
         let latency_map = setup_simple_partition_data();
         let (tensors, bond_dims) = setup_simple();
 
-        let (cost, communication_scheme) = weighted_branchbound_communication_scheme(
-            &tensors,
-            &bond_dims.read().unwrap(),
-            &latency_map,
-        );
+        let (cost, communication_scheme) =
+            weighted_branchbound(&tensors, &bond_dims.read().unwrap(), &latency_map);
         // Cost: (1, 0) = 32 , Tensor cost = 40, Total = 72
         // Cost: (2, 1) = 32, Tensor cost = 50
         // max(72, 50) + 32 = 104
@@ -256,7 +252,7 @@ mod tests {
         let (tensors, bond_dims) = setup_simple();
 
         let (cost, communication_scheme) =
-            bipartition_communication_scheme(&tensors, &bond_dims.read().unwrap(), &latency_map);
+            bipartition(&tensors, &bond_dims.read().unwrap(), &latency_map);
         // Cost: (2, 1) = 128, Tensor cost = 50, Total = 178
         // Cost: (2, 0) = 32 , Tensor cost = 40
         // max(178, 40) + 32 = 210
