@@ -3,7 +3,7 @@ use tensorcontraction::{
     contractionpath::{
         contraction_tree::{
             balancing::CommunicationScheme,
-            repartitioning::{balance_partitions_genetic, calculate_fitness},
+            repartitioning::genetic::{balance_partitions_genetic, calculate_fitness},
         },
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
