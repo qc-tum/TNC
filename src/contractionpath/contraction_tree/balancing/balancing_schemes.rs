@@ -266,12 +266,13 @@ where
         .skip(1)
         .take(partition_data.len() - 2)
         .map(|larger| {
-            let larger_subtree_nodes = populate_subtree_tensor_map(
+            let mut larger_subtree_nodes = populate_subtree_tensor_map(
                 contraction_tree,
                 larger.id,
                 tensor,
                 Some(height_limit),
             );
+            larger_subtree_nodes.remove(&larger.id);
             let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
                 &larger_subtree_nodes,
