@@ -46,8 +46,13 @@ fn main() {
     println!("Initial score: {initial_score:?}");
 
     // Try to find a better partitioning with a simulated annealing algorithm
-    let (partitioning, final_score) =
-        balance_partitions(&tensor, partitioning, communication_scheme, &mut rng);
+    let (partitioning, final_score) = balance_partitions(
+        &tensor,
+        num_partitions as usize,
+        partitioning,
+        communication_scheme,
+        &mut rng,
+    );
     println!("Final score: {final_score:?}");
 
     // Partition the tensor network with the found partitioning and contract

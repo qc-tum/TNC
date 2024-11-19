@@ -136,6 +136,7 @@ impl SimulatedAnnealingOptimizer {
 
 struct PartitioningModel<'a> {
     tensor: &'a Tensor,
+    num_partitions: usize,
     communication_scheme: CommunicationScheme,
 }
 
@@ -147,9 +148,15 @@ impl OptModel for PartitioningModel<'_> {
         mut current_solution: Self::SolutionType,
         rng: &mut R,
     ) -> Self::SolutionType {
-        let a = rng.gen_range(0..current_solution.len());
-        let b = rng.gen_range(0..current_solution.len());
-        current_solution.swap(a, b);
+        let tensor_index = rng.gen_range(0..current_solution.len());
+        let current_partition = current_solution[tensor_index];
+        let new_partition = loop {
+            let b = rng.gen_range(0..self.num_partitions);
+            if b != current_partition {
+                break b;
+            }
+        };
+        current_solution[tensor_index] = new_partition;
         current_solution
     }
 
@@ -162,6 +169,7 @@ impl OptModel for PartitioningModel<'_> {
 /// Runs simulated annealing to find a better partitioning.
 pub fn balance_partitions<R>(
     tensor: &Tensor,
+    num_partitions: usize,
     initial_partitioning: Vec<usize>,
     communication_scheme: CommunicationScheme,
     rng: &mut R,
@@ -171,6 +179,7 @@ where
 {
     let model = PartitioningModel {
         tensor: &tensor,
+        num_partitions,
         communication_scheme,
     };
 
