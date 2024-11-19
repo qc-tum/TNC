@@ -42,7 +42,7 @@ impl Fitness for PartitioningFitness<'_> {
 
 /// Balances partitions using a genetic algorithm. Finds the partitioning that reduces
 /// the total contraction cost.
-pub fn balance_partitions_genetic(
+pub fn balance_partitions(
     tensor: &Tensor,
     num_partitions: usize,
     initial_partitioning: &[usize],

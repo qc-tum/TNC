@@ -13,6 +13,7 @@ use std::sync::Arc;
 use super::balancing::{communication_schemes, CommunicationScheme};
 
 pub mod genetic;
+pub mod simulated_annealing;
 
 /// Computes the total cost of contraction the `tensor` when partitioning it using
 /// the `partitioning` list and the `communication_scheme` for finding the

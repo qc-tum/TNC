@@ -31,6 +31,8 @@ regex = "1.10.6"
 ndarray = "0.15.6"
 genetic_algorithm = "0.16.0"
 cast = "0.3.0"
+rayon = "1.10.0"
+ordered-float = "4.5.0"
 
 [dev-dependencies]
 criterion = "0.5.1"
