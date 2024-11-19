@@ -1,4 +1,4 @@
-//! Adapted from https://github.com/lucidfrontier45/localsearch
+//! Adapted from <https://github.com/lucidfrontier45/localsearch>
 
 use itertools::Itertools;
 use ordered_float::NotNan;
@@ -178,7 +178,7 @@ where
     R: Rng + Sized,
 {
     let model = PartitioningModel {
-        tensor: &tensor,
+        tensor,
         num_partitions,
         communication_scheme,
     };
