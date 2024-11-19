@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use cast::isize;
 use genetic_algorithm::{
     crossover::CrossoverUniform,
@@ -7,73 +9,19 @@ use genetic_algorithm::{
     select::SelectTournament,
     strategy::{evolve::Evolve, prelude::EvolveReporterDuration, Strategy},
 };
+use itertools::Itertools;
+use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
-        contraction_cost::contract_op_cost_tensors,
-        contraction_tree::ContractionTree,
+        contraction_cost::contract_path_cost,
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
     tensornetwork::{partitioning::partition_tensor_network, tensor::Tensor},
+    types::ContractionIndex,
 };
 
-fn combine_tensor_index(left_tensor_index: &[usize], right_tensor_index: &[usize]) -> Vec<usize> {
-    match (left_tensor_index, right_tensor_index) {
-        ([p1, a], [p2, _b]) if p1 == p2 => vec![*p1, *a], // Contraction within a partition
-        ([p1, _a], [_p2, _b]) => vec![*p1],               // Contraction of two partition roots
-        ([p1, _a], [_b]) => vec![*p1], // Contraction of a partition root with a fan-in tensor
-        ([a], [_p2, _b]) => vec![*a],  // Contraction of a fan-in tensor with a partition root
-        ([a], [_b]) => vec![*a],       // Contraction of two fan-in tensors
-        _ => panic!("Invalid tensor index combination"),
-    }
-}
-
-fn contraction_cost(contraction_tree: &ContractionTree, tensor_network: &Tensor) -> f64 {
-    let root_id = contraction_tree.root_id().unwrap();
-    let (cost, _, _) = contraction_cost_recursive(contraction_tree, root_id, tensor_network);
-    cost
-}
-
-fn contraction_cost_recursive(
-    contraction_tree: &ContractionTree,
-    node_id: usize,
-    tensor_network: &Tensor,
-) -> (f64, Tensor, Vec<usize>) {
-    let left_child_id = contraction_tree.node(node_id).left_child_id();
-    let right_child_id = contraction_tree.node(node_id).right_child_id();
-    if let (Some(left_child_id), Some(right_child_id)) = (left_child_id, right_child_id) {
-        let (left_op_cost, t1, left_ancestor) =
-            contraction_cost_recursive(contraction_tree, left_child_id, tensor_network);
-        let (right_op_cost, t2, right_ancestor) =
-            contraction_cost_recursive(contraction_tree, right_child_id, tensor_network);
-        let current_tensor = &t1 ^ &t2;
-        let contraction_cost = contract_op_cost_tensors(&t1, &t2);
-        let tensor_index = combine_tensor_index(&left_ancestor, &right_ancestor);
-        let is_local_contraction = tensor_index.len() == 2;
-
-        if is_local_contraction {
-            (
-                left_op_cost + right_op_cost + contraction_cost,
-                current_tensor,
-                tensor_index,
-            )
-        } else {
-            (
-                left_op_cost.max(right_op_cost) + contraction_cost,
-                current_tensor,
-                tensor_index,
-            )
-        }
-    } else {
-        let tensor_id = contraction_tree
-            .node(node_id)
-            .tensor_index()
-            .clone()
-            .unwrap();
-        let tensor = tensor_network.nested_tensor(&tensor_id).clone();
-        (0.0, tensor, tensor_id)
-    }
-}
+use super::balancing::communication_schemes;
 
 #[derive(Clone, Debug)]
 struct PartitioningFitness<'a> {
@@ -90,10 +38,28 @@ impl PartitioningFitness<'_> {
         greedy.optimize_path();
         let path = greedy.get_best_replace_path();
 
-        // Calculate the parallel contraction cost
-        let tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
-        let total_cost = contraction_cost(&tree, &partitioned_tn);
-        isize(total_cost).unwrap()
+        // Find communication path separately
+        let children_tensors = partitioned_tn
+            .tensors()
+            .iter()
+            .map(|t| Tensor::new_with_bonddims(t.external_edges(), Arc::clone(&t.bond_dims)))
+            .collect_vec();
+        let bond_dims = partitioned_tn.bond_dims();
+        let mut latency_map = FxHashMap::default();
+        for p in &path {
+            if let ContractionIndex::Path(i, local) = p {
+                let (local_cost, _) =
+                    contract_path_cost(partitioned_tn.tensor(*i).tensors(), local, true);
+                latency_map.insert(*i, local_cost);
+            }
+        }
+        let (communication_cost, _) = communication_schemes::weighted_branchbound(
+            &children_tensors,
+            &bond_dims,
+            &latency_map,
+        );
+
+        isize(communication_cost).unwrap()
     }
 }
 
@@ -110,7 +76,7 @@ impl Fitness for PartitioningFitness<'_> {
 }
 
 /// Balances partitions using a genetic algorithm. Finds the partitioning that reduces
-/// the total contraction cost (max parallel contraction cost + communication cost).
+/// the total contraction cost.
 pub fn balance_partitions_genetic(
     tensor: &Tensor,
     num_partitions: usize,

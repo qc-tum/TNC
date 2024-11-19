@@ -62,7 +62,7 @@ pub(super) fn bipartition(
     (final_op_cost, final_contraction)
 }
 
-pub(super) fn weighted_branchbound(
+pub(crate) fn weighted_branchbound(
     children_tensors: &[Tensor],
     bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
     latency_map: &FxHashMap<usize, f64>,

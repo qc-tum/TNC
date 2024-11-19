@@ -22,7 +22,7 @@ use crate::{
 use super::{export::DendogramSettings, ContractionTree};
 
 mod balancing_schemes;
-mod communication_schemes;
+pub(crate) mod communication_schemes;
 
 pub use balancing_schemes::BalancingScheme;
 pub use communication_schemes::CommunicationScheme;
