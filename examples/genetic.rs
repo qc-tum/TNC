@@ -1,7 +1,10 @@
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
     contractionpath::{
-        contraction_tree::repartitioning::{balance_partitions_genetic, calculate_fitness},
+        contraction_tree::{
+            balancing::CommunicationScheme,
+            repartitioning::{balance_partitions_genetic, calculate_fitness},
+        },
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
     networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
@@ -22,6 +25,7 @@ fn main() {
     let two_qubit_probability = 0.4;
     let connectivity = ConnectivityLayout::Osprey;
     let num_partitions = 4;
+    let communication_scheme = CommunicationScheme::WeightedBranchBound;
 
     // Generate the tensor network
     let tensor = random_circuit(
@@ -38,12 +42,16 @@ fn main() {
         find_partitioning(&tensor, num_partitions, PartitioningStrategy::MinCut, true);
 
     // Calculate the initial fitness
-    let initial_fitness = calculate_fitness(&tensor, &partitioning);
+    let initial_fitness = calculate_fitness(&tensor, &partitioning, communication_scheme);
     println!("Initial fitness: {initial_fitness:?}");
 
     // Try to find a better partitioning with a genetic algorithm
-    let (partitioning, final_fitness) =
-        balance_partitions_genetic(&tensor, num_partitions as usize, &partitioning);
+    let (partitioning, final_fitness) = balance_partitions_genetic(
+        &tensor,
+        num_partitions as usize,
+        &partitioning,
+        communication_scheme,
+    );
     println!("Final fitness: {final_fitness:?}");
 
     // Partition the tensor network with the found partitioning and contract

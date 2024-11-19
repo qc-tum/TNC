@@ -21,11 +21,14 @@ use crate::{
     types::ContractionIndex,
 };
 
+use self::communication_schemes::CommunicationScheme;
+
 use super::balancing::communication_schemes;
 
 #[derive(Clone, Debug)]
 struct PartitioningFitness<'a> {
     tensor: &'a Tensor,
+    communication_scheme: CommunicationScheme,
 }
 
 impl PartitioningFitness<'_> {
@@ -53,11 +56,21 @@ impl PartitioningFitness<'_> {
                 latency_map.insert(*i, local_cost);
             }
         }
-        let (communication_cost, _) = communication_schemes::weighted_branchbound(
-            &children_tensors,
-            &bond_dims,
-            &latency_map,
-        );
+        let (communication_cost, _) = match self.communication_scheme {
+            CommunicationScheme::Greedy => {
+                communication_schemes::greedy(&children_tensors, &bond_dims, &latency_map)
+            }
+            CommunicationScheme::Bipartition => {
+                communication_schemes::bipartition(&children_tensors, &bond_dims, &latency_map)
+            }
+            CommunicationScheme::WeightedBranchBound => {
+                communication_schemes::weighted_branchbound(
+                    &children_tensors,
+                    &bond_dims,
+                    &latency_map,
+                )
+            }
+        };
 
         isize(communication_cost).unwrap()
     }
@@ -81,6 +94,7 @@ pub fn balance_partitions_genetic(
     tensor: &Tensor,
     num_partitions: usize,
     initial_partitioning: &[usize],
+    communication_scheme: CommunicationScheme,
 ) -> (Vec<usize>, isize) {
     // Chromosomes: Possible partitions, e.g. [0, 1, 0, 2, 2, 1, 0, 0, 1, 1]
     // Genes: tensor (in vector)
@@ -95,7 +109,10 @@ pub fn balance_partitions_genetic(
         .build()
         .unwrap();
 
-    let fitness = PartitioningFitness { tensor };
+    let fitness = PartitioningFitness {
+        tensor,
+        communication_scheme,
+    };
 
     let evolve = Evolve::builder()
         .with_genotype(genotype)
@@ -117,8 +134,15 @@ pub fn balance_partitions_genetic(
 
 /// Calculates the fitness of a partitioning. The fitness is the total contraction
 /// cost (max parallel contraction cost + communication cost).
-pub fn calculate_fitness(tensor: &Tensor, partitioning: &[usize]) -> isize {
-    let fitness = PartitioningFitness { tensor };
+pub fn calculate_fitness(
+    tensor: &Tensor,
+    partitioning: &[usize],
+    communication_scheme: CommunicationScheme,
+) -> isize {
+    let fitness = PartitioningFitness {
+        tensor,
+        communication_scheme,
+    };
 
     fitness.calculate_fitness(partitioning)
 }

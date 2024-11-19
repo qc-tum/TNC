@@ -27,7 +27,7 @@ pub enum CommunicationScheme {
     WeightedBranchBound,
 }
 
-pub(super) fn greedy(
+pub(crate) fn greedy(
     children_tensors: &[Tensor],
     bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
     latency_map: &FxHashMap<usize, f64>,
@@ -50,7 +50,7 @@ pub(super) fn greedy(
     (final_op_cost, final_contraction)
 }
 
-pub(super) fn bipartition(
+pub(crate) fn bipartition(
     children_tensors: &[Tensor],
     bond_dims: &RwLockReadGuard<FxHashMap<usize, u64>>,
     latency_map: &FxHashMap<usize, f64>,
