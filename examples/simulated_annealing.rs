@@ -1,18 +1,16 @@
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
-    contractionpath::{
-        contraction_tree::{
-            balancing::CommunicationScheme,
-            repartitioning::simulated_annealing::{balance_partitions, calculate_score},
+    contractionpath::contraction_tree::{
+        balancing::CommunicationScheme,
+        repartitioning::{
+            compute_solution,
+            simulated_annealing::{balance_partitions, calculate_score},
         },
-        paths::{greedy::Greedy, CostType, OptimizePath},
     },
     networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
     tensornetwork::{
         contraction::contract_tensor_network,
-        partitioning::{
-            find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
-        },
+        partitioning::{find_partitioning, partition_config::PartitioningStrategy},
     },
 };
 
@@ -56,12 +54,8 @@ fn main() {
     println!("Final score: {final_score:?}");
 
     // Partition the tensor network with the found partitioning and contract
-    let mut partitioned_tn = partition_tensor_network(&tensor, &partitioning);
+    let (mut tensor, path, _) = compute_solution(&tensor, &partitioning, communication_scheme);
 
-    let mut greedy = Greedy::new(&partitioned_tn, CostType::Flops);
-    greedy.optimize_path();
-    let path = greedy.get_best_replace_path();
-
-    contract_tensor_network(&mut partitioned_tn, &path);
-    println!("{:?}", partitioned_tn.tensor_data());
+    contract_tensor_network(&mut tensor, &path);
+    println!("{:?}", tensor.tensor_data());
 }
