@@ -1,0 +1,100 @@
+use cast::isize;
+use genetic_algorithm::{
+    crossover::CrossoverUniform,
+    fitness::{Fitness, FitnessChromosome, FitnessOrdering, FitnessValue},
+    genotype::{Genotype, RangeGenotype},
+    mutate::MutateSingleGene,
+    select::SelectTournament,
+    strategy::{evolve::Evolve, prelude::EvolveReporterDuration, Strategy},
+};
+
+use crate::{
+    contractionpath::contraction_tree::balancing::communication_schemes::CommunicationScheme,
+    contractionpath::contraction_tree::repartitioning::compute_partitioning_cost,
+    tensornetwork::tensor::Tensor,
+};
+
+#[derive(Clone, Debug)]
+struct PartitioningFitness<'a> {
+    tensor: &'a Tensor,
+    communication_scheme: CommunicationScheme,
+}
+
+impl PartitioningFitness<'_> {
+    fn calculate_fitness(&self, partitioning: &[usize]) -> isize {
+        let cost = compute_partitioning_cost(self.tensor, partitioning, self.communication_scheme);
+
+        isize(cost).unwrap()
+    }
+}
+
+impl Fitness for PartitioningFitness<'_> {
+    type Genotype = RangeGenotype<usize>;
+
+    fn calculate_for_chromosome(
+        &mut self,
+        chromosome: &FitnessChromosome<Self>,
+        _genotype: &Self::Genotype,
+    ) -> Option<FitnessValue> {
+        Some(self.calculate_fitness(&chromosome.genes))
+    }
+}
+
+/// Balances partitions using a genetic algorithm. Finds the partitioning that reduces
+/// the total contraction cost.
+pub fn balance_partitions(
+    tensor: &Tensor,
+    num_partitions: usize,
+    initial_partitioning: &[usize],
+    communication_scheme: CommunicationScheme,
+) -> (Vec<usize>, isize) {
+    // Chromosomes: Possible partitions, e.g. [0, 1, 0, 2, 2, 1, 0, 0, 1, 1]
+    // Genes: tensor (in vector)
+    // Alleles: partition id
+
+    let num_tensors = initial_partitioning.len();
+
+    let genotype = RangeGenotype::builder()
+        .with_genes_size(num_tensors)
+        .with_allele_range(0..=num_partitions - 1)
+        .with_seed_genes_list(vec![initial_partitioning.to_vec()])
+        .build()
+        .unwrap();
+
+    let fitness = PartitioningFitness {
+        tensor,
+        communication_scheme,
+    };
+
+    let evolve = Evolve::builder()
+        .with_genotype(genotype)
+        .with_target_population_size(100)
+        .with_max_stale_generations(100)
+        .with_fitness(fitness)
+        .with_fitness_ordering(FitnessOrdering::Minimize)
+        .with_mutate(MutateSingleGene::new(0.2))
+        .with_crossover(CrossoverUniform::new())
+        .with_select(SelectTournament::new(4, 0.9))
+        .with_reporter(EvolveReporterDuration::new())
+        .with_par_fitness(true)
+        .with_rng_seed_from_u64(0)
+        .call()
+        .unwrap();
+
+    evolve.best_genes_and_fitness_score().unwrap()
+}
+
+/// Calculates the fitness of a partitioning. The fitness is the total contraction
+/// cost (max parallel contraction cost + communication cost).
+pub fn calculate_fitness(
+    tensor: &Tensor,
+    partitioning: &[usize],
+    communication_scheme: CommunicationScheme,
+) -> isize {
+    let fitness = PartitioningFitness {
+        tensor,
+        communication_scheme,
+    };
+
+    fitness.calculate_fitness(partitioning)
+}

@@ -4,7 +4,7 @@ use tensorcontraction::{
         balancing::CommunicationScheme,
         repartitioning::{
             compute_solution,
-            genetic::{balance_partitions, calculate_fitness},
+            simulated_annealing::{balance_partitions, calculate_score},
         },
     },
     networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
@@ -39,18 +39,19 @@ fn main() {
     let partitioning =
         find_partitioning(&tensor, num_partitions, PartitioningStrategy::MinCut, true);
 
-    // Calculate the initial fitness
-    let initial_fitness = calculate_fitness(&tensor, &partitioning, communication_scheme);
-    println!("Initial fitness: {initial_fitness:?}");
+    // Calculate the initial score
+    let initial_score = calculate_score(&tensor, &partitioning, communication_scheme);
+    println!("Initial score: {initial_score:?}");
 
-    // Try to find a better partitioning with a genetic algorithm
-    let (partitioning, final_fitness) = balance_partitions(
+    // Try to find a better partitioning with a simulated annealing algorithm
+    let (partitioning, final_score) = balance_partitions(
         &tensor,
         num_partitions as usize,
-        &partitioning,
+        partitioning,
         communication_scheme,
+        &mut rng,
     );
-    println!("Final fitness: {final_fitness:?}");
+    println!("Final score: {final_score:?}");
 
     // Partition the tensor network with the found partitioning and contract
     let (mut tensor, path, _) = compute_solution(&tensor, &partitioning, communication_scheme);
