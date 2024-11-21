@@ -41,29 +41,6 @@ pub struct SimulatedAnnealingOptimizer {
 }
 
 impl SimulatedAnnealingOptimizer {
-    /// Constructor of SimulatedAnnealingOptimizer
-    ///
-    /// - `patience` : the optimizer will give up
-    ///   if there is no improvement of the score after this number of iterations
-    /// - `n_trials` : number of trial solutions to generate and evaluate at each iteration
-    /// - `max_temperature` : maximum temperature
-    /// - `min_temperature` : minimum temperature
-    pub fn new(
-        patience: usize,
-        n_trials: usize,
-        max_temperature: f64,
-        min_temperature: f64,
-    ) -> Self {
-        Self {
-            patience,
-            n_trials,
-            max_temperature,
-            min_temperature,
-        }
-    }
-}
-
-impl SimulatedAnnealingOptimizer {
     #[allow(clippy::too_many_arguments)]
     /// Start optimization with given temperature range
     ///
@@ -183,7 +160,12 @@ where
         communication_scheme,
     };
 
-    let optimizer = SimulatedAnnealingOptimizer::new(1000, 50, 1.0, 0.1);
+    let optimizer = SimulatedAnnealingOptimizer {
+        patience: 1000,
+        n_trials: 50,
+        max_temperature: 1.0,
+        min_temperature: 0.1,
+    };
     optimizer.optimize_with_temperature(&model, initial_partitioning, 1000, rng)
 }
 
