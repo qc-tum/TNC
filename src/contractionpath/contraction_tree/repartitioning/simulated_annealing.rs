@@ -82,11 +82,10 @@ impl SimulatedAnnealingOptimizer {
                 .min_by_key(|(_, score)| *score)
                 .unwrap();
 
-            let ds = trial_score - current_score;
-            let p = (-ds / temperature).exp();
-            let r = rng.gen();
+            let acceptance_probability = (-(trial_score - current_score) / temperature).exp();
+            let random_value = rng.gen();
 
-            if p > r {
+            if acceptance_probability > random_value {
                 current_solution = trial_solution;
                 current_score = trial_score;
             }
