@@ -47,8 +47,6 @@ impl SimulatedAnnealingOptimizer {
     /// - `model` : the model to optimize
     /// - `initial_solution` : the initial solution to start optimization.
     /// - `n_iter`: maximum iterations
-    /// - `max_temperature` : maximum temperature
-    /// - `min_temperature` : minimum temperature
     fn optimize_with_temperature<M, R>(
         &self,
         model: &M,
