@@ -202,8 +202,10 @@ where
         intermediate_path.extend(communication_path);
 
         max_costs.push(flop_cost);
-
-        if flop_cost < best_cost && mem_cost < max_memory {
+        if mem_cost > max_memory {
+            break;
+        }
+        if flop_cost < best_cost {
             best_cost = flop_cost;
             best_iteration = i;
             best_tn = new_tensor_network;
