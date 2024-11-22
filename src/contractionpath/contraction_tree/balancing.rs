@@ -119,7 +119,7 @@ where
         max_memory,
         ..
     } = balance_settings;
-    let max_memory = max_memory.unwrap_or(f64::MAX);
+    let max_memory = max_memory.unwrap_or(f64::INFINITY);
     let mut partition_data =
         characterize_partition(&contraction_tree, rebalance_depth, tensor_network);
 
