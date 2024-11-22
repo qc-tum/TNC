@@ -15,60 +15,6 @@ use crate::{
 
 use super::{balancing::PartitionData, ContractionTree};
 
-/// Returns contraction cost of subtree in `contraction_tree` if all subtrees can be contracted in parallel.
-///
-/// # Arguments
-/// * `contraction_tree` - [`ContractionTree`] object
-/// * `node_id` - root of subtree to examine
-/// * `tensor_network` - [`Tensor`] object containing bond dimension and leaf node information
-/// * `tensor_cost` - Optional HashMap that tracks starting costs of base tensors
-///
-/// # Returns
-/// Total op cost and maximum memory required of fully contracting subtree rooted at `node_id` in parallel
-pub fn parallel_tree_contraction_cost(
-    contraction_tree: &ContractionTree,
-    node_id: usize,
-    tensor_network: &Tensor,
-    tensor_partition_cost: Option<&FxHashMap<usize, f64>>,
-) -> (f64, f64, Tensor) {
-    let left_child_id = contraction_tree.node(node_id).left_child_id();
-    let right_child_id = contraction_tree.node(node_id).right_child_id();
-    if let (Some(left_child_id), Some(right_child_id)) = (left_child_id, right_child_id) {
-        let (left_op_cost, left_mem_cost, t1) = parallel_tree_contraction_cost(
-            contraction_tree,
-            left_child_id,
-            tensor_network,
-            tensor_partition_cost,
-        );
-        let (right_op_cost, right_mem_cost, t2) = parallel_tree_contraction_cost(
-            contraction_tree,
-            right_child_id,
-            tensor_network,
-            tensor_partition_cost,
-        );
-        let current_tensor = &t1 ^ &t2;
-        let contraction_cost = contract_op_cost_tensors(&t1, &t2);
-        let current_mem_cost = contract_size_tensors(&t1, &t2);
-
-        (
-            left_op_cost.max(right_op_cost) + contraction_cost,
-            current_mem_cost.max(left_mem_cost.max(right_mem_cost)),
-            current_tensor,
-        )
-    } else {
-        let tensor_id = contraction_tree
-            .node(node_id)
-            .tensor_index()
-            .clone()
-            .unwrap();
-        let tensor = tensor_network.nested_tensor(&tensor_id).clone();
-        let tensor_cost = tensor_partition_cost
-            .and_then(|costs| costs.get(&node_id))
-            .unwrap_or(&0.0);
-        (*tensor_cost, tensor.size() as f64, tensor)
-    }
-}
-
 /// Identifies the contraction path designated by subtree rooted at `node_id` in contraction tree. Allows for Tensor to have a different structure than
 /// ContractionTree as long as `tensor_index` in ContractionTree match the Tensor
 pub(super) fn subtree_tensor_network(
@@ -327,30 +273,6 @@ mod tests {
             ]
             .to_vec(),
         )
-    }
-
-    #[test]
-    fn test_parallel_tree_contraction_path() {
-        let (tensor, ref_path) = setup_simple();
-        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-
-        let (op_cost, mem_cost, _) =
-            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor, None);
-
-        assert_eq!(op_cost, 600f64);
-        assert_eq!(mem_cost, 538f64);
-    }
-
-    #[test]
-    fn test_parallel_tree_contraction_path_complex() {
-        let (tensor, ref_path) = setup_complex();
-        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-
-        let (op_cost, mem_cost, _) =
-            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor, None);
-
-        assert_eq!(op_cost, 265215f64);
-        assert_eq!(mem_cost, 89478f64);
     }
 
     #[test]
