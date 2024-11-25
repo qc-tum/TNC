@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
-        contraction_cost::{contract_op_cost_tensors, contract_path_cost, contract_size_tensors},
+        contraction_cost::contract_path_cost,
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
     pair,
