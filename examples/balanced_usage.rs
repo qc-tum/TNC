@@ -138,6 +138,7 @@ fn main() {
                     objective_function,
                     communication_scheme,
                     balancing_scheme,
+                    None,
                 ),
                 Some(&DendogramSettings {
                     output_file: format!("output/{name}_trial"),

@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
-        contraction_cost::{contract_op_cost_tensors, contract_path_cost, contract_size_tensors},
+        contraction_cost::contract_path_cost,
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
     pair,
@@ -14,60 +14,6 @@ use crate::{
 };
 
 use super::{balancing::PartitionData, ContractionTree};
-
-/// Returns contraction cost of subtree in `contraction_tree` if all subtrees can be contracted in parallel.
-///
-/// # Arguments
-/// * `contraction_tree` - [`ContractionTree`] object
-/// * `node_id` - root of subtree to examine
-/// * `tensor_network` - [`Tensor`] object containing bond dimension and leaf node information
-/// * `tensor_cost` - Optional HashMap that tracks starting costs of base tensors
-///
-/// # Returns
-/// Total op cost and maximum memory required of fully contracting subtree rooted at `node_id` in parallel
-pub fn parallel_tree_contraction_cost(
-    contraction_tree: &ContractionTree,
-    node_id: usize,
-    tensor_network: &Tensor,
-    tensor_partition_cost: Option<&FxHashMap<usize, f64>>,
-) -> (f64, f64, Tensor) {
-    let left_child_id = contraction_tree.node(node_id).left_child_id();
-    let right_child_id = contraction_tree.node(node_id).right_child_id();
-    if let (Some(left_child_id), Some(right_child_id)) = (left_child_id, right_child_id) {
-        let (left_op_cost, left_mem_cost, t1) = parallel_tree_contraction_cost(
-            contraction_tree,
-            left_child_id,
-            tensor_network,
-            tensor_partition_cost,
-        );
-        let (right_op_cost, right_mem_cost, t2) = parallel_tree_contraction_cost(
-            contraction_tree,
-            right_child_id,
-            tensor_network,
-            tensor_partition_cost,
-        );
-        let current_tensor = &t1 ^ &t2;
-        let contraction_cost = contract_op_cost_tensors(&t1, &t2);
-        let current_mem_cost = contract_size_tensors(&t1, &t2);
-
-        (
-            left_op_cost.max(right_op_cost) + contraction_cost,
-            current_mem_cost.max(left_mem_cost.max(right_mem_cost)),
-            current_tensor,
-        )
-    } else {
-        let tensor_id = contraction_tree
-            .node(node_id)
-            .tensor_index()
-            .clone()
-            .unwrap();
-        let tensor = tensor_network.nested_tensor(&tensor_id).clone();
-        let tensor_cost = tensor_partition_cost
-            .and_then(|costs| costs.get(&node_id))
-            .unwrap_or(&0.0);
-        (*tensor_cost, tensor.size() as f64, tensor)
-    }
-}
 
 /// Identifies the contraction path designated by subtree rooted at `node_id` in contraction tree. Allows for Tensor to have a different structure than
 /// ContractionTree as long as `tensor_index` in ContractionTree match the Tensor
@@ -111,7 +57,7 @@ pub(super) fn subtree_contraction_path(
     subtree_leaf_nodes: &[usize],
     contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
-) -> (Vec<ContractionIndex>, Vec<ContractionIndex>, f64) {
+) -> (Vec<ContractionIndex>, Vec<ContractionIndex>, f64, f64) {
     // Obtain the flattened list of Tensors corresponding to `indices`. Introduces a new indexing to find the replace contraction path.
     let tensors = subtree_leaf_nodes
         .iter()
@@ -120,7 +66,8 @@ pub(super) fn subtree_contraction_path(
                 .nested_tensor(contraction_tree.node(e).tensor_index().as_ref().unwrap())
                 .clone()
         })
-        .collect();
+        .collect::<Vec<_>>();
+
     // Obtain tensor network corresponding to subtree
     let subtree_tensor_network = create_tensor_network(tensors, &tensor_network.bond_dims(), None);
 
@@ -144,6 +91,7 @@ pub(super) fn subtree_contraction_path(
         smaller_path_node_index,
         smaller_path_new_index,
         opt.get_best_flops(),
+        opt.get_best_size(),
     )
 }
 
@@ -164,9 +112,12 @@ pub(super) fn characterize_partition(
 
             let new_tensor =
                 Tensor::new_with_bonddims(Vec::new(), Arc::clone(&tensor_network.bond_dims));
+            let (flop_cost, mem_cost) =
+                contract_path_cost(&local_tensors, &local_contraction_path, true);
             PartitionData {
                 id: *child,
-                cost: contract_path_cost(&local_tensors, &local_contraction_path, true).0,
+                flop_cost,
+                mem_cost,
                 contraction: local_contraction_path,
                 local_tensor: local_tensors.iter().fold(new_tensor, |a, b| &a ^ b),
             }
@@ -178,6 +129,8 @@ pub(super) fn characterize_partition(
 
 #[cfg(test)]
 mod tests {
+    use std::iter::zip;
+
     use super::*;
     use crate::path;
 
@@ -230,18 +183,18 @@ mod tests {
 
     fn setup_double_nested() -> (Tensor, Vec<ContractionIndex>) {
         let bond_dims = FxHashMap::from_iter([
-            (0, 27),
-            (1, 18),
-            (2, 12),
-            (3, 15),
+            (0, 1),
+            (1, 2),
+            (2, 3),
+            (3, 4),
             (4, 5),
-            (5, 3),
-            (6, 18),
-            (7, 22),
-            (8, 45),
-            (9, 65),
-            (10, 5),
-            (11, 17),
+            (5, 6),
+            (6, 7),
+            (7, 8),
+            (8, 9),
+            (9, 10),
+            (10, 11),
+            (11, 12),
         ]);
 
         let t0 = Tensor::new(vec![4, 3, 2]);
@@ -323,54 +276,70 @@ mod tests {
     }
 
     #[test]
-    fn test_parallel_tree_contraction_path() {
-        let (tensor, ref_path) = setup_simple();
-        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-
-        let (op_cost, mem_cost, _) =
-            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor, None);
-
-        assert_eq!(op_cost, 600f64);
-        assert_eq!(mem_cost, 538f64);
-    }
-
-    #[test]
-    fn test_parallel_tree_contraction_path_complex() {
-        let (tensor, ref_path) = setup_complex();
-        let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
-
-        let (op_cost, mem_cost, _) =
-            parallel_tree_contraction_cost(&tree, tree.root_id().unwrap(), &tensor, None);
-
-        assert_eq!(op_cost, 265215f64);
-        assert_eq!(mem_cost, 89478f64);
-    }
-
-    #[test]
-    fn test_subtree_network() {
+    fn test_subtree_contraction_path() {
         let (tensor, ref_path) = setup_double_nested();
         let contraction_tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        // Subtree tensors:
+        // 0: [4, 3, 2]
+        // 1: [0, 1, 3, 2]
+        // 3: [4, 5, 6]
+        // 5: [10, 8, 9]
         let subtree_leaf_nodes = vec![0, 1, 3, 5];
-        let (tree_contraction_path, local_contraction_path, cost) =
+        let (tree_contraction_path, local_contraction_path, flop_cost, mem_cost) =
             subtree_contraction_path(&subtree_leaf_nodes, &contraction_tree, &tensor);
 
         assert_eq!(
             tree_contraction_path,
-            path![(1, 0), (5, 3), (5, 1)].to_vec(),
+            path![(0, 1), (3, 0), (5, 3)].to_vec(),
         );
 
         assert_eq!(
             local_contraction_path,
-            path![(1, 0), (3, 2), (3, 1)].to_vec(),
+            path![(0, 1), (2, 0), (3, 2)].to_vec(),
         );
 
-        assert_eq!(22550400f64, cost);
+        assert_eq!(flop_cost, 8100f64); // 120 + 420 + 7560
+        assert_eq!(mem_cost, 1794f64); // 84 + 630 +1080
+    }
+
+    #[test]
+    fn test_subtree_tensor_network() {
+        let (tensor, ref_path) = setup_complex();
+        let contraction_tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
+        let node_id = 7;
+        let (subtree_tensors, contraction_path) =
+            subtree_tensor_network(node_id, &contraction_tree, &tensor);
+
+        let tensor0 = Tensor::new(vec![4, 3, 2]);
+        let tensor1 = Tensor::new(vec![0, 1, 3, 2]);
+        let tensor2 = Tensor::new(vec![4, 5, 6]);
+        let tensor3 = Tensor::new(vec![6, 8, 9]);
+        let tensor4 = Tensor::new(vec![10, 8, 9]);
+        let tensor5 = Tensor::new(vec![5, 1, 0]);
+
+        let subtree7 = vec![tensor0, tensor1, tensor5];
+        for (tensor, ref_tensor) in zip(subtree_tensors, subtree7) {
+            assert_eq!(tensor.legs(), ref_tensor.legs());
+        }
+
+        assert_eq!(contraction_path, path![(1, 2), (0, 1)]);
+
+        let node_id = 9;
+        let (subtree_tensors, contraction_path) =
+            subtree_tensor_network(node_id, &contraction_tree, &tensor);
+
+        let subtree9 = vec![tensor2, tensor3, tensor4];
+        for (tensor, ref_tensor) in zip(subtree_tensors, subtree9) {
+            assert_eq!(tensor.legs(), ref_tensor.legs());
+        }
+
+        assert_eq!(contraction_path, path![(1, 2), (0, 1)]);
     }
 
     impl PartialEq for PartitionData {
         fn eq(&self, other: &Self) -> bool {
             self.id == other.id
-                && self.cost == other.cost
+                && self.flop_cost == other.flop_cost
                 && self.contraction == other.contraction
                 && self.local_tensor.legs() == other.local_tensor.legs()
         }
@@ -386,19 +355,22 @@ mod tests {
         let ref_partition_data = vec![
             PartitionData {
                 id: 4,
-                cost: 84f64,
+                flop_cost: 84f64, // (0, 1, 2) + (1, 2, 3) = 84
+                mem_cost: 44f64,  // (0, 1) + (0, 2) + (0, 1, 2) = 44
                 contraction: path![(0, 1), (0, 2)].to_vec(),
                 local_tensor: Tensor::new(vec![1, 2, 3]),
             },
             PartitionData {
                 id: 9,
-                cost: 3456f64,
+                flop_cost: 3456f64, // (1, 2, 3, 4, 5, 8) + (1, 2, 3, 4, 5, 7, 8) = 3456
+                mem_cost: 864f64,   // (1, 2, 3, 4, 5, 8) + (4, 7, 8) + (1, 2, 3, 5) = 864
                 contraction: path![(0, 1), (0, 2)].to_vec(),
                 local_tensor: Tensor::new(vec![2, 1, 3, 5, 7]),
             },
             PartitionData {
                 id: 12,
-                cost: 140f64,
+                flop_cost: 140f64, // (5, 6, 7) = 140
+                mem_cost: 167f64,  // (5, 6, 7) + (6) + (5, 7) = 167
                 contraction: path![(0, 1)].to_vec(),
                 local_tensor: Tensor::new(vec![5, 7]),
             },

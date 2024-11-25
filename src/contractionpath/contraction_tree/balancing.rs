@@ -1,3 +1,4 @@
+use core::f64;
 use std::{rc::Rc, sync::Arc};
 
 use itertools::Itertools;
@@ -40,6 +41,7 @@ where
     pub objective_function: fn(&Tensor, &Tensor) -> f64,
     pub communication_scheme: CommunicationScheme,
     pub balancing_scheme: BalancingScheme,
+    pub max_memory: Option<f64>,
 }
 
 impl BalanceSettings<StdRng> {
@@ -49,6 +51,7 @@ impl BalanceSettings<StdRng> {
         objective_function: fn(&Tensor, &Tensor) -> f64,
         communication_scheme: CommunicationScheme,
         balancing_scheme: BalancingScheme,
+        max_memory: Option<f64>,
     ) -> Self {
         BalanceSettings::<StdRng> {
             random_balance: None,
@@ -57,6 +60,7 @@ impl BalanceSettings<StdRng> {
             objective_function,
             communication_scheme,
             balancing_scheme,
+            max_memory,
         }
     }
 }
@@ -72,6 +76,7 @@ where
         objective_function: fn(&Tensor, &Tensor) -> f64,
         communication_scheme: CommunicationScheme,
         balancing_scheme: BalancingScheme,
+        max_memory: Option<f64>,
     ) -> Self {
         BalanceSettings::<R> {
             random_balance,
@@ -80,6 +85,7 @@ where
             objective_function,
             communication_scheme,
             balancing_scheme,
+            max_memory,
         }
     }
 }
@@ -87,7 +93,8 @@ where
 #[derive(Debug, Clone)]
 pub struct PartitionData {
     pub id: usize,
-    pub cost: f64,
+    pub flop_cost: f64,
+    pub mem_cost: f64,
     pub contraction: Vec<ContractionIndex>,
     pub local_tensor: Tensor,
 }
@@ -109,8 +116,10 @@ where
         iterations,
         balancing_scheme,
         communication_scheme,
+        max_memory,
         ..
     } = balance_settings;
+    let max_memory = max_memory.unwrap_or(f64::INFINITY);
     let mut partition_data =
         characterize_partition(&contraction_tree, rebalance_depth, tensor_network);
 
@@ -126,7 +135,7 @@ where
     let partition_tensor_costs = partition_data
         .iter()
         .enumerate()
-        .map(|(i, partition)| (i, partition.cost))
+        .map(|(i, partition)| (i, partition.flop_cost))
         .collect();
     let (mut best_cost, _) = communication_path_cost(
         &children_tensors,
@@ -161,19 +170,43 @@ where
 
         // Ensures that children tensors are mapped to their respective partition costs
         // Communication costs include intermediate costs
-        let (new_cost, communication_path) = communicate_partitions(
+        let communication_path = communicate_partitions(
             &partition_data,
             &mut contraction_tree,
             &new_tensor_network,
             &balance_settings,
         );
 
+        let (partition_tensors, partition_costs): (Vec<_>, FxHashMap<_, _>) = partition_data
+            .iter()
+            .enumerate()
+            .map(
+                |(
+                    i,
+                    PartitionData {
+                        local_tensor,
+                        flop_cost,
+                        ..
+                    },
+                )| (local_tensor.clone(), (i, *flop_cost)),
+            )
+            .collect();
+
+        let (flop_cost, mem_cost) = communication_path_cost(
+            &partition_tensors,
+            &communication_path,
+            true,
+            Some(&partition_costs),
+        );
+
         intermediate_path.extend(communication_path);
 
-        max_costs.push(new_cost);
-
-        if new_cost < best_cost {
-            best_cost = new_cost;
+        max_costs.push(flop_cost);
+        if mem_cost > max_memory {
+            break;
+        }
+        if flop_cost < best_cost {
+            best_cost = flop_cost;
             best_iteration = i;
             best_tn = new_tensor_network;
             best_contraction_path = intermediate_path;
@@ -209,7 +242,7 @@ fn communicate_partitions<R>(
     contraction_tree: &mut ContractionTree,
     tensor_network: &Tensor,
     balance_settings: &BalanceSettings<R>,
-) -> (f64, Vec<ContractionIndex>)
+) -> Vec<ContractionIndex>
 where
     R: Sized + Rng,
 {
@@ -223,14 +256,14 @@ where
     let latency_map = partition_data
         .iter()
         .enumerate()
-        .map(|(i, partition)| (i, partition.cost))
+        .map(|(i, partition)| (i, partition.flop_cost))
         .collect::<FxHashMap<_, _>>();
 
     let partition_ids = partition_data
         .iter()
         .map(|partition| partition.id)
         .collect::<Vec<usize>>();
-    let (communication_cost, communication_path) = match communication_scheme {
+    let communication_path = match communication_scheme {
         CommunicationScheme::Greedy => {
             communication_schemes::greedy(&children_tensors, &bond_dims, &latency_map)
         }
@@ -244,7 +277,7 @@ where
 
     contraction_tree.replace_communication_path(partition_ids, &communication_path);
 
-    (communication_cost, communication_path)
+    communication_path
 }
 
 fn balance_partitions<R>(
@@ -271,7 +304,7 @@ where
     // Will cause strange errors (picking of same partition multiple times if this is not true.Better to panic here.)
     assert!(partition_data.len() > 1);
 
-    partition_data.sort_unstable_by(|a, b| a.cost.total_cmp(&b.cost));
+    partition_data.sort_unstable_by(|a, b| a.flop_cost.total_cmp(&b.flop_cost));
 
     let bond_dims = tensor_network.bond_dims();
     let shifted_nodes = match balancing_scheme {
@@ -321,10 +354,12 @@ where
         let (
             larger_id,
             larger_contraction,
-            larger_subtree_cost,
+            larger_subtree_flop_cost,
+            larger_subtree_mem_cost,
             smaller_id,
             smaller_contraction,
-            smaller_subtree_cost,
+            smaller_subtree_flop_cost,
+            smaller_subtree_mem_cost,
         ) = shift_node_between_subtrees(
             contraction_tree,
             *rebalance_depth,
@@ -342,7 +377,8 @@ where
         // Update partition data based on shift
         for PartitionData {
             id,
-            cost,
+            flop_cost,
+            mem_cost,
             contraction: subtree_contraction,
             local_tensor,
         } in partition_data.iter_mut()
@@ -350,21 +386,26 @@ where
             if *id == shifted_from_id {
                 *id = larger_id;
                 *subtree_contraction = larger_contraction.clone();
-                *cost = larger_subtree_cost;
+                *flop_cost = larger_subtree_flop_cost;
+                *mem_cost = larger_subtree_mem_cost;
                 *local_tensor = larger_tensor.clone();
             } else if *id == shifted_to_id {
                 *id = smaller_id;
                 *subtree_contraction = smaller_contraction.clone();
-                *cost = smaller_subtree_cost;
+                *flop_cost = smaller_subtree_flop_cost;
+                *mem_cost = smaller_subtree_mem_cost;
                 *local_tensor = smaller_tensor.clone();
             }
         }
     }
 
     partition_data.sort_unstable_by(
-        |PartitionData { cost: cost_a, .. }, PartitionData { cost: cost_b, .. }| {
-            cost_a.total_cmp(cost_b)
-        },
+        |PartitionData {
+             flop_cost: cost_a, ..
+         },
+         PartitionData {
+             flop_cost: cost_b, ..
+         }| { cost_a.total_cmp(cost_b) },
     );
 
     let mut rebalanced_path = Vec::new();
@@ -461,8 +502,10 @@ fn shift_node_between_subtrees(
     usize,
     Vec<ContractionIndex>,
     f64,
+    f64,
     usize,
     Vec<ContractionIndex>,
+    f64,
     f64,
 ) {
     // Obtain parents of the two subtrees that are being updated.
@@ -491,14 +534,15 @@ fn shift_node_between_subtrees(
     smaller_subtree_leaf_nodes.extend(rebalanced_nodes);
 
     // Run Greedy on the two updated subtrees
-    let (updated_larger_path, local_larger_path, larger_cost) =
+    let (updated_larger_path, local_larger_path, larger_flop_cost, larger_mem_cost) =
         subtree_contraction_path(&larger_subtree_leaf_nodes, contraction_tree, tensor_network);
 
-    let (updated_smaller_path, local_smaller_path, smaller_cost) = subtree_contraction_path(
-        &smaller_subtree_leaf_nodes,
-        contraction_tree,
-        tensor_network,
-    );
+    let (updated_smaller_path, local_smaller_path, smaller_flop_cost, smaller_mem_cost) =
+        subtree_contraction_path(
+            &smaller_subtree_leaf_nodes,
+            contraction_tree,
+            tensor_network,
+        );
 
     // Remove larger subtree and add new subtree, keep track of updated root id
     contraction_tree.remove_subtree(larger_subtree_id);
@@ -545,10 +589,12 @@ fn shift_node_between_subtrees(
     (
         new_larger_subtree_id,
         local_larger_path,
-        larger_cost,
+        larger_flop_cost,
+        larger_mem_cost,
         new_smaller_subtree_id,
         local_smaller_path,
-        smaller_cost,
+        smaller_flop_cost,
+        smaller_mem_cost,
     )
 }
 
