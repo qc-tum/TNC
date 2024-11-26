@@ -154,8 +154,8 @@ where
 
     let mut best_tn = tensor_network.clone();
 
-    for i in 1..=iterations {
-        info!("Balancing iteration {i} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
+    for iteration in 1..=iterations {
+        info!("Balancing iteration {iteration} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
 
         // Balances and updates partitions
         let (mut intermediate_path, new_tensor_network) = balance_partitions(
@@ -163,6 +163,7 @@ where
             &mut contraction_tree,
             tensor_network,
             &mut balance_settings,
+            iteration,
         );
 
         assert_eq!(intermediate_path.len(), partition_number, "Tensors lost!");
@@ -207,11 +208,16 @@ where
         }
         if flop_cost < best_cost {
             best_cost = flop_cost;
-            best_iteration = i;
+            best_iteration = iteration;
             best_tn = new_tensor_network;
             best_contraction_path = intermediate_path;
         }
-        print_dendogram(dendogram_settings, &contraction_tree, tensor_network, i);
+        print_dendogram(
+            dendogram_settings,
+            &contraction_tree,
+            tensor_network,
+            iteration,
+        );
     }
 
     (best_iteration, best_tn, best_contraction_path, max_costs)
@@ -285,6 +291,7 @@ fn balance_partitions<R>(
     contraction_tree: &mut ContractionTree,
     tensor_network: &Tensor,
     balance_settings: &mut BalanceSettings<R>,
+    iteration: usize,
 ) -> (Vec<ContractionIndex>, Tensor)
 where
     R: Sized + Rng,
@@ -329,6 +336,25 @@ where
             *objective_function,
             tensor_network,
         ),
+        BalancingScheme::AlternatingTensors => {
+            if iteration % 2 == 1 {
+                balancing_schemes::tensors_odd(
+                    partition_data,
+                    contraction_tree,
+                    random_balance,
+                    *objective_function,
+                    tensor_network,
+                )
+            } else {
+                balancing_schemes::tensors_even(
+                    partition_data,
+                    contraction_tree,
+                    random_balance,
+                    *objective_function,
+                    tensor_network,
+                )
+            }
+        }
         BalancingScheme::IntermediateTensors { height_limit } => {
             balancing_schemes::best_intermediate_tensors(
                 partition_data,
@@ -338,6 +364,27 @@ where
                 tensor_network,
                 *height_limit,
             )
+        }
+        BalancingScheme::AlternatingIntermediateTensors { height_limit } => {
+            if iteration % 2 == 1 {
+                balancing_schemes::intermediate_tensors_odd(
+                    partition_data,
+                    contraction_tree,
+                    random_balance,
+                    *objective_function,
+                    tensor_network,
+                    *height_limit,
+                )
+            } else {
+                balancing_schemes::intermediate_tensors_even(
+                    partition_data,
+                    contraction_tree,
+                    random_balance,
+                    *objective_function,
+                    tensor_network,
+                    *height_limit,
+                )
+            }
         }
         _ => panic!("Balancing Scheme not implemented"),
     };
