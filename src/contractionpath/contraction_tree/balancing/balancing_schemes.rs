@@ -1,12 +1,11 @@
-use rand::Rng;
-
 use super::{find_rebalance_node, PartitionData};
-
 use crate::contractionpath::contraction_tree::{
     populate_leaf_node_tensor_map, populate_subtree_tensor_map, ContractionTree,
 };
-
 use crate::tensornetwork::tensor::Tensor;
+
+use rand::Rng;
+use rustc_hash::FxHashMap;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BalancingScheme {
