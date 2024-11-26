@@ -26,7 +26,6 @@ pub enum BalancingScheme {
     /// with largest memory reduction for odd iterations or the tensor with the largest
     /// memory reduction when passed to the fastest subtree for even iterations.
     AlternatingTensors,
-
     /// Identifies the intermediate tensor in the slowest subtree and passes it to
     /// the subtree with largest memory reduction. Then identifies the intermediate
     /// tensor with the largest memory reduction when passed to the fastest subtree.
@@ -244,7 +243,6 @@ where
         .take(partition_data.len() - 1)
         .map(|smaller| {
             let smaller_subtree_nodes = FxHashMap::from_iter([(0, smaller.local_tensor.clone())]);
-
             let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
                 &larger_subtree_leaf_nodes,
