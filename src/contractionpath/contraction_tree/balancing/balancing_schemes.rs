@@ -33,10 +33,11 @@ pub enum BalancingScheme {
     /// Both slowest and fastest subtrees are updated.
     IntermediateTensors {
         /// The `height` up the contraction tree we look when passing intermediate
-        /// tensors between partitions. A value of `1` allows intermediate tensors
+        /// tensors between partitions. A value of `Some(1)` allows intermediate tensors
         /// that are a product of at most 1 contraction process. Using the value of
-        /// `0` is then equivalent to the `Tensors` method.
-        height_limit: usize,
+        /// `Some(0)` is then equivalent to the `Tensors` method. Setting it to `None`
+        /// imposes no height limit.`
+        height_limit: Option<usize>,
     },
 
     /// Identifies the intermediate tensor in the slowest subtree and passes it to
@@ -45,10 +46,11 @@ pub enum BalancingScheme {
     /// odd iterations.
     AlternatingIntermediateTensors {
         /// The `height` up the contraction tree we look when passing intermediate
-        /// tensors between partitions. A value of `1` allows intermediate tensors
+        /// tensors between partitions. A value of `Some(1)` allows intermediate tensors
         /// that are a product of at most 1 contraction process. Using the value of
-        /// `0` is then equivalent to the `Tensors` method.
-        height_limit: usize,
+        /// `Some(0)` is then equivalent to the `Tensors` method. Setting it to `None`
+        /// imposes no height limit.
+        height_limit: Option<usize>,
     },
     Configuration,
 }
@@ -312,7 +314,7 @@ pub(super) fn best_intermediate_tensors<R>(
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
-    height_limit: usize,
+    height_limit: Option<usize>,
 ) -> Vec<Shift>
 where
     R: Sized + Rng,
@@ -321,12 +323,8 @@ where
     let larger_subtree_id = partition_data.last().unwrap().id;
 
     // Obtain all intermediate nodes up to height `height_limit` in larger subtree
-    let mut larger_subtree_nodes = populate_subtree_tensor_map(
-        contraction_tree,
-        larger_subtree_id,
-        tensor,
-        Some(height_limit),
-    );
+    let mut larger_subtree_nodes =
+        populate_subtree_tensor_map(contraction_tree, larger_subtree_id, tensor, height_limit);
     larger_subtree_nodes.remove(&larger_subtree_id);
 
     // Find the subtree shift that results in the largest memory savings
@@ -365,12 +363,8 @@ where
         .skip(1)
         .take(partition_data.len() - 2)
         .map(|larger| {
-            let mut larger_subtree_nodes = populate_subtree_tensor_map(
-                contraction_tree,
-                larger.id,
-                tensor,
-                Some(height_limit),
-            );
+            let mut larger_subtree_nodes =
+                populate_subtree_tensor_map(contraction_tree, larger.id, tensor, height_limit);
             larger_subtree_nodes.remove(&larger.id);
             let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
@@ -400,7 +394,7 @@ pub(super) fn intermediate_tensors_odd<R>(
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
-    height_limit: usize,
+    height_limit: Option<usize>,
 ) -> Vec<Shift>
 where
     R: Sized + Rng,
@@ -409,12 +403,8 @@ where
     let larger_subtree_id = partition_data.last().unwrap().id;
 
     // Obtain all intermediate nodes up to height `height_limit` in larger subtree
-    let mut larger_subtree_nodes = populate_subtree_tensor_map(
-        contraction_tree,
-        larger_subtree_id,
-        tensor,
-        Some(height_limit),
-    );
+    let mut larger_subtree_nodes =
+        populate_subtree_tensor_map(contraction_tree, larger_subtree_id, tensor, height_limit);
     larger_subtree_nodes.remove(&larger_subtree_id);
 
     // Find the subtree shift that results in the largest memory savings
@@ -450,7 +440,7 @@ pub(super) fn intermediate_tensors_even<R>(
     random_balance: &mut Option<(usize, R)>,
     objective_function: fn(&Tensor, &Tensor) -> f64,
     tensor: &Tensor,
-    height_limit: usize,
+    height_limit: Option<usize>,
 ) -> Vec<Shift>
 where
     R: Sized + Rng,
@@ -464,12 +454,8 @@ where
         .iter()
         .skip(1)
         .filter_map(|larger| {
-            let mut larger_subtree_nodes = populate_subtree_tensor_map(
-                contraction_tree,
-                larger.id,
-                tensor,
-                Some(height_limit),
-            );
+            let mut larger_subtree_nodes =
+                populate_subtree_tensor_map(contraction_tree, larger.id, tensor, height_limit);
             if larger_subtree_nodes.len() == 1 {
                 return None;
             }
@@ -738,7 +724,7 @@ mod tests {
             &mut None,
             custom_cost_function,
             &tensor,
-            1,
+            Some(1),
         );
 
         let ref_output = vec![
