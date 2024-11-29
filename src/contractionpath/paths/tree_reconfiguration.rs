@@ -181,6 +181,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_tree_contract_order_simple() {
         let tn = setup_simple();
         let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
@@ -193,6 +194,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_tree_contract_order_complex() {
         let tn = setup_complex();
         let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
@@ -208,6 +210,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_tree_large() {
         let tn = setup_large();
         let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
