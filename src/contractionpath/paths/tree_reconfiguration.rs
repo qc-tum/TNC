@@ -44,6 +44,7 @@ impl<'a> TreeReconfigure<'a> {
 
 impl<'a> OptimizePath for TreeReconfigure<'a> {
     fn optimize_path(&mut self) {
+        // Map tensors to legs
         let inputs = self
             .tensor
             .tensors()
@@ -52,10 +53,10 @@ impl<'a> OptimizePath for TreeReconfigure<'a> {
             .collect::<Vec<_>>();
         let outputs = self.tensor.external_edges();
         let size_dict = self.tensor.bond_dims().clone();
-        let subtree_size = 8;
-        let is_ssa = true;
 
         let (inputs, outputs, size_dict) = tensor_legs_to_digit(&inputs, &outputs, size_dict);
+
+        // Map ContractIndex to (i, j) tuples
         let best_path = self
             .best_path
             .iter()
@@ -68,9 +69,17 @@ impl<'a> OptimizePath for TreeReconfigure<'a> {
             })
             .collect::<Vec<_>>();
 
-        let replace_path =
-            create_and_optimize_tree(&inputs, outputs, size_dict, best_path, subtree_size, is_ssa)
-                .unwrap();
+        let is_ssa = true;
+        let replace_path = create_and_optimize_tree(
+            &inputs,
+            outputs,
+            size_dict,
+            best_path,
+            self.subtree_size,
+            is_ssa,
+        )
+        .unwrap();
+
         let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
 
         self.best_path = best_path
