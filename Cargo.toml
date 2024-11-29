@@ -27,12 +27,14 @@ log = { version = "0.4.22", features = ["kv_std", "kv_serde"] }
 rustc-hash = "2.0.0"
 chrono = "0.4.38"
 serde_json = "1.0.133"
-regex = "1.11.1"
 ndarray = "0.15.6"
 genetic_algorithm = "0.17.1"
 cast = "0.3.0"
 rayon = "1.10.0"
 ordered-float = "4.5.0"
+regex = "1.11.1"
+rustengra = { git = "ssh://gitlab.lrz.de/quantum-research/tensornetworksimulation/rustengra" }
+
 
 [dev-dependencies]
 criterion = "0.5.1"
