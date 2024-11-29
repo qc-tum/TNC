@@ -26,6 +26,7 @@ pub enum BalancingScheme {
     /// with largest memory reduction for odd iterations or the tensor with the largest
     /// memory reduction when passed to the fastest subtree for even iterations.
     AlternatingTensors,
+
     /// Identifies the intermediate tensor in the slowest subtree and passes it to
     /// the subtree with largest memory reduction. Then identifies the intermediate
     /// tensor with the largest memory reduction when passed to the fastest subtree.
@@ -231,21 +232,19 @@ pub(super) fn tensors_odd<R>(
 where
     R: Sized + Rng,
 {
-    // Obtain most expensive and cheapest partitions
+    // Obtain most expensive partition
     let larger_subtree_id = partition_data.last().unwrap().id;
 
-    // let mut larger_subtree_leaf_nodes = FxHashMap::default();
     let larger_subtree_leaf_nodes =
         populate_leaf_node_tensor_map(contraction_tree, larger_subtree_id, tensor);
 
     // Find the subtree shift that results in the largest memory savings
-    let (smaller_subtree_id, rebalanced_node, _) = partition_data
+    let (smaller_subtree_id, rebalanced_leaf_node, _) = partition_data
         .iter()
         .take(partition_data.len() - 1)
         .map(|smaller| {
             let smaller_subtree_nodes = FxHashMap::from_iter([(0, smaller.local_tensor.clone())]);
-            println!("Smaller: {:?}", smaller_subtree_nodes);
-            // populate_subtree_tensor_map(contraction_tree, smaller.id, tensor, None);
+
             let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
                 &larger_subtree_leaf_nodes,
@@ -256,12 +255,12 @@ where
         })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
-    let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
 
+    let rebalanced_leaf_id = contraction_tree.leaf_ids(rebalanced_leaf_node);
     vec![Shift {
         from_subtree_id: larger_subtree_id,
         to_subtree_id: smaller_subtree_id,
-        moved_leaf_ids: rebalanced_leaf_ids,
+        moved_leaf_ids: rebalanced_leaf_id,
     }]
 }
 
@@ -278,36 +277,32 @@ where
 {
     let smaller_subtree_id = partition_data.first().unwrap().id;
 
-    // let smaller_subtree_nodes =
-    //     populate_subtree_tensor_map(contraction_tree, smaller_subtree_id, tensor, None);
-
     let smaller_subtree_nodes =
         FxHashMap::from_iter([(0, partition_data.first().unwrap().local_tensor.clone())]);
-    println!("Smaller: {:?}", smaller_subtree_nodes);
 
-    let (larger_subtree_id, rebalanced_node, _) = partition_data
+    let (larger_subtree_id, rebalanced_leaf_node, _) = partition_data
         .iter()
         .skip(1)
         .map(|larger| {
-            let larger_subtree_nodes =
+            let larger_subtree_leaf_nodes =
                 populate_leaf_node_tensor_map(contraction_tree, larger.id, tensor);
             let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
-                &larger_subtree_nodes,
+                &larger_subtree_leaf_nodes,
                 &smaller_subtree_nodes,
                 objective_function,
             );
 
             (larger.id, rebalanced_node, objective)
         })
-        .max_by(|(_, _, obj_a), (_, _, obj_b)| obj_a.total_cmp(obj_b))
+        .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
 
-    let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
+    let rebalanced_leaf_id = contraction_tree.leaf_ids(rebalanced_leaf_node);
     vec![Shift {
         from_subtree_id: larger_subtree_id,
         to_subtree_id: smaller_subtree_id,
-        moved_leaf_ids: rebalanced_leaf_ids,
+        moved_leaf_ids: rebalanced_leaf_id,
     }]
 }
 
@@ -324,8 +319,9 @@ pub(super) fn best_intermediate_tensors<R>(
 where
     R: Sized + Rng,
 {
-    // Obtain most expensive and cheapest partitions
+    // Obtain most expensive partition
     let larger_subtree_id = partition_data.last().unwrap().id;
+
     // Obtain all intermediate nodes up to height `height_limit` in larger subtree
     let mut larger_subtree_nodes = populate_subtree_tensor_map(
         contraction_tree,
@@ -387,7 +383,7 @@ where
 
             (larger.id, rebalanced_node, objective)
         })
-        .max_by(|(_, _, obj_a), (_, _, obj_b)| obj_a.total_cmp(obj_b))
+        .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
 
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(second_rebalanced_node);
@@ -411,8 +407,9 @@ pub(super) fn intermediate_tensors_odd<R>(
 where
     R: Sized + Rng,
 {
-    // Obtain most expensive and cheapest partitions
+    // Obtain most expensive partition
     let larger_subtree_id = partition_data.last().unwrap().id;
+
     // Obtain all intermediate nodes up to height `height_limit` in larger subtree
     let mut larger_subtree_nodes = populate_subtree_tensor_map(
         contraction_tree,
@@ -423,7 +420,7 @@ where
     larger_subtree_nodes.remove(&larger_subtree_id);
 
     // Find the subtree shift that results in the largest memory savings
-    let (smaller_subtree_id, first_rebalanced_node, _) = partition_data
+    let (smaller_subtree_id, rebalanced_node, _) = partition_data
         .iter()
         .take(partition_data.len() - 1)
         .map(|smaller| {
@@ -439,8 +436,8 @@ where
         })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
-    let rebalanced_leaf_ids = contraction_tree.leaf_ids(first_rebalanced_node);
 
+    let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
     vec![Shift {
         from_subtree_id: larger_subtree_id,
         to_subtree_id: smaller_subtree_id,
@@ -465,7 +462,7 @@ where
     let smaller_subtree_nodes =
         populate_subtree_tensor_map(contraction_tree, smaller_subtree_id, tensor, None);
 
-    let (larger_subtree_id, second_rebalanced_node, _) = partition_data
+    let (larger_subtree_id, rebalanced_node, _) = partition_data
         .iter()
         .skip(1)
         .map(|larger| {
@@ -485,10 +482,10 @@ where
 
             (larger.id, rebalanced_node, objective)
         })
-        .max_by(|(_, _, obj_a), (_, _, obj_b)| obj_a.total_cmp(obj_b))
+        .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
 
-    let rebalanced_leaf_ids = contraction_tree.leaf_ids(second_rebalanced_node);
+    let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
     vec![Shift {
         from_subtree_id: larger_subtree_id,
         to_subtree_id: smaller_subtree_id,

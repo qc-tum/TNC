@@ -498,7 +498,8 @@ where
 }
 
 /// Takes two hashmaps that contain node information. Identifies which pair of nodes from larger and smaller hashmaps maximizes the greedy cost function and returns the node from the `larger_subtree_nodes`.
-/// #arguments
+///
+/// # Arguments
 /// * `random_balance` - Allows for random selection of balanced node. If not None, identifies the best `usize` options and randomly selects one by weighted choice.
 /// * `larger_subtree_nodes` - A set of nodes used in comparison. Only the id from the larger subtree is returned.
 /// * `smaller_subtree_nodes` - A set of nodes used in comparison.
