@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 use rustengra::{
-    contengra_check, create_and_optimize_tree, replace_to_ssa_path, tensor_legs_to_digit,
+    cotengra_check, create_and_optimize_tree, replace_to_ssa_path, tensor_legs_to_digit,
 };
 
 use crate::{
@@ -23,7 +23,7 @@ pub struct TreeReconfigure<'a> {
 
 impl<'a> TreeReconfigure<'a> {
     pub fn new(tensor: &'a Tensor, subtree_size: usize, minimize: CostType) -> Self {
-        let _ = contengra_check();
+        let _ = cotengra_check();
         let binding = tensor.clone();
         // Obtain initial path with Greedy
         let mut opt = Greedy::new(&binding, CostType::Flops);
