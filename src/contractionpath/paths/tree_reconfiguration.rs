@@ -113,10 +113,12 @@ impl<'a> OptimizePath for TreeReconfigure<'a> {
 
 #[cfg(test)]
 mod tests {
+    use rand::{rngs::StdRng, SeedableRng};
     use rustc_hash::FxHashMap;
 
     use crate::{
         contractionpath::paths::{tree_reconfiguration::TreeReconfigure, CostType, OptimizePath},
+        networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
         path,
         tensornetwork::{create_tensor_network, tensor::Tensor},
     };
@@ -161,10 +163,27 @@ mod tests {
         )
     }
 
+    fn setup_large() -> Tensor {
+        let mut rng = StdRng::seed_from_u64(23);
+        let qubits = 15;
+        let depth = 40;
+        let single_qubit_probability = 0.4;
+        let two_qubit_probability = 0.4;
+        let connectivity = ConnectivityLayout::Osprey;
+        random_circuit(
+            qubits,
+            depth,
+            single_qubit_probability,
+            two_qubit_probability,
+            &mut rng,
+            connectivity,
+        )
+    }
+
     #[test]
     fn test_tree_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = TreeReconfigure::new(&tn, CostType::Flops);
+        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 600f64);
@@ -176,7 +195,7 @@ mod tests {
     #[test]
     fn test_tree_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = TreeReconfigure::new(&tn, CostType::Flops);
+        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 332685f64);
@@ -186,5 +205,12 @@ mod tests {
             opt.get_best_replace_path(),
             path![(1, 5), (0, 1), (2, 0), (3, 2), (4, 3)]
         );
+    }
+
+    #[test]
+    fn test_tree_large() {
+        let tn = setup_large();
+        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
+        opt.optimize_path();
     }
 }
