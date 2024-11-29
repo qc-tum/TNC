@@ -1,11 +1,10 @@
 use rustc_hash::FxHashMap;
-use rustengra::{create_and_optimize_tree, replace_to_ssa_path, tensor_legs_to_digit};
+use rustengra::{
+    contengra_check, create_and_optimize_tree, replace_to_ssa_path, tensor_legs_to_digit,
+};
 
 use crate::{
-    contractionpath::{
-        contraction_cost::{self, contract_path_cost},
-        ssa_replace_ordering,
-    },
+    contractionpath::{contraction_cost::contract_path_cost, ssa_replace_ordering},
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
 };
@@ -13,25 +12,30 @@ use crate::{
 use super::{greedy::Greedy, CostType, OptimizePath};
 
 pub struct TreeReconfigure<'a> {
-    pub(crate) tensor: &'a Tensor,
-    pub(crate) minimize: CostType,
-    pub(crate) best_flops: f64,
-    pub(crate) best_size: f64,
-    pub(crate) best_path: Vec<ContractionIndex>,
+    tensor: &'a Tensor,
+    minimize: CostType,
+    subtree_size: usize,
+    best_flops: f64,
+    best_size: f64,
+    best_path: Vec<ContractionIndex>,
     best_progress: FxHashMap<usize, f64>,
 }
 
 impl<'a> TreeReconfigure<'a> {
-    pub fn new(tensor: &'a Tensor, minimize: CostType) -> Self {
+    pub fn new(tensor: &'a Tensor, subtree_size: usize, minimize: CostType) -> Self {
+        let _ = contengra_check();
         let binding = tensor.clone();
+        // Obtain initial path with Greedy
         let mut opt = Greedy::new(&binding, CostType::Flops);
         opt.optimize_path();
 
         Self {
             tensor,
             minimize,
+            subtree_size,
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
+            // best_path is always in replace path format
             best_path: opt.get_best_path().clone(),
             best_progress: FxHashMap::default(),
         }
