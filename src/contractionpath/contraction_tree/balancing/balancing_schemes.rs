@@ -1,12 +1,11 @@
-use rand::Rng;
-
 use super::{find_rebalance_node, PartitionData};
-
 use crate::contractionpath::contraction_tree::{
     populate_leaf_node_tensor_map, populate_subtree_tensor_map, ContractionTree,
 };
-
 use crate::tensornetwork::tensor::Tensor;
+
+use rand::Rng;
+use rustc_hash::FxHashMap;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BalancingScheme {
@@ -23,6 +22,11 @@ pub enum BalancingScheme {
     /// subtrees are updated.
     Tensors,
 
+    /// Identifies the tensor in the slowest subtree and passes it to the subtree
+    /// with largest memory reduction for odd iterations or the tensor with the largest
+    /// memory reduction when passed to the fastest subtree for even iterations.
+    AlternatingTensors,
+
     /// Identifies the intermediate tensor in the slowest subtree and passes it to
     /// the subtree with largest memory reduction. Then identifies the intermediate
     /// tensor with the largest memory reduction when passed to the fastest subtree.
@@ -35,6 +39,17 @@ pub enum BalancingScheme {
         height_limit: usize,
     },
 
+    /// Identifies the intermediate tensor in the slowest subtree and passes it to
+    /// the subtree with largest memory reduction for odd iterations. Identifies the intermediate
+    /// tensor with the largest memory reduction when passed to the fastest subtree for
+    /// odd iterations.
+    AlternatingIntermediateTensors {
+        /// The `height` up the contraction tree we look when passing intermediate
+        /// tensors between partitions. A value of `1` allows intermediate tensors
+        /// that are a product of at most 1 contraction process. Using the value of
+        /// `0` is then equivalent to the `Tensors` method.
+        height_limit: usize,
+    },
     Configuration,
 }
 
@@ -207,6 +222,91 @@ where
 }
 
 /// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
+pub(super) fn tensors_odd<R>(
+    partition_data: &[PartitionData],
+    contraction_tree: &ContractionTree,
+    random_balance: &mut Option<(usize, R)>,
+    objective_function: fn(&Tensor, &Tensor) -> f64,
+    tensor: &Tensor,
+) -> Vec<Shift>
+where
+    R: Sized + Rng,
+{
+    // Obtain most expensive partition
+    let larger_subtree_id = partition_data.last().unwrap().id;
+
+    let larger_subtree_leaf_nodes =
+        populate_leaf_node_tensor_map(contraction_tree, larger_subtree_id, tensor);
+
+    // Find the subtree shift that results in the largest memory savings
+    let (smaller_subtree_id, rebalanced_leaf_node, _) = partition_data
+        .iter()
+        .take(partition_data.len() - 1)
+        .map(|smaller| {
+            let smaller_subtree_nodes = FxHashMap::from_iter([(0, smaller.local_tensor.clone())]);
+
+            let (rebalanced_node, objective) = find_rebalance_node(
+                random_balance,
+                &larger_subtree_leaf_nodes,
+                &smaller_subtree_nodes,
+                objective_function,
+            );
+            (smaller.id, rebalanced_node, objective)
+        })
+        .max_by(|a, b| a.2.total_cmp(&b.2))
+        .unwrap();
+
+    let rebalanced_leaf_id = contraction_tree.leaf_ids(rebalanced_leaf_node);
+    vec![Shift {
+        from_subtree_id: larger_subtree_id,
+        to_subtree_id: smaller_subtree_id,
+        moved_leaf_ids: rebalanced_leaf_id,
+    }]
+}
+
+/// Balancing scheme that identifies the tensor with the largest memory reduction when passed to the fastest subtree.
+pub(super) fn tensors_even<R>(
+    partition_data: &[PartitionData],
+    contraction_tree: &ContractionTree,
+    random_balance: &mut Option<(usize, R)>,
+    objective_function: fn(&Tensor, &Tensor) -> f64,
+    tensor: &Tensor,
+) -> Vec<Shift>
+where
+    R: Sized + Rng,
+{
+    let smaller_subtree_id = partition_data.first().unwrap().id;
+
+    let smaller_subtree_nodes =
+        FxHashMap::from_iter([(0, partition_data.first().unwrap().local_tensor.clone())]);
+
+    let (larger_subtree_id, rebalanced_leaf_node, _) = partition_data
+        .iter()
+        .skip(1)
+        .map(|larger| {
+            let larger_subtree_leaf_nodes =
+                populate_leaf_node_tensor_map(contraction_tree, larger.id, tensor);
+            let (rebalanced_node, objective) = find_rebalance_node(
+                random_balance,
+                &larger_subtree_leaf_nodes,
+                &smaller_subtree_nodes,
+                objective_function,
+            );
+
+            (larger.id, rebalanced_node, objective)
+        })
+        .max_by(|a, b| a.2.total_cmp(&b.2))
+        .unwrap();
+
+    let rebalanced_leaf_id = contraction_tree.leaf_ids(rebalanced_leaf_node);
+    vec![Shift {
+        from_subtree_id: larger_subtree_id,
+        to_subtree_id: smaller_subtree_id,
+        moved_leaf_ids: rebalanced_leaf_id,
+    }]
+}
+
+/// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
 /// Then identifies the tensor with the largest memory reduction when passed to the fastest subtree. Both slowest and fastest subtrees are updated.
 pub(super) fn best_intermediate_tensors<R>(
     partition_data: &[PartitionData],
@@ -219,8 +319,9 @@ pub(super) fn best_intermediate_tensors<R>(
 where
     R: Sized + Rng,
 {
-    // Obtain most expensive and cheapest partitions
+    // Obtain most expensive partition
     let larger_subtree_id = partition_data.last().unwrap().id;
+
     // Obtain all intermediate nodes up to height `height_limit` in larger subtree
     let mut larger_subtree_nodes = populate_subtree_tensor_map(
         contraction_tree,
@@ -282,7 +383,7 @@ where
 
             (larger.id, rebalanced_node, objective)
         })
-        .max_by(|(_, _, obj_a), (_, _, obj_b)| obj_a.total_cmp(obj_b))
+        .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
 
     let rebalanced_leaf_ids = contraction_tree.leaf_ids(second_rebalanced_node);
@@ -294,6 +395,104 @@ where
     shifts
 }
 
+/// Balancing scheme that identifies the tensor in the slowest subtree and passes it to the subtree with largest memory reduction.
+pub(super) fn intermediate_tensors_odd<R>(
+    partition_data: &[PartitionData],
+    contraction_tree: &ContractionTree,
+    random_balance: &mut Option<(usize, R)>,
+    objective_function: fn(&Tensor, &Tensor) -> f64,
+    tensor: &Tensor,
+    height_limit: usize,
+) -> Vec<Shift>
+where
+    R: Sized + Rng,
+{
+    // Obtain most expensive partition
+    let larger_subtree_id = partition_data.last().unwrap().id;
+
+    // Obtain all intermediate nodes up to height `height_limit` in larger subtree
+    let mut larger_subtree_nodes = populate_subtree_tensor_map(
+        contraction_tree,
+        larger_subtree_id,
+        tensor,
+        Some(height_limit),
+    );
+    larger_subtree_nodes.remove(&larger_subtree_id);
+
+    // Find the subtree shift that results in the largest memory savings
+    let (smaller_subtree_id, rebalanced_node, _) = partition_data
+        .iter()
+        .take(partition_data.len() - 1)
+        .map(|smaller| {
+            let smaller_subtree_nodes =
+                populate_subtree_tensor_map(contraction_tree, smaller.id, tensor, None);
+            let (rebalanced_node, objective) = find_rebalance_node(
+                random_balance,
+                &larger_subtree_nodes,
+                &smaller_subtree_nodes,
+                objective_function,
+            );
+            (smaller.id, rebalanced_node, objective)
+        })
+        .max_by(|a, b| a.2.total_cmp(&b.2))
+        .unwrap();
+
+    let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
+    vec![Shift {
+        from_subtree_id: larger_subtree_id,
+        to_subtree_id: smaller_subtree_id,
+        moved_leaf_ids: rebalanced_leaf_ids,
+    }]
+}
+
+/// Balancing scheme that identifies the intermediate tensor with the largest memory reduction when passed to the fastest subtree.
+pub(super) fn intermediate_tensors_even<R>(
+    partition_data: &[PartitionData],
+    contraction_tree: &ContractionTree,
+    random_balance: &mut Option<(usize, R)>,
+    objective_function: fn(&Tensor, &Tensor) -> f64,
+    tensor: &Tensor,
+    height_limit: usize,
+) -> Vec<Shift>
+where
+    R: Sized + Rng,
+{
+    let smaller_subtree_id = partition_data.first().unwrap().id;
+
+    let smaller_subtree_nodes =
+        populate_subtree_tensor_map(contraction_tree, smaller_subtree_id, tensor, None);
+
+    let (larger_subtree_id, rebalanced_node, _) = partition_data
+        .iter()
+        .skip(1)
+        .map(|larger| {
+            let mut larger_subtree_nodes = populate_subtree_tensor_map(
+                contraction_tree,
+                larger.id,
+                tensor,
+                Some(height_limit),
+            );
+            larger_subtree_nodes.remove(&larger.id);
+            let (rebalanced_node, objective) = find_rebalance_node(
+                random_balance,
+                &larger_subtree_nodes,
+                &smaller_subtree_nodes,
+                objective_function,
+            );
+
+            (larger.id, rebalanced_node, objective)
+        })
+        .max_by(|a, b| a.2.total_cmp(&b.2))
+        .unwrap();
+
+    let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
+    vec![Shift {
+        from_subtree_id: larger_subtree_id,
+        to_subtree_id: smaller_subtree_id,
+        moved_leaf_ids: rebalanced_leaf_ids,
+    }]
+}
+
 #[cfg(test)]
 mod tests {
     use rand::rngs::StdRng;
@@ -303,7 +502,8 @@ mod tests {
         contractionpath::contraction_tree::{
             balancing::{
                 balancing_schemes::{
-                    best_intermediate_tensors, best_tensor, best_tensors, best_worst, Shift,
+                    best_intermediate_tensors, best_tensor, best_tensors, best_worst, tensors_even,
+                    tensors_odd, Shift,
                 },
                 PartitionData,
             },
@@ -319,22 +519,22 @@ mod tests {
                 id: 2,
                 flop_cost: 1f64,
                 mem_cost: 0f64,
-                contraction: Vec::new(),
-                local_tensor: Tensor::default(),
+                contraction: Default::default(),
+                local_tensor: Tensor::new(vec![7, 9, 10]),
             },
             PartitionData {
                 id: 7,
                 flop_cost: 2f64,
                 mem_cost: 0f64,
-                contraction: Vec::new(),
-                local_tensor: Tensor::default(),
+                contraction: Default::default(),
+                local_tensor: Tensor::new(vec![0, 1, 5, 7]),
             },
             PartitionData {
                 id: 14,
                 flop_cost: 3f64,
                 mem_cost: 0f64,
-                contraction: Vec::new(),
-                local_tensor: Tensor::default(),
+                contraction: Default::default(),
+                local_tensor: Tensor::new(vec![0, 1, 2, 5, 10]),
             },
         ]
     }
@@ -476,6 +676,51 @@ mod tests {
                 moved_leaf_ids: vec![5],
             },
         ];
+        assert_eq!(output, ref_output);
+    }
+
+    #[test]
+    fn test_alternating_tensors_balancing_odd() {
+        let partition_data = setup_simple_partition_data();
+        let (contraction_tree, tensor) = setup_simple();
+
+        let output = tensors_odd::<StdRng>(
+            &partition_data,
+            &contraction_tree,
+            &mut None,
+            custom_cost_function,
+            &tensor,
+        );
+
+        // Shift tensor11 = Tensor::new(vec![4, 5, 10]);
+        // Max overlap is tensor1 = Tensor::new(vec![8, 9, 10]);
+        let ref_output = vec![Shift {
+            from_subtree_id: 14,
+            to_subtree_id: 7,
+            moved_leaf_ids: vec![8],
+        }];
+        assert_eq!(output, ref_output);
+    }
+
+    #[test]
+    fn test_alternating_tensors_balancing_even() {
+        let partition_data = setup_simple_partition_data();
+        let (contraction_tree, tensor) = setup_simple();
+
+        let output = tensors_even::<StdRng>(
+            &partition_data,
+            &contraction_tree,
+            &mut None,
+            custom_cost_function,
+            &tensor,
+        );
+        // Shift tensor8 = Tensor::new(vec![0, 1]);
+        // Max overlap is tensor3 = Tensor::new(vec![0, 6]);
+        let ref_output = vec![Shift {
+            from_subtree_id: 14,
+            to_subtree_id: 2,
+            moved_leaf_ids: vec![11],
+        }];
         assert_eq!(output, ref_output);
     }
 
