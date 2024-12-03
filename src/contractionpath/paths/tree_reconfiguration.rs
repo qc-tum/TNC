@@ -52,9 +52,9 @@ impl<'a> OptimizePath for TreeReconfigure<'a> {
             .map(|tensor| tensor.legs().clone())
             .collect::<Vec<_>>();
         let outputs = self.tensor.external_edges();
-        let size_dict = self.tensor.bond_dims().clone();
+        let size_dict = self.tensor.bond_dims();
 
-        let (inputs, outputs, size_dict) = tensor_legs_to_digit(&inputs, &outputs, size_dict);
+        let (inputs, outputs, size_dict) = tensor_legs_to_digit(&inputs, &outputs, &size_dict);
 
         // Map ContractIndex to (i, j) tuples
         let best_path = self
