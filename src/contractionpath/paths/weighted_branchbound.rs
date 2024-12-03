@@ -157,12 +157,7 @@ impl<'a> WeightedBranchBound<'a> {
             new_remaining.retain(|e| *e != parent_ids.0 && *e != parent_ids.1);
             new_remaining.push(child_id);
             new_path.push((parent_ids.0, parent_ids.1, child_id));
-            self.branch_iterate(
-                &new_path,
-                &new_remaining,
-                flop_cost,
-                size_cost,
-            );
+            self.branch_iterate(&new_path, &new_remaining, flop_cost, size_cost);
             new_path.pop();
         }
     }
