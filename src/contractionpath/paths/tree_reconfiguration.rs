@@ -23,7 +23,7 @@ pub struct TreeReconfigure<'a> {
 
 impl<'a> TreeReconfigure<'a> {
     pub fn new(tensor: &'a Tensor, subtree_size: usize, minimize: CostType) -> Self {
-        let _ = cotengra_check();
+        assert!(cotengra_check().is_ok());
         let binding = tensor.clone();
         // Obtain initial path with Greedy
         let mut opt = Greedy::new(&binding, CostType::Flops);
