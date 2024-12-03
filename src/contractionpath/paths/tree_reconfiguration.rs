@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use rustengra::{
     cotengra_check, create_and_optimize_tree, replace_to_ssa_path, tensor_legs_to_digit,
@@ -50,7 +51,7 @@ impl<'a> OptimizePath for TreeReconfigure<'a> {
             .tensors()
             .iter()
             .map(|tensor| tensor.legs().clone())
-            .collect::<Vec<_>>();
+            .collect_vec();
         let outputs = self.tensor.external_edges();
         let size_dict = self.tensor.bond_dims();
 
@@ -67,7 +68,7 @@ impl<'a> OptimizePath for TreeReconfigure<'a> {
                     panic!("This method does not support nested Paths")
                 }
             })
-            .collect::<Vec<_>>();
+            .collect_vec();
 
         let is_ssa = true;
         let replace_path = create_and_optimize_tree(
@@ -85,7 +86,7 @@ impl<'a> OptimizePath for TreeReconfigure<'a> {
         self.best_path = best_path
             .iter()
             .map(|(i, j)| ContractionIndex::Pair(*i, *j))
-            .collect::<Vec<_>>();
+            .collect_vec();
 
         let (op_cost, mem_cost) =
             contract_path_cost(self.tensor.tensors(), &self.get_best_replace_path(), true);
