@@ -26,9 +26,7 @@ pub struct WeightedBranchBound<'a> {
     best_size: f64,
     best_path: Vec<ContractionIndex>,
     best_progress: FxHashMap<usize, f64>,
-    result_cache: FxHashMap<(usize, usize), usize>,
-    flop_cache: FxHashMap<usize, f64>,
-    size_cache: FxHashMap<usize, f64>,
+    result_cache: FxHashMap<(usize, usize), (usize, f64, f64)>,
     comm_cache: FxHashMap<usize, f64>,
     tensor_cache: FxHashMap<usize, Tensor>,
 }
@@ -51,8 +49,6 @@ impl<'a> WeightedBranchBound<'a> {
             best_path: Vec::new(),
             best_progress: FxHashMap::default(),
             result_cache: FxHashMap::default(),
-            flop_cache: FxHashMap::default(),
-            size_cache: FxHashMap::default(),
             comm_cache: latency_map,
             tensor_cache: FxHashMap::default(),
         }
@@ -69,21 +65,14 @@ impl<'a> WeightedBranchBound<'a> {
             (i, j) = (j, i);
         }
 
-        let (k12, flops_12, size_12) = if let Some(&k12) = self.result_cache.get(&(i, j)) {
-            let flops_12 = self.flop_cache[&k12];
-            let size_12 = self.size_cache[&k12];
-            (k12, flops_12, size_12)
-        } else {
+        let &mut (k12, flops_12, size_12) = self.result_cache.entry((i, j)).or_insert_with(|| {
             let k12 = self.tensor_cache.len();
             let flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
             let size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
             let k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
-            self.result_cache.insert_new((i, j), k12);
-            self.flop_cache.insert_new(k12, flops_12);
-            self.size_cache.insert_new(k12, size_12);
             self.tensor_cache.insert_new(k12, k12_tensor);
             (k12, flops_12, size_12)
-        };
+        });
         let current_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
         self.comm_cache.entry(k12).or_insert(current_flops);
         let current_size = size.max(size_12);
@@ -185,8 +174,6 @@ impl<'a> OptimizePath for WeightedBranchBound<'a> {
             return;
         }
         let tensors = self.tn.tensors().clone();
-        self.flop_cache.clear();
-        self.size_cache.clear();
         self.result_cache.clear();
         self.tensor_cache.clear();
         let mut sub_tensor_contraction = Vec::new();
