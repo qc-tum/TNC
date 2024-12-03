@@ -166,8 +166,7 @@ impl<'a> WeightedBranchBound<'a> {
             new_remaining.push(child_id);
             let mut new_path = path.to_vec();
             new_path.push((parent_ids.0, parent_ids.1, child_id));
-            WeightedBranchBound::branch_iterate(
-                self,
+            self.branch_iterate(
                 &new_path,
                 &new_remaining,
                 flop_cost,
@@ -207,7 +206,7 @@ impl<'a> OptimizePath for WeightedBranchBound<'a> {
             self.tensor_cache.insert_new(index, tensor);
         }
         let remaining = (0..self.tn.tensors().len()).collect_vec();
-        WeightedBranchBound::branch_iterate(self, &[], &remaining, 0f64, 0f64);
+        self.branch_iterate(&[], &remaining, 0f64, 0f64);
         sub_tensor_contraction.extend_from_slice(&self.best_path);
         self.best_path = sub_tensor_contraction;
     }
