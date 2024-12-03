@@ -149,6 +149,9 @@ impl<'a> WeightedBranchBound<'a> {
             }
         }
 
+        let mut new_path = Vec::with_capacity(path.len() + 1);
+        new_path.extend_from_slice(path);
+
         let mut bi = 0;
         while self.nbranch.is_none() || bi < self.nbranch.unwrap() {
             bi += 1;
@@ -164,7 +167,6 @@ impl<'a> WeightedBranchBound<'a> {
             let mut new_remaining = remaining.to_vec();
             new_remaining.retain(|e| *e != parent_ids.0 && *e != parent_ids.1);
             new_remaining.push(child_id);
-            let mut new_path = path.to_vec();
             new_path.push((parent_ids.0, parent_ids.1, child_id));
             self.branch_iterate(
                 &new_path,
@@ -172,6 +174,7 @@ impl<'a> WeightedBranchBound<'a> {
                 flop_cost,
                 size_cost,
             );
+            new_path.pop();
         }
     }
 }
