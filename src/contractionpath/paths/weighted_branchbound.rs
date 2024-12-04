@@ -1,6 +1,6 @@
 use std::collections::BinaryHeap;
 
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use rustc_hash::FxHashMap;
 
 use crate::{
@@ -140,22 +140,23 @@ impl<'a> WeightedBranchBound<'a> {
                 candidates.push(new_candidate);
             }
         }
+        let candidates = candidates.into_iter_sorted();
+        let candidates = if let Some(limit) = self.nbranch {
+            Either::Left(candidates.take(limit))
+        } else {
+            Either::Right(candidates)
+        };
 
         let mut new_path = Vec::with_capacity(path.len() + 1);
         new_path.extend_from_slice(path);
 
-        let mut bi = 0;
-        while self.nbranch.is_none() || bi < self.nbranch.unwrap() {
-            bi += 1;
-            let Some(Candidate {
+        for candidate in candidates {
+            let Candidate {
                 flop_cost,
                 size_cost,
                 parent_ids,
                 child_id,
-            }) = candidates.pop()
-            else {
-                break;
-            };
+            } = candidate;
             let mut new_remaining = remaining.to_vec();
             new_remaining.retain(|e| *e != parent_ids.0 && *e != parent_ids.1);
             new_remaining.push(child_id);
