@@ -12,6 +12,8 @@ use crate::{
 
 use super::{CostType, OptimizePath};
 
+/// Creates an interface to `rustengra` an interface to access `Cotengra` methods in rust.
+/// Specifically exposes `subtree_reconfigure` method.
 pub struct TreeReconfigure<'a> {
     tensor: &'a Tensor,
     minimize: CostType,
