@@ -25,6 +25,10 @@ pub struct TreeReconfigure<'a> {
 }
 
 impl<'a> TreeReconfigure<'a> {
+    /// Creates a new [`TreeReconfigure`] instance. The `initial_path` is an initial
+    /// contraction path in SSA format that is to be optimized. `subtree_size` is the
+    /// size of subtrees that is considered (increases the optimization cost
+    /// exponentially!).
     pub fn new(
         tensor: &'a Tensor,
         initial_path: Vec<ContractionIndex>,
@@ -45,7 +49,6 @@ impl<'a> TreeReconfigure<'a> {
             subtree_size,
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
-            // best_path is always in SSA format
             best_path: initial_path,
             best_progress: FxHashMap::default(),
         }
