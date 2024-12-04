@@ -33,6 +33,7 @@ genetic_algorithm = "0.17.1"
 cast = "0.3.0"
 rayon = "1.10.0"
 ordered-float = "4.5.0"
+rustengra = { git = "ssh://gitlab.lrz.de/quantum-research/tensornetworksimulation/rustengra" }
 
 [dev-dependencies]
 criterion = "0.5.1"

@@ -244,7 +244,6 @@ where
         .take(partition_data.len() - 1)
         .map(|smaller| {
             let smaller_subtree_nodes = FxHashMap::from_iter([(0, smaller.local_tensor.clone())]);
-
             let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
                 &larger_subtree_leaf_nodes,
