@@ -37,10 +37,9 @@ impl<'a> TreeReconfigure<'a> {
     ) -> Self {
         assert!(cotengra_check().is_ok());
         assert!(
-            initial_path.iter().all(|index| match index {
-                ContractionIndex::Path(..) => false,
-                ContractionIndex::Pair(..) => true,
-            }),
+            initial_path
+                .iter()
+                .all(|index| matches!(index, ContractionIndex::Pair(..))),
             "This method does not support nested Paths"
         );
         Self {
