@@ -10,7 +10,7 @@ use crate::{
     types::ContractionIndex,
 };
 
-use super::{greedy::Greedy, CostType, OptimizePath};
+use super::{CostType, OptimizePath};
 
 pub struct TreeReconfigure<'a> {
     tensor: &'a Tensor,
@@ -23,21 +23,28 @@ pub struct TreeReconfigure<'a> {
 }
 
 impl<'a> TreeReconfigure<'a> {
-    pub fn new(tensor: &'a Tensor, subtree_size: usize, minimize: CostType) -> Self {
+    pub fn new(
+        tensor: &'a Tensor,
+        initial_path: Vec<ContractionIndex>,
+        subtree_size: usize,
+        minimize: CostType,
+    ) -> Self {
         assert!(cotengra_check().is_ok());
-        let binding = tensor.clone();
-        // Obtain initial path with Greedy
-        let mut opt = Greedy::new(&binding, CostType::Flops);
-        opt.optimize_path();
-
+        assert!(
+            initial_path.iter().all(|index| match index {
+                ContractionIndex::Path(..) => false,
+                ContractionIndex::Pair(..) => true,
+            }),
+            "This method does not support nested Paths"
+        );
         Self {
             tensor,
             minimize,
             subtree_size,
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
-            // best_path is always in replace path format
-            best_path: opt.get_best_path().clone(),
+            // best_path is always in SSA format
+            best_path: initial_path,
             best_progress: FxHashMap::default(),
         }
     }
@@ -118,7 +125,9 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::paths::{tree_reconfiguration::TreeReconfigure, CostType, OptimizePath},
+        contractionpath::paths::{
+            greedy::Greedy, tree_reconfiguration::TreeReconfigure, CostType, OptimizePath,
+        },
         networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
         path,
         tensornetwork::{create_tensor_network, tensor::Tensor},
@@ -185,7 +194,14 @@ mod tests {
     #[ignore]
     fn test_tree_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
+        let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
+        greedy_opt.optimize_path();
+        let mut opt = TreeReconfigure::new(
+            &tn,
+            greedy_opt.get_best_path().to_owned(),
+            8,
+            CostType::Flops,
+        );
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 600f64);
@@ -198,7 +214,14 @@ mod tests {
     #[ignore]
     fn test_tree_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
+        let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
+        greedy_opt.optimize_path();
+        let mut opt = TreeReconfigure::new(
+            &tn,
+            greedy_opt.get_best_path().to_owned(),
+            8,
+            CostType::Flops,
+        );
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 332685f64);
@@ -214,7 +237,14 @@ mod tests {
     #[ignore]
     fn test_tree_large() {
         let tn = setup_large();
-        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
+        let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
+        greedy_opt.optimize_path();
+        let mut opt = TreeReconfigure::new(
+            &tn,
+            greedy_opt.get_best_path().to_owned(),
+            8,
+            CostType::Flops,
+        );
         opt.optimize_path();
     }
 }
