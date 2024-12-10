@@ -6,9 +6,12 @@ use rand::Rng;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
-    contractionpath::contraction_tree::{
-        balancing::communication_schemes::CommunicationScheme,
-        repartitioning::compute_partitioning_cost,
+    contractionpath::{
+        contraction_cost::contract_path_cost,
+        contraction_tree::{
+            balancing::communication_schemes::CommunicationScheme,
+            repartitioning::{compute_partitioning_cost, compute_solution},
+        },
     },
     tensornetwork::tensor::Tensor,
 };
@@ -41,12 +44,12 @@ pub struct SimulatedAnnealingOptimizer {
 }
 
 impl SimulatedAnnealingOptimizer {
-    #[allow(clippy::too_many_arguments)]
     /// Start optimization with given temperature range
     ///
     /// - `model` : the model to optimize
     /// - `initial_solution` : the initial solution to start optimization.
     /// - `n_iter`: maximum iterations
+    #[allow(clippy::too_many_arguments)]
     fn optimize_with_temperature<M, R>(
         &self,
         model: &M,
@@ -112,6 +115,7 @@ struct PartitioningModel<'a> {
     tensor: &'a Tensor,
     num_partitions: usize,
     communication_scheme: CommunicationScheme,
+    memory_limit: Option<f64>,
 }
 
 impl OptModel for PartitioningModel<'_> {
@@ -135,8 +139,24 @@ impl OptModel for PartitioningModel<'_> {
     }
 
     fn evaluate(&self, partitioning: &Self::SolutionType) -> ScoreType {
-        let cost = compute_partitioning_cost(self.tensor, partitioning, self.communication_scheme);
-        NotNan::new(cost).unwrap()
+        // Construct the tensor network and contraction path from the partitioning
+        let (partitioned_tn, path, cost) =
+            compute_solution(self.tensor, partitioning, self.communication_scheme);
+
+        // Compute memory usage
+        let (_, mem) = contract_path_cost(partitioned_tn.tensors(), &path, true);
+
+        // If the memory limit is exceeded, return infinity
+        let score = if self
+            .memory_limit
+            .map(|limit| mem > limit)
+            .unwrap_or_default()
+        {
+            f64::INFINITY
+        } else {
+            cost
+        };
+        NotNan::new(score).unwrap()
     }
 }
 
@@ -147,6 +167,7 @@ pub fn balance_partitions<R>(
     initial_partitioning: Vec<usize>,
     communication_scheme: CommunicationScheme,
     rng: &mut R,
+    memory_limit: Option<f64>,
 ) -> (Vec<usize>, ScoreType)
 where
     R: Rng + Sized,
@@ -155,6 +176,7 @@ where
         tensor,
         num_partitions,
         communication_scheme,
+        memory_limit,
     };
 
     let optimizer = SimulatedAnnealingOptimizer {

@@ -50,6 +50,7 @@ fn main() {
         partitioning,
         communication_scheme,
         &mut rng,
+        None,
     );
     println!("Final score: {final_score:?}");
 
