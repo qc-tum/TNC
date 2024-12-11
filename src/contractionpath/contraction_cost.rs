@@ -77,6 +77,7 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
 /// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1)), 6607f64);
 /// ```
+#[inline]
 pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     let diff = t_1 ^ t_2;
     diff.size() as f64 + t_1.size() as f64 + t_2.size() as f64
@@ -89,6 +90,7 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// * `inputs` - Tensors to contract
 /// * `contract_path`  - Contraction order (replace path)
 /// * `only_count_ops` - If `true`, ignores cost of complex multiplication and addition and only counts number of operations
+#[inline]
 pub fn contract_path_cost(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
