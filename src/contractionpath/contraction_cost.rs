@@ -124,10 +124,10 @@ fn contract_path_custom_cost(
         match *index {
             ContractionIndex::Pair(i, j) => {
                 op_cost += cost_function(&inputs[i], &inputs[j]);
-                let k12 = &inputs[i] ^ &inputs[j];
+                let ij = &inputs[i] ^ &inputs[j];
                 let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
                 mem_cost = mem_cost.max(new_mem_cost);
-                inputs[i] = k12;
+                inputs[i] = ij;
             }
             ContractionIndex::Path(i, ref path) => {
                 let costs = contract_path_custom_cost(inputs[i].tensors(), path, cost_function);
@@ -190,22 +190,19 @@ fn communication_path_custom_cost(
     let mut op_cost = 0f64;
     let mut mem_cost = 0f64;
     let mut inputs = inputs.to_vec();
-    let mut current_tensor_costs = FxHashMap::default();
+    let mut tensor_cost = tensor_cost.clone();
 
     for index in contract_path {
         match *index {
             ContractionIndex::Pair(i, j) => {
-                let k12 = &inputs[i] ^ &inputs[j];
+                let ij = &inputs[i] ^ &inputs[j];
                 let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
                 mem_cost = mem_cost.max(new_mem_cost);
 
-                let costs_i = *current_tensor_costs.entry(i).or_insert(tensor_cost[&i]);
-                let costs_j = *current_tensor_costs.entry(j).or_insert(tensor_cost[&j]);
-                current_tensor_costs.entry(i).and_modify(|a| {
-                    *a = cost_function(&inputs[i], &inputs[j]) + costs_i.max(costs_j)
-                });
-                op_cost = current_tensor_costs[&i];
-                inputs[i] = k12;
+                op_cost =
+                    cost_function(&inputs[i], &inputs[j]) + tensor_cost[&i].max(tensor_cost[&j]);
+                tensor_cost.insert(i, op_cost);
+                inputs[i] = ij;
             }
             ContractionIndex::Path(..) => {
                 panic!("Nested paths not supported for contracting communication path");
