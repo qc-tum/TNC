@@ -1,6 +1,7 @@
 use core::ops::{BitAnd, BitOr, BitXor, Sub};
 use std::hash::{Hash, Hasher};
 use std::iter::zip;
+use std::ops::BitXorAssign;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rustc_hash::FxHashMap;
@@ -720,6 +721,13 @@ impl Sub for &Tensor {
     #[inline]
     fn sub(self, rhs: &Tensor) -> Tensor {
         self.difference(rhs)
+    }
+}
+
+impl BitXorAssign for Tensor {
+    #[inline]
+    fn bitxor_assign(&mut self, rhs: Self) {
+        *self = self.symmetric_difference(&rhs);
     }
 }
 
