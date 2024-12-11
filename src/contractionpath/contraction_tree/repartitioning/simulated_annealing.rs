@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::iter::zip;
 
 use itertools::Itertools;
 use ordered_float::NotNan;
@@ -12,8 +12,10 @@ use crate::{
             balancing::communication_schemes::CommunicationScheme,
             repartitioning::{compute_partitioning_cost, compute_solution},
         },
+        paths::{greedy::Greedy, CostType, OptimizePath},
     },
     tensornetwork::tensor::Tensor,
+    types::ContractionIndex,
 };
 
 type ScoreType = NotNan<f64>;
@@ -27,7 +29,8 @@ pub trait OptModel<'a>: Sync + Send {
         tensor: &'a Tensor,
         num_partitions: usize,
         communication_scheme: CommunicationScheme,
-        initial_partitioning: Self::SolutionType,
+        memory_limit: Option<f64>,
+        initial_solution: Self::SolutionType,
     ) -> Self
     where
         Self: std::marker::Sized;
@@ -52,7 +55,7 @@ pub struct SimulatedAnnealingOptimizer {
     w: f64,
 }
 
-impl SimulatedAnnealingOptimizer {
+impl<'a> SimulatedAnnealingOptimizer {
     /// Start optimization with given temperature range
     ///
     /// - `model` : the model to optimize
@@ -123,14 +126,14 @@ impl SimulatedAnnealingOptimizer {
     }
 }
 
-pub struct PartitioningModel<'a> {
+pub struct NaivePartitioningModel<'a> {
     tensor: &'a Tensor,
     num_partitions: usize,
     communication_scheme: CommunicationScheme,
     memory_limit: Option<f64>,
 }
 
-impl<'a> OptModel<'a> for PartitioningModel<'a> {
+impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
     type SolutionType = Vec<usize>;
 
     fn generate_trial_solution<R: Rng + Sized>(
@@ -156,11 +159,7 @@ impl<'a> OptModel<'a> for PartitioningModel<'a> {
             compute_solution(self.tensor, partitioning, self.communication_scheme);
 
         // Compute memory usage
-        let mem = compute_memory_requirements(
-            partitioned_tn.tensors(),
-            &path,
-            contract_size_tensors_exact,
-        );
+        let (_, mem) = contract_path_cost(partitioned_tn.tensors(), &path, true);
 
         // If the memory limit is exceeded, return infinity
         let score = if self.memory_limit.is_some_and(|limit| mem > limit) {
@@ -175,6 +174,7 @@ impl<'a> OptModel<'a> for PartitioningModel<'a> {
         tensor: &'a Tensor,
         num_partitions: usize,
         communication_scheme: CommunicationScheme,
+        memory_limit: Option<f64>,
         _partitioning_scheme: Self::SolutionType,
     ) -> Self
     where
@@ -184,97 +184,226 @@ impl<'a> OptModel<'a> for PartitioningModel<'a> {
             tensor,
             num_partitions,
             communication_scheme,
+            memory_limit,
         }
     }
 }
 
-pub struct DirectedPartitioningModel<'a> {
+pub struct LeafPartitioningModel<'a> {
     tensor: &'a Tensor,
     num_partitions: usize,
     communication_scheme: CommunicationScheme,
-    partition_tensors: Vec<Tensor>,
+    memory_limit: Option<f64>
 }
 
-impl<'a> DirectedPartitioningModel<'a> {
-    pub fn new(
-        tensor: &'a Tensor,
-        num_partitions: usize,
-        initial_partitioning: Vec<usize>,
-        communication_scheme: CommunicationScheme,
-    ) -> Self {
-        let mut partition_tensors = [Tensor::new_with_bonddims(
-            Vec::new(),
-            Arc::clone(&tensor.bond_dims),
-        )];
-        for (tensor_index, partition_index) in initial_partitioning.iter().enumerate() {
-            partition_tensors[*partition_index] ^= tensor.tensors()[tensor_index].clone();
-        }
-        Self {
-            tensor,
-            num_partitions,
-            communication_scheme,
-            partition_tensors: partition_tensors.to_vec(),
-        }
-    }
-}
-
-impl<'a> OptModel<'a> for DirectedPartitioningModel<'a> {
-    type SolutionType = Vec<usize>;
+impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
+    type SolutionType = (Vec<usize>, Vec<Tensor>);
 
     fn generate_trial_solution<R: Rng + Sized>(
         &self,
-        mut current_solution: Self::SolutionType,
+        current_solution: Self::SolutionType,
         rng: &mut R,
     ) -> Self::SolutionType {
-        let tensor_index = rng.gen_range(0..current_solution.len());
-        // let current_partition = current_solution[tensor_index];
-        let random_tensor = self.tensor.tensor(tensor_index);
-        let (new_partition, _) = self
-            .partition_tensors
+        let (mut partitioning, mut partition_tensors) = current_solution;
+        let tensor_index = rng.gen_range(0..partitioning.len());
+        let shifted_tensor = self.tensor.tensor(tensor_index);
+
+        let (new_partition, _) = partition_tensors
             .iter()
             .enumerate()
-            .map(|(i, tensor)| {
+            .map(|(i, partition_tensor)| {
                 (
                     i,
-                    (random_tensor ^ tensor).size() as i64
-                        - random_tensor.size() as i64
-                        - tensor.size() as i64,
+                    (shifted_tensor ^ partition_tensor).size() as i64
+                        - partition_tensor.size() as i64,
                 )
             })
             .min_by(|a, b| a.1.cmp(&b.1))
             .unwrap();
-
-        current_solution[tensor_index] = new_partition;
-        current_solution
+        let old_partition = partitioning[tensor_index];
+        partitioning[tensor_index] = new_partition;
+        partition_tensors[old_partition] ^= shifted_tensor;
+        partition_tensors[new_partition] ^= shifted_tensor;
+        (partitioning, partition_tensors)
     }
 
     fn evaluate(&self, partitioning: &Self::SolutionType) -> ScoreType {
-        let cost = compute_partitioning_cost(self.tensor, partitioning, self.communication_scheme);
-        NotNan::new(cost).unwrap()
+        // Construct the tensor network and contraction path from the partitioning
+        let (partitioned_tn, path, cost) =
+            compute_solution(self.tensor, &partitioning.0, self.communication_scheme);
+
+        // Compute memory usage
+        let (_, mem) = contract_path_cost(partitioned_tn.tensors(), &path, true);
+
+        // If the memory limit is exceeded, return infinity
+        let score = if self
+            .memory_limit
+            .map(|limit| mem > limit)
+            .unwrap_or_default()
+        {
+            f64::INFINITY
+        } else {
+            cost
+        };
+        NotNan::new(score).unwrap()
     }
 
     fn new(
         tensor: &'a Tensor,
         num_partitions: usize,
         communication_scheme: CommunicationScheme,
-        initial_partitioning: Self::SolutionType,
+        memory_limit: Option<f64>,
+        _initial_partitioning: Self::SolutionType,
     ) -> Self
     where
         Self: std::marker::Sized,
     {
-        let mut partition_tensors =
-            vec![
-                Tensor::new_with_bonddims(Vec::new(), Arc::clone(&tensor.bond_dims));
-                num_partitions
-            ];
-        for (i, partition_num) in initial_partitioning.iter().enumerate() {
-            partition_tensors[*partition_num] ^= tensor.tensor(i).clone();
-        }
         Self {
             tensor,
             num_partitions,
             communication_scheme,
-            partition_tensors,
+            memory_limit
+        }
+    }
+}
+
+pub struct IntermediatePartitioningModel<'a> {
+    tensor: &'a Tensor,
+    num_partitions: usize,
+    communication_scheme: CommunicationScheme,
+    memory_limit: Option<f64>,
+}
+
+impl<'a> IntermediatePartitioningModel<'a> {}
+
+impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
+    type SolutionType = (Vec<usize>, Vec<Tensor>, Vec<Vec<ContractionIndex>>);
+
+    fn generate_trial_solution<R: Rng + Sized>(
+        &self,
+        current_solution: Self::SolutionType,
+        rng: &mut R,
+    ) -> Self::SolutionType {
+        let (mut partitioning, mut partition_tensors, mut partition_contractions) =
+            current_solution;
+        let partition_index = rng.gen_range(0..self.num_partitions);
+        let tensor_index = rng.gen_range(0..partition_contractions[partition_index].len() - 1);
+        let mut tensor_leaves = if let ContractionIndex::Pair(i, j) =
+            partition_contractions[partition_index][tensor_index]
+        {
+            vec![i, j]
+        } else {
+            panic!("Partitioned contractions should not contain Path elements")
+        };
+
+        for contraction in partition_contractions[partition_index]
+            .iter()
+            .take(tensor_index)
+            .rev()
+        {
+            if let ContractionIndex::Pair(i, j) = contraction {
+                if tensor_leaves.contains(i) {
+                    tensor_leaves.push(*j);
+                }
+            }
+        }
+
+        let mut shifted_tensor = Tensor::new(Vec::new());
+        let mut shifted_indices = Vec::new();
+        for (partition_tensor_index, (i, _partition)) in partitioning
+            .iter()
+            .enumerate()
+            .filter(|(_, partition)| *partition == &partition_index)
+            .enumerate()
+        {
+            if tensor_leaves.contains(&partition_tensor_index) {
+                shifted_tensor ^= self.tensor.tensor(i);
+                shifted_indices.push(i);
+            }
+        }
+
+        // Cost function is actually quite important!!
+        let (new_partition, _) = partition_tensors
+            .iter()
+            .enumerate()
+            .map(|(i, partition_tensor)| {
+                (
+                    i,
+                    (&shifted_tensor ^ partition_tensor).size_hint() - partition_tensor.size_hint(),
+                )
+            })
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .unwrap();
+        let old_partition = partitioning[tensor_index];
+        for index in shifted_indices {
+            partitioning[index] = new_partition;
+        }
+
+        let mut from_tensor = Tensor::new(Vec::new());
+        let mut to_tensor = Tensor::new(Vec::new());
+
+        for (partition_index, tensor) in zip(&partitioning, self.tensor.tensors()) {
+            if *partition_index == old_partition {
+                from_tensor.push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
+            }
+            if *partition_index == new_partition {
+                to_tensor.push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
+            }
+        }
+
+        // Redo greedy here!
+        let mut from_opt = Greedy::new(&from_tensor, CostType::Flops);
+        from_opt.optimize_path();
+        let from_path = from_opt.get_best_replace_path();
+        partition_contractions[old_partition] = from_path;
+
+        let mut to_opt = Greedy::new(&to_tensor, CostType::Flops);
+        to_opt.optimize_path();
+        let to_path = from_opt.get_best_replace_path();
+        partition_contractions[new_partition] = to_path;
+
+        partition_tensors[old_partition] ^= &shifted_tensor;
+        partition_tensors[new_partition] ^= &shifted_tensor;
+
+        (partitioning, partition_tensors, partition_contractions)
+    }
+
+    fn evaluate(&self, partitioning: &Self::SolutionType) -> ScoreType {
+        // Construct the tensor network and contraction path from the partitioning
+        let (partitioned_tn, path, cost) =
+            compute_solution(self.tensor, &partitioning.0, self.communication_scheme);
+
+        // Compute memory usage
+        let (_, mem) = contract_path_cost(partitioned_tn.tensors(), &path, true);
+
+        // If the memory limit is exceeded, return infinity
+        let score = if self
+            .memory_limit
+            .map(|limit| mem > limit)
+            .unwrap_or_default()
+        {
+            f64::INFINITY
+        } else {
+            cost
+        };
+        NotNan::new(score).unwrap()
+    }
+
+    fn new(
+        tensor: &'a Tensor,
+        num_partitions: usize,
+        communication_scheme: CommunicationScheme,
+        memory_limit: Option<f64>,
+        _initial_partitioning: Self::SolutionType,
+    ) -> Self
+    where
+        Self: std::marker::Sized,
+    {
+        Self {
+            tensor,
+            num_partitions,
+            communication_scheme,
+            memory_limit,
         }
     }
 }
@@ -283,11 +412,11 @@ impl<'a> OptModel<'a> for DirectedPartitioningModel<'a> {
 pub fn balance_partitions<'a, R, M>(
     tensor_network: &'a Tensor,
     num_partitions: usize,
-    initial_partitioning: M::SolutionType,
+    initial_solution: M::SolutionType,
     communication_scheme: CommunicationScheme,
     rng: &mut R,
     memory_limit: Option<f64>,
-) -> (Vec<usize>, ScoreType)
+) -> (M::SolutionType, ScoreType)
 where
     R: Rng + Sized,
     M: OptModel<'a>,
@@ -297,6 +426,7 @@ where
         num_partitions,
         communication_scheme,
         memory_limit,
+        initial_solution.clone(),
     );
 
     let optimizer = SimulatedAnnealingOptimizer {
@@ -305,7 +435,7 @@ where
         restart_iter: 100,
         w: 1.0,
     };
-    optimizer.optimize_with_temperature(&model, initial_partitioning, 1000, rng)
+    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, 1000, rng)
 }
 
 /// Computes the score of a partitioning.
