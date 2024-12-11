@@ -1,10 +1,13 @@
+use ordered_float::NotNan;
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
     contractionpath::contraction_tree::{
         balancing::CommunicationScheme,
         repartitioning::{
             compute_solution,
-            simulated_annealing::{balance_partitions, calculate_score},
+            simulated_annealing::{
+                balance_partitions, calculate_score, DirectedPartitioningModel, PartitioningModel,
+            },
         },
     },
     networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
@@ -44,7 +47,7 @@ fn main() {
     println!("Initial score: {initial_score:?}");
 
     // Try to find a better partitioning with a simulated annealing algorithm
-    let (partitioning, final_score) = balance_partitions(
+    let (partitioning, final_score) = balance_partitions::<_, PartitioningModel>(
         &tensor,
         num_partitions as usize,
         partitioning,
@@ -52,7 +55,17 @@ fn main() {
         &mut rng,
         None,
     );
-    println!("Final score: {final_score:?}");
+    println!("Normal Final score: {final_score:?}");
+
+    // Try to find a better partitioning with a simulated annealing algorithm
+    let (partitioning, final_score) = balance_partitions::<_, DirectedPartitioningModel>(
+        &tensor,
+        num_partitions as usize,
+        partitioning,
+        communication_scheme,
+        &mut rng,
+    );
+    println!("Directed Final score: {final_score:?}");
 
     // Partition the tensor network with the found partitioning and contract
     let (mut tensor, path, _) = compute_solution(&tensor, &partitioning, communication_scheme);
