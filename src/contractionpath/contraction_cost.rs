@@ -3,29 +3,6 @@ use rustc_hash::FxHashMap;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 
-/// Returns Schroedinger contraction time complexity of contracting [Tensor] objects at indices `i` and `j`.
-///
-/// # Arguments
-/// * `tn` - Reference to Tensor object.
-/// * `i`  - Index of first tensor to contract.
-/// * `j`  - Index of second tensor to contract.
-///
-/// # Examples
-/// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::create_tensor_network;
-/// # use tensorcontraction::contractionpath::contraction_cost::contract_cost_in_tn;
-/// # use rustc_hash::FxHashMap;
-/// let vec1 = Vec::from([0, 1, 2]);
-/// let vec2 = Vec::from([2, 3, 4]);
-/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_cost_in_tn(&tn, 0, 1), 350350f64);
-/// ```
-pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
-    contract_cost_tensors(tn.tensor(i), tn.tensor(j))
-}
-
 /// Returns Schroedinger contraction time complexity of contracting two [Tensor] objects. Considers cost of complex operations.
 ///
 /// # Arguments
@@ -89,29 +66,6 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
         .iter()
         .map(|e| bond_dims[e] as f64)
         .product::<f64>()
-}
-
-/// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
-///
-/// # Arguments
-/// * `tn` - Tensor containing contracted tensors at positions i and j.
-/// * `i` - Position of first Tensor to be contracted
-/// * `j` - Position of second Tensor to be contracted
-///
-/// # Examples
-/// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::create_tensor_network;
-/// # use tensorcontraction::contractionpath::contraction_cost::contract_size_in_tn;
-/// # use rustc_hash::FxHashMap;
-/// let vec1 = Vec::from([0, 1, 2]);
-/// let vec2 = Vec::from([2, 3, 4]);
-/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
-/// assert_eq!(contract_size_in_tn(&tn, 0, 1), 6607f64);
-/// ```
-pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
-    contract_size_tensors(tn.tensor(i), tn.tensor(j))
 }
 
 /// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
