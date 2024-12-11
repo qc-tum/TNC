@@ -1,5 +1,3 @@
-use rustc_hash::FxHashMap;
-
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 
@@ -157,7 +155,7 @@ pub fn communication_path_cost(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
     only_count_ops: bool,
-    tensor_cost: Option<&FxHashMap<usize, f64>>,
+    tensor_cost: Option<&[f64]>,
 ) -> (f64, f64) {
     let cost_function = if only_count_ops {
         contract_op_cost_tensors
@@ -165,9 +163,10 @@ pub fn communication_path_cost(
         contract_cost_tensors
     };
     let tensor_cost = if let Some(tensor_cost) = tensor_cost {
+        assert_eq!(inputs.len(), tensor_cost.len());
         tensor_cost
     } else {
-        &FxHashMap::from_iter((0..inputs.len()).map(|i| (i, 0f64)))
+        &vec![0f64; inputs.len()]
     };
 
     communication_path_custom_cost(inputs, contract_path, cost_function, tensor_cost)
@@ -185,12 +184,12 @@ fn communication_path_custom_cost(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
     cost_function: fn(&Tensor, &Tensor) -> f64,
-    tensor_cost: &FxHashMap<usize, f64>,
+    tensor_cost: &[f64],
 ) -> (f64, f64) {
     let mut op_cost = 0f64;
     let mut mem_cost = 0f64;
     let mut inputs = inputs.to_vec();
-    let mut tensor_cost = tensor_cost.clone();
+    let mut tensor_cost = tensor_cost.to_vec();
 
     for index in contract_path {
         match *index {
@@ -200,8 +199,8 @@ fn communication_path_custom_cost(
                 mem_cost = mem_cost.max(new_mem_cost);
 
                 op_cost =
-                    cost_function(&inputs[i], &inputs[j]) + tensor_cost[&i].max(tensor_cost[&j]);
-                tensor_cost.insert(i, op_cost);
+                    cost_function(&inputs[i], &inputs[j]) + tensor_cost[i].max(tensor_cost[j]);
+                tensor_cost[i] = op_cost;
                 inputs[i] = ij;
             }
             ContractionIndex::Path(..) => {
@@ -342,7 +341,7 @@ mod tests {
     #[test]
     fn test_contract_parallel_path_op_cost_with_partition_cost() {
         let tn = setup_parallel();
-        let tensor_cost = FxHashMap::from_iter([(0, 20f64), (1, 30f64), (2, 80f64), (3, 10f64)]);
+        let tensor_cost = vec![20f64, 30f64, 80f64, 10f64];
         let (op_cost, mem_cost) = communication_path_cost(
             tn.tensors(),
             path![(0, 1), (2, 3), (0, 2)],
@@ -356,7 +355,7 @@ mod tests {
     #[test]
     fn test_contract_parallel_path_cost_with_partition_cost() {
         let tn = setup_parallel();
-        let tensor_cost = FxHashMap::from_iter([(0, 20f64), (1, 30f64), (2, 80f64), (3, 10f64)]);
+        let tensor_cost = vec![20f64, 30f64, 80f64, 10f64];
         let (op_cost, mem_cost) = communication_path_cost(
             tn.tensors(),
             path![(0, 1), (2, 3), (0, 1)],

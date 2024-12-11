@@ -141,6 +141,7 @@ pub fn tensor_bipartition(
 mod tests {
     use std::sync::{Arc, RwLock};
 
+    use itertools::Itertools;
     use rustc_hash::FxHashMap;
 
     use crate::{
@@ -195,8 +196,9 @@ mod tests {
         // Flop Cost: (0, 2) = 32, Tensor cost = 40
         // max(40, 178) + 32 = 210
         // Mem Cost: (2, 1) = 2^4 + 2^5 + 2^5 = 80
+        let tensor_costs = (0..tensors.len()).map(|i| latency_map[&i]).collect_vec();
         let (flop_cost, mem_cost) =
-            communication_path_cost(&tensors, &communication_scheme, true, Some(&latency_map));
+            communication_path_cost(&tensors, &communication_scheme, true, Some(&tensor_costs));
         assert_eq!(flop_cost, 210f64);
         assert_eq!(mem_cost, 80f64);
     }
@@ -217,8 +219,9 @@ mod tests {
         // Flop Cost: (2, 1) = 32, Tensor cost = 50
         // max(72, 50) + 32 = 104
         // Mem Cost: (2, 1) = 2^3 + 2^5 + 2^2 = 44
+        let tensor_costs = (0..tensors.len()).map(|i| latency_map[&i]).collect_vec();
         let (flop_cost, mem_cost) =
-            communication_path_cost(&tensors, &communication_scheme, true, Some(&latency_map));
+            communication_path_cost(&tensors, &communication_scheme, true, Some(&tensor_costs));
 
         assert_eq!(flop_cost, 104f64);
         assert_eq!(mem_cost, 44f64);
@@ -238,8 +241,9 @@ mod tests {
         // Flop Cost: (2, 0) = 32 , Tensor cost = 40
         // max(178, 40) + 32 = 210
         // Mem Cost: (2, 1) = 2^4 + 2^5 + 2^5 = 80
+        let tensor_costs = (0..tensors.len()).map(|i| latency_map[&i]).collect_vec();
         let (flop_cost, mem_cost) =
-            communication_path_cost(&tensors, &communication_scheme, true, Some(&latency_map));
+            communication_path_cost(&tensors, &communication_scheme, true, Some(&tensor_costs));
 
         assert_eq!(flop_cost, 210f64);
         assert_eq!(mem_cost, 80f64);
