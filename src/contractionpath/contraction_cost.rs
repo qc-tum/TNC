@@ -6,11 +6,9 @@ use crate::types::ContractionIndex;
 /// Returns Schroedinger contraction time complexity of contracting [Tensor] objects at indices `i` and `j`.
 ///
 /// # Arguments
-///
 /// * `tn` - Reference to Tensor object.
 /// * `i`  - Index of first tensor to contract.
 /// * `j`  - Index of second tensor to contract.
-///
 ///
 /// # Examples
 /// ```
@@ -31,10 +29,8 @@ pub fn contract_cost_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
 /// Returns Schroedinger contraction time complexity of contracting two [Tensor] objects. Considers cost of complex operations.
 ///
 /// # Arguments
-///
 /// * `t_1` - First tensor to determine contraction cost.
 /// * `t_2` - First tensor to determine contraction cost.
-///
 ///
 /// # Examples
 /// ```
@@ -69,10 +65,8 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// Returns Schroedinger contraction time complexity of contracting two [Tensor] objects. Naive op cost, does not consider costs of multiplication.
 ///
 /// # Arguments
-///
 /// * `t_1` - First tensor to determine contraction cost.
 /// * `t_2` - First tensor to determine contraction cost.
-///
 ///
 /// # Examples
 /// ```
@@ -100,7 +94,6 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
 ///
 /// # Arguments
-///
 /// * `tn` - Tensor containing contracted tensors at positions i and j.
 /// * `i` - Position of first Tensor to be contracted
 /// * `j` - Position of second Tensor to be contracted
@@ -124,7 +117,6 @@ pub fn contract_size_in_tn(tn: &Tensor, i: usize, j: usize) -> f64 {
 /// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
 ///
 /// # Arguments
-///
 /// * `tn` - Tensor containing contracted tensors at positions i and j.
 /// * `i` - Position of first Tensor to be contracted
 /// * `j` - Position of second Tensor to be contracted
@@ -148,8 +140,8 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 }
 
 /// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object.
-/// # Arguments
 ///
+/// # Arguments
 /// * `inputs` - First tensor to determine contraction cost.
 /// * `contract_path`  - Contraction order as replacement path
 /// * `only_count_ops` - bool. if set to true, ignores cost of complex multiplication and addition and only counts number of operations
@@ -167,8 +159,8 @@ pub fn contract_path_cost(
 }
 
 /// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object.
-/// # Arguments
 ///
+/// # Arguments
 /// * `inputs` - First tensor to determine contraction cost.
 /// * `contract_path`  - Contraction order as replacement path
 /// * `cost_function` - function that takes references to two Tensor objects and returns a cost as f64.
@@ -207,8 +199,8 @@ fn contract_path_custom_cost(
 }
 
 /// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object assuming all operations occur in parallel.
-/// # Arguments
 ///
+/// # Arguments
 /// * `inputs` - First tensor to determine contraction cost.
 /// * `contract_path`  - Contraction order as replacement path
 /// * `only_count_ops` - bool. if set to true, ignores cost of complex multiplication and addition and only counts number of operations
