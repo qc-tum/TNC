@@ -1,4 +1,4 @@
-//! Adapted from <https://github.com/lucidfrontier45/localsearch>
+use std::sync::Arc;
 
 use itertools::Itertools;
 use ordered_float::NotNan;
@@ -7,7 +7,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
     contractionpath::{
-        contraction_cost::{compute_memory_requirements, contract_size_tensors_exact},
+        contraction_cost::contract_path_cost,
         contraction_tree::{
             balancing::communication_schemes::CommunicationScheme,
             repartitioning::{compute_partitioning_cost, compute_solution},
@@ -19,9 +19,18 @@ use crate::{
 type ScoreType = NotNan<f64>;
 
 /// OptModel is a trait that defines requirements to be used with optimization algorithm
-pub trait OptModel: Sync + Send {
+pub trait OptModel<'a>: Sync + Send {
     /// Type of the Solution
     type SolutionType: Clone + Sync + Send;
+
+    fn new(
+        tensor: &'a Tensor,
+        num_partitions: usize,
+        communication_scheme: CommunicationScheme,
+        initial_partitioning: Self::SolutionType,
+    ) -> Self
+    where
+        Self: std::marker::Sized;
 
     /// Generate a new trial solution from current solution
     fn generate_trial_solution<R: Rng + Sized>(
@@ -37,10 +46,10 @@ pub trait OptModel: Sync + Send {
 /// Optimizer that implements the simulated annealing algorithm
 #[derive(Clone, Copy)]
 pub struct SimulatedAnnealingOptimizer {
-    patience: usize,
     n_trials: usize,
-    max_temperature: f64,
-    min_temperature: f64,
+    patience: usize,
+    restart_iter: usize,
+    w: f64,
 }
 
 impl SimulatedAnnealingOptimizer {
@@ -58,18 +67,16 @@ impl SimulatedAnnealingOptimizer {
         rng: &mut R,
     ) -> (M::SolutionType, ScoreType)
     where
-        M: OptModel,
+        M: OptModel<'a>,
         R: Rng + Sized,
     {
         let mut current_score = model.evaluate(&initial_solution);
         let mut current_solution = initial_solution;
         let mut best_solution = current_solution.clone();
         let mut best_score = current_score;
-        let mut temperature = self.max_temperature;
-        let t_factor = (self.min_temperature / self.max_temperature).ln();
         let mut last_improvement = 0;
 
-        for it in 0..n_iter {
+        for _ in 0..n_iter {
             // Generate candidates sequentially (TODO: how to parallelize the RNG?)
             let candidates = (0..self.n_trials)
                 .map(|_| model.generate_trial_solution(current_solution.clone(), rng))
@@ -85,10 +92,11 @@ impl SimulatedAnnealingOptimizer {
                 .min_by_key(|(_, score)| *score)
                 .unwrap();
 
-            let acceptance_probability = (-(trial_score - current_score) / temperature).exp();
+            let diff = (trial_score - current_score) / current_score;
+            let acceptance_probability = (-self.w * diff.into_inner()).exp();
             let random_value = rng.gen();
 
-            if acceptance_probability > random_value {
+            if acceptance_probability >= random_value {
                 current_solution = trial_solution;
                 current_score = trial_score;
             }
@@ -99,9 +107,13 @@ impl SimulatedAnnealingOptimizer {
                 last_improvement = 0;
             }
 
-            temperature = self.max_temperature * (t_factor * (it as f64 / n_iter as f64)).exp();
-
             last_improvement += 1;
+
+            if last_improvement == self.restart_iter {
+                current_solution = best_solution.clone();
+                current_score = best_score;
+            }
+
             if last_improvement == self.patience {
                 break;
             }
@@ -111,14 +123,14 @@ impl SimulatedAnnealingOptimizer {
     }
 }
 
-struct PartitioningModel<'a> {
+pub struct PartitioningModel<'a> {
     tensor: &'a Tensor,
     num_partitions: usize,
     communication_scheme: CommunicationScheme,
     memory_limit: Option<f64>,
 }
 
-impl OptModel for PartitioningModel<'_> {
+impl<'a> OptModel<'a> for PartitioningModel<'a> {
     type SolutionType = Vec<usize>;
 
     fn generate_trial_solution<R: Rng + Sized>(
@@ -158,32 +170,140 @@ impl OptModel for PartitioningModel<'_> {
         };
         NotNan::new(score).unwrap()
     }
+
+    fn new(
+        tensor: &'a Tensor,
+        num_partitions: usize,
+        communication_scheme: CommunicationScheme,
+        _partitioning_scheme: Self::SolutionType,
+    ) -> Self
+    where
+        Self: std::marker::Sized,
+    {
+        Self {
+            tensor,
+            num_partitions,
+            communication_scheme,
+        }
+    }
+}
+
+pub struct DirectedPartitioningModel<'a> {
+    tensor: &'a Tensor,
+    num_partitions: usize,
+    communication_scheme: CommunicationScheme,
+    partition_tensors: Vec<Tensor>,
+}
+
+impl<'a> DirectedPartitioningModel<'a> {
+    pub fn new(
+        tensor: &'a Tensor,
+        num_partitions: usize,
+        initial_partitioning: Vec<usize>,
+        communication_scheme: CommunicationScheme,
+    ) -> Self {
+        let mut partition_tensors = [Tensor::new_with_bonddims(
+            Vec::new(),
+            Arc::clone(&tensor.bond_dims),
+        )];
+        for (tensor_index, partition_index) in initial_partitioning.iter().enumerate() {
+            partition_tensors[*partition_index] ^= tensor.tensors()[tensor_index].clone();
+        }
+        Self {
+            tensor,
+            num_partitions,
+            communication_scheme,
+            partition_tensors: partition_tensors.to_vec(),
+        }
+    }
+}
+
+impl<'a> OptModel<'a> for DirectedPartitioningModel<'a> {
+    type SolutionType = Vec<usize>;
+
+    fn generate_trial_solution<R: Rng + Sized>(
+        &self,
+        mut current_solution: Self::SolutionType,
+        rng: &mut R,
+    ) -> Self::SolutionType {
+        let tensor_index = rng.gen_range(0..current_solution.len());
+        // let current_partition = current_solution[tensor_index];
+        let random_tensor = self.tensor.tensor(tensor_index);
+        let (new_partition, _) = self
+            .partition_tensors
+            .iter()
+            .enumerate()
+            .map(|(i, tensor)| {
+                (
+                    i,
+                    (random_tensor ^ tensor).size() as i64
+                        - random_tensor.size() as i64
+                        - tensor.size() as i64,
+                )
+            })
+            .min_by(|a, b| a.1.cmp(&b.1))
+            .unwrap();
+
+        current_solution[tensor_index] = new_partition;
+        current_solution
+    }
+
+    fn evaluate(&self, partitioning: &Self::SolutionType) -> ScoreType {
+        let cost = compute_partitioning_cost(self.tensor, partitioning, self.communication_scheme);
+        NotNan::new(cost).unwrap()
+    }
+
+    fn new(
+        tensor: &'a Tensor,
+        num_partitions: usize,
+        communication_scheme: CommunicationScheme,
+        initial_partitioning: Self::SolutionType,
+    ) -> Self
+    where
+        Self: std::marker::Sized,
+    {
+        let mut partition_tensors =
+            vec![
+                Tensor::new_with_bonddims(Vec::new(), Arc::clone(&tensor.bond_dims));
+                num_partitions
+            ];
+        for (i, partition_num) in initial_partitioning.iter().enumerate() {
+            partition_tensors[*partition_num] ^= tensor.tensor(i).clone();
+        }
+        Self {
+            tensor,
+            num_partitions,
+            communication_scheme,
+            partition_tensors,
+        }
+    }
 }
 
 /// Runs simulated annealing to find a better partitioning.
-pub fn balance_partitions<R>(
-    tensor: &Tensor,
+pub fn balance_partitions<'a, R, M>(
+    tensor_network: &'a Tensor,
     num_partitions: usize,
-    initial_partitioning: Vec<usize>,
+    initial_partitioning: M::SolutionType,
     communication_scheme: CommunicationScheme,
     rng: &mut R,
     memory_limit: Option<f64>,
 ) -> (Vec<usize>, ScoreType)
 where
     R: Rng + Sized,
+    M: OptModel<'a>,
 {
-    let model = PartitioningModel {
-        tensor,
+    let model = M::new(
+        tensor_network,
         num_partitions,
         communication_scheme,
         memory_limit,
-    };
+    );
 
     let optimizer = SimulatedAnnealingOptimizer {
         patience: 1000,
         n_trials: 50,
-        max_temperature: 1.0,
-        min_temperature: 0.1,
+        restart_iter: 100,
+        w: 1.0,
     };
     optimizer.optimize_with_temperature(&model, initial_partitioning, 1000, rng)
 }
