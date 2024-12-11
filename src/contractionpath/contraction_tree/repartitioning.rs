@@ -66,11 +66,14 @@ pub fn compute_solution(
             }
         }
     };
+    let tensor_costs = (0..children_tensors.len())
+        .map(|i| latency_map[&i])
+        .collect_vec();
     let (communication_cost, _) = communication_path_cost(
         &children_tensors,
         &communication_path,
         true,
-        Some(&latency_map),
+        Some(&tensor_costs),
     );
 
     // Add the communication path to the local paths

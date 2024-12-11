@@ -127,21 +127,22 @@ where
 
     let partition_number = partition_data.len();
 
-    let children_tensors = partition_data
+    let (children_tensors, children_costs): (Vec<_>, Vec<_>) = partition_data
         .iter()
-        .map(|PartitionData { local_tensor, .. }| local_tensor.clone())
-        .collect_vec();
-
-    let partition_tensor_costs = partition_data
-        .iter()
-        .enumerate()
-        .map(|(i, partition)| (i, partition.flop_cost))
+        .map(
+            |PartitionData {
+                 local_tensor,
+                 flop_cost,
+                 ..
+             }| (local_tensor.clone(), *flop_cost),
+        )
         .collect();
+
     let (mut best_cost, _) = communication_path_cost(
         &children_tensors,
         &communication_path,
         true,
-        Some(&partition_tensor_costs),
+        Some(&children_costs),
     );
 
     let mut max_costs = Vec::with_capacity(iterations + 1);
@@ -178,18 +179,14 @@ where
             &balance_settings,
         );
 
-        let (partition_tensors, partition_costs): (Vec<_>, FxHashMap<_, _>) = partition_data
+        let (partition_tensors, partition_costs): (Vec<_>, Vec<_>) = partition_data
             .iter()
-            .enumerate()
             .map(
-                |(
-                    i,
-                    PartitionData {
-                        local_tensor,
-                        flop_cost,
-                        ..
-                    },
-                )| (local_tensor.clone(), (i, *flop_cost)),
+                |PartitionData {
+                     local_tensor,
+                     flop_cost,
+                     ..
+                 }| (local_tensor.clone(), *flop_cost),
             )
             .collect();
 
