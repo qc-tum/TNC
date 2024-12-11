@@ -3,11 +3,8 @@ use rustc_hash::FxHashMap;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 
-/// Returns Schroedinger contraction time complexity of contracting two [Tensor] objects. Considers cost of complex operations.
-///
-/// # Arguments
-/// * `t_1` - First tensor to determine contraction cost.
-/// * `t_2` - First tensor to determine contraction cost.
+/// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
+/// objects. Considers cost of complex operations.
 ///
 /// # Examples
 /// ```
@@ -39,11 +36,8 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
             .product::<f64>()
 }
 
-/// Returns Schroedinger contraction time complexity of contracting two [Tensor] objects. Naive op cost, does not consider costs of multiplication.
-///
-/// # Arguments
-/// * `t_1` - First tensor to determine contraction cost.
-/// * `t_2` - First tensor to determine contraction cost.
+/// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
+/// objects. Naive op cost, does not consider costs of multiplication.
 ///
 /// # Examples
 /// ```
@@ -68,12 +62,8 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
         .product::<f64>()
 }
 
-/// Returns Schroedinger contraction space complexity of contracting two [Tensor] objects
-///
-/// # Arguments
-/// * `tn` - Tensor containing contracted tensors at positions i and j.
-/// * `i` - Position of first Tensor to be contracted
-/// * `j` - Position of second Tensor to be contracted
+/// Returns Schroedinger contraction space complexity of contracting two [`Tensor`]
+/// objects.
 ///
 /// # Examples
 /// ```
@@ -89,16 +79,16 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// ```
 pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     let diff = t_1 ^ t_2;
-    // Conversion for individual components before summing to prevent overflow
     diff.size() as f64 + t_1.size() as f64 + t_2.size() as f64
 }
 
-/// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object.
+/// Returns Schroedinger contraction time and space complexity of fully contracting
+/// the input tensors.
 ///
 /// # Arguments
-/// * `inputs` - First tensor to determine contraction cost.
-/// * `contract_path`  - Contraction order as replacement path
-/// * `only_count_ops` - bool. if set to true, ignores cost of complex multiplication and addition and only counts number of operations
+/// * `inputs` - Tensors to contract
+/// * `contract_path`  - Contraction order (replace path)
+/// * `only_count_ops` - If `true`, ignores cost of complex multiplication and addition and only counts number of operations
 pub fn contract_path_cost(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
@@ -112,12 +102,13 @@ pub fn contract_path_cost(
     contract_path_custom_cost(inputs, contract_path, cost_function)
 }
 
-/// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object.
+/// Returns Schroedinger contraction time and space complexity of fully contracting
+/// the input tensors.
 ///
 /// # Arguments
-/// * `inputs` - First tensor to determine contraction cost.
-/// * `contract_path`  - Contraction order as replacement path
-/// * `cost_function` - function that takes references to two Tensor objects and returns a cost as f64.
+/// * `inputs` - Tensors to contract
+/// * `contract_path`  - Contraction order (replace path)
+/// * `cost_function` - Function to calculate cost of contracting two tensors
 fn contract_path_custom_cost(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
@@ -152,13 +143,14 @@ fn contract_path_custom_cost(
     (op_cost, mem_cost)
 }
 
-/// Returns Schroedinger contraction space complexity of fully contracting a nested [Tensor] object assuming all operations occur in parallel.
+/// Returns Schroedinger contraction time and space complexity of fully contracting
+/// the input tensors assuming all operations occur in parallel.
 ///
 /// # Arguments
-/// * `inputs` - First tensor to determine contraction cost.
-/// * `contract_path`  - Contraction order as replacement path
-/// * `only_count_ops` - bool. if set to true, ignores cost of complex multiplication and addition and only counts number of operations
-/// * `tensor_costs` - Optional HashMap mapping tensor id to the serial cost of each tensor
+/// * `inputs` - Tensors to contract
+/// * `contract_path`  - Contraction order (replace path)
+/// * `only_count_ops` - If `true`, ignores cost of complex multiplication and addition and only counts number of operations
+/// * `tensor_costs` - Initial cost for each tensor
 pub fn communication_path_cost(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
@@ -179,7 +171,14 @@ pub fn communication_path_cost(
     communication_path_custom_cost(inputs, contract_path, cost_function, tensor_cost)
 }
 
-/// Recursive portion of `contract_parallel_path_cost`
+/// Returns Schroedinger contraction time and space complexity of fully contracting
+/// the input tensors assuming all operations occur in parallel.
+///
+/// # Arguments
+/// * `inputs` - Tensors to contract
+/// * `contract_path`  - Contraction order (replace path)
+/// * `cost_function` - Function to calculate cost of contracting two tensors
+/// * `tensor_costs` - Initial cost for each tensor
 fn communication_path_custom_cost(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
