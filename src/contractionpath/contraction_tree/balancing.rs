@@ -127,7 +127,7 @@ where
 
     let partition_number = partition_data.len();
 
-    let (children_tensors, children_costs): (Vec<_>, Vec<_>) = partition_data
+    let (partition_tensors, partition_costs): (Vec<_>, Vec<_>) = partition_data
         .iter()
         .map(
             |PartitionData {
@@ -139,10 +139,10 @@ where
         .collect();
 
     let (mut best_cost, _) = communication_path_cost(
-        &children_tensors,
+        &partition_tensors,
         &communication_path,
         true,
-        Some(&children_costs),
+        Some(&partition_costs),
     );
 
     let mut max_costs = Vec::with_capacity(iterations + 1);
@@ -152,7 +152,6 @@ where
 
     let mut best_iteration = 0;
     let mut best_contraction_path = path.to_owned();
-
     let mut best_tn = tensor_network.clone();
 
     for iteration in 1..=iterations {
