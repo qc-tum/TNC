@@ -9,8 +9,12 @@ use genetic_algorithm::{
 };
 
 use crate::{
-    contractionpath::contraction_tree::balancing::communication_schemes::CommunicationScheme,
-    contractionpath::contraction_tree::repartitioning::compute_partitioning_cost,
+    contractionpath::{
+        contraction_cost::contract_path_cost,
+        contraction_tree::{
+            balancing::communication_schemes::CommunicationScheme, repartitioning::compute_solution,
+        },
+    },
     tensornetwork::tensor::Tensor,
 };
 
@@ -18,13 +22,28 @@ use crate::{
 struct PartitioningFitness<'a> {
     tensor: &'a Tensor,
     communication_scheme: CommunicationScheme,
+    memory_limit: Option<f64>,
 }
 
 impl PartitioningFitness<'_> {
     fn calculate_fitness(&self, partitioning: &[usize]) -> isize {
-        let cost = compute_partitioning_cost(self.tensor, partitioning, self.communication_scheme);
+        // Construct the tensor network and contraction path from the partitioning
+        let (partitioned_tn, path, cost) =
+            compute_solution(self.tensor, partitioning, self.communication_scheme);
 
-        isize(cost).unwrap()
+        // Compute memory usage
+        let (_, mem) = contract_path_cost(partitioned_tn.tensors(), &path, true);
+
+        // If the memory limit is exceeded, return infinity
+        if self
+            .memory_limit
+            .map(|limit| mem > limit)
+            .unwrap_or_default()
+        {
+            isize::MAX
+        } else {
+            isize(cost).unwrap()
+        }
     }
 }
 
@@ -47,6 +66,7 @@ pub fn balance_partitions(
     num_partitions: usize,
     initial_partitioning: &[usize],
     communication_scheme: CommunicationScheme,
+    memory_limit: Option<f64>,
 ) -> (Vec<usize>, isize) {
     // Chromosomes: Possible partitions, e.g. [0, 1, 0, 2, 2, 1, 0, 0, 1, 1]
     // Genes: tensor (in vector)
@@ -64,6 +84,7 @@ pub fn balance_partitions(
     let fitness = PartitioningFitness {
         tensor,
         communication_scheme,
+        memory_limit,
     };
 
     let evolve = Evolve::builder()
@@ -94,6 +115,7 @@ pub fn calculate_fitness(
     let fitness = PartitioningFitness {
         tensor,
         communication_scheme,
+        memory_limit: None,
     };
 
     fitness.calculate_fitness(partitioning)

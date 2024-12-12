@@ -49,6 +49,7 @@ fn main() {
         num_partitions as usize,
         &partitioning,
         communication_scheme,
+        None,
     );
     println!("Final fitness: {final_fitness:?}");
 
