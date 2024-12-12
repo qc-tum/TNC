@@ -1,4 +1,3 @@
-use cast::isize;
 use genetic_algorithm::{
     crossover::CrossoverUniform,
     fitness::{Fitness, FitnessChromosome, FitnessOrdering, FitnessValue},
@@ -7,6 +6,7 @@ use genetic_algorithm::{
     select::SelectTournament,
     strategy::{evolve::Evolve, prelude::EvolveReporterDuration, Strategy},
 };
+use ordered_float::NotNan;
 
 use crate::{
     contractionpath::{
@@ -26,7 +26,7 @@ struct PartitioningFitness<'a> {
 }
 
 impl PartitioningFitness<'_> {
-    fn calculate_fitness(&self, partitioning: &[usize]) -> isize {
+    fn calculate_fitness(&self, partitioning: &[usize]) -> NotNan<f64> {
         // Construct the tensor network and contraction path from the partitioning
         let (partitioned_tn, path, cost) =
             compute_solution(self.tensor, partitioning, self.communication_scheme);
@@ -35,15 +35,16 @@ impl PartitioningFitness<'_> {
         let (_, mem) = contract_path_cost(partitioned_tn.tensors(), &path, true);
 
         // If the memory limit is exceeded, return infinity
-        if self
+        let score = if self
             .memory_limit
             .map(|limit| mem > limit)
             .unwrap_or_default()
         {
-            isize::MAX
+            f64::INFINITY
         } else {
-            isize(cost).unwrap()
-        }
+            cost
+        };
+        NotNan::new(score).unwrap()
     }
 }
 
@@ -67,7 +68,7 @@ pub fn balance_partitions(
     initial_partitioning: &[usize],
     communication_scheme: CommunicationScheme,
     memory_limit: Option<f64>,
-) -> (Vec<usize>, isize) {
+) -> (Vec<usize>, f64) {
     // Chromosomes: Possible partitions, e.g. [0, 1, 0, 2, 2, 1, 0, 0, 1, 1]
     // Genes: tensor (in vector)
     // Alleles: partition id
@@ -102,7 +103,10 @@ pub fn balance_partitions(
         .call()
         .unwrap();
 
-    evolve.best_genes_and_fitness_score().unwrap()
+    evolve
+        .best_genes_and_fitness_score()
+        .map(|(partitioning, score)| (partitioning, score.into_inner()))
+        .unwrap()
 }
 
 /// Calculates the fitness of a partitioning. The fitness is the total contraction
@@ -111,12 +115,12 @@ pub fn calculate_fitness(
     tensor: &Tensor,
     partitioning: &[usize],
     communication_scheme: CommunicationScheme,
-) -> isize {
+) -> f64 {
     let fitness = PartitioningFitness {
         tensor,
         communication_scheme,
         memory_limit: None,
     };
 
-    fitness.calculate_fitness(partitioning)
+    fitness.calculate_fitness(partitioning).into_inner()
 }
