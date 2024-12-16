@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 
@@ -133,7 +135,7 @@ fn contract_path_custom_cost(
                 mem_cost = mem_cost.max(costs.1);
                 let intermediate_tensor = Tensor::new_with_bonddims(
                     inputs[i].external_edges(),
-                    inputs[i].bond_dims.clone(),
+                    Arc::clone(&inputs[i].bond_dims),
                 );
                 inputs[i] = intermediate_tensor;
             }

@@ -644,7 +644,7 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        Self::new_with_bonddims(new_legs, self.bond_dims.clone())
+        Self::new_with_bonddims(new_legs, Arc::clone(&self.bond_dims))
     }
 
     /// Returns `Tensor` with union of legs in both `self` and `other`.
@@ -666,7 +666,7 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        Self::new_with_bonddims(new_legs, self.bond_dims.clone())
+        Self::new_with_bonddims(new_legs, Arc::clone(&self.bond_dims))
     }
 
     /// Returns `Tensor` with intersection of legs in `self` and `other`.
@@ -687,7 +687,7 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        Self::new_with_bonddims(new_legs, self.bond_dims.clone())
+        Self::new_with_bonddims(new_legs, Arc::clone(&self.bond_dims))
     }
 
     /// Returns `Tensor` with symmetrical difference of legs in `self` and `other`.
@@ -713,7 +713,7 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        Self::new_with_bonddims(new_legs, self.bond_dims.clone())
+        Self::new_with_bonddims(new_legs, Arc::clone(&self.bond_dims))
     }
 
     /// Get output legs after tensor contraction
