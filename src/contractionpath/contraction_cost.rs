@@ -398,7 +398,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_path_op_cost() {
+    fn test_contract_path_cost_only_ops() {
         let tn = setup_simple();
         let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 1), (0, 2)], true);
         assert_eq!(op_cost, 600f64);
@@ -409,7 +409,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_path_complex_op_cost() {
+    fn test_contract_path_complex_cost_only_ops() {
         let tn = setup_complex();
         let (op_cost, mem_cost) = contract_path_cost(
             tn.tensors(),
@@ -421,7 +421,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_parallel_path_op_cost() {
+    fn test_communication_path_cost_only_ops() {
         let tn = setup_parallel();
         let (op_cost, mem_cost) =
             communication_path_cost(tn.tensors(), path![(0, 1), (2, 3), (0, 2)], true, None);
@@ -430,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_parallel_path_cost() {
+    fn test_communication_path_cost() {
         let tn = setup_parallel();
         let (op_cost, mem_cost) =
             communication_path_cost(tn.tensors(), path![(0, 1), (2, 3), (0, 1)], false, None);
@@ -439,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_parallel_path_op_cost_with_partition_cost() {
+    fn test_communication_path_cost_only_ops_with_partition_cost() {
         let tn = setup_parallel();
         let tensor_cost = vec![20f64, 30f64, 80f64, 10f64];
         let (op_cost, mem_cost) = communication_path_cost(
@@ -453,7 +453,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_parallel_path_cost_with_partition_cost() {
+    fn test_communication_path_cost_with_partition_cost() {
         let tn = setup_parallel();
         let tensor_cost = vec![20f64, 30f64, 80f64, 10f64];
         let (op_cost, mem_cost) = communication_path_cost(
