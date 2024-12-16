@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::tensornetwork::tensor::Tensor;
-use crate::types::ContractionIndex;
+use crate::types::{ContractionIndex, EdgeIndex};
 
 /// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
 /// objects. Considers cost of complex operations.
@@ -81,6 +81,67 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     let diff = t_1 ^ t_2;
     diff.size() as f64 + t_1.size() as f64 + t_2.size() as f64
+}
+
+/// Returns a rather exact estimate of the memory requirements for
+/// contracting tensors `i` and `j`.
+///
+/// This takes into account if tensors need to be transposed (which doubles the
+/// required memory). It does not include memory of additional data like shape,
+/// bonddims, legs, etc..
+///
+/// # Examples
+/// ```
+/// # use tensorcontraction::tensornetwork::tensor::Tensor;
+/// # use tensorcontraction::tensornetwork::create_tensor_network;
+/// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors_exact;
+/// # use rustc_hash::FxHashMap;
+/// let vec1 = vec![0, 1, 2]; // requires 5040 bytes
+/// let vec2 = vec![3, 2]; // requires 1584 bytes
+/// // result = [0, 1, 3], requires 6160 bytes
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
+/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1)), 799f64);
+/// ```
+pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor) -> f64 {
+    /// Checks if `prefix` is a prefix of `list`.
+    #[inline]
+    fn is_prefix(prefix: &[EdgeIndex], list: &[EdgeIndex]) -> bool {
+        if prefix.len() > list.len() {
+            return false;
+        }
+        list.iter().zip(prefix.iter()).all(|(a, b)| a == b)
+    }
+
+    /// Checks if `suffix` is a suffix of `list`.
+    #[inline]
+    fn is_suffix(suffix: &[EdgeIndex], list: &[EdgeIndex]) -> bool {
+        if suffix.len() > list.len() {
+            return false;
+        }
+        list.iter()
+            .rev()
+            .zip(suffix.iter().rev())
+            .all(|(a, b)| a == b)
+    }
+
+    let ij = i ^ j;
+    let contracted_legs = i & j;
+    let i_needs_transpose = !is_suffix(contracted_legs.legs(), i.legs());
+    let j_needs_transpose = !is_prefix(contracted_legs.legs(), j.legs());
+
+    let i_size = i.size() as f64;
+    let j_size = j.size() as f64;
+    let ij_size = ij.size() as f64;
+
+    match (i_needs_transpose, j_needs_transpose) {
+        (true, true) => (2.0 * i_size + j_size)
+            .max(i_size + 2.0 * j_size)
+            .max(i_size + j_size + ij_size),
+        (true, false) => (2.0 * i_size + j_size).max(i_size + j_size + ij_size),
+        (false, true) => (i_size + 2.0 * j_size).max(i_size + j_size + ij_size),
+        (false, false) => i_size + j_size + ij_size,
+    }
 }
 
 /// Returns Schroedinger contraction time and space complexity of fully contracting
