@@ -275,6 +275,43 @@ fn communication_path_custom_cost(
     (op_cost, mem_cost)
 }
 
+/// Computes the max memory requirements for contracting the tensor network using the
+/// given path. Uses `memory_estimator` to compute the memory required to contract
+/// two tensors.
+///
+/// Candidates for `memory_estimator` are e.g.:
+/// - [`contract_size_tensors`]
+/// - [`contract_size_tensors_exact`]
+pub fn compute_memory_requirements(
+    inputs: &[Tensor],
+    contract_path: &[ContractionIndex],
+    memory_estimator: fn(&Tensor, &Tensor) -> f64,
+) -> f64 {
+    let mut inputs = inputs.to_vec();
+    let mut max_size = 0.0f64;
+    for index in contract_path {
+        match *index {
+            ContractionIndex::Pair(i, j) => {
+                let contracted = &inputs[i] ^ &inputs[j];
+                let size = memory_estimator(&inputs[i], &inputs[j]);
+                max_size = max_size.max(size);
+                inputs[i] = contracted;
+            }
+            ContractionIndex::Path(i, ref path) => {
+                let max_child_size =
+                    compute_memory_requirements(inputs[i].tensors(), path, memory_estimator);
+                max_size = max_size.max(max_child_size);
+                let tn = {
+                    let bond_dims = inputs[i].bond_dims.clone();
+                    Tensor::new_with_bonddims(inputs[i].external_edges(), bond_dims)
+                };
+                inputs[i] = tn;
+            }
+        }
+    }
+    max_size
+}
+
 #[cfg(test)]
 mod tests {
 
