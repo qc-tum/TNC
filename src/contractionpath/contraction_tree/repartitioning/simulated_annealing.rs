@@ -7,7 +7,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
     contractionpath::{
-        contraction_cost::contract_path_cost,
+        contraction_cost::{compute_memory_requirements, contract_size_tensors_exact},
         contraction_tree::{
             balancing::communication_schemes::CommunicationScheme,
             repartitioning::{compute_partitioning_cost, compute_solution},
@@ -159,7 +159,11 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
             compute_solution(self.tensor, partitioning, self.communication_scheme);
 
         // Compute memory usage
-        let (_, mem) = contract_path_cost(partitioned_tn.tensors(), &path, true);
+        let mem = compute_memory_requirements(
+            partitioned_tn.tensors(),
+            &path,
+            contract_size_tensors_exact,
+        ) * 16.0;
 
         // If the memory limit is exceeded, return infinity
         let score = if self.memory_limit.is_some_and(|limit| mem > limit) {
@@ -233,7 +237,11 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
             compute_solution(self.tensor, &partitioning.0, self.communication_scheme);
 
         // Compute memory usage
-        let (_, mem) = contract_path_cost(partitioned_tn.tensors(), &path, true);
+        let mem = compute_memory_requirements(
+            partitioned_tn.tensors(),
+            &path,
+            contract_size_tensors_exact,
+        ) * 16.0;
 
         // If the memory limit is exceeded, return infinity
         let score = if self
@@ -374,7 +382,11 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             compute_solution(self.tensor, &partitioning.0, self.communication_scheme);
 
         // Compute memory usage
-        let (_, mem) = contract_path_cost(partitioned_tn.tensors(), &path, true);
+        let mem = compute_memory_requirements(
+            partitioned_tn.tensors(),
+            &path,
+            contract_size_tensors_exact,
+        ) * 16.0;
 
         // If the memory limit is exceeded, return infinity
         let score = if self
