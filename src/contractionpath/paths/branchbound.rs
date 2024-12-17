@@ -204,7 +204,7 @@ impl<'a> OptimizePath for BranchBound<'a> {
             }
             self.size_cache
                 .entry(index)
-                .or_insert_with(|| tensor.shape().iter().product::<u64>() as f64);
+                .or_insert_with(|| tensor.size());
 
             self.tensor_cache.insert_new(index, tensor);
         }
