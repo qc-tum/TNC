@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::tensornetwork::tensor::Tensor;
-use crate::types::ContractionIndex;
+use crate::types::{ContractionIndex, EdgeIndex};
 
 /// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
 /// objects. Considers cost of complex operations.
@@ -81,6 +81,67 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     let diff = t_1 ^ t_2;
     diff.size() as f64 + t_1.size() as f64 + t_2.size() as f64
+}
+
+/// Returns a rather exact estimate of the memory requirements for
+/// contracting tensors `i` and `j`.
+///
+/// This takes into account if tensors need to be transposed (which doubles the
+/// required memory). It does not include memory of additional data like shape,
+/// bonddims, legs, etc..
+///
+/// # Examples
+/// ```
+/// # use tensorcontraction::tensornetwork::tensor::Tensor;
+/// # use tensorcontraction::tensornetwork::create_tensor_network;
+/// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors_exact;
+/// # use rustc_hash::FxHashMap;
+/// let vec1 = vec![0, 1, 2]; // requires 5040 bytes
+/// let vec2 = vec![3, 2]; // requires 1584 bytes
+/// // result = [0, 1, 3], requires 6160 bytes
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
+/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1)), 799f64);
+/// ```
+pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor) -> f64 {
+    /// Checks if `prefix` is a prefix of `list`.
+    #[inline]
+    fn is_prefix(prefix: &[EdgeIndex], list: &[EdgeIndex]) -> bool {
+        if prefix.len() > list.len() {
+            return false;
+        }
+        list.iter().zip(prefix.iter()).all(|(a, b)| a == b)
+    }
+
+    /// Checks if `suffix` is a suffix of `list`.
+    #[inline]
+    fn is_suffix(suffix: &[EdgeIndex], list: &[EdgeIndex]) -> bool {
+        if suffix.len() > list.len() {
+            return false;
+        }
+        list.iter()
+            .rev()
+            .zip(suffix.iter().rev())
+            .all(|(a, b)| a == b)
+    }
+
+    let ij = i ^ j;
+    let contracted_legs = i & j;
+    let i_needs_transpose = !is_suffix(contracted_legs.legs(), i.legs());
+    let j_needs_transpose = !is_prefix(contracted_legs.legs(), j.legs());
+
+    let i_size = i.size() as f64;
+    let j_size = j.size() as f64;
+    let ij_size = ij.size() as f64;
+
+    match (i_needs_transpose, j_needs_transpose) {
+        (true, true) => (2.0 * i_size + j_size)
+            .max(i_size + 2.0 * j_size)
+            .max(i_size + j_size + ij_size),
+        (true, false) => (2.0 * i_size + j_size).max(i_size + j_size + ij_size),
+        (false, true) => (i_size + 2.0 * j_size).max(i_size + j_size + ij_size),
+        (false, false) => i_size + j_size + ij_size,
+    }
 }
 
 /// Returns Schroedinger contraction time and space complexity of fully contracting
@@ -214,6 +275,43 @@ fn communication_path_custom_cost(
     (op_cost, mem_cost)
 }
 
+/// Computes the max memory requirements for contracting the tensor network using the
+/// given path. Uses `memory_estimator` to compute the memory required to contract
+/// two tensors.
+///
+/// Candidates for `memory_estimator` are e.g.:
+/// - [`contract_size_tensors`]
+/// - [`contract_size_tensors_exact`]
+pub fn compute_memory_requirements(
+    inputs: &[Tensor],
+    contract_path: &[ContractionIndex],
+    memory_estimator: fn(&Tensor, &Tensor) -> f64,
+) -> f64 {
+    let mut inputs = inputs.to_vec();
+    let mut max_size = 0.0f64;
+    for index in contract_path {
+        match *index {
+            ContractionIndex::Pair(i, j) => {
+                let contracted = &inputs[i] ^ &inputs[j];
+                let size = memory_estimator(&inputs[i], &inputs[j]);
+                max_size = max_size.max(size);
+                inputs[i] = contracted;
+            }
+            ContractionIndex::Path(i, ref path) => {
+                let max_child_size =
+                    compute_memory_requirements(inputs[i].tensors(), path, memory_estimator);
+                max_size = max_size.max(max_child_size);
+                let tn = {
+                    let bond_dims = inputs[i].bond_dims.clone();
+                    Tensor::new_with_bonddims(inputs[i].external_edges(), bond_dims)
+                };
+                inputs[i] = tn;
+            }
+        }
+    }
+    max_size
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -300,7 +398,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_path_op_cost() {
+    fn test_contract_path_cost_only_ops() {
         let tn = setup_simple();
         let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 1), (0, 2)], true);
         assert_eq!(op_cost, 600f64);
@@ -311,7 +409,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_path_complex_op_cost() {
+    fn test_contract_path_complex_cost_only_ops() {
         let tn = setup_complex();
         let (op_cost, mem_cost) = contract_path_cost(
             tn.tensors(),
@@ -323,7 +421,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_parallel_path_op_cost() {
+    fn test_communication_path_cost_only_ops() {
         let tn = setup_parallel();
         let (op_cost, mem_cost) =
             communication_path_cost(tn.tensors(), path![(0, 1), (2, 3), (0, 2)], true, None);
@@ -332,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_parallel_path_cost() {
+    fn test_communication_path_cost() {
         let tn = setup_parallel();
         let (op_cost, mem_cost) =
             communication_path_cost(tn.tensors(), path![(0, 1), (2, 3), (0, 1)], false, None);
@@ -341,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_parallel_path_op_cost_with_partition_cost() {
+    fn test_communication_path_cost_only_ops_with_partition_cost() {
         let tn = setup_parallel();
         let tensor_cost = vec![20f64, 30f64, 80f64, 10f64];
         let (op_cost, mem_cost) = communication_path_cost(
@@ -355,7 +453,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contract_parallel_path_cost_with_partition_cost() {
+    fn test_communication_path_cost_with_partition_cost() {
         let tn = setup_parallel();
         let tensor_cost = vec![20f64, 30f64, 80f64, 10f64];
         let (op_cost, mem_cost) = communication_path_cost(
