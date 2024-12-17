@@ -218,11 +218,10 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
             .map(|(i, partition_tensor)| {
                 (
                     i,
-                    (shifted_tensor ^ partition_tensor).size() as i64
-                        - partition_tensor.size() as i64,
+                    (shifted_tensor ^ partition_tensor).size() - partition_tensor.size(),
                 )
             })
-            .min_by(|a, b| a.1.cmp(&b.1))
+            .min_by(|a, b| a.1.total_cmp(&b.1))
             .unwrap();
         let old_partition = partitioning[tensor_index];
         partitioning[tensor_index] = new_partition;
