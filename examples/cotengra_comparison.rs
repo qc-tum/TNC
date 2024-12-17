@@ -1,17 +1,12 @@
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use std::sync::Arc;
 
-use flexi_logger::{json_format, Duplicate, FileSpec, Logger};
-use log::LevelFilter;
-use mpi::Rank;
 use ordered_float::NotNan;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 use tensorcontraction::contractionpath::contraction_cost::{
-    compute_memory_requirements, contract_path_cost, contract_size_tensors_exact,
+    compute_memory_requirements, contract_size_tensors_exact,
 };
 use tensorcontraction::contractionpath::contraction_tree::balancing::CommunicationScheme;
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::compute_solution;
@@ -25,21 +20,6 @@ use tensorcontraction::networks::random_circuit::random_circuit;
 use tensorcontraction::tensornetwork::partitioning::find_partitioning;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::tensor::Tensor;
-
-/// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
-fn setup_logging_mpi(rank: Rank) {
-    let _logger = Logger::with(LevelFilter::Debug)
-        .format(json_format)
-        .log_to_file(
-            FileSpec::default()
-                .discriminant(format!("rank{rank}"))
-                .suppress_timestamp()
-                .suffix("log.json"),
-        )
-        .duplicate_to_stdout(Duplicate::Info)
-        .start()
-        .unwrap();
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct TensorResult {
@@ -140,7 +120,7 @@ fn main() {
                     flops / original_flops,
                     memory / original_memory
                 );
-                let (partitioning, final_score): (Vec<usize>, NotNan<f64>) =
+                let (partitioning, _): (Vec<usize>, NotNan<f64>) =
                     simulated_annealing::balance_partitions::<_, NaivePartitioningModel>(
                         &tensor,
                         num_partitions as usize,
@@ -173,7 +153,7 @@ fn main() {
                     flops / original_flops,
                     memory / original_memory
                 );
-                let (partitioning, final_fitness) = genetic::balance_partitions(
+                let (partitioning, _) = genetic::balance_partitions(
                     &tensor,
                     num_partitions as usize,
                     &initial_partitioning,
