@@ -197,7 +197,7 @@ pub struct LeafPartitioningModel<'a> {
     tensor: &'a Tensor,
     num_partitions: usize,
     communication_scheme: CommunicationScheme,
-    memory_limit: Option<f64>
+    memory_limit: Option<f64>,
 }
 
 impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
@@ -269,7 +269,7 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
             tensor,
             num_partitions,
             communication_scheme,
-            memory_limit
+            memory_limit,
         }
     }
 }

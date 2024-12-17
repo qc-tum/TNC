@@ -65,7 +65,7 @@ fn main() {
     let (partitioning, final_score) = balance_partitions::<_, LeafPartitioningModel>(
         &tensor,
         num_partitions as usize,
-    (initial_partitioning, intermediate_tensors),
+        (initial_partitioning, intermediate_tensors),
         communication_scheme,
         &mut rng,
         None,
