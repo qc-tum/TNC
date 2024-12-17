@@ -304,12 +304,12 @@ impl Tensor {
     /// (2, 15),
     /// (3, 8)]);
     /// tensor.insert_bond_dims(&bond_dims);
-    /// assert_eq!(tensor.size(), 600);
+    /// assert_eq!(tensor.size(), 600f64);
     /// ```
     #[inline]
-    pub fn size_hint(&self) -> u64 {
+    pub fn size_hint(&self) -> f64 {
         let bond_dims = self.bond_dims();
-        self.legs.iter().map(|e| bond_dims[e]).sum()
+        self.legs.iter().map(|e| bond_dims[e] as f64).sum()
     }
 
     /// Returns the number of elements ignoring sliced edges. This is a f64 to avoid overflow in large
