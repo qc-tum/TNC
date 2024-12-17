@@ -1,4 +1,3 @@
-use ordered_float::NotNan;
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
     contractionpath::contraction_tree::{
@@ -48,7 +47,7 @@ fn main() {
     println!("Initial score: {initial_score:?}");
 
     // Try to find a better partitioning with a simulated annealing algorithm
-    let (partitioning, final_score) = balance_partitions::<_, NaivePartitioningModel>(
+    let (_, final_score) = balance_partitions::<_, NaivePartitioningModel>(
         &tensor,
         num_partitions as usize,
         initial_partitioning.clone(),
