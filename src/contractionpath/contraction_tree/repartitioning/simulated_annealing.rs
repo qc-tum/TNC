@@ -30,7 +30,6 @@ pub trait OptModel<'a>: Sync + Send {
         num_partitions: usize,
         communication_scheme: CommunicationScheme,
         memory_limit: Option<f64>,
-        initial_solution: Self::SolutionType,
     ) -> Self
     where
         Self: std::marker::Sized;
@@ -179,7 +178,6 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
         num_partitions: usize,
         communication_scheme: CommunicationScheme,
         memory_limit: Option<f64>,
-        _partitioning_scheme: Self::SolutionType,
     ) -> Self
     where
         Self: std::marker::Sized,
@@ -260,7 +258,6 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
         num_partitions: usize,
         communication_scheme: CommunicationScheme,
         memory_limit: Option<f64>,
-        _initial_partitioning: Self::SolutionType,
     ) -> Self
     where
         Self: std::marker::Sized,
@@ -405,7 +402,6 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         num_partitions: usize,
         communication_scheme: CommunicationScheme,
         memory_limit: Option<f64>,
-        _initial_partitioning: Self::SolutionType,
     ) -> Self
     where
         Self: std::marker::Sized,
@@ -437,7 +433,6 @@ where
         num_partitions,
         communication_scheme,
         memory_limit,
-        initial_solution.clone(),
     );
 
     let optimizer = SimulatedAnnealingOptimizer {
