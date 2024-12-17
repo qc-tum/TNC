@@ -191,7 +191,7 @@ impl<'a> Greedy<'a> {
         // Maps tensor ssa_id to size
         let mut tensor_mem_size = ssa_id_to_tensor
             .values()
-            .map(|tensor| (calculate_hash(tensor), tensor.size() as f64))
+            .map(|tensor| (calculate_hash(tensor), tensor.size()))
             .collect::<FxHashMap<_, _>>();
 
         let mut queue = BinaryHeap::new();
@@ -212,7 +212,7 @@ impl<'a> Greedy<'a> {
                     let k12_hash = calculate_hash(&k12);
                     tensor_mem_size
                         .entry(k12_hash)
-                        .or_insert_with(|| k12.size() as f64);
+                        .or_insert_with(|| k12.size());
                     ssa_id_to_tensor
                         .entry(next_ssa_id)
                         .or_insert_with(|| k12.clone());
@@ -335,7 +335,7 @@ impl<'a> Greedy<'a> {
 
             tensor_mem_size
                 .entry(k12_hash)
-                .or_insert_with(|| k12.size() as f64);
+                .or_insert_with(|| k12.size());
 
             //Find new candidate contractions.
             let k1 = k12;
@@ -359,7 +359,7 @@ impl<'a> Greedy<'a> {
                     let k12_hash = calculate_hash(&k12);
                     tensor_mem_size
                         .entry(k12_hash)
-                        .or_insert_with(|| k12.size() as f64);
+                        .or_insert_with(|| k12.size());
 
                     let size_cost = cost_fn(
                         tensor_mem_size[&k12_hash],
@@ -392,7 +392,7 @@ impl<'a> Greedy<'a> {
 
         for (_key, ssa_id) in remaining_tensors {
             let k12_tensor = ssa_id_to_tensor[&ssa_id].clone();
-            let tensor_size = (&k12_tensor & output_dims).size() as f64;
+            let tensor_size = (&k12_tensor & output_dims).size();
             if tensor_size > 0f64 {
                 let candidate = Candidate {
                     flop_cost: 0f64,
@@ -427,7 +427,7 @@ impl<'a> Greedy<'a> {
             let k2 = ssa_id_to_tensor.remove(&ssa_id2).unwrap();
             ssa_path.push((min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2), next_ssa_id));
             let k12 = &(&k1 | &k2) & output_dims;
-            let cost = k12.size() as f64;
+            let cost = k12.size();
 
             queue.push(Candidate {
                 flop_cost: 0f64,

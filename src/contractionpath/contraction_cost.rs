@@ -80,7 +80,7 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 #[inline]
 pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     let diff = t_1 ^ t_2;
-    diff.size() as f64 + t_1.size() as f64 + t_2.size() as f64
+    diff.size() + t_1.size() + t_2.size()
 }
 
 /// Returns a rather exact estimate of the memory requirements for
@@ -130,9 +130,9 @@ pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor) -> f64 {
     let i_needs_transpose = !is_suffix(contracted_legs.legs(), i.legs());
     let j_needs_transpose = !is_prefix(contracted_legs.legs(), j.legs());
 
-    let i_size = i.size() as f64;
-    let j_size = j.size() as f64;
-    let ij_size = ij.size() as f64;
+    let i_size = i.size();
+    let j_size = j.size();
+    let ij_size = ij.size();
 
     match (i_needs_transpose, j_needs_transpose) {
         (true, true) => (2.0 * i_size + j_size)

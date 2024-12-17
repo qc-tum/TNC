@@ -309,7 +309,8 @@ impl Tensor {
         self.legs.len()
     }
 
-    /// Returns the number of elements.
+    /// Returns the number of elements. This is a f64 to avoid overflow in large
+    /// tensors.
     ///
     /// # Examples
     /// ```
@@ -317,16 +318,14 @@ impl Tensor {
     /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// # use rustc_hash::FxHashMap;
     /// let mut tensor = Tensor::new(vec![1, 2, 3]);
-    /// let bond_dims = FxHashMap::from_iter([(1, 5),
-    /// (2, 15),
-    /// (3, 8)]);
+    /// let bond_dims = FxHashMap::from_iter([(1, 5), (2, 15), (3, 8)]);
     /// tensor.insert_bond_dims(&bond_dims);
-    /// assert_eq!(tensor.size(), 600);
+    /// assert_eq!(tensor.size(), 600.0);
     /// ```
     #[inline]
-    pub fn size(&self) -> u64 {
+    pub fn size(&self) -> f64 {
         let bond_dims = self.bond_dims();
-        self.legs.iter().map(|e| bond_dims[e]).product()
+        self.legs.iter().map(|e| bond_dims[e] as f64).product()
     }
 
     /// Returns true if Tensor contains `leg_id`.
