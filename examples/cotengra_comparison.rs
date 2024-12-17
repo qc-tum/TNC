@@ -10,7 +10,9 @@ use ordered_float::NotNan;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
-use tensorcontraction::contractionpath::contraction_cost::contract_path_cost;
+use tensorcontraction::contractionpath::contraction_cost::{
+    compute_memory_requirements, contract_path_cost, contract_size_tensors_exact,
+};
 use tensorcontraction::contractionpath::contraction_tree::balancing::CommunicationScheme;
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::compute_solution;
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::genetic::{self};
@@ -80,10 +82,13 @@ fn main() {
                 // Find an initial partitioning with KaHyPar
                 let initial_partitioning =
                     find_partitioning(&tensor, num_partitions, PartitioningStrategy::MinCut, true);
-                let (partitioned_tensor, contraction_path, _) =
+                let (partitioned_tensor, contraction_path, original_flops) =
                     compute_solution(&tensor, &initial_partitioning, communication_scheme);
-                let (original_flops, original_memory) =
-                    contract_path_cost(partitioned_tensor.tensors(), &contraction_path, true);
+                let original_memory = compute_memory_requirements(
+                    partitioned_tensor.tensors(),
+                    &contraction_path,
+                    contract_size_tensors_exact,
+                ) * 16.0;
 
                 results.push(TensorResult {
                     seed: i,
@@ -109,13 +114,16 @@ fn main() {
                         (initial_partitioning.clone(), intermediate_tensors),
                         communication_scheme,
                         &mut rng,
-                        None
+                        None,
                     );
 
-                let (partitioned_tensor, contraction_path, _) =
+                let (partitioned_tensor, contraction_path, flops) =
                     compute_solution(&tensor, &partitioning, communication_scheme);
-                let (flops, memory) =
-                    contract_path_cost(partitioned_tensor.tensors(), &contraction_path, true);
+                let memory = compute_memory_requirements(
+                    partitioned_tensor.tensors(),
+                    &contraction_path,
+                    contract_size_tensors_exact,
+                ) * 16.0;
 
                 results.push(TensorResult {
                     seed: i,
@@ -139,12 +147,16 @@ fn main() {
                         initial_partitioning.clone(),
                         communication_scheme,
                         &mut rng,
-                        None
+                        None,
                     );
-                let (partitioned_tensor, contraction_path, _) =
+
+                let (partitioned_tensor, contraction_path, flops) =
                     compute_solution(&tensor, &partitioning, communication_scheme);
-                let (flops, memory) =
-                    contract_path_cost(partitioned_tensor.tensors(), &contraction_path, true);
+                let memory = compute_memory_requirements(
+                    partitioned_tensor.tensors(),
+                    &contraction_path,
+                    contract_size_tensors_exact,
+                ) * 16.0;
 
                 results.push(TensorResult {
                     seed: i,
@@ -166,13 +178,16 @@ fn main() {
                     num_partitions as usize,
                     &initial_partitioning,
                     communication_scheme,
-                    None
+                    None,
                 );
 
-                let (partitioned_tensor, contraction_path, _) =
+                let (partitioned_tensor, contraction_path, flops) =
                     compute_solution(&tensor, &partitioning, communication_scheme);
-                let (flops, memory) =
-                    contract_path_cost(partitioned_tensor.tensors(), &contraction_path, true);
+                let memory = compute_memory_requirements(
+                    partitioned_tensor.tensors(),
+                    &contraction_path,
+                    contract_size_tensors_exact,
+                ) * 16.0;
 
                 results.push(TensorResult {
                     seed: i,
