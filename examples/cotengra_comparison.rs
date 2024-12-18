@@ -4,6 +4,7 @@ use std::io::{BufWriter, Write};
 use ordered_float::NotNan;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use serde::{Deserialize, Serialize};
 use tensorcontraction::contractionpath::contraction_cost::{
     compute_memory_requirements, contract_size_tensors_exact,
 };
