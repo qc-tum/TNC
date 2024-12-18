@@ -290,9 +290,9 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
     ) -> Self::SolutionType {
         let (mut partitioning, mut partition_tensors, mut partition_contractions) =
             current_solution;
-        let partition_index = loop{
+        let partition_index = loop {
             let trial_partition = rng.gen_range(0..self.num_partitions);
-            if partition_contractions[trial_partition].len() > 3{
+            if partition_contractions[trial_partition].len() > 3 {
                 break trial_partition;
             }
         };
@@ -369,7 +369,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
 
         let mut to_opt = Greedy::new(&to_tensor, CostType::Flops);
         to_opt.optimize_path();
-        let to_path = from_opt.get_best_replace_path();
+        let to_path = to_opt.get_best_replace_path();
         partition_contractions[new_partition] = to_path;
 
         partition_tensors[old_partition] ^= &shifted_tensor;
