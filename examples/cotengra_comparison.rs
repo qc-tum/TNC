@@ -235,10 +235,10 @@ fn main() {
                     flops / original_flops,
                     memory / original_memory
                 );
-                let (partitioning, _) = match genetic::balance_partitions(
-                    &tensor,
-                    num_partitions as usize,
-                    &initial_partitioning,
+                let (flops, memory, flops_ratio, mem_ratio) = match ga_run(
+                    tensor,
+                    num_partitions,
+                    initial_partitioning,
                     communication_scheme,
                 ) {
                     Ok((flops, memory)) => (
@@ -257,8 +257,8 @@ fn main() {
                     method: "GA".to_string(),
                     flops,
                     mem: memory,
-                    flops_ratio: flops / original_flops,
-                    mem_ratio: memory / original_memory,
+                    flops_ratio,
+                    mem_ratio,
                 });
 
                 println!(
