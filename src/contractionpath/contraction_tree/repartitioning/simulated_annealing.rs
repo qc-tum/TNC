@@ -290,7 +290,13 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
     ) -> Self::SolutionType {
         let (mut partitioning, mut partition_tensors, mut partition_contractions) =
             current_solution;
-        let partition_index = rng.gen_range(0..self.num_partitions);
+        let partition_index = loop{
+            let trial_partition = rng.gen_range(0..self.num_partitions);
+            if partition_contractions[trial_partition].len() > 3{
+                break trial_partition;
+            }
+        };
+
         let tensor_index = rng.gen_range(0..partition_contractions[partition_index].len() - 1);
         let mut tensor_leaves = if let ContractionIndex::Pair(i, j) =
             partition_contractions[partition_index][tensor_index]
