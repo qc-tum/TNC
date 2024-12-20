@@ -1,5 +1,6 @@
 use std::fs::{self};
 use std::io::{BufWriter, Write};
+use std::panic;
 
 use ordered_float::NotNan;
 use rand::rngs::StdRng;
@@ -52,7 +53,6 @@ fn main() {
             for i in 15..=20 {
                 println!("Iteration {i}");
                 let mut local_results = Vec::new();
-                let mut rng = StdRng::seed_from_u64(i);
 
                 // let num_qubits = 40;
                 // let circuit_depth = 40;
@@ -67,7 +67,7 @@ fn main() {
                     circuit_depth,
                     single_qubit_probability,
                     two_qubit_probability,
-                    &mut rng,
+                    &mut StdRng::seed_from_u64(i),
                     connectivity,
                 );
 
@@ -77,7 +77,9 @@ fn main() {
                     initial_partitioned_tensor,
                     initial_contraction_path,
                     original_flops,
-                ) = match initial_problem(&tensor, num_partitions, communication_scheme) {
+                ) = match panic::catch_unwind(|| {
+                    initial_problem(&tensor, num_partitions, communication_scheme)
+                }) {
                     Ok((
                         initial_partitioning,
                         initial_partitioned_tensor,
@@ -100,7 +102,6 @@ fn main() {
                             flops_ratio: 1f64,
                             mem_ratio: 1f64,
                         });
-                        println!("Initial problem failed for {i} {num_qubits} {circuit_depth}");
                         continue;
                     }
                 };
@@ -128,14 +129,16 @@ fn main() {
                     intermediate_tensors[*partition] ^= tensor.tensor(index);
                 }
                 // Try to find a better partitioning with a simulated annealing algorithm
-                let (flops, memory, flops_ratio, mem_ratio) = match sad_run(
-                    &tensor,
-                    num_partitions,
-                    &initial_partitioning,
-                    &intermediate_tensors,
-                    communication_scheme,
-                    &mut rng,
-                ) {
+                let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
+                    sad_run(
+                        &tensor,
+                        num_partitions,
+                        &initial_partitioning,
+                        &intermediate_tensors,
+                        communication_scheme,
+                        &mut StdRng::seed_from_u64(i),
+                    )
+                }) {
                     Ok((flops, memory)) => (
                         flops,
                         memory,
@@ -170,15 +173,17 @@ fn main() {
                     }
                 }
 
-                let (flops, memory, flops_ratio, mem_ratio) = match iad_run(
-                    &tensor,
-                    num_partitions,
-                    &initial_partitioning,
-                    &intermediate_tensors,
-                    initial_contractions,
-                    communication_scheme,
-                    &mut rng,
-                ) {
+                let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
+                    iad_run(
+                        &tensor,
+                        num_partitions,
+                        &initial_partitioning,
+                        &intermediate_tensors,
+                        initial_contractions,
+                        communication_scheme,
+                        &mut StdRng::seed_from_u64(i),
+                    )
+                }) {
                     Ok((flops, memory)) => (
                         flops,
                         memory,
@@ -204,13 +209,15 @@ fn main() {
                     memory / original_memory
                 );
 
-                let (flops, memory, flops_ratio, mem_ratio) = match sa_run(
-                    &tensor,
-                    num_partitions,
-                    &initial_partitioning,
-                    communication_scheme,
-                    rng,
-                ) {
+                let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
+                    sa_run(
+                        &tensor,
+                        num_partitions,
+                        &initial_partitioning,
+                        communication_scheme,
+                        &mut StdRng::seed_from_u64(i),
+                    )
+                }) {
                     Ok((flops, memory)) => (
                         flops,
                         memory,
@@ -235,12 +242,14 @@ fn main() {
                     flops / original_flops,
                     memory / original_memory
                 );
-                let (flops, memory, flops_ratio, mem_ratio) = match ga_run(
-                    tensor,
-                    num_partitions,
-                    initial_partitioning,
-                    communication_scheme,
-                ) {
+                let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
+                    ga_run(
+                        tensor,
+                        num_partitions,
+                        initial_partitioning,
+                        communication_scheme,
+                    )
+                }) {
                     Ok((flops, memory)) => (
                         flops,
                         memory,
@@ -273,7 +282,6 @@ fn main() {
             }
         }
     }
-    // println!("results: {:?}", results);
 }
 
 fn ga_run(
@@ -281,7 +289,7 @@ fn ga_run(
     num_partitions: i32,
     initial_partitioning: Vec<usize>,
     communication_scheme: CommunicationScheme,
-) -> Result<(f64, f64), &'static str> {
+) -> (f64, f64) {
     let (partitioning, _) = genetic::balance_partitions(
         &tensor,
         num_partitions as usize,
@@ -297,7 +305,7 @@ fn ga_run(
         &contraction_path,
         contract_size_tensors_exact,
     ) * 16.0;
-    Ok((flops, memory))
+    (flops, memory)
 }
 
 fn sa_run(
@@ -305,15 +313,15 @@ fn sa_run(
     num_partitions: i32,
     initial_partitioning: &[usize],
     communication_scheme: CommunicationScheme,
-    mut rng: StdRng,
-) -> Result<(f64, f64), &'static str> {
+    rng: &mut StdRng,
+) -> (f64, f64) {
     let (partitioning, _): (Vec<usize>, NotNan<f64>) =
         simulated_annealing::balance_partitions::<_, NaivePartitioningModel>(
             tensor,
             num_partitions as usize,
             initial_partitioning.to_vec(),
             communication_scheme,
-            &mut rng,
+            rng,
             None,
         );
 
@@ -324,7 +332,7 @@ fn sa_run(
         &contraction_path,
         contract_size_tensors_exact,
     ) * 16.0;
-    Ok((flops, memory))
+    (flops, memory)
 }
 
 fn iad_run(
@@ -335,7 +343,7 @@ fn iad_run(
     initial_contractions: Vec<Vec<ContractionIndex>>,
     communication_scheme: CommunicationScheme,
     rng: &mut StdRng,
-) -> Result<(f64, f64), &'static str> {
+) -> (f64, f64) {
     // Try to find a better partitioning with a simulated annealing algorithm
     let (solution, _) = simulated_annealing::balance_partitions::<_, IntermediatePartitioningModel>(
         tensor,
@@ -358,7 +366,7 @@ fn iad_run(
         &contraction_path,
         contract_size_tensors_exact,
     ) * 16.0;
-    Ok((flops, memory))
+    (flops, memory)
 }
 
 fn sad_run(
@@ -368,7 +376,7 @@ fn sad_run(
     intermediate_tensors: &[Tensor],
     communication_scheme: CommunicationScheme,
     rng: &mut StdRng,
-) -> Result<(f64, f64), &'static str> {
+) -> (f64, f64) {
     let (solution, _) = simulated_annealing::balance_partitions::<_, LeafPartitioningModel>(
         tensor,
         num_partitions as usize,
@@ -386,22 +394,22 @@ fn sad_run(
         &contraction_path,
         contract_size_tensors_exact,
     ) * 16.0;
-    Ok((flops, memory))
+    (flops, memory)
 }
 
 fn initial_problem(
     tensor: &Tensor,
     num_partitions: i32,
     communication_scheme: CommunicationScheme,
-) -> Result<(Vec<usize>, Tensor, Vec<ContractionIndex>, f64), &'static str> {
+) -> (Vec<usize>, Tensor, Vec<ContractionIndex>, f64) {
     let initial_partitioning =
         find_partitioning(tensor, num_partitions, PartitioningStrategy::MinCut, true);
     let (initial_partitioned_tensor, initial_contraction_path, original_flops) =
         compute_solution(tensor, &initial_partitioning, communication_scheme);
-    Ok((
+    (
         initial_partitioning,
         initial_partitioned_tensor,
         initial_contraction_path,
         original_flops,
-    ))
+    )
 }
