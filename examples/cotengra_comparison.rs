@@ -174,7 +174,7 @@ fn main() {
                     &tensor,
                     num_partitions,
                     &initial_partitioning,
-                    intermediate_tensors,
+                    &intermediate_tensors,
                     initial_contractions,
                     communication_scheme,
                     &mut rng,
@@ -282,7 +282,7 @@ fn ga_run(
     initial_partitioning: Vec<usize>,
     communication_scheme: CommunicationScheme,
 ) -> Result<(f64, f64), &'static str> {
-    let (partitioning, final_fitness) = genetic::balance_partitions(
+    let (partitioning, _) = genetic::balance_partitions(
         &tensor,
         num_partitions as usize,
         &initial_partitioning,
@@ -303,15 +303,15 @@ fn ga_run(
 fn sa_run(
     tensor: &Tensor,
     num_partitions: i32,
-    initial_partitioning: &Vec<usize>,
+    initial_partitioning: &[usize],
     communication_scheme: CommunicationScheme,
     mut rng: StdRng,
 ) -> Result<(f64, f64), &'static str> {
-    let (partitioning, final_score): (Vec<usize>, NotNan<f64>) =
+    let (partitioning, _): (Vec<usize>, NotNan<f64>) =
         simulated_annealing::balance_partitions::<_, NaivePartitioningModel>(
             tensor,
             num_partitions as usize,
-            initial_partitioning.clone(),
+            initial_partitioning.to_vec(),
             communication_scheme,
             &mut rng,
             None,
@@ -330,28 +330,26 @@ fn sa_run(
 fn iad_run(
     tensor: &Tensor,
     num_partitions: i32,
-    initial_partitioning: &Vec<usize>,
-    intermediate_tensors: Vec<Tensor>,
+    initial_partitioning: &[usize],
+    intermediate_tensors: &[Tensor],
     initial_contractions: Vec<Vec<ContractionIndex>>,
     communication_scheme: CommunicationScheme,
     rng: &mut StdRng,
 ) -> Result<(f64, f64), &'static str> {
     // Try to find a better partitioning with a simulated annealing algorithm
-    let ((partitioning, _, _), _): (
-        (Vec<usize>, Vec<Tensor>, Vec<Vec<ContractionIndex>>),
-        NotNan<f64>,
-    ) = simulated_annealing::balance_partitions::<_, IntermediatePartitioningModel>(
+    let (solution, _) = simulated_annealing::balance_partitions::<_, IntermediatePartitioningModel>(
         tensor,
         num_partitions as usize,
         (
-            initial_partitioning.clone(),
-            intermediate_tensors.clone(),
+            initial_partitioning.to_vec(),
+            intermediate_tensors.to_vec(),
             initial_contractions,
         ),
         communication_scheme,
         rng,
         None,
     );
+    let (partitioning, ..) = solution;
 
     let (partitioned_tensor, contraction_path, flops) =
         compute_solution(tensor, &partitioning, communication_scheme);
@@ -366,20 +364,20 @@ fn iad_run(
 fn sad_run(
     tensor: &Tensor,
     num_partitions: i32,
-    initial_partitioning: &Vec<usize>,
-    intermediate_tensors: &Vec<Tensor>,
+    initial_partitioning: &[usize],
+    intermediate_tensors: &[Tensor],
     communication_scheme: CommunicationScheme,
     rng: &mut StdRng,
 ) -> Result<(f64, f64), &'static str> {
-    let ((partitioning, _), _): ((Vec<usize>, Vec<Tensor>), NotNan<f64>) =
-        simulated_annealing::balance_partitions::<_, LeafPartitioningModel>(
-            tensor,
-            num_partitions as usize,
-            (initial_partitioning.clone(), intermediate_tensors.clone()),
-            communication_scheme,
-            rng,
-            None,
-        );
+    let (solution, _) = simulated_annealing::balance_partitions::<_, LeafPartitioningModel>(
+        tensor,
+        num_partitions as usize,
+        (initial_partitioning.to_vec(), intermediate_tensors.to_vec()),
+        communication_scheme,
+        rng,
+        None,
+    );
+    let (partitioning, ..) = solution;
 
     let (partitioned_tensor, contraction_path, flops) =
         compute_solution(tensor, &partitioning, communication_scheme);
