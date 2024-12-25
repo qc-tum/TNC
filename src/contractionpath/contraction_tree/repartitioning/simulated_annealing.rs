@@ -339,7 +339,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             .map(|(i, partition_tensor)| {
                 (
                     i,
-                    (&shifted_tensor ^ partition_tensor).size_hint() - partition_tensor.size_hint(),
+                    (&shifted_tensor ^ partition_tensor).size() - partition_tensor.size(),
                 )
             })
             .min_by(|a, b| a.1.total_cmp(&b.1))
