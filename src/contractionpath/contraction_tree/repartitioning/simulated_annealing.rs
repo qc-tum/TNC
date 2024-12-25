@@ -4,6 +4,7 @@ use itertools::Itertools;
 use ordered_float::NotNan;
 use rand::Rng;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rustc_hash::FxHashSet;
 
 use crate::{
     contractionpath::{
@@ -301,7 +302,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         let mut tensor_leaves = if let ContractionIndex::Pair(i, j) =
             partition_contractions[partition_index][tensor_index]
         {
-            vec![i, j]
+            FxHashSet::from_iter([i, j])
         } else {
             panic!("Partitioned contractions should not contain Path elements")
         };
@@ -313,13 +314,13 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         {
             if let ContractionIndex::Pair(i, j) = contraction {
                 if tensor_leaves.contains(i) {
-                    tensor_leaves.push(*j);
+                    tensor_leaves.insert(*j);
                 }
             }
         }
 
         let mut shifted_tensor = Tensor::new(Vec::new());
-        let mut shifted_indices = Vec::new();
+        let mut shifted_indices = Vec::with_capacity(tensor_leaves.len());
         for (partition_tensor_index, (i, _partition)) in partitioning
             .iter()
             .enumerate()
