@@ -337,11 +337,16 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         let (new_partition, _) = partition_tensors
             .iter()
             .enumerate()
-            .map(|(i, partition_tensor)| {
-                (
-                    i,
-                    (&shifted_tensor ^ partition_tensor).size() - partition_tensor.size(),
-                )
+            .filter_map(|(i, partition_tensor)| {
+                if i != partition_index {
+                    Some((
+                        i,
+                        (&shifted_tensor ^ partition_tensor).size() - partition_tensor.size(),
+                    ))
+                } else {
+                    // Don't consider old partition as move target (would be a NOOP)
+                    None
+                }
             })
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .unwrap();
@@ -356,8 +361,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         for (partition_index, tensor) in zip(&partitioning, self.tensor.tensors()) {
             if *partition_index == old_partition {
                 from_tensor.push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
-            }
-            if *partition_index == new_partition {
+            } else if *partition_index == new_partition {
                 to_tensor.push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
             }
         }
