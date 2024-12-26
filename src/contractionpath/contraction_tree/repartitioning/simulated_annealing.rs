@@ -289,33 +289,34 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         current_solution: Self::SolutionType,
         rng: &mut R,
     ) -> Self::SolutionType {
-        let (mut partitioning, mut partition_tensors, mut partition_contractions) =
-            current_solution;
-        let partition_index = loop {
+        let (mut partitioning, mut partition_tensors, mut contraction_paths) = current_solution;
+
+        // Select source partition (with more than one tensor)
+        let source_partition = loop {
             let trial_partition = rng.gen_range(0..self.num_partitions);
-            if partition_contractions[trial_partition].len() > 3 {
+            if contraction_paths[trial_partition].len() > 3 {
                 break trial_partition;
             }
         };
 
-        let tensor_index = rng.gen_range(0..partition_contractions[partition_index].len() - 1);
-        let mut tensor_leaves = if let ContractionIndex::Pair(i, j) =
-            partition_contractions[partition_index][tensor_index]
-        {
-            FxHashSet::from_iter([i, j])
-        } else {
+        // Select random tensor contraction in source partition
+        let pair_index = rng.gen_range(0..contraction_paths[source_partition].len() - 1);
+        let ContractionIndex::Pair(i, j) = contraction_paths[source_partition][pair_index] else {
             panic!("Partitioned contractions should not contain Path elements")
         };
+        let mut tensor_leaves = FxHashSet::from_iter([i, j]);
 
-        for contraction in partition_contractions[partition_index]
+        // Gather all tensors that contribute to the selected contraction
+        for contraction in contraction_paths[source_partition]
             .iter()
-            .take(tensor_index)
+            .take(pair_index)
             .rev()
         {
-            if let ContractionIndex::Pair(i, j) = contraction {
-                if tensor_leaves.contains(i) {
-                    tensor_leaves.insert(*j);
-                }
+            let ContractionIndex::Pair(i, j) = contraction else {
+                panic!("Expected pair")
+            };
+            if tensor_leaves.contains(i) {
+                tensor_leaves.insert(*j);
             }
         }
 
@@ -324,7 +325,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         for (partition_tensor_index, (i, _partition)) in partitioning
             .iter()
             .enumerate()
-            .filter(|(_, partition)| *partition == &partition_index)
+            .filter(|(_, partition)| *partition == &source_partition)
             .enumerate()
         {
             if tensor_leaves.contains(&partition_tensor_index) {
@@ -333,12 +334,13 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             }
         }
 
+        // Find best target partition
         // Cost function is actually quite important!!
-        let (new_partition, _) = partition_tensors
+        let (target_partition, _) = partition_tensors
             .iter()
             .enumerate()
             .filter_map(|(i, partition_tensor)| {
-                if i != partition_index {
+                if i != source_partition {
                     Some((
                         i,
                         (&shifted_tensor ^ partition_tensor).size() - partition_tensor.size(),
@@ -350,37 +352,38 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             })
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .unwrap();
-        let old_partition = partition_index;
+
+        // Change partition
         for index in shifted_indices {
-            partitioning[index] = new_partition;
+            partitioning[index] = target_partition;
         }
 
+        // Recompute the tensors for both partitions
+        partition_tensors[source_partition] ^= &shifted_tensor;
+        partition_tensors[target_partition] ^= &shifted_tensor;
+
+        // Recompute the contraction path for both partitions
         let mut from_tensor = Tensor::new(Vec::new());
         let mut to_tensor = Tensor::new(Vec::new());
-
         for (partition_index, tensor) in zip(&partitioning, self.tensor.tensors()) {
-            if *partition_index == old_partition {
+            if *partition_index == source_partition {
                 from_tensor.push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
-            } else if *partition_index == new_partition {
+            } else if *partition_index == target_partition {
                 to_tensor.push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
             }
         }
 
-        // Redo greedy here!
         let mut from_opt = Greedy::new(&from_tensor, CostType::Flops);
         from_opt.optimize_path();
         let from_path = from_opt.get_best_replace_path();
-        partition_contractions[old_partition] = from_path;
+        contraction_paths[source_partition] = from_path;
 
         let mut to_opt = Greedy::new(&to_tensor, CostType::Flops);
         to_opt.optimize_path();
         let to_path = to_opt.get_best_replace_path();
-        partition_contractions[new_partition] = to_path;
+        contraction_paths[target_partition] = to_path;
 
-        partition_tensors[old_partition] ^= &shifted_tensor;
-        partition_tensors[new_partition] ^= &shifted_tensor;
-
-        (partitioning, partition_tensors, partition_contractions)
+        (partitioning, partition_tensors, contraction_paths)
     }
 
     fn evaluate(&self, partitioning: &Self::SolutionType) -> ScoreType {
