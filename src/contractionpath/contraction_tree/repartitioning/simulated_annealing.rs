@@ -345,7 +345,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             })
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .unwrap();
-        let old_partition = partitioning[tensor_index];
+        let old_partition = partition_index;
         for index in shifted_indices {
             partitioning[index] = new_partition;
         }
