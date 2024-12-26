@@ -4,7 +4,7 @@ use genetic_algorithm::{
     genotype::{Genotype, RangeGenotype},
     mutate::MutateSingleGene,
     select::SelectTournament,
-    strategy::{evolve::Evolve, prelude::EvolveReporterDuration, Strategy},
+    strategy::{evolve::Evolve, Strategy},
 };
 use ordered_float::NotNan;
 
@@ -97,7 +97,7 @@ pub fn balance_partitions(
         .with_mutate(MutateSingleGene::new(0.2))
         .with_crossover(CrossoverUniform::new())
         .with_select(SelectTournament::new(4, 0.9))
-        .with_reporter(EvolveReporterDuration::new())
+        // .with_reporter(EvolveReporterDuration::new())
         .with_par_fitness(true)
         .with_rng_seed_from_u64(0)
         .call()
