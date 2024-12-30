@@ -58,15 +58,8 @@ pub fn random_tensor(n: usize) -> (Tensor, FxHashMap<usize, u64>) {
     random_tensor_with_rng(n, &mut rand::thread_rng())
 }
 
-/// Generates random sparse [`DataTensor`] object with same dimenions as [`Tensor`] object `t`
-/// Fills in sparse tensor based on `sparsity` value.
-///
-/// # Arguments
-///
-/// * `t` - [`Tensor`] object, random [`DataTensor`] will have same dimensions
-/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output [`DataTensor`].
-///                 used to fill in entries in [`DataTensor`] at random. If no value is provided, defaults to 0.50
-/// * `rng` - The random number generator to use.
+/// Generates random sparse [`DataTensor`] object.
+/// Fills in sparse tensor based on `sparsity` value (defaults to `0.5`).
 ///
 /// # Examples
 /// ```
@@ -75,7 +68,7 @@ pub fn random_tensor(n: usize) -> (Tensor, FxHashMap<usize, u64>) {
 /// random_sparse_tensor_data_with_rng(&shape, None, &mut rand::thread_rng());
 /// ```
 pub fn random_sparse_tensor_data_with_rng<R>(
-    dims: &[u64],
+    dims: &[usize],
     sparsity: Option<f32>,
     rng: &mut R,
 ) -> TensorData
@@ -89,8 +82,8 @@ where
         0.5
     };
 
-    let ranges = dims.iter().map(|i| Uniform::new(0, *i)).collect::<Vec<_>>();
-    let size = dims.iter().product::<u64>();
+    let ranges = dims.iter().map(|i| Uniform::new(0, *i)).collect_vec();
+    let size = dims.iter().product::<usize>();
     let mut tensor = DataTensor::new(dims);
 
     let mut nnz = 0;
@@ -108,14 +101,8 @@ where
     TensorData::Matrix(tensor)
 }
 
-/// Generates random sparse [`DataTensor`] object with same dimenions as [`Tensor`] object `t`
-/// Fills in sparse tensor based on `sparsity` value. Uses the thread-local random number generator.
-///
-/// # Arguments
-///
-/// * `t` - [`Tensor`] object, random [`DataTensor`] will have same dimensions
-/// * `sparsity` - an optional fraction between 0 and 1 denoting the sparsity of the output [`DataTensor`].
-///                 used to fill in entries in [`DataTensor`] at random. If no value is provided, defaults to 0.50
+/// Generates random sparse [`DataTensor`] object.
+/// Fills in sparse tensor based on `sparsity` value (defaults to `0.5`). Uses the thread-local random number generator.
 ///
 /// # Examples
 /// ```
@@ -124,7 +111,7 @@ where
 /// let r_tensor = random_sparse_tensor_data(&shape, None);
 /// ```
 #[must_use]
-pub fn random_sparse_tensor_data(shape: &[u64], sparsity: Option<f32>) -> TensorData {
+pub fn random_sparse_tensor_data(shape: &[usize], sparsity: Option<f32>) -> TensorData {
     random_sparse_tensor_data_with_rng(shape, sparsity, &mut rand::thread_rng())
 }
 
@@ -211,9 +198,7 @@ where
 /// Generates random [`Tensor`] objects based on a quantum circuit with `n` qubits and `cycles` layers of
 /// randomly generated 1- or 2-qubit gates. Uses the thread-local random number generator.
 ///
-///
 /// # Arguments
-///
 /// * `n` - Number of qubits in quantum circuit
 /// * `cycles` - Number of layers of gates
 ///
@@ -228,6 +213,7 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> Tensor {
     random_tensor_network_with_rng(n, cycles, &mut rand::thread_rng())
 }
 
+#[must_use]
 pub fn create_filled_tensor_network<R>(
     tensors: Vec<Tensor>,
     bond_dims: &FxHashMap<usize, u64>,

@@ -290,9 +290,9 @@ impl Tensor {
     /// assert_eq!(tensor.shape(), vec![17, 19, 8]);
     /// ```
     #[inline]
-    pub fn shape(&self) -> Vec<u64> {
+    pub fn shape(&self) -> Vec<usize> {
         let bond_dims = self.bond_dims();
-        self.legs.iter().map(|e| bond_dims[e]).collect()
+        self.legs.iter().map(|e| bond_dims[e] as usize).collect()
     }
 
     /// Returns the number of dimensions.

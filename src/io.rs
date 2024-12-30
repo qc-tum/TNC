@@ -61,13 +61,9 @@ fn read_tensor(file: &File) -> Result<Tensor> {
             bond_dims.entry(bond_id).or_insert(bond_dim as u64);
         }
 
-        let tensor_dataset = gr.dataset(&tensor_name).unwrap().read_dyn::<Complex64>()?;
         let mut new_tensor = Tensor::new(bond_ids.to_vec());
         new_tensor.set_tensor_data(TensorData::Matrix(DataTensor::new_from_flat(
-            &tensor_shape
-                .into_iter()
-                .map(|e| e.try_into().unwrap())
-                .collect::<Vec<_>>(),
+            &tensor_shape,
             tensor_dataset.into_raw_vec(),
             None,
         )));
@@ -86,13 +82,9 @@ fn read_data(file: &File) -> Result<DataTensor> {
         .dataset(&tensor_name[0])
         .unwrap()
         .read_dyn::<Complex64>()?;
-    let tensor_shape = tensor_dataset
-        .shape()
-        .iter()
-        .map(|&e| e.try_into().unwrap())
-        .collect::<Vec<_>>();
+    let tensor_shape = tensor_dataset.shape().to_vec();
     Ok(DataTensor::new_from_flat(
-        tensor_shape.as_slice(),
+        &tensor_shape,
         tensor_dataset.into_raw_vec(),
         None,
     ))
