@@ -103,7 +103,7 @@ impl TensorContraction for Tensor {
         let mut tensor_symmetric_difference = &tensor_b ^ &tensor_a;
 
         let edges = self.get_mut_edges();
-        for leg in &tensor_b.legs {
+        for leg in tensor_b.legs() {
             edges.entry(*leg).and_modify(|e| {
                 e.retain(|v| {
                     if let &Vertex::Closed(tensor_loc) = v {
