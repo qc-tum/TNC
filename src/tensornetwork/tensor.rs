@@ -381,6 +381,7 @@ impl Tensor {
     /// let tensor = Tensor::default();
     /// assert_eq!(tensor.is_empty(), true);
     /// ```
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.tensors.is_empty()
             && self.legs.is_empty()
@@ -414,8 +415,8 @@ impl Tensor {
     }
 
     /// Pushes additional tensor into Tensor object. If self is a leaf tensor, clone it and push it into itself.
-    /// # Arguments
     ///
+    /// # Arguments
     /// * `tensor` - new `Tensor` to be added
     /// * `bond_dims` - `FxHashMap<usize, u64>` mapping edge id to bond dimension
     pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&FxHashMap<usize, u64>>) {
@@ -468,8 +469,8 @@ impl Tensor {
 
     /// Pushes additional tensor into Tensor object. If self is a leaf tensor, clone it and push it into itself.
     /// Assumes that added tensors do not have external hyperedges, which is fed as an optional argument instead
-    /// # Arguments
     ///
+    /// # Arguments
     /// * `tensors` - `Vec<Tensor>` to be added
     /// * `bond_dims` - `FxHashMap<usize, u64>` mapping edge id to bond dimension
     /// * `external_hyperedge` - Optional `FxHashMap<EdgeIndex, usize>` of external hyperedges, mapping the edge index to count of external hyperedges.
@@ -479,14 +480,11 @@ impl Tensor {
         bond_dims: Option<&FxHashMap<EdgeIndex, u64>>,
         external_hyperedge: Option<&FxHashMap<EdgeIndex, usize>>,
     ) {
-        // Case that tensor is not empty but has no subtensors.
-        if self.is_leaf()
-            && (!self.legs().is_empty() || !matches!(*self.tensor_data(), TensorData::Uncontracted))
-        {
+        // If self is a leaf tensor but not empty (i.e. it has legs or data), need to preserve it
+        if !self.is_empty() && self.is_leaf() {
             let old_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
-            // Don't clone large data is needed.
             self.update_tensor_edges(&old_self);
             self.set_tensor_data(TensorData::Uncontracted);
             self.tensors.push(old_self);
@@ -541,8 +539,8 @@ impl Tensor {
         let shared_bond_dims = self.bond_dims.read().unwrap();
 
         // Index is current length as tensor is pushed after.
-        let index = self.tensors().len();
-        for &leg in tensor.legs() {
+        let index = self.tensors.len();
+        for &leg in &tensor.legs {
             assert!(
                 shared_bond_dims.contains_key(&leg),
                 "Leg {leg} bond dimension is not defined"
@@ -660,7 +658,7 @@ impl Tensor {
     pub fn union(&self, other: &Self) -> Self {
         let mut new_legs = Vec::with_capacity(self.legs.len() + other.legs.len());
         new_legs.extend_from_slice(&self.legs);
-        for &i in other.legs() {
+        for &i in &other.legs {
             if !self.contains_leg(i) {
                 new_legs.push(i);
             }
@@ -718,7 +716,7 @@ impl Tensor {
     /// Get output legs after tensor contraction
     pub fn external_edges(&self) -> Vec<EdgeIndex> {
         if self.is_leaf() {
-            return self.legs().clone();
+            return self.legs.clone();
         }
 
         let mut ext_edges = Self::default();
