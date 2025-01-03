@@ -396,13 +396,8 @@ mod tests {
 
     #[test]
     fn test_idle_ranks() {
-        let path = vec![
-            ContractionIndex::Path(2, vec![ContractionIndex::Pair(0, 1)]),
-            ContractionIndex::Pair(0, 2),
-            ContractionIndex::Pair(1, 3),
-            ContractionIndex::Pair(0, 1),
-        ];
-        let idle_ranks = get_idle_ranks(&path, 6);
+        let path = path![(2, [(0, 1)]), (0, 2), (1, 3), (0, 1)];
+        let idle_ranks = get_idle_ranks(path, 6);
         assert_eq!(idle_ranks, [0, 1, 3, 4, 5].into_iter().collect());
     }
 

@@ -1172,10 +1172,7 @@ mod tests {
         let (tensor, path) = setup_nested();
         let mut complex_tree = ContractionTree::from_contraction_path(&tensor, &path);
         let partition_ids = vec![2, 5, 8];
-        complex_tree.replace_communication_path(
-            partition_ids,
-            &[ContractionIndex::Pair(0, 2), ContractionIndex::Pair(1, 0)],
-        );
+        complex_tree.replace_communication_path(partition_ids, path![(0, 2), (1, 0)]);
 
         let ContractionTree { nodes, root, .. } = complex_tree;
 
