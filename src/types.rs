@@ -15,8 +15,8 @@ pub enum Vertex {
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ContractionIndex {
-    Pair(usize, usize),
-    Path(usize, Vec<ContractionIndex>),
+    Pair(TensorIndex, TensorIndex),
+    Path(TensorIndex, Vec<ContractionIndex>),
 }
 
 #[macro_export]
