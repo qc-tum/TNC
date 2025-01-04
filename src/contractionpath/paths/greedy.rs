@@ -13,7 +13,7 @@ use crate::{
         ssa_ordering, ssa_replace_ordering,
     },
     tensornetwork::tensor::Tensor,
-    types::{calculate_hash, ContractionIndex},
+    types::{calculate_hash, ContractionIndex, EdgeIndex},
     utils::traits::HashMapInsertNew,
 };
 
@@ -47,19 +47,21 @@ impl RNGChooser for SimpleChooser {
             child_id,
         }) = queue.pop()
         {
-            if !remaining_tensors.values().any(|&x| x == k1)
-                && !remaining_tensors.values().any(|&x| x == k2)
+            if !remaining_tensors.values().contains(&k1)
+                || !remaining_tensors.values().contains(&k2)
             {
                 return None;
             }
-            return Some(Candidate {
+
+            Some(Candidate {
                 flop_cost,
                 size_cost,
                 parent_ids: (k1, k2),
                 child_id,
-            });
+            })
+        } else {
+            None
         }
-        None
     }
 }
 
@@ -104,7 +106,7 @@ impl<'a> Greedy<'a> {
     /// Returns Tensor obtained after contracting k1 and k2.
     fn get_candidate(
         output: &Tensor,
-        edge_tensor_counts: &FxHashMap<usize, FxHashSet<usize>>,
+        edge_tensor_counts: &FxHashMap<usize, FxHashSet<EdgeIndex>>,
         k1: &Tensor,
         k2: &Tensor,
     ) -> Tensor {
@@ -128,32 +130,32 @@ impl<'a> Greedy<'a> {
     }
 
     fn update_ref_counts(
-        dim_to_tensors: &FxHashMap<usize, Vec<Tensor>>,
-        dim_tensor_counts: &mut FxHashMap<usize, FxHashSet<usize>>,
+        edge_to_tensors: &FxHashMap<EdgeIndex, Vec<Tensor>>,
+        edge_tensor_counts: &mut FxHashMap<usize, FxHashSet<EdgeIndex>>,
         dims: &Tensor,
     ) {
-        for &dim in dims.legs() {
-            let count = dim_to_tensors[&dim].len();
+        for &leg in dims.legs() {
+            let count = edge_to_tensors[&leg].len();
             if count <= 1 {
-                dim_tensor_counts.entry(2).and_modify(|e| {
-                    e.remove(&dim);
+                edge_tensor_counts.entry(2).and_modify(|e| {
+                    e.remove(&leg);
                 });
-                dim_tensor_counts.entry(3).and_modify(|e| {
-                    e.remove(&dim);
+                edge_tensor_counts.entry(3).and_modify(|e| {
+                    e.remove(&leg);
                 });
             } else if count == 2 {
-                dim_tensor_counts.entry(2).and_modify(|e| {
-                    e.insert(dim);
+                edge_tensor_counts.entry(2).and_modify(|e| {
+                    e.insert(leg);
                 });
-                dim_tensor_counts.entry(3).and_modify(|e| {
-                    e.remove(&dim);
+                edge_tensor_counts.entry(3).and_modify(|e| {
+                    e.remove(&leg);
                 });
             } else {
-                dim_tensor_counts.entry(2).and_modify(|e| {
-                    e.insert(dim);
+                edge_tensor_counts.entry(2).and_modify(|e| {
+                    e.insert(leg);
                 });
-                dim_tensor_counts.entry(3).and_modify(|e| {
-                    e.insert(dim);
+                edge_tensor_counts.entry(3).and_modify(|e| {
+                    e.insert(leg);
                 });
             }
         }
@@ -176,14 +178,13 @@ impl<'a> Greedy<'a> {
         const NBRANCH: usize = 5;
         const REL_TEMPERATURE: bool = true;
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
-        let mut next_ssa_id = inputs.len();
         let (
             mut remaining_tensors,
             mut ssa_id_to_tensor,
             mut scalar_tensors,
             mut ssa_path,
             mut next_ssa_id,
-        ) = populate_remaining_tensors(inputs, &mut next_ssa_id);
+        ) = populate_remaining_tensors(inputs);
 
         let mut edge_to_tensors = populate_edge_to_tensors(inputs, &remaining_tensors, output_dims);
         let mut edge_tensor_counts = populate_edge_tensor_counts(&edge_to_tensors);
@@ -205,8 +206,7 @@ impl<'a> Greedy<'a> {
             {
                 let k1_hash = calculate_hash(k1);
                 // Get all possible unconsidered combinations
-                let k2s = connected_tensors[(i + 1)..].iter();
-                for k2 in k2s {
+                for k2 in &connected_tensors[(i + 1)..] {
                     let k2_hash = calculate_hash(k2);
                     let k12 = Greedy::get_candidate(output_dims, &edge_tensor_counts, k1, k2);
                     let k12_hash = calculate_hash(&k12);
@@ -284,21 +284,17 @@ impl<'a> Greedy<'a> {
             let k12_hash = calculate_hash(&k12);
 
             // Removing k1 from edge_to_tensors
-            for &dim in (&k1 - output_dims).legs() {
-                edge_to_tensors.entry(dim).and_modify(|e| {
-                    if let Some(index) = e.iter().position(|x| x.legs() == k1.legs()) {
-                        e.remove(index);
-                    }
-                });
+            for &leg in (&k1 - output_dims).legs() {
+                edge_to_tensors
+                    .entry(leg)
+                    .and_modify(|e| e.retain(|x| x.legs() != k1.legs()));
             }
 
             // Removing k2 from edge_to_tensors
-            for &dim in (&k2 - output_dims).legs() {
-                edge_to_tensors.entry(dim).and_modify(|e| {
-                    if let Some(index) = e.iter().position(|x| x.legs() == k2.legs()) {
-                        e.remove(index);
-                    }
-                });
+            for &leg in (&k2 - output_dims).legs() {
+                edge_to_tensors
+                    .entry(leg)
+                    .and_modify(|e| e.retain(|x| x.legs() != k2.legs()));
             }
 
             // remove contracted tensors
@@ -391,8 +387,8 @@ impl<'a> Greedy<'a> {
         }
 
         for (_key, ssa_id) in remaining_tensors {
-            let k12_tensor = ssa_id_to_tensor[&ssa_id].clone();
-            let tensor_size = (&k12_tensor & output_dims).size();
+            let k12_tensor = &ssa_id_to_tensor[&ssa_id];
+            let tensor_size = (k12_tensor & output_dims).size();
             if tensor_size > 0f64 {
                 let candidate = Candidate {
                     flop_cost: 0f64,
@@ -405,24 +401,18 @@ impl<'a> Greedy<'a> {
         }
 
         while queue.len() >= 2 {
-            let Some(Candidate {
+            let Candidate {
                 flop_cost: _flop_cost,
                 size_cost: _cost,
                 parent_ids: (ssa_id1, _id1),
                 child_id: _child_id,
-            }) = queue.pop()
-            else {
-                continue;
-            };
-            let Some(Candidate {
+            } = queue.pop().unwrap();
+            let Candidate {
                 flop_cost: _flop_cost,
                 size_cost: _cost,
                 parent_ids: (ssa_id2, _id2),
                 child_id: _child_id,
-            }) = queue.pop()
-            else {
-                continue;
-            };
+            } = queue.pop().unwrap();
             let k1 = ssa_id_to_tensor.remove(&ssa_id1).unwrap();
             let k2 = ssa_id_to_tensor.remove(&ssa_id2).unwrap();
             ssa_path.push((min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2), next_ssa_id));
@@ -479,7 +469,6 @@ impl<'a> Greedy<'a> {
 #[allow(clippy::type_complexity)]
 fn populate_remaining_tensors(
     inputs: &[Tensor],
-    next_ssa_id: &mut usize,
 ) -> (
     FxHashMap<u64, usize>,
     FxHashMap<usize, Tensor>,
@@ -487,6 +476,7 @@ fn populate_remaining_tensors(
     Vec<(usize, usize, usize)>,
     usize,
 ) {
+    let mut next_ssa_id = inputs.len();
     let mut ssa_path = Vec::new();
     let mut remaining_tensors = FxHashMap::default();
     let mut ssa_id_to_tensor = FxHashMap::default();
@@ -495,14 +485,14 @@ fn populate_remaining_tensors(
 
     for (ssa_id, v) in inputs.iter().enumerate() {
         let tensor_hash = calculate_hash(v);
-        ssa_id_to_tensor.entry(ssa_id).or_insert_with(|| v.clone());
+        ssa_id_to_tensor.insert_new(ssa_id, v.clone());
         // Greedily perform inner products first
         if let Some(x) = remaining_tensors.remove(&tensor_hash) {
-            ssa_path.push((x, ssa_id, *next_ssa_id));
-            scalar_tensors.push(*next_ssa_id);
+            ssa_path.push((x, ssa_id, next_ssa_id));
+            scalar_tensors.push(next_ssa_id);
             ssa_id_to_tensor.remove(&x);
             ssa_id_to_tensor.remove(&ssa_id);
-            *next_ssa_id += 1;
+            next_ssa_id += 1;
         } else {
             remaining_tensors.insert(tensor_hash, ssa_id);
         }
@@ -512,7 +502,7 @@ fn populate_remaining_tensors(
         ssa_id_to_tensor,
         scalar_tensors,
         ssa_path,
-        *next_ssa_id,
+        next_ssa_id,
     )
 }
 
@@ -520,14 +510,10 @@ fn populate_edge_to_tensors(
     inputs: &[Tensor],
     remaining_tensors: &FxHashMap<u64, usize>,
     output_dims: &Tensor,
-) -> FxHashMap<usize, Vec<Tensor>> {
+) -> FxHashMap<EdgeIndex, Vec<Tensor>> {
     // Dictionary that maps leg id to tensor
-    let remaining_inputs = remaining_tensors
-        .values()
-        .map(|&e| &inputs[e])
-        .collect::<Vec<_>>();
-    let mut bond_dim_to_tensors = FxHashMap::<usize, Vec<Tensor>>::default();
-    for key in remaining_inputs {
+    let mut bond_dim_to_tensors = FxHashMap::<EdgeIndex, Vec<_>>::default();
+    for key in remaining_tensors.values().map(|&e| &inputs[e]) {
         for dim in (key - output_dims).legs() {
             bond_dim_to_tensors
                 .entry(*dim)
@@ -539,21 +525,18 @@ fn populate_edge_to_tensors(
 }
 
 fn populate_edge_tensor_counts(
-    bond_dim_to_tensors: &FxHashMap<usize, Vec<Tensor>>,
-) -> FxHashMap<usize, FxHashSet<usize>> {
+    edge_to_tensors: &FxHashMap<EdgeIndex, Vec<Tensor>>,
+) -> FxHashMap<usize, FxHashSet<EdgeIndex>> {
     // Get dims that are contracted
-    let mut bond_dim_tensor_counts = FxHashMap::<_, FxHashSet<_>>::default();
+    let mut edge_tensor_counts = FxHashMap::<_, FxHashSet<_>>::default();
     for i in 2..=3 {
-        for (bond_dim, tensor_legs) in bond_dim_to_tensors {
-            if tensor_legs.len() >= i {
-                bond_dim_tensor_counts
-                    .entry(i)
-                    .or_default()
-                    .insert(*bond_dim);
+        for (leg, tensors) in edge_to_tensors {
+            if tensors.len() >= i {
+                edge_tensor_counts.entry(i).or_default().insert(*leg);
             }
         }
     }
-    bond_dim_tensor_counts
+    edge_tensor_counts
 }
 
 // Assume one-level of parallelism
@@ -566,8 +549,8 @@ impl<'a> OptimizePath for Greedy<'a> {
             self.best_path = vec![];
             return;
         }
-        let mut inputs: Vec<Tensor> = self.tn.tensors().clone();
-        let mut rng: StdRng = StdRng::seed_from_u64(24);
+        let mut inputs = self.tn.tensors().clone();
+        let mut rng = StdRng::seed_from_u64(24);
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.is_composite() {
                 let external_legs = input_tensor.external_edges();
@@ -756,9 +739,8 @@ mod tests {
     fn test_populate_remaining_tensors() {
         let tn = setup_simple_inner_product();
         let tensors = tn.tensors();
-        let mut next_ssa_id = tensors.len();
         let (remaining_tensors, ssa_id_to_tensor, scalar_tensors, ssa_path, next_ssa_id) =
-            populate_remaining_tensors(tensors, &mut next_ssa_id);
+            populate_remaining_tensors(tensors);
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (6, 4), (3, 8), (2, 6), (1, 2), (5, 3), (4, 1)]);
         let ref_remaining_tensors =
