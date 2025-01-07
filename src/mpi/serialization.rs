@@ -126,12 +126,15 @@ pub fn serialize_tensor(tensor: &Tensor) -> Vec<MessageBinaryBlob> {
 }
 
 /// Deserializes a tensor from a byte array.
-fn deserialize_tensor_inner(reader: &mut &[u8], bond_dims: &FxHashMap<EdgeIndex, u64>) -> Tensor {
+fn deserialize_tensor_inner(
+    reader: &mut &[u8],
+    bond_dims: Option<&FxHashMap<EdgeIndex, u64>>,
+) -> Tensor {
     let mut tensor = deserialize_leaf_tensor_inner(reader);
     let num_children: usize = deserialize_from(&mut *reader);
     for _ in 0..num_children {
         let child = deserialize_leaf_tensor_inner(&mut *reader);
-        tensor.push_tensor(child, Some(bond_dims));
+        tensor.push_tensor(child, bond_dims);
     }
     tensor
 }
@@ -153,7 +156,7 @@ fn deserialize_leaf_tensor_inner(reader: &mut &[u8]) -> Tensor {
 /// more info. Requires `bond_dims` for building the composite tensor.
 pub fn deserialize_tensor(
     data: &[MessageBinaryBlob],
-    bond_dims: &FxHashMap<EdgeIndex, u64>,
+    bond_dims: Option<&FxHashMap<EdgeIndex, u64>>,
 ) -> Tensor {
     // Get a bytes view of the buffer
     let size_in_bytes = std::mem::size_of_val(data);
@@ -182,7 +185,7 @@ mod tests {
         let t4 = Tensor::new(vec![4, 5]);
         ta.push_tensors(vec![t2, t3, t4], Some(&bond_dims), None);
         let serialized = serialize_tensor(&ta);
-        let deserialized = deserialize_tensor(&serialized, &bond_dims);
+        let deserialized = deserialize_tensor(&serialized, Some(&bond_dims));
         assert!(Tensor::approx_eq(&ta, &deserialized, 1e-10));
     }
 }
