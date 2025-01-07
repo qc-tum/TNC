@@ -159,7 +159,7 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
                 } else {
                     Default::default()
                 };
-                broadcast_path(&mut communication_path, &root, &world);
+                broadcast_path(&mut communication_path, &root);
 
                 intermediate_reduce_tensor_network(
                     &mut local_tn,

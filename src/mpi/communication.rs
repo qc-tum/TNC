@@ -57,21 +57,17 @@ where
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
 /// receivers, `data` can just be an empty vector.
-fn broadcast_vec<T>(data: &mut Vec<T>, root: &Process, world: &SimpleCommunicator)
+fn broadcast_vec<T>(data: &mut Vec<T>, root: &Process)
 where
     T: Clone + Default,
     Vec<T>: BufferMut,
 {
     // Broadcast length
-    let mut len = if world.rank() == root.rank() {
-        data.len()
-    } else {
-        0
-    };
+    let mut len = if root.is_self() { data.len() } else { 0 };
     root.broadcast_into(&mut len);
 
     // Broadcast data
-    if world.rank() != root.rank() {
+    if !root.is_self() {
         data.resize(len, Default::default());
     }
     root.broadcast_into(data);
@@ -88,25 +84,19 @@ pub fn extract_communication_path(path: &[ContractionIndex]) -> Vec<ContractionI
 
 /// Broadcast a contraction index `path` from `root` to all processes in `world`. For
 /// the receivers, `path` can just be an empty slice.
-pub fn broadcast_path(
-    path: &mut Vec<ContractionIndex>,
-    root: &Process,
-    world: &SimpleCommunicator,
-) {
-    debug!(root=root.rank(), rank=world.rank(), path:serde; "Broadcasting path");
-
+pub fn broadcast_path(path: &mut Vec<ContractionIndex>, root: &Process) {
     // Serialize path
-    let mut data = if world.rank() == root.rank() {
+    let mut data = if root.is_self() {
         serialize(&path)
     } else {
         Default::default()
     };
 
     // Broadcast data
-    broadcast_vec(&mut data, root, world);
+    broadcast_vec(&mut data, root);
 
     // Deserialize path
-    if world.rank() != root.rank() {
+    if !root.is_self() {
         *path = deserialize(&data);
     }
 
@@ -207,7 +197,7 @@ pub fn scatter_tensor_network(
     } else {
         Vec::new()
     };
-    broadcast_vec(&mut bond_vec, &root_process, world);
+    broadcast_vec(&mut bond_vec, &root_process);
     let bond_dims = bond_vec.iter().map(|e| (e.bond_id, e.bond_size)).collect();
 
     // Distribute tensors
@@ -430,7 +420,7 @@ mod tests {
         } else {
             Default::default()
         };
-        broadcast_path(&mut contraction_indices, &root_process, &world);
+        broadcast_path(&mut contraction_indices, &root_process);
 
         assert_eq!(contraction_indices, ref_contraction_indices);
     }

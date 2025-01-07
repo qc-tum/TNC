@@ -96,7 +96,7 @@ fn main() {
         } else {
             Default::default()
         };
-        broadcast_path(&mut communication_path, &root, &world);
+        broadcast_path(&mut communication_path, &root);
 
         intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world);
         local_tn
