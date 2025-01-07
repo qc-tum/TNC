@@ -1,19 +1,15 @@
-use std::sync::{Arc, RwLock};
-
 use log::{debug, warn};
 use mpi::topology::{Process, SimpleCommunicator};
 use mpi::traits::{BufferMut, Communicator, Destination, Root, Source};
 use mpi::Rank;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::mpi_types::BondDim;
+use super::serialization::{deserialize_tensor, serialize_tensor};
 use crate::mpi::mpi_types::MessageBinaryBlob;
-use crate::mpi::serialization::{
-    deserialize, deserialize_from, serialize, serialize_into, serialized_size,
-};
+use crate::mpi::serialization::{deserialize, serialize};
 use crate::tensornetwork::contraction::contract_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
-use crate::tensornetwork::tensordata::TensorData;
 use crate::types::{ContractionIndex, EdgeIndex};
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
@@ -64,66 +60,35 @@ pub fn broadcast_path(path: &mut Vec<ContractionIndex>, root: &Process) {
     debug!(path:serde; "Received broadcasted path");
 }
 
-/// Sends the leaf tensor `tensor` to `receiver` via MPI.
-fn send_leaf_tensor(tensor: &Tensor, receiver: Rank, world: &SimpleCommunicator) {
-    assert!(tensor.is_leaf());
+/// Sends the `tensor` to `receiver` via MPI.
+fn send_tensor(tensor: &Tensor, receiver: Rank, world: &SimpleCommunicator) {
+    let data = serialize_tensor(tensor);
+    world.process_at_rank(receiver).send(&data);
+}
 
-    // MPI uses an i32 to store the number of elements in a buffer. This means, we
-    // can send at most `i32::MAX * sizeof(datatype)`. Hence, if we only use byte
-    // arrays, we can send at most `i32::MAX` bytes (~2GB) which is not enough.
-    // Instead, we interpret the byte arrays as arrays of a artificial, larger data
-    // type, which allows us to send more bytes.
-
-    let legs = tensor.legs();
-    let tensor_data = tensor.tensor_data();
-
-    // Get the total serialized size
-    let size = serialized_size(&legs) + serialized_size(tensor_data);
-    let size: usize = size.try_into().unwrap();
-
-    // Allocate a buffer of blobs
-    let element_size = std::mem::size_of::<MessageBinaryBlob>();
-    let elements = size.div_ceil(element_size);
-    let mut buffer = Vec::<MessageBinaryBlob>::with_capacity(elements);
-
-    // Get a bytes view of the buffer
-    let mut write_view = unsafe {
-        std::slice::from_raw_parts_mut(
-            buffer.as_mut_ptr().cast::<u8>(),
-            buffer.capacity() * element_size,
-        )
-    };
-
-    // Serialize legs and data into the buffer
-    serialize_into(&mut write_view, legs);
-    serialize_into(&mut write_view, tensor_data);
-    unsafe { buffer.set_len(buffer.capacity()) };
-
-    // Send the buffer
-    world.process_at_rank(receiver).send(&buffer);
+/// Sends a MPI message to `receiver` that signals that no tensors are being sent,
+/// i.e., that `receiver` doesn't contribute in the contraction.
+fn send_no_tensor(receiver: Rank, world: &SimpleCommunicator) {
+    let empty = Vec::<MessageBinaryBlob>::new();
+    world.process_at_rank(receiver).send(&empty);
 }
 
 /// Receives a leaf tensor from `sender` via MPI.
-fn receive_leaf_tensor(sender: Rank, world: &SimpleCommunicator) -> Tensor {
+fn receive_tensor(
+    sender: Rank,
+    world: &SimpleCommunicator,
+    bond_dims: Option<&FxHashMap<EdgeIndex, u64>>,
+) -> Tensor {
     // Receive the buffer
-    let (buffer, _status) = world
+    let (data, _status) = world
         .process_at_rank(sender)
         .receive_vec::<MessageBinaryBlob>();
 
-    // Get a bytes view of the buffer
-    let element_size = std::mem::size_of::<MessageBinaryBlob>();
-    let mut read_buffer = unsafe {
-        std::slice::from_raw_parts(buffer.as_ptr().cast::<u8>(), buffer.len() * element_size)
-    };
-
-    // Deserialize legs and data
-    let legs: Vec<EdgeIndex> = deserialize_from(&mut read_buffer);
-    let tensor_data: TensorData = deserialize_from(&mut read_buffer);
-
-    // Create tensor
-    let mut new_tensor = Tensor::new(legs);
-    new_tensor.set_tensor_data(tensor_data);
-    new_tensor
+    if !data.is_empty() {
+        deserialize_tensor(&data, bond_dims)
+    } else {
+        Tensor::default()
+    }
 }
 
 /// Returns the ranks that don't have any local contractions.
@@ -195,28 +160,14 @@ pub fn scatter_tensor_network(
         // Send the tensors to the other processes
         let local_tn = r_tn.tensor(0).clone();
         for (i, tensor) in r_tn.tensors().iter().enumerate().skip(1) {
-            // Defining the tensor count as `1 + number of subtensors` discriminates
-            // between no tensor (0), leaf tensor (1) and composite tensor (2..).
-            let num_subtensors = tensor.tensors().len();
-            let tensor_count = num_subtensors + 1;
-            debug!(receiver = i, tensor_count; "Sending tensor count");
-            world.process_at_rank(i as Rank).send(&tensor_count);
-            debug!(receiver = i; "Sending tensor(s)");
-            if tensor.is_leaf() {
-                debug!(receiver = i, tensor:?; "Sending leaf tensor");
-                send_leaf_tensor(tensor, i as Rank, world);
-            } else {
-                debug!(receiver = i, tensor:?; "Sending composite tensor");
-                for inner_tensor in tensor.tensors() {
-                    send_leaf_tensor(inner_tensor, i as Rank, world);
-                }
-            }
+            debug!(receiver = i; "Sending tensor");
+            send_tensor(tensor, i as Rank, world);
         }
         // Send zero tensors to non-participating ranks
         let used_ranks = r_tn.tensors().len() as Rank;
         for i in used_ranks..size {
-            debug!(receiver = i; "Sending zero tensor count");
-            world.process_at_rank(i).send(&0usize);
+            debug!(receiver = i; "Sending no-tensor flag to non-participating rank");
+            send_no_tensor(i, world);
         }
         debug!("Sent all tensors");
         (local_tn, local_path)
@@ -228,29 +179,9 @@ pub fn scatter_tensor_network(
         debug!(local_path:serde; "Received local path");
 
         // Receive tensors
-        debug!(sender = 0; "Receiving tensor count");
-        let (tensor_count, _status) = world.process_at_rank(0).receive::<usize>();
-        let mut local_tn = Tensor::default();
-        debug!(sender = 0, tensor_count; "Receiving tensors");
-        match tensor_count {
-            // No tensor
-            0 => (),
-            // Leaf tensor
-            1 => {
-                let new_tensor = receive_leaf_tensor(0, world);
-                local_tn = new_tensor;
-                local_tn.bond_dims = Arc::new(RwLock::new(bond_dims));
-            }
-            // Composite tensor
-            _ => {
-                for _ in 0..tensor_count - 1 {
-                    let new_tensor = receive_leaf_tensor(0, world);
-                    local_tn.push_tensor(new_tensor, Some(&bond_dims));
-                }
-                // TODO: can use `push_tensors` to push all  at once?
-            }
-        }
-        debug!("Received all tensors");
+        debug!(sender = 0; "Receiving tensor");
+        let local_tn = receive_tensor(0, world, Some(&bond_dims));
+        debug!("Received tensor");
         (local_tn, local_path)
     };
     debug!("Scattered tensor network");
@@ -276,7 +207,7 @@ pub fn intermediate_reduce_tensor_network(
                 if receiver == rank {
                     // Insert received tensor into local tensor
                     debug!(sender; "Start receiving tensor");
-                    let received_tensor = receive_leaf_tensor(sender, world);
+                    let received_tensor = receive_tensor(sender, world, None);
                     debug!(sender; "Finish receiving tensor");
                     local_tn.push_tensor(received_tensor, None);
 
@@ -285,7 +216,7 @@ pub fn intermediate_reduce_tensor_network(
                 }
                 if sender == rank {
                     debug!(receiver; "Start sending tensor");
-                    send_leaf_tensor(local_tn, receiver, world);
+                    send_tensor(local_tn, receiver, world);
                     debug!(receiver; "Finish sending tensor");
                 }
             }
@@ -298,12 +229,12 @@ pub fn intermediate_reduce_tensor_network(
         debug!(rank, final_rank; "Final rank is not 0");
         if rank == 0 {
             debug!(sender = final_rank; "Receiving final tensor");
-            let received_tensor = receive_leaf_tensor(final_rank, world);
+            let received_tensor = receive_tensor(final_rank, world, None);
             *local_tn = received_tensor;
         }
         if rank == final_rank {
             debug!(receiver = 0; "Sending final tensor");
-            send_leaf_tensor(local_tn, 0, world);
+            send_tensor(local_tn, 0, world);
         }
     }
     debug!("Reduced tensor network");
@@ -322,12 +253,12 @@ pub fn naive_reduce_tensor_network(
         for i in 1..size {
             // Add received tensor to final tensor network
             debug!(sender = i; "Receiving tensor");
-            let received_tensor = receive_leaf_tensor(i, world);
+            let received_tensor = receive_tensor(i, world, None);
             local_tn.push_tensor(received_tensor, None);
         }
     } else {
         debug!(receiver = 0; "Sending tensor");
-        send_leaf_tensor(local_tn, 0, world);
+        send_tensor(local_tn, 0, world);
     }
 
     if rank == 0 {
