@@ -17,9 +17,12 @@ impl BondDim {
 /// MPI messages can only contain [`i32::MAX`] elements. To send more data, we can
 /// increase the size of an element while keeping the total number of elements the
 /// same.
+///
+/// The size of this type is 192 bytes, which allows for messages of
+/// `192 B * 2^31 = 412 GB`.
 #[derive(Debug, Clone, PartialEq, Eq, Equivalence)]
 #[repr(transparent)]
-pub struct MessageBinaryBlob([u8; 48]);
+pub struct MessageBinaryBlob([u8; 192]);
 
 #[cfg(test)]
 mod tests {
