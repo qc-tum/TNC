@@ -1,13 +1,10 @@
 use rustc_hash::FxHashMap;
-use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Serialize};
 
 use crate::{
+    mpi::mpi_types::MessageBinaryBlob,
     tensornetwork::{tensor::Tensor, tensordata::TensorData},
     types::EdgeIndex,
 };
-
-const NAME: &'static str = "Tensor";
-const FIELDS: &[&str] = &["legs", "data", "tensors"];
 
 /// Serializes data to a byte array.
 fn serialize<S>(value: &S) -> Vec<u8>
@@ -51,88 +48,120 @@ where
     bincode::deserialize_from(reader).unwrap()
 }
 
-impl Serialize for Tensor {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct(NAME, FIELDS.len())?;
-        state.serialize_field("legs", self.legs())?;
-        state.serialize_field("data", self.tensor_data())?;
-        state.serialize_field("tensors", self.tensors())?;
-        state.end()
+/// Gets the serialized size of a tensor.
+fn serialized_tensor_size(tensor: &Tensor) -> u64 {
+    // Get own size
+    let mut total_size = serialized_size(&tensor.legs());
+    total_size += serialized_size(&tensor.tensor_data());
+
+    // Add size for children count
+    let num_children = tensor.tensors().len();
+    total_size += serialized_size(&num_children);
+
+    // Add size for children
+    for child in tensor.tensors() {
+        assert!(
+            child.is_leaf(),
+            "Tensor serialization only supports one level of nesting"
+        );
+        total_size += serialized_size(&child.legs());
+        total_size += serialized_size(&child.tensor_data());
+    }
+    total_size
+}
+
+/// Serializes a tensor into a byte array.
+fn serialize_tensor_inner(writer: &mut &mut [u8], tensor: &Tensor) {
+    // Serialize the tensor itself
+    serialize_into(&mut *writer, &tensor.legs());
+    serialize_into(&mut *writer, &tensor.tensor_data());
+
+    // Serialize the child count
+    let num_children = tensor.tensors().len();
+    serialize_into(&mut *writer, &num_children);
+
+    // Serialize the child tensors
+    for child in tensor.tensors() {
+        assert!(
+            child.is_leaf(),
+            "Tensor serialization only supports one level of nesting"
+        );
+        serialize_into(&mut *writer, &child.legs());
+        serialize_into(&mut *writer, &child.tensor_data());
     }
 }
 
-/// A helper struct for building a composite tensor. This is required as directly
-/// deserializing a composite Tensor does not work when we don't have the bond
-/// dimensions given. Currently, the bond dimensions are not serialized with the
-/// tensor, and there is no way to provide them during deserialization.
-pub(super) struct TensorBuilder {
-    legs: Vec<EdgeIndex>,
-    data: TensorData,
-    children: Vec<TensorBuilder>,
+/// Serializes `tensor` (and its child tensors if any) into a vector of binary blobs.
+///
+/// MPI uses an `i32` to store the number of elements in a buffer. This means we can
+/// send at most `i32::MAX * sizeof(datatype)`. Hence, if we used a `Vec<u8>`, we
+/// could send at most `i32::MAX` bytes (~2 GB) which is not enough. Instead, we
+/// interpret the byte arrays as arrays of an artificial, larger data type, which
+/// allows us to send more bytes in total.
+pub(super) fn serialize_tensor(tensor: &Tensor) -> Vec<MessageBinaryBlob> {
+    // Get the total message size in bytes
+    let total_size = serialized_tensor_size(tensor);
+    let total_size: usize = total_size.try_into().unwrap();
+
+    // Allocate a buffer of blobs
+    let element_size = std::mem::size_of::<MessageBinaryBlob>();
+    let elements = total_size.div_ceil(element_size);
+    let mut buffer = Vec::<MessageBinaryBlob>::with_capacity(elements);
+
+    // Get a bytes view of the buffer
+    let mut write_view = unsafe {
+        std::slice::from_raw_parts_mut(
+            buffer.as_mut_ptr().cast::<u8>(),
+            buffer.capacity() * element_size,
+        )
+    };
+
+    // Serialize legs and data into the buffer
+    serialize_tensor_inner(&mut write_view, tensor);
+
+    // Update the buffer length
+    unsafe { buffer.set_len(buffer.capacity()) };
+
+    buffer
 }
 
-impl TensorBuilder {
-    /// Builds the composite tensor from the builder.
-    pub fn build(self, bond_dims: &FxHashMap<EdgeIndex, u64>) -> Tensor {
-        let mut tensor = Tensor::new(self.legs);
-        if !self.children.is_empty() {
-            tensor.push_tensors(
-                self.children
-                    .into_iter()
-                    .map(|t| t.build(bond_dims))
-                    .collect(),
-                Some(bond_dims),
-                None,
-            );
-        }
-        tensor.set_tensor_data(self.data);
-        tensor
+/// Deserializes a tensor from a byte array.
+fn deserialize_tensor_inner(reader: &mut &[u8], bond_dims: &FxHashMap<EdgeIndex, u64>) -> Tensor {
+    let mut tensor = deserialize_leaf_tensor_inner(reader);
+    let num_children: usize = deserialize_from(&mut *reader);
+    for _ in 0..num_children {
+        let child = deserialize_leaf_tensor_inner(&mut *reader);
+        tensor.push_tensor(child, Some(bond_dims));
     }
+    tensor
 }
 
-impl<'de> Deserialize<'de> for TensorBuilder {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct TensorVisitor;
+/// Deserializes a leaf tensor from a byte array.
+fn deserialize_leaf_tensor_inner(reader: &mut &[u8]) -> Tensor {
+    // Deserialize the legs and tensor data
+    let legs: Vec<EdgeIndex> = deserialize_from(&mut *reader);
+    let tensor_data: TensorData = deserialize_from(&mut *reader);
 
-        impl<'de> Visitor<'de> for TensorVisitor {
-            type Value = TensorBuilder;
+    // Create the tensor
+    let mut tensor = Tensor::new(legs);
+    tensor.set_tensor_data(tensor_data);
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("struct ")?;
-                formatter.write_str(NAME)
-            }
+    tensor
+}
 
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::SeqAccess<'de>,
-            {
-                let legs: Vec<EdgeIndex> = seq
-                    .next_element()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                let data: TensorData = seq
-                    .next_element()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                let tensors: Vec<TensorBuilder> = seq
-                    .next_element()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+/// Deserializes a tensor from a array of binary blobs. See [`serialize_tensor`] for
+/// more info. Requires `bond_dims` for building the composite tensor.
+pub(super) fn deserialize_tensor(
+    data: &[MessageBinaryBlob],
+    bond_dims: &FxHashMap<EdgeIndex, u64>,
+) -> Tensor {
+    // Get a bytes view of the buffer
+    let size_in_bytes = std::mem::size_of_val(data);
+    let mut read_buffer =
+        unsafe { std::slice::from_raw_parts(data.as_ptr().cast::<u8>(), size_in_bytes) };
 
-                let tensor_builder = TensorBuilder {
-                    legs,
-                    data,
-                    children: tensors,
-                };
-                Ok(tensor_builder)
-            }
-        }
-
-        deserializer.deserialize_struct(NAME, FIELDS, TensorVisitor)
-    }
+    // Deserialize the tensor
+    deserialize_tensor_inner(&mut read_buffer, bond_dims)
 }
 
 #[cfg(test)]
@@ -140,27 +169,20 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        mpi::serialization::{deserialize, serialize, TensorBuilder},
+        mpi::serialization::{deserialize_tensor, serialize_tensor},
         tensornetwork::tensor::Tensor,
     };
 
     #[test]
     fn test_serialize_deserialize_tensor_roundtrip() {
-        let bond_dims = FxHashMap::from_iter([(1, 2), (2, 2), (3, 2), (4, 2), (5, 2), (6, 2)]);
+        let bond_dims = FxHashMap::from_iter([(1, 2), (2, 2), (3, 2), (4, 2), (5, 2)]);
         let mut ta = Tensor::default();
         let t2 = Tensor::new(vec![1, 2, 3]);
         let t3 = Tensor::new(vec![2, 3, 4]);
         let t4 = Tensor::new(vec![4, 5]);
         ta.push_tensors(vec![t2, t3, t4], Some(&bond_dims), None);
-        let mut tb = Tensor::default();
-        let t5 = Tensor::new(vec![5, 6]);
-        let t6 = Tensor::new(vec![6]);
-        tb.push_tensors(vec![t5, t6], Some(&bond_dims), None);
-        let mut tc = Tensor::default();
-        tc.push_tensors(vec![ta, tb], Some(&bond_dims), None);
-        let serialized = serialize(&tc);
-        let deserialized: TensorBuilder = deserialize(&serialized);
-        let tensor = deserialized.build(&bond_dims);
-        assert!(Tensor::approx_eq(&tc, &tensor, 1e-10));
+        let serialized = serialize_tensor(&ta);
+        let deserialized = deserialize_tensor(&serialized, &bond_dims);
+        assert!(Tensor::approx_eq(&ta, &deserialized, 1e-10));
     }
 }
