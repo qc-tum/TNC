@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// Serializes data to a byte array.
-fn serialize<S>(value: &S) -> Vec<u8>
+pub fn serialize<S>(value: &S) -> Vec<u8>
 where
     S: serde::Serialize,
 {
@@ -15,7 +15,7 @@ where
 }
 
 /// Serializes data into a writer.
-fn serialize_into<W, S>(writer: W, value: &S)
+pub fn serialize_into<W, S>(writer: W, value: &S)
 where
     W: std::io::Write,
     S: serde::Serialize,
@@ -24,7 +24,7 @@ where
 }
 
 /// Returns the serialized size of the data (i.e., the number of bytes).
-fn serialized_size<S>(value: &S) -> u64
+pub fn serialized_size<S>(value: &S) -> u64
 where
     S: serde::Serialize,
 {
@@ -32,7 +32,7 @@ where
 }
 
 /// Deserializes data from a byte array.
-fn deserialize<D>(data: &[u8]) -> D
+pub fn deserialize<D>(data: &[u8]) -> D
 where
     D: serde::de::DeserializeOwned,
 {
@@ -40,7 +40,7 @@ where
 }
 
 /// Deserializes data from a reader.
-fn deserialize_from<R, D>(reader: R) -> D
+pub fn deserialize_from<R, D>(reader: R) -> D
 where
     R: std::io::Read,
     D: serde::de::DeserializeOwned,
@@ -98,7 +98,7 @@ fn serialize_tensor_inner(writer: &mut &mut [u8], tensor: &Tensor) {
 /// could send at most `i32::MAX` bytes (~2 GB) which is not enough. Instead, we
 /// interpret the byte arrays as arrays of an artificial, larger data type, which
 /// allows us to send more bytes in total.
-pub(super) fn serialize_tensor(tensor: &Tensor) -> Vec<MessageBinaryBlob> {
+pub fn serialize_tensor(tensor: &Tensor) -> Vec<MessageBinaryBlob> {
     // Get the total message size in bytes
     let total_size = serialized_tensor_size(tensor);
     let total_size: usize = total_size.try_into().unwrap();
@@ -151,7 +151,7 @@ fn deserialize_leaf_tensor_inner(reader: &mut &[u8]) -> Tensor {
 
 /// Deserializes a tensor from a array of binary blobs. See [`serialize_tensor`] for
 /// more info. Requires `bond_dims` for building the composite tensor.
-pub(super) fn deserialize_tensor(
+pub fn deserialize_tensor(
     data: &[MessageBinaryBlob],
     bond_dims: &FxHashMap<EdgeIndex, u64>,
 ) -> Tensor {

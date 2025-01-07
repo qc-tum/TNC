@@ -8,52 +8,13 @@ use rustc_hash::FxHashSet;
 
 use super::mpi_types::BondDim;
 use crate::mpi::mpi_types::MessageBinaryBlob;
+use crate::mpi::serialization::{
+    deserialize, deserialize_from, serialize, serialize_into, serialized_size,
+};
 use crate::tensornetwork::contraction::contract_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 use crate::types::{ContractionIndex, EdgeIndex};
-
-/// Serializes data to a byte array.
-fn serialize<S>(value: &S) -> Vec<u8>
-where
-    S: serde::Serialize,
-{
-    bincode::serialize(value).unwrap()
-}
-
-/// Serializes data into a writer.
-fn serialize_into<W, S>(writer: W, value: &S)
-where
-    W: std::io::Write,
-    S: serde::Serialize,
-{
-    bincode::serialize_into(writer, value).unwrap();
-}
-
-/// Returns the serialized size of the data (i.e., the number of bytes).
-fn serialized_size<S>(value: &S) -> u64
-where
-    S: serde::Serialize,
-{
-    bincode::serialized_size(value).unwrap()
-}
-
-/// Deserializes data from a byte array.
-fn deserialize<D>(data: &[u8]) -> D
-where
-    D: serde::de::DeserializeOwned,
-{
-    bincode::deserialize(data).unwrap()
-}
-
-/// Deserializes data from a reader.
-fn deserialize_from<R, D>(reader: R) -> D
-where
-    R: std::io::Read,
-    D: serde::de::DeserializeOwned,
-{
-    bincode::deserialize_from(reader).unwrap()
-}
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
 /// receivers, `data` can just be an empty vector.
