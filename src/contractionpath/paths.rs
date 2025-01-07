@@ -37,7 +37,7 @@ pub fn validate_path(path: &[ContractionIndex]) {
                 );
                 contracted.push(*v);
             }
-            ContractionIndex::Path(_, path) => {
+            ContractionIndex::Path(_, _, path) => {
                 validate_path(path);
             }
         }

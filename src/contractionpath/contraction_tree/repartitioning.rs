@@ -34,11 +34,11 @@ pub fn compute_solution(
     let mut latency_map = FxHashMap::default();
     let mut final_path = Vec::with_capacity(tensor.tensors().len());
     for p in path {
-        if let ContractionIndex::Path(i, local_path) = p {
+        if let ContractionIndex::Path(i, slicing, local_path) = p {
             let (local_cost, _) =
                 contract_path_cost(partitioned_tn.tensor(i).tensors(), &local_path, true);
             latency_map.insert(i, local_cost);
-            final_path.push(ContractionIndex::Path(i, local_path));
+            final_path.push(ContractionIndex::Path(i, slicing, local_path));
         }
     }
 

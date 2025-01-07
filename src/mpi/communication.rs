@@ -96,7 +96,7 @@ fn receive_tensor(
 fn get_idle_ranks(path: &[ContractionIndex], size: Rank) -> FxHashSet<Rank> {
     let mut idle_ranks = (0..size).collect::<FxHashSet<_>>();
     for pair in path {
-        if let ContractionIndex::Path(i, _) = pair {
+        if let ContractionIndex::Path(i, _, _) = pair {
             idle_ranks.remove(&(*i as Rank));
         }
     }
@@ -139,7 +139,7 @@ pub fn scatter_tensor_network(
         // Send the local paths to the other processes
         let mut local_path = Vec::new();
         for contraction_path in path {
-            if let ContractionIndex::Path(i, local) = contraction_path {
+            if let ContractionIndex::Path(i, _, local) = contraction_path {
                 if *i == 0 {
                     // This is the path for the root process, no need to send it
                     local_path = local.clone();

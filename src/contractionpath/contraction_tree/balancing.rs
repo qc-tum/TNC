@@ -463,7 +463,7 @@ where
                     ..
                 },
             )| {
-                rebalanced_path.push(ContractionIndex::Path(i, subtree_contraction.clone()));
+                rebalanced_path.push(ContractionIndex::Path(i, None, subtree_contraction.clone()));
                 let mut child_tensor = Tensor::default();
                 let leaf_ids = contraction_tree.leaf_ids(*id);
                 let leaf_tensors = leaf_ids

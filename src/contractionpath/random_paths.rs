@@ -138,7 +138,7 @@ impl RandomOptimizePath for Greedy<'_> {
                 if !best_path.is_empty() {
                     let best_path = ssa_replace_ordering(&best_path, input_tensor.tensors().len());
                     self.best_path
-                        .push(ContractionIndex::Path(index, best_path));
+                        .push(ContractionIndex::Path(index, None, best_path));
                 }
                 input_tensor.set_legs(external_legs);
             }

@@ -190,7 +190,8 @@ fn contract_path_custom_cost(
                 mem_cost = mem_cost.max(new_mem_cost);
                 inputs[i] = ij;
             }
-            ContractionIndex::Path(i, ref path) => {
+            ContractionIndex::Path(i, ref slicing, ref path) => {
+                // TODO: consider slicing
                 let costs = contract_path_custom_cost(inputs[i].tensors(), path, cost_function);
                 op_cost += costs.0;
                 mem_cost = mem_cost.max(costs.1);
@@ -297,7 +298,8 @@ pub fn compute_memory_requirements(
                 max_size = max_size.max(size);
                 inputs[i] = contracted;
             }
-            ContractionIndex::Path(i, ref path) => {
+            ContractionIndex::Path(i, ref slicing, ref path) => {
+                // TODO: consider slicing
                 let max_child_size =
                     compute_memory_requirements(inputs[i].tensors(), path, memory_estimator);
                 max_size = max_size.max(max_child_size);

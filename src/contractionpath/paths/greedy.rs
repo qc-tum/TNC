@@ -483,7 +483,8 @@ impl OptimizePath for Greedy<'_> {
                     &mut rng,
                 );
                 if !path.is_empty() {
-                    self.best_path.push(ContractionIndex::Path(index, path));
+                    self.best_path
+                        .push(ContractionIndex::Path(index, None, path));
                 }
                 input_tensor.set_legs(external_legs);
             }

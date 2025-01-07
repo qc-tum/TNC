@@ -2,15 +2,34 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 use serde::{Deserialize, Serialize};
+
+use crate::tensornetwork::tensor::Tensor;
 // use std::hash::DefaultHasher;
 
 pub type EdgeIndex = usize;
 pub type TensorIndex = usize;
 
+/// Information about which legs are to be sliced.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Slicing {
+    pub slices: Vec<EdgeIndex>,
+}
+
+impl Slicing {
+    /// Computes the size of the slice when applied to the `target` tensor.
+    /// This is the product of all sliced legs.
+    pub fn size(&self, target: &Tensor) -> u64 {
+        self.slices
+            .iter()
+            .map(|leg| target.bond_dims()[leg])
+            .product()
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ContractionIndex {
     Pair(TensorIndex, TensorIndex),
-    Path(TensorIndex, Vec<ContractionIndex>),
+    Path(TensorIndex, Option<Slicing>, Vec<ContractionIndex>),
 }
 
 #[macro_export]
@@ -19,7 +38,7 @@ macro_rules! path {
         &[$(path![$index, $($tokens),*]),*]
     };
     ($index:expr, [$($tokens:tt),+]) => {
-        $crate::types::ContractionIndex::Path($index, path![$($tokens),+].to_vec())
+        $crate::types::ContractionIndex::Path($index, None, path![$($tokens),+].to_vec())
     };
     ($e:expr, $p:expr) => {
         $crate::types::ContractionIndex::Pair($e, $p)
@@ -58,13 +77,16 @@ mod tests {
                 ContractionIndex::Pair(0, 1),
                 ContractionIndex::Path(
                     2,
+                    None,
                     vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
                 ),
                 ContractionIndex::Path(
                     4,
+                    None,
                     vec![
                         ContractionIndex::Path(
                             2,
+                            None,
                             vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
                         ),
                         ContractionIndex::Pair(1, 3)
@@ -73,6 +95,7 @@ mod tests {
                 ContractionIndex::Pair(0, 2),
                 ContractionIndex::Path(
                     3,
+                    None,
                     vec![
                         ContractionIndex::Pair(4, 1),
                         ContractionIndex::Pair(3, 4),
