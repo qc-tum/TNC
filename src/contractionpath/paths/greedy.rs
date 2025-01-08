@@ -208,7 +208,7 @@ impl<'a> Greedy<'a> {
                 // Get all possible unconsidered combinations
                 for k2 in &connected_tensors[(i + 1)..] {
                     let k2_hash = calculate_hash(k2);
-                    let k12 = Greedy::get_candidate(output_dims, &edge_tensor_counts, k1, k2);
+                    let k12 = k1 ^ k2;
                     let k12_hash = calculate_hash(&k12);
                     tensor_mem_size
                         .entry(k12_hash)
@@ -351,7 +351,7 @@ impl<'a> Greedy<'a> {
             if !k2s.is_empty() {
                 for k2 in k2s {
                     let k2_hash = calculate_hash(k2);
-                    let k12 = Greedy::get_candidate(output_dims, &edge_tensor_counts, &k1, k2);
+                    let k12 = &k1 ^ k2;
                     let k12_hash = calculate_hash(&k12);
                     tensor_mem_size
                         .entry(k12_hash)
@@ -416,7 +416,7 @@ impl<'a> Greedy<'a> {
             let k1 = ssa_id_to_tensor.remove(&ssa_id1).unwrap();
             let k2 = ssa_id_to_tensor.remove(&ssa_id2).unwrap();
             ssa_path.push((min(ssa_id1, ssa_id2), max(ssa_id1, ssa_id2), next_ssa_id));
-            let k12 = &(&k1 | &k2) & output_dims;
+            let k12 = &k1 ^ &k2;
             let cost = k12.size();
 
             queue.push(Candidate {
