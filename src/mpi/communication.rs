@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use log::{debug, warn};
 use mpi::topology::{Process, SimpleCommunicator};
-use mpi::traits::{BufferMut, Communicator, Destination, Root, Source};
+use mpi::traits::{BufferMut, Communicator, Destination, Group, Root, Source};
 use mpi::Rank;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -101,6 +101,21 @@ fn get_idle_ranks(path: &[ContractionIndex], size: Rank) -> FxHashSet<Rank> {
         }
     }
     idle_ranks
+}
+
+/// Creates a new communicator that contains only the first `used_ranks` many ranks
+/// of `world`. For higher ranks, `None` is returned.
+fn create_active_communicator(
+    used_ranks: &mut Rank,
+    world: &SimpleCommunicator,
+) -> Option<SimpleCommunicator> {
+    // Broadcast the number of used ranks to all ranks
+    let root = world.process_at_rank(0);
+    root.broadcast_into(used_ranks);
+
+    // Create a new communicator from a group including only the used ranks
+    let used_group = world.group().include(&(0..*used_ranks).collect_vec());
+    world.split_by_subgroup_collective(&used_group)
 }
 
 /// Distributes the partitioned tensor network to the various processes via MPI.
