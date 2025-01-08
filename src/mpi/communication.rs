@@ -158,7 +158,7 @@ fn get_tensor_mapping_and_slice_groups(
         }
     }
     assert!(
-        used_ranks < size,
+        used_ranks <= size,
         "Not enough MPI ranks available, got {size} but need {used_ranks}!"
     );
     (tensor_mapping, slice_groups, used_ranks)
