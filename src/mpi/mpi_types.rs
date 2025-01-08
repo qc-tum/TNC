@@ -1,6 +1,6 @@
 use mpi::traits::Equivalence;
 
-use crate::types::EdgeIndex;
+use crate::types::{EdgeIndex, TensorIndex};
 
 #[derive(Default, Debug, Clone, Equivalence, PartialEq)]
 pub(super) struct BondDim {
@@ -11,6 +11,24 @@ pub(super) struct BondDim {
 impl BondDim {
     pub fn new(bond_id: EdgeIndex, bond_size: u64) -> Self {
         Self { bond_id, bond_size }
+    }
+}
+
+/// A type similar to `Option<TensorIndex>` that can be used in MPI messages.
+/// [`Equivalence`] is not implemented for [`Option`], so `Option<TensorIndex>` can't
+/// be sent directly using MPI.
+#[derive(Debug, Clone, Default, Equivalence)]
+pub(super) struct OptionalTensorIndex(bool, TensorIndex);
+
+impl OptionalTensorIndex {
+    pub fn new(tensor_index: TensorIndex) -> Self {
+        Self(true, tensor_index)
+    }
+}
+
+impl From<OptionalTensorIndex> for Option<TensorIndex> {
+    fn from(optional_tensor_index: OptionalTensorIndex) -> Self {
+        optional_tensor_index.0.then(|| optional_tensor_index.1)
     }
 }
 
@@ -25,6 +43,12 @@ impl BondDim {
 #[derive(Debug, Clone, PartialEq, Eq, Equivalence)]
 #[repr(transparent)]
 pub struct MessageBinaryBlob([u8; 192]);
+
+impl Default for MessageBinaryBlob {
+    fn default() -> Self {
+        Self([0; 192])
+    }
+}
 
 #[cfg(test)]
 mod tests {

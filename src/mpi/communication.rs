@@ -1,17 +1,17 @@
 use itertools::Itertools;
 use log::{debug, warn};
-use mpi::topology::{Process, SimpleCommunicator};
-use mpi::traits::{BufferMut, Communicator, Destination, Group, Root, Source};
+use mpi::topology::{Color, Process, SimpleCommunicator};
+use mpi::traits::{BufferMut, Communicator, Destination, Equivalence, Group, Root, Source};
 use mpi::Rank;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::mpi_types::BondDim;
+use super::mpi_types::{BondDim, OptionalTensorIndex};
 use super::serialization::{deserialize_tensor, serialize_tensor};
 use crate::mpi::mpi_types::MessageBinaryBlob;
 use crate::mpi::serialization::{deserialize, serialize};
 use crate::tensornetwork::contraction::contract_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
-use crate::types::{ContractionIndex, EdgeIndex};
+use crate::types::{ContractionIndex, EdgeIndex, TensorIndex};
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
 /// receivers, `data` can just be an empty vector.
@@ -103,19 +103,216 @@ fn get_idle_ranks(path: &[ContractionIndex], size: Rank) -> FxHashSet<Rank> {
     idle_ranks
 }
 
-/// Creates a new communicator that contains only the first `used_ranks` many ranks
-/// of `world`. For higher ranks, `None` is returned.
-fn create_active_communicator(
-    used_ranks: &mut Rank,
-    world: &SimpleCommunicator,
-) -> Option<SimpleCommunicator> {
-    // Broadcast the number of used ranks to all ranks
-    let root = world.process_at_rank(0);
-    root.broadcast_into(used_ranks);
+/// A bidirectional mapping between MPI ranks and composite tensors.
+#[derive(Debug, Clone, Default)]
+struct RankTensorMapping {
+    rank_to_tensor: Vec<OptionalTensorIndex>,
+    tensor_to_rank: FxHashMap<TensorIndex, Rank>,
+}
 
-    // Create a new communicator from a group including only the used ranks
-    let used_group = world.group().include(&(0..*used_ranks).collect_vec());
-    world.split_by_subgroup_collective(&used_group)
+impl RankTensorMapping {
+    fn new(ranks: Rank) -> Self {
+        Self {
+            rank_to_tensor: vec![OptionalTensorIndex::default(); ranks as usize],
+            tensor_to_rank: Default::default(),
+        }
+    }
+
+    fn add(&mut self, rank: Rank, tensor: TensorIndex) {
+        self.rank_to_tensor[rank as usize] = OptionalTensorIndex::new(tensor);
+        self.tensor_to_rank.insert(tensor, rank);
+    }
+}
+
+/// Determines the tensor mapping and slice groups for the given contraction `path`.
+/// Also returns the number of used ranks.
+fn get_tensor_mapping_and_slice_groups(
+    r_tn: &Tensor,
+    path: &[ContractionIndex],
+    size: Rank,
+) -> (RankTensorMapping, Vec<i32>, Rank) {
+    let mut used_ranks = 0;
+    let mut tensor_mapping = RankTensorMapping::new(size);
+    let mut slice_groups = vec![-1; size as usize];
+    let mut used_groups = 0;
+
+    for pair in path {
+        if let ContractionIndex::Path(i, slicing, _) = pair {
+            // Assign the next available rank to tensor `i`
+            tensor_mapping.add(used_ranks, *i);
+
+            if let Some(slicing) = slicing {
+                // Determine how many ranks are needed for doing all slices in parallel
+                let local_tensor = r_tn.tensor(*i);
+                let needed_ranks: i32 = slicing.size(local_tensor).try_into().unwrap();
+
+                // Assign each of the needed ranks the same color
+                for rank in used_ranks..used_ranks + needed_ranks {
+                    slice_groups[rank as usize] = used_groups;
+                }
+                used_groups += 1;
+                used_ranks += needed_ranks;
+            } else {
+                used_ranks += 1;
+            }
+        }
+    }
+    assert!(
+        used_ranks < size,
+        "Not enough MPI ranks available, got {size} but need {used_ranks}!"
+    );
+    (tensor_mapping, slice_groups, used_ranks)
+}
+
+/// Scatters `slice` on the rank corresponding to the `root` process to all processes
+/// in the communicator of `root`, such that rank `i` gets `slice[i]`. Processes
+/// other than the root can pass an empty slice.
+fn scatter_slice<T>(slice: &[T], root: &Process) -> T
+where
+    T: Default + Equivalence,
+{
+    let mut recv_buffer = T::default();
+    if root.is_self() {
+        root.scatter_into_root(slice, &mut recv_buffer);
+    } else {
+        root.scatter_into(&mut recv_buffer);
+    }
+    recv_buffer
+}
+
+/// Information needed for communication during contraction of the tensor network.
+pub struct Communication {
+    /// The tensor that the rank is responsible for. In a slice group, only the group
+    /// root has this set.
+    assigned_tensor: Option<TensorIndex>,
+
+    /// The communicator for the slice group. `None` if the rank is not part of a
+    /// slice group.
+    slice_comm: Option<SimpleCommunicator>,
+}
+
+pub fn scatter_tensor_network2(
+    r_tn: &Tensor,
+    path: &[ContractionIndex],
+    rank: Rank,
+    size: Rank,
+    world: &SimpleCommunicator,
+) -> (Tensor, Vec<ContractionIndex>, Communication) {
+    let root = world.process_at_rank(0);
+
+    // Get information about used ranks
+    let (tensor_mapping, slicing_grouping, _) = if rank == 0 {
+        get_tensor_mapping_and_slice_groups(r_tn, path, size)
+    } else {
+        Default::default()
+    };
+
+    // Tell the ranks the tensor they are responsible for (if any)
+    let assigned_tensor = scatter_slice(&tensor_mapping.rank_to_tensor, &root);
+    let assigned_tensor: Option<TensorIndex> = assigned_tensor.into();
+
+    // Send the slicing information
+    let slice_group = scatter_slice(&slicing_grouping, &root);
+
+    // Create communicators for the slice groups
+    let color = if slice_group >= 0 {
+        Color::with_value(slice_group)
+    } else {
+        Color::undefined()
+    };
+    let slice_comm = world.split_by_color(color);
+
+    // Send the bond dimensions
+    let mut bond_vec = if rank == 0 {
+        r_tn.bond_dims()
+            .iter()
+            .map(|(&bond_id, &bond_size)| BondDim { bond_id, bond_size })
+            .collect_vec()
+    } else {
+        Default::default()
+    };
+    broadcast_vec(&mut bond_vec, &root);
+    let bond_dims: FxHashMap<usize, u64> =
+        bond_vec.iter().map(|e| (e.bond_id, e.bond_size)).collect();
+
+    // Send the local paths
+    let mut local_path_raw = if rank == 0 {
+        let mut local_path = None;
+        for contraction_path in path {
+            if let ContractionIndex::Path(i, _, local) = contraction_path {
+                // TODO: send slicing information as well
+                let target_rank = tensor_mapping.tensor_to_rank[i];
+                if target_rank == 0 {
+                    // This is the path for the root, no need to send it
+                    local_path = Some(local.clone());
+                    continue;
+                }
+
+                world.process_at_rank(target_rank).send(&serialize(&local));
+            }
+        }
+        serialize(&local_path.unwrap())
+    } else if assigned_tensor.is_some() {
+        let (raw_path, _status) = world.process_at_rank(0).receive_vec::<u8>();
+        raw_path
+    } else {
+        Default::default()
+    };
+
+    // Broadcast the path in the slicing group
+    if let Some(slice_comm) = &slice_comm {
+        broadcast_vec(&mut local_path_raw, &slice_comm.process_at_rank(0));
+    }
+
+    // Deserialize the path
+    let local_path = if !local_path_raw.is_empty() {
+        deserialize(&local_path_raw)
+    } else {
+        Default::default()
+    };
+
+    // Send the tensors
+    let mut local_tn_raw = if rank == 0 {
+        let mut local_tn = None;
+        for (tensor_index, target_rank) in tensor_mapping.tensor_to_rank {
+            let tensor = r_tn.tensor(tensor_index);
+            if target_rank == 0 {
+                // This is the tensor for the root, no need to send it
+                local_tn = Some(tensor.clone());
+                continue;
+            }
+
+            send_tensor(tensor, target_rank, world);
+        }
+        serialize_tensor(&local_tn.unwrap())
+    } else if assigned_tensor.is_some() {
+        let (raw_tensor, _status) = world.process_at_rank(0).receive_vec::<MessageBinaryBlob>();
+        raw_tensor
+    } else {
+        Default::default()
+    };
+
+    // Broadcast the tensor in the slicing group
+    if let Some(slice_comm) = &slice_comm {
+        broadcast_vec(&mut local_tn_raw, &slice_comm.process_at_rank(0));
+    }
+
+    // Deserialize the tensor
+    let local_tn = if !local_tn_raw.is_empty() {
+        deserialize_tensor(&local_tn_raw, Some(&bond_dims))
+    } else {
+        Default::default()
+    };
+
+    // Return the local tensor, path and communication information
+    (
+        local_tn,
+        local_path,
+        Communication {
+            assigned_tensor,
+            slice_comm,
+        },
+    )
 }
 
 /// Distributes the partitioned tensor network to the various processes via MPI.
@@ -290,13 +487,51 @@ mod tests {
     use mpi_test::mpi_test;
 
     use super::*;
-    use crate::path;
+    use crate::{path, types::Slicing};
 
     #[test]
     fn test_idle_ranks() {
         let path = path![(2, [(0, 1)]), (0, 2), (1, 3), (0, 1)];
         let idle_ranks = get_idle_ranks(path, 6);
         assert_eq!(idle_ranks, [0, 1, 3, 4, 5].into_iter().collect());
+    }
+
+    #[mpi_test(8)]
+    fn test_my_scatter() {
+        let universe = mpi::initialize().unwrap();
+        let world = universe.world();
+        let rank = world.rank();
+        let size = world.size();
+        let (tn, path) = if rank == 0 {
+            let bond_dims = FxHashMap::from_iter([(1, 2), (2, 2), (3, 2), (4, 2), (5, 2), (6, 2)]);
+            let mut ta = Tensor::default();
+            let t2 = Tensor::new(vec![1, 2, 3]);
+            let t3 = Tensor::new(vec![2, 3, 4]);
+            let t4 = Tensor::new(vec![4, 5]);
+            ta.push_tensors(vec![t2, t3, t4], Some(&bond_dims), None);
+            let mut tb = Tensor::default();
+            let t5 = Tensor::new(vec![5, 6]);
+            let t6 = Tensor::new(vec![6]);
+            tb.push_tensors(vec![t5, t6], Some(&bond_dims), None);
+            let mut tc = Tensor::default();
+            tc.push_tensors(vec![ta, tb], Some(&bond_dims), None);
+
+            let path = vec![
+                ContractionIndex::Path(
+                    0,
+                    Some(Slicing { slices: vec![2] }),
+                    vec![ContractionIndex::Pair(0, 1), ContractionIndex::Pair(0, 2)],
+                ),
+                ContractionIndex::Path(1, None, vec![ContractionIndex::Pair(0, 1)]),
+                ContractionIndex::Pair(0, 1),
+            ];
+
+            (tc, path)
+        } else {
+            Default::default()
+        };
+
+        scatter_tensor_network2(&tn, &path, rank, size, &world);
     }
 
     #[mpi_test(2)]
