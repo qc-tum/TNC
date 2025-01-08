@@ -1,13 +1,15 @@
 use mpi::traits::Equivalence;
 
+use crate::types::EdgeIndex;
+
 #[derive(Default, Debug, Clone, Equivalence, PartialEq)]
 pub(super) struct BondDim {
-    pub bond_id: usize,
+    pub bond_id: EdgeIndex,
     pub bond_size: u64,
 }
 
 impl BondDim {
-    pub fn new(bond_id: usize, bond_size: u64) -> Self {
+    pub fn new(bond_id: EdgeIndex, bond_size: u64) -> Self {
         Self { bond_id, bond_size }
     }
 }
