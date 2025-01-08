@@ -1,34 +1,42 @@
-use mpi::traits::Equivalence;
+use mpi::{traits::Equivalence, Rank};
+use serde::{Deserialize, Serialize};
 
-use crate::types::{EdgeIndex, TensorIndex};
+use crate::types::TensorIndex;
 
-#[derive(Default, Debug, Clone, Equivalence, PartialEq)]
-pub(super) struct BondDim {
-    pub bond_id: EdgeIndex,
-    pub bond_size: u64,
-}
+/// A bidirectional mapping between MPI ranks and composite tensors.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RankTensorMapping(Vec<(Rank, TensorIndex)>);
 
-impl BondDim {
-    pub fn new(bond_id: EdgeIndex, bond_size: u64) -> Self {
-        Self { bond_id, bond_size }
+impl RankTensorMapping {
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self(Vec::with_capacity(capacity))
+    }
+
+    pub fn insert(&mut self, rank: Rank, tensor: TensorIndex) {
+        self.0.push((rank, tensor));
+    }
+
+    /// Gets the MPI rank associated with the given tensor.
+    pub fn rank(&self, tensor: TensorIndex) -> Rank {
+        self.0
+            .iter()
+            .find(|(_, t)| *t == tensor)
+            .map(|(r, _)| *r)
+            .unwrap()
+    }
+
+    /// Gets the tensor associated with the given MPI rank (if any).
+    pub fn tensor(&self, rank: Rank) -> Option<TensorIndex> {
+        self.0.iter().find(|(r, _)| *r == rank).map(|(_, t)| *t)
     }
 }
 
-/// A type similar to `Option<TensorIndex>` that can be used in MPI messages.
-/// [`Equivalence`] is not implemented for [`Option`], so `Option<TensorIndex>` can't
-/// be sent directly using MPI.
-#[derive(Debug, Clone, Default, Equivalence)]
-pub(super) struct OptionalTensorIndex(bool, TensorIndex);
+impl<'a> IntoIterator for &'a RankTensorMapping {
+    type Item = &'a (Rank, TensorIndex);
+    type IntoIter = std::slice::Iter<'a, (Rank, TensorIndex)>;
 
-impl OptionalTensorIndex {
-    pub fn new(tensor_index: TensorIndex) -> Self {
-        Self(true, tensor_index)
-    }
-}
-
-impl From<OptionalTensorIndex> for Option<TensorIndex> {
-    fn from(optional_tensor_index: OptionalTensorIndex) -> Self {
-        optional_tensor_index.0.then(|| optional_tensor_index.1)
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
 }
 
@@ -47,42 +55,5 @@ pub struct MessageBinaryBlob([u8; 192]);
 impl Default for MessageBinaryBlob {
     fn default() -> Self {
         Self([0; 192])
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::mpi::mpi_types::BondDim;
-    use mpi::traits::{Communicator, Root};
-    use mpi_test::mpi_test;
-
-    #[mpi_test(2)]
-    fn test_sendrecv_bond_dims_need_mpi() {
-        let universe = mpi::initialize().unwrap();
-        let world = universe.world();
-        // let size = world.size();
-        let rank = world.rank();
-        let root_process = world.process_at_rank(0);
-
-        let bond_dims = if rank == 0 {
-            let mut bond_dims = vec![
-                BondDim::new(10, 24),
-                BondDim::new(31, 55),
-                BondDim::new(27, 126),
-            ];
-            root_process.broadcast_into(&mut bond_dims);
-            bond_dims
-        } else {
-            let mut bond_dims = vec![BondDim::default(); 3];
-            root_process.broadcast_into(&mut bond_dims);
-            bond_dims
-        };
-        let bond_dims_ref = vec![
-            BondDim::new(10, 24),
-            BondDim::new(31, 55),
-            BondDim::new(27, 126),
-        ];
-
-        assert_eq!(bond_dims, bond_dims_ref);
     }
 }

@@ -6,7 +6,10 @@ use tensorcontraction::{
         paths::{greedy::Greedy, CostType, OptimizePath},
         random_paths::RandomOptimizePath,
     },
-    mpi::communication::{naive_reduce_tensor_network, scatter_tensor_network},
+    mpi::communication::{
+        broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
+        scatter_tensor_network,
+    },
     networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
     tensornetwork::{
         contraction::contract_tensor_network,
@@ -87,6 +90,7 @@ fn test_partitioned_contraction_need_mpi() {
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
+    let root = world.process_at_rank(0);
 
     let (mut ref_tn, partitioned_tn, path) = if rank == 0 {
         let k = 10;
@@ -101,18 +105,27 @@ fn test_partitioned_contraction_need_mpi() {
     } else {
         Default::default()
     };
-    let (mut local_tn, local_path) =
+
+    let (mut local_tn, local_path, comm) =
         scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
     contract_tensor_network(&mut local_tn, &local_path);
 
-    naive_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
+    let mut communication_path = if rank == 0 {
+        extract_communication_path(&path)
+    } else {
+        Default::default()
+    };
+    broadcast_path(&mut communication_path, &root);
+
+    intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world, &comm);
 
     if rank == 0 {
         let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
-
         ref_opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42));
         let ref_path = ref_opt.get_best_replace_path();
+
         contract_tensor_network(&mut ref_tn, &ref_path);
-        assert!(local_tn.approx_eq(&ref_tn, 1e-8));
+
+        assert!(local_tn.tensor_data().approx_eq(ref_tn.tensor_data(), 1e-8));
     }
 }
