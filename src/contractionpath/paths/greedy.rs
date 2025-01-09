@@ -196,7 +196,8 @@ impl<'a> Greedy<'a> {
         let mut queue = BinaryHeap::new();
         // Fill queue with all possible contraction combinations of contractions
         for connected_tensors in edge_to_tensors.values_mut() {
-            // connected_tensors.sort_unstable_by_key(|a| a.legs().len());
+            connected_tensors
+                .sort_unstable_by_key(|a| ssa_id_to_tensor.get(a).unwrap().legs().len());
             // Loop over all but the last entry
             for (i, k1_id) in connected_tensors[0..connected_tensors.len() - 1]
                 .iter()
