@@ -94,7 +94,7 @@ impl RNGChooser for ThermalChooser {
     }
 }
 
-impl<'a> RandomOptimizePath for Greedy<'a> {
+impl RandomOptimizePath for Greedy<'_> {
     fn random_optimize_path<R>(&mut self, trials: usize, rng: &mut R)
     where
         R: ?Sized + Rng,

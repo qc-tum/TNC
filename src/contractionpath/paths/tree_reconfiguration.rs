@@ -54,7 +54,7 @@ impl<'a> TreeReconfigure<'a> {
     }
 }
 
-impl<'a> OptimizePath for TreeReconfigure<'a> {
+impl OptimizePath for TreeReconfigure<'_> {
     fn optimize_path(&mut self) {
         // Map tensors to legs
         let inputs = self

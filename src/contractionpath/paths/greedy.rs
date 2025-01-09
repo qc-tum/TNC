@@ -520,7 +520,7 @@ fn populate_remaining_tensors(
 }
 
 // Assume one-level of parallelism
-impl<'a> OptimizePath for Greedy<'a> {
+impl OptimizePath for Greedy<'_> {
     fn optimize_path(&mut self) {
         if self.tn.tensors().len() == 1 {
             // Perform a single contraction to match output shape.
@@ -584,7 +584,6 @@ impl<'a> OptimizePath for Greedy<'a> {
 #[cfg(test)]
 mod tests {
     use std::hash::Hash;
-    use std::iter::zip;
 
     use rustc_hash::FxHashMap;
 
