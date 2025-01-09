@@ -582,7 +582,10 @@ impl Tensor {
     /// ```
     #[inline]
     pub fn set_tensor_data(&mut self, tensordata: TensorData) {
-        assert!(self.is_leaf(), "Cannot add data to composite tensor");
+        assert!(
+            self.is_leaf() || matches!(tensordata, TensorData::Uncontracted),
+            "Cannot add data to composite tensor"
+        );
         self.tensordata = tensordata;
     }
 
