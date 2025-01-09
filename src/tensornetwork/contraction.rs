@@ -1,3 +1,5 @@
+use std::collections::hash_map::Entry;
+
 use log::debug;
 use rustc_hash::FxHashMap;
 use tetra::{contract, Tensor as DataTensor};
@@ -70,7 +72,7 @@ pub(crate) trait TensorContraction {
     /// Internal method to permute tensor
     fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor;
     /// Internal method to update edges
-    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, Vec<Vertex>>;
+    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, (Vertex, Vertex)>;
     /// Getter for underlying raw data
     fn get_data(&self) -> DataTensor;
     /// Internal method to swap tensors
@@ -84,7 +86,7 @@ impl TensorContraction for Tensor {
         &mut self.tensors[i]
     }
 
-    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, Vec<Vertex>> {
+    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, (Vertex, Vertex)> {
         &mut self.edges
     }
 
@@ -104,23 +106,34 @@ impl TensorContraction for Tensor {
 
         let edges = self.get_mut_edges();
         for leg in tensor_b.legs() {
-            edges.entry(*leg).and_modify(|e| {
-                e.retain(|v| {
-                    if let &Vertex::Closed(tensor_loc) = v {
-                        tensor_loc != tensor_a_loc
-                    } else {
-                        true
-                    }
-                });
-                for vertex in e.iter_mut() {
-                    if let Vertex::Closed(tensor_loc) = vertex {
-                        if *tensor_loc == tensor_b_loc {
-                            *vertex = Vertex::Closed(tensor_a_loc);
+            let edge = edges.entry(*leg);
+            if let Entry::Occupied(ref o) = edge {
+                let entry = o.get();
+                match entry {
+                    &(Vertex::Closed(i), Vertex::Closed(j)) => {
+                        if i == tensor_a_loc && j == tensor_b_loc
+                            || i == tensor_b_loc && j == tensor_a_loc
+                        {
+                            if let Entry::Occupied(o) = edge {
+                                o.remove_entry();
+                            }
+                        } else if i == tensor_b_loc {
+                            edge.and_modify(|v| v.0 = Vertex::Closed(tensor_a_loc));
+                        } else {
+                            edge.and_modify(|v| v.1 = Vertex::Closed(tensor_a_loc));
                         }
                     }
+                    (Vertex::Closed(_), Vertex::Open) => {
+                        edge.and_modify(|v| v.0 = Vertex::Closed(tensor_a_loc));
+                    }
+                    (Vertex::Open, Vertex::Closed(_)) => {
+                        edge.and_modify(|v| v.1 = Vertex::Closed(tensor_a_loc));
+                    }
+                    (Vertex::Open, Vertex::Open) => {
+                        panic!("Empty edge {leg} found connected to {tensor_b_loc}");
+                    }
                 }
-            });
-            edges.retain(|_, edge| edge != &vec![Vertex::Closed(tensor_a_loc)]);
+            }
         }
 
         let Tensor {
@@ -500,28 +513,28 @@ mod tests {
         t23.insert_bond_dims(&bond_dims);
 
         let edges_before_contraction = FxHashMap::from_iter([
-            (0, vec![Vertex::Closed(0), Vertex::Closed(2)]),
-            (1, vec![Vertex::Closed(0), Vertex::Open]),
-            (2, vec![Vertex::Closed(0), Vertex::Closed(1)]),
-            (3, vec![Vertex::Closed(1), Vertex::Closed(2)]),
-            (4, vec![Vertex::Closed(1), Vertex::Open]),
-            (5, vec![Vertex::Closed(2), Vertex::Open]),
+            (0, (Vertex::Closed(0), Vertex::Closed(2))),
+            (1, (Vertex::Closed(0), Vertex::Open)),
+            (2, (Vertex::Closed(0), Vertex::Closed(1))),
+            (3, (Vertex::Closed(1), Vertex::Closed(2))),
+            (4, (Vertex::Closed(1), Vertex::Open)),
+            (5, (Vertex::Closed(2), Vertex::Open)),
         ]);
 
         let edges_after_contraction_1 = FxHashMap::from_iter([
-            (0, vec![Vertex::Closed(0), Vertex::Closed(2)]),
-            (1, vec![Vertex::Closed(0), Vertex::Open]),
-            (3, vec![Vertex::Closed(0), Vertex::Closed(2)]),
-            (4, vec![Vertex::Closed(0), Vertex::Open]),
-            (5, vec![Vertex::Closed(2), Vertex::Open]),
+            (0, (Vertex::Closed(0), Vertex::Closed(2))),
+            (1, (Vertex::Closed(0), Vertex::Open)),
+            (3, (Vertex::Closed(0), Vertex::Closed(2))),
+            (4, (Vertex::Closed(0), Vertex::Open)),
+            (5, (Vertex::Closed(2), Vertex::Open)),
         ]);
 
         let edges_after_contraction_2 = FxHashMap::from_iter([
-            (0, vec![Vertex::Closed(0), Vertex::Closed(1)]),
-            (1, vec![Vertex::Closed(0), Vertex::Open]),
-            (2, vec![Vertex::Closed(0), Vertex::Closed(1)]),
-            (4, vec![Vertex::Closed(1), Vertex::Open]),
-            (5, vec![Vertex::Closed(1), Vertex::Open]),
+            (0, (Vertex::Closed(0), Vertex::Closed(1))),
+            (1, (Vertex::Closed(0), Vertex::Open)),
+            (2, (Vertex::Closed(0), Vertex::Closed(1))),
+            (4, (Vertex::Closed(1), Vertex::Open)),
+            (5, (Vertex::Closed(1), Vertex::Open)),
         ]);
 
         let (d1, d2, d3, _) = setup();
@@ -556,14 +569,13 @@ mod tests {
             Some(Layout::RowMajor),
         ));
 
-        let mut tn_12 =
-            create_tensor_network(vec![t1.clone(), t2.clone(), t3.clone()], &bond_dims, None);
+        let mut tn_12 = create_tensor_network(vec![t1.clone(), t2.clone(), t3.clone()], &bond_dims);
         assert_eq!(tn_12.edges(), &edges_before_contraction);
         tn_12.contract_tensors(0, 1);
         assert!(t12.approx_eq(tn_12.tensor(0), 1e-8));
         assert_eq!(tn_12.edges(), &edges_after_contraction_1);
 
-        let mut tn_23 = create_tensor_network(vec![t1, t2, t3], &bond_dims, None);
+        let mut tn_23 = create_tensor_network(vec![t1, t2, t3], &bond_dims);
         assert_eq!(tn_23.edges(), &edges_before_contraction);
         tn_23.contract_tensors(1, 2);
         assert!(t23.approx_eq(tn_23.tensor(1), 1e-8));
@@ -590,18 +602,18 @@ mod tests {
         tout.insert_bond_dims(&bond_dims);
 
         let edges_before_contraction = FxHashMap::from_iter([
-            (0, vec![Vertex::Closed(0), Vertex::Closed(2)]),
-            (1, vec![Vertex::Closed(0), Vertex::Open]),
-            (2, vec![Vertex::Closed(0), Vertex::Closed(1)]),
-            (3, vec![Vertex::Closed(1), Vertex::Closed(2)]),
-            (4, vec![Vertex::Closed(1), Vertex::Open]),
-            (5, vec![Vertex::Closed(2), Vertex::Open]),
+            (0, (Vertex::Closed(0), Vertex::Closed(2))),
+            (1, (Vertex::Closed(0), Vertex::Open)),
+            (2, (Vertex::Closed(0), Vertex::Closed(1))),
+            (3, (Vertex::Closed(1), Vertex::Closed(2))),
+            (4, (Vertex::Closed(1), Vertex::Open)),
+            (5, (Vertex::Closed(2), Vertex::Open)),
         ]);
 
         let edges_after_contraction = FxHashMap::from_iter([
-            (1, vec![Vertex::Closed(0), Vertex::Open]),
-            (4, vec![Vertex::Closed(0), Vertex::Open]),
-            (5, vec![Vertex::Closed(0), Vertex::Open]),
+            (1, (Vertex::Closed(0), Vertex::Open)),
+            (4, (Vertex::Closed(0), Vertex::Open)),
+            (5, (Vertex::Closed(0), Vertex::Open)),
         ]);
 
         let (d1, d2, d3, dout) = setup();
@@ -628,7 +640,7 @@ mod tests {
             Some(Layout::RowMajor),
         ));
 
-        let mut tn = create_tensor_network(vec![t1, t2, t3], &bond_dims, None);
+        let mut tn = create_tensor_network(vec![t1, t2, t3], &bond_dims);
         let contract_path = path![(0, 1), (0, 2)];
         assert_eq!(tn.edges(), &edges_before_contraction);
         contract_tensor_network(&mut tn, contract_path);
@@ -656,7 +668,7 @@ mod tests {
         ));
         let mut t3 = Tensor::default();
         let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2)]);
-        t3.push_tensors(vec![t1, t2], Some(&bond_dims), None);
+        t3.push_tensors(vec![t1, t2], Some(&bond_dims));
         let contract_path = path![(0, 1)];
 
         let mut tn_ref = Tensor::new(vec![1, 0]);
