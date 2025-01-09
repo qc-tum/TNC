@@ -227,14 +227,14 @@ pub fn scatter_tensor_network(
                 let target_rank = tensor_mapping.rank(*i);
                 if target_rank == 0 {
                     // This is the path for the root, no need to send it
-                    local_path = Some(local.clone());
+                    local_path = Some(local);
                     continue;
                 }
 
-                world.process_at_rank(target_rank).send(&serialize(&local));
+                world.process_at_rank(target_rank).send(&serialize(local));
             }
         }
-        serialize(&local_path.unwrap())
+        serialize(local_path.unwrap())
     } else if is_tensor_owner {
         let (raw_path, _status) = world.process_at_rank(0).receive_vec::<u8>();
         raw_path
@@ -261,13 +261,13 @@ pub fn scatter_tensor_network(
             let tensor = r_tn.tensor(tensor_index);
             if target_rank == 0 {
                 // This is the tensor for the root, no need to send it
-                local_tn = Some(tensor.clone());
+                local_tn = Some(tensor);
                 continue;
             }
 
             send_tensor(tensor, target_rank, world);
         }
-        serialize_tensor(&local_tn.unwrap())
+        serialize_tensor(local_tn.unwrap())
     } else if is_tensor_owner {
         let (raw_tensor, _status) = world.process_at_rank(0).receive_vec::<MessageBinaryBlob>();
         raw_tensor
