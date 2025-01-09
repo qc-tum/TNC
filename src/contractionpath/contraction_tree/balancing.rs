@@ -478,7 +478,7 @@ where
                         tensor_network.nested_tensor(&nested_indices).clone()
                     })
                     .collect_vec();
-                child_tensor.push_tensors(leaf_tensors, Some(&bond_dims), None);
+                child_tensor.push_tensors(leaf_tensors, Some(&bond_dims));
                 (child_tensor, *id)
             },
         )
@@ -489,7 +489,7 @@ where
         .insert(*rebalance_depth, partition_ids);
 
     let mut updated_tn = Tensor::default();
-    updated_tn.push_tensors(partition_tensors, Some(&bond_dims), None);
+    updated_tn.push_tensors(partition_tensors, Some(&bond_dims));
     (rebalanced_path, updated_tn)
 }
 
@@ -685,7 +685,6 @@ mod tests {
                     (9, 65),
                     (10, 5),
                 ]),
-                None,
             ),
             path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
         );

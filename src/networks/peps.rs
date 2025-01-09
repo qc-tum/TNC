@@ -93,7 +93,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
         ]);
     }
 
-    pep.push_tensors(tensors, Some(&bond_dims), None);
+    pep.push_tensors(tensors, Some(&bond_dims));
     pep
 }
 
@@ -208,7 +208,7 @@ fn pepo(
             start + physical_up + virtual_vertical + i * length + j,
         ]);
     }
-    peps.push_tensors(tensors, Some(&bond_dims), None);
+    peps.push_tensors(tensors, Some(&bond_dims));
     peps
 }
 
@@ -307,7 +307,7 @@ fn peps_final(
             start + virtual_vertical + i * length + j,
         ]);
     }
-    peps.push_tensors(tensors, Some(&bond_dims), None);
+    peps.push_tensors(tensors, Some(&bond_dims));
     peps
 }
 
@@ -406,7 +406,7 @@ mod tests {
             (19, 10),
             (20, 10),
         ]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
+        ref_tensor.push_tensors(tensors, Some(&bond_dims));
 
         let new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
@@ -488,7 +488,7 @@ mod tests {
             (40, 10),
             (41, 10),
         ]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
+        ref_tensor.push_tensors(tensors, Some(&bond_dims));
 
         let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for layer in 0..layers {
@@ -595,7 +595,7 @@ mod tests {
             (52, 10),
             (53, 10),
         ]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
+        ref_tensor.push_tensors(tensors, Some(&bond_dims));
 
         let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for layer in 0..layers {
@@ -702,7 +702,7 @@ mod tests {
             (52, 10),
             (53, 10),
         ]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
+        ref_tensor.push_tensors(tensors, Some(&bond_dims));
 
         let new_peps = peps(length, depth, physical_dim, virtual_dim, layers);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
@@ -744,7 +744,7 @@ mod tests {
             (10, 10),
             (11, 10),
         ]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
+        ref_tensor.push_tensors(tensors, Some(&bond_dims));
 
         let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for layer in 0..layers {
@@ -769,7 +769,7 @@ mod tests {
         let mut ref_tensor = Tensor::default();
         let tensors = vec![Tensor::new(vec![0, 2]), Tensor::new(vec![1, 2])];
         let bond_dims = FxHashMap::from_iter([(0, 4), (1, 4), (2, 10)]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims), None);
+        ref_tensor.push_tensors(tensors, Some(&bond_dims));
 
         let new_peps = peps(length, depth, physical_dim, virtual_dim, layers);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {

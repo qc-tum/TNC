@@ -30,7 +30,7 @@ pub(crate) fn greedy(
     _latency_map: &FxHashMap<usize, f64>,
 ) -> Vec<ContractionIndex> {
     let mut communication_tensors = Tensor::default();
-    communication_tensors.push_tensors(children_tensors.to_vec(), Some(bond_dims), None);
+    communication_tensors.push_tensors(children_tensors.to_vec(), Some(bond_dims));
 
     let mut opt = Greedy::new(&communication_tensors, CostType::Flops);
     opt.optimize_path();
@@ -52,7 +52,7 @@ pub(crate) fn weighted_branchbound(
     latency_map: &FxHashMap<usize, f64>,
 ) -> Vec<ContractionIndex> {
     let mut communication_tensors = Tensor::default();
-    communication_tensors.push_tensors(children_tensors.to_vec(), Some(bond_dims), None);
+    communication_tensors.push_tensors(children_tensors.to_vec(), Some(bond_dims));
 
     let mut opt = WeightedBranchBound::new(
         &communication_tensors,
