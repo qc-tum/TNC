@@ -279,8 +279,6 @@ pub struct IntermediatePartitioningModel<'a> {
     memory_limit: Option<f64>,
 }
 
-impl<'a> IntermediatePartitioningModel<'a> {}
-
 impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
     type SolutionType = (Vec<usize>, Vec<Tensor>, Vec<Vec<ContractionIndex>>);
 
