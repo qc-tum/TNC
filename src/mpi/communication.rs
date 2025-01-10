@@ -1,7 +1,9 @@
 use log::debug;
+use mpi::collective::SystemOperation;
 use mpi::topology::{Color, Process, SimpleCommunicator};
 use mpi::traits::{BufferMut, Communicator, Destination, Equivalence, Root, Source};
 use mpi::Rank;
+use mpi_ext::RootExtension;
 use rustc_hash::FxHashMap;
 
 use super::mpi_types::RankTensorMapping;
@@ -10,7 +12,8 @@ use crate::mpi::mpi_types::MessageBinaryBlob;
 use crate::mpi::serialization::{deserialize, serialize};
 use crate::tensornetwork::contraction::contract_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
-use crate::types::{ContractionIndex, EdgeIndex};
+use crate::tensornetwork::tensordata::TensorData;
+use crate::types::{ContractionIndex, EdgeIndex, SlicingPlan, SlicingTask};
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
 /// receivers, `data` can just be an empty vector.
@@ -185,7 +188,13 @@ pub fn scatter_tensor_network(
     rank: Rank,
     size: Rank,
     world: &SimpleCommunicator,
-) -> (Tensor, Vec<ContractionIndex>, Communication) {
+) -> (
+    Tensor,
+    Vec<ContractionIndex>,
+    Option<SlicingTask>,
+    Communication,
+) {
+    debug!(rank, size; "Scattering tensor network");
     let root = world.process_at_rank(0);
 
     // Get information about used ranks
@@ -209,6 +218,7 @@ pub fn scatter_tensor_network(
         Color::undefined()
     };
     let slice_comm = world.split_by_color(color);
+    debug!(tensor_mapping:serde, is_tensor_owner, slice_group; "Scattered organizational data");
 
     // Send the bond dimensions
     let bond_dims = if rank == 0 {
@@ -220,22 +230,26 @@ pub fn scatter_tensor_network(
 
     // Send the local paths
     let mut local_path_raw = if rank == 0 {
+        debug!("Sending local paths");
         let mut local_path = None;
         for contraction_path in path {
-            if let ContractionIndex::Path(i, _, local) = contraction_path {
-                // TODO: send slicing information as well
+            if let ContractionIndex::Path(i, slicing, local) = contraction_path {
+                let payload = (slicing, local);
                 let target_rank = tensor_mapping.rank(*i);
                 if target_rank == 0 {
                     // This is the path for the root, no need to send it
-                    local_path = Some(local);
+                    local_path = Some(payload);
                     continue;
                 }
 
-                world.process_at_rank(target_rank).send(&serialize(local));
+                world
+                    .process_at_rank(target_rank)
+                    .send(&serialize(&payload));
             }
         }
-        serialize(local_path.unwrap())
+        serialize(&local_path.unwrap())
     } else if is_tensor_owner {
+        debug!("Receiving local path");
         let (raw_path, _status) = world.process_at_rank(0).receive_vec::<u8>();
         raw_path
     } else {
@@ -244,18 +258,22 @@ pub fn scatter_tensor_network(
 
     // Broadcast the path in the slicing group
     if let Some(slice_comm) = &slice_comm {
+        debug!("Broadcasting local paths to slice group");
         broadcast_vec(&mut local_path_raw, &slice_comm.process_at_rank(0));
     }
 
     // Deserialize the path
-    let local_path = if !local_path_raw.is_empty() {
-        deserialize(&local_path_raw)
-    } else {
-        Default::default()
-    };
+    let (slicing, local_path): (Option<SlicingPlan>, Vec<ContractionIndex>) =
+        if !local_path_raw.is_empty() {
+            deserialize(&local_path_raw)
+        } else {
+            Default::default()
+        };
+    debug!(slicing:serde; "Received local path");
 
     // Send the tensors
     let mut local_tn_raw = if rank == 0 {
+        debug!("Sending tensors");
         let mut local_tn = None;
         for &(target_rank, tensor_index) in &tensor_mapping {
             let tensor = r_tn.tensor(tensor_index);
@@ -269,6 +287,7 @@ pub fn scatter_tensor_network(
         }
         serialize_tensor(local_tn.unwrap())
     } else if is_tensor_owner {
+        debug!("Receiving tensor");
         let (raw_tensor, _status) = world.process_at_rank(0).receive_vec::<MessageBinaryBlob>();
         raw_tensor
     } else {
@@ -277,6 +296,7 @@ pub fn scatter_tensor_network(
 
     // Broadcast the tensor in the slicing group
     if let Some(slice_comm) = &slice_comm {
+        debug!("Broadcasting tensors to slice group");
         broadcast_vec(&mut local_tn_raw, &slice_comm.process_at_rank(0));
     }
 
@@ -286,11 +306,28 @@ pub fn scatter_tensor_network(
     } else {
         Default::default()
     };
+    debug!("Received tensor");
+
+    // Get the slicing task (based on the rank in the slicing group), if any
+    let slicing_task = if let Some(slice_comm) = &slice_comm {
+        let slicing_group_rank = slice_comm.rank();
+        let task = slicing
+            .unwrap()
+            .get_task(&local_tn, slicing_group_rank as usize);
+        debug!(task:serde; "Got slicing task");
+        Some(task)
+    } else {
+        assert!(slicing.is_none());
+        Default::default()
+    };
+
+    debug!("Scattered tensor network");
 
     // Return the local tensor, path and communication information
     (
         local_tn,
         local_path,
+        slicing_task,
         Communication {
             tensor_mapping,
             slice_comm,
@@ -308,6 +345,31 @@ pub fn intermediate_reduce_tensor_network(
     communication: &Communication,
 ) {
     debug!(rank, path:serde; "Reducing tensor network (intermediate)");
+
+    // Reduce the slice groups
+    if let Some(slice_comm) = &communication.slice_comm {
+        // Get raw data access (data might be transposed, but it's the same permutation on every rank,
+        // so summing is valid)
+        let tensor_data = std::mem::take(&mut local_tn.tensordata);
+        let mut data_tensor = tensor_data.into_data();
+        let raw_data_view = data_tensor.raw_data_mut();
+        debug!(slice_rank=slice_comm.rank(), elements=raw_data_view.len(); "Reducing slice group");
+
+        // Directly reduce into the root data tensor
+        // TODO: this only supports tensors up to ~275 GB. If we want to go bigger, we need to do multiple broadcasts.
+        let slice_root = slice_comm.process_at_rank(0);
+        let op = SystemOperation::sum();
+        if slice_root.is_self() {
+            slice_root.reduce_into_root_inplace(raw_data_view, op);
+        } else {
+            slice_root.reduce_into(raw_data_view, op);
+        }
+
+        // Put the data back into the tensor
+        local_tn.set_tensor_data(TensorData::Matrix(data_tensor));
+        debug!("Reduced slice group");
+    }
+
     let mut final_rank = 0;
     for pair in path {
         match pair {
@@ -391,5 +453,38 @@ mod tests {
         broadcast_path(&mut contraction_indices, &root_process);
 
         assert_eq!(contraction_indices, ref_contraction_indices);
+    }
+
+    #[test]
+    fn test_serialize_empty_vec_is_nonempty_holds() {
+        // The code relies on the fact that an empty Vec is serialized a to non-empty
+        // sequence of bytes, in order to discriminate between an provided empty Vec
+        // and a Default::default(). This test checks that we can rely on this.
+        let empty = Vec::<ContractionIndex>::new();
+        let serialized = serialize(&empty);
+
+        assert!(!serialized.is_empty());
+    }
+
+    #[test]
+    fn test_serialize_tuple_of_references() {
+        let slicing_plan_ref = Some(SlicingPlan {
+            slices: vec![1, 2, 3],
+        });
+        let local_path_ref = vec![
+            ContractionIndex::Pair(1, 2),
+            ContractionIndex::Pair(2, 3),
+            ContractionIndex::Pair(3, 4),
+        ];
+
+        let data = (&slicing_plan_ref, &local_path_ref);
+
+        let serialized = serialize(&data);
+
+        let (slicing_plan, local_path): (Option<SlicingPlan>, Vec<ContractionIndex>) =
+            deserialize(&serialized);
+
+        assert_eq!(slicing_plan, slicing_plan_ref);
+        assert_eq!(local_path, local_path_ref);
     }
 }

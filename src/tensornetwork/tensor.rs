@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rustc_hash::FxHashMap;
 
-use crate::types::{EdgeIndex, TensorIndex};
+use crate::types::{EdgeIndex, SlicingTask, TensorIndex};
 use crate::utils::datastructures::UnionFind;
 
 use super::tensordata::TensorData;
@@ -485,6 +485,24 @@ impl Tensor {
         self.tensordata = tensordata;
     }
 
+    /// Returns an edge by its id. The edge is a tuple of the two tensors it connects,
+    /// or a single tensor if it is an unbound leg.
+    fn get_edge(&self, leg_id: EdgeIndex) -> (TensorIndex, Option<TensorIndex>) {
+        for (t1_id, t1) in self.tensors.iter().enumerate() {
+            if !t1.contains_leg(leg_id) {
+                continue;
+            }
+
+            for (t2_id, t2) in self.tensors.iter().enumerate().skip(t1_id + 1) {
+                if t2.contains_leg(leg_id) {
+                    return (t1_id, Some(t2_id));
+                }
+            }
+            return (t1_id, None);
+        }
+        panic!("Edge {leg_id} not found in tensor");
+    }
+
     /// Returns whether all tensors inside this tensor are connected.
     /// This only checks the top-level, not recursing into composite tensors.
     ///
@@ -523,6 +541,29 @@ impl Tensor {
         }
 
         uf.count_sets() == 1
+    }
+
+    /// Applies a slicing to the tensor. The sliced legs are removed from the tensor
+    /// and the data of the affected tensors is sliced accordingly.
+    pub fn apply_slicing(&mut self, slicing: &SlicingTask) {
+        for (leg, index) in &slicing.slices {
+            let (t1, Some(t2)) = self.get_edge(*leg) else {
+                panic!("Sliced legs must be bound")
+            };
+
+            // Replace with sliced data
+            let t1 = &mut self.tensors[t1];
+            let t1_leg_index = t1.legs.iter().position(|l| l == leg).unwrap();
+            let t1_data = std::mem::take(&mut t1.tensordata);
+            t1.legs.remove(t1_leg_index);
+            t1.set_tensor_data(t1_data.into_sliced(t1_leg_index, *index));
+
+            let t2 = &mut self.tensors[t2];
+            let t2_leg_index = t2.legs.iter().position(|l| l == leg).unwrap();
+            let t2_data = std::mem::take(&mut t2.tensordata);
+            t2.legs.remove(t2_leg_index);
+            t2.set_tensor_data(t2_data.into_sliced(t2_leg_index, *index));
+        }
     }
 
     /// Returns `Tensor` with legs in `self` that are not in `other`.

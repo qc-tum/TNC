@@ -106,8 +106,9 @@ fn test_partitioned_contraction_need_mpi() {
         Default::default()
     };
 
-    let (mut local_tn, local_path, comm) =
+    let (mut local_tn, local_path, slicing_task, comm) =
         scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
+    assert!(slicing_task.is_none());
     contract_tensor_network(&mut local_tn, &local_path);
 
     let mut communication_path = if rank == 0 {

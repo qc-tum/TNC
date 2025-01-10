@@ -59,4 +59,11 @@ impl TensorData {
             TensorData::Matrix(tensor) => tensor,
         }
     }
+
+    /// Slices the tensor data along a given dimension at a given index.
+    pub fn into_sliced(self, dimension: usize, index: usize) -> Self {
+        let data = self.into_data();
+        let sliced = data.slice(dimension, index);
+        TensorData::Matrix(sliced)
+    }
 }

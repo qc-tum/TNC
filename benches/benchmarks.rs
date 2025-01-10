@@ -107,8 +107,9 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
 
         par_part_group.bench_function(BenchmarkId::from_parameter(k), |b| {
             b.iter(|| {
-                let (mut local_tn, local_path, comm) =
+                let (mut local_tn, local_path, slicing_task, comm) =
                     scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
+                assert!(slicing_task.is_none());
                 contract_tensor_network(&mut local_tn, &local_path);
 
                 let mut communication_path = if rank == 0 {

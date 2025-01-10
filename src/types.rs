@@ -48,9 +48,9 @@ impl SlicingPlan {
             .product()
     }
 
-    /// Creates the list of slicing tasks for the slice plan. For each combination of
-    /// indices of the sliced legs, a [`SlicingTask`] is created. The number of tasks
-    /// is equivalent to [`SlicingPlan::size`].
+    /// Gets the specified [`SlicingTask`] from this plan. Each combination of
+    /// indices of the sliced legs is a separate task. `task_index` has to be less
+    /// than [`SlicingPlan::size`].
     ///
     /// # Examples
     /// ```
@@ -64,25 +64,20 @@ impl SlicingPlan {
     /// tc.push_tensors(vec![t1, t2], Some(&bond_dims));
     ///
     /// let plan = SlicingPlan { slices: vec![0, 1] };
-    /// let tasks = plan.create_plans(&tc);
-    /// assert_eq!(tasks.len(), 6);
-    /// assert_eq!(tasks[0].slices, vec![(0, 0), (1, 0)]);
-    /// assert_eq!(tasks[1].slices, vec![(0, 0), (1, 1)]);
-    /// assert_eq!(tasks[2].slices, vec![(0, 0), (1, 2)]);
-    /// assert_eq!(tasks[3].slices, vec![(0, 1), (1, 0)]);
-    /// assert_eq!(tasks[4].slices, vec![(0, 1), (1, 1)]);
-    /// assert_eq!(tasks[5].slices, vec![(0, 1), (1, 2)]);
+    /// let task = plan.get_task(&tc, 0);
+    /// assert_eq!(task.slices, vec![(0, 0), (1, 0)]);
     /// ```
-    pub fn create_plans(&self, target: &Tensor) -> Vec<SlicingTask> {
+    pub fn get_task(&self, target: &Tensor, task_index: usize) -> SlicingTask {
         self.slices
             .iter()
             .map(|leg| target.bond_dims()[leg] as usize)
             .map(|dim| 0..dim)
             .multi_cartesian_product()
+            .nth(task_index)
             .map(|indices| SlicingTask {
                 slices: self.slices.iter().copied().zip(indices).collect(),
             })
-            .collect()
+            .unwrap()
     }
 }
 
