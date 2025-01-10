@@ -7,7 +7,9 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    tensornetwork::tensor::Tensor, types::ContractionIndex, utils::traits::HashMapInsertNew,
+    tensornetwork::tensor::Tensor,
+    types::{ContractionIndex, SlicingPlan},
+    utils::traits::HashMapInsertNew,
 };
 
 use super::{
@@ -38,7 +40,7 @@ pub(super) const COLORS: [&str; 16] = [
 #[derive(Debug)]
 pub struct DendogramSettings {
     pub output_file: String,
-    pub objective_function: fn(&Tensor, &Tensor) -> f64,
+    pub objective_function: fn(&Tensor, &Tensor, &Option<SlicingPlan>) -> f64,
 }
 
 #[derive(Debug)]
@@ -54,7 +56,7 @@ pub struct DendogramEntry {
 pub fn to_dendogram_format(
     contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
+    objective_function: fn(&Tensor, &Tensor, &Option<SlicingPlan>) -> f64,
 ) -> Vec<DendogramEntry> {
     let length = 80f64;
     let height = 60f64;
@@ -151,6 +153,7 @@ pub fn to_dendogram_format(
         let mut parent_cost = objective_function(
             &intermediate_tensors[&node_1_id],
             &intermediate_tensors[&node_2_id],
+            &None,
         );
         // Check that child tensors both exist in partitions and they are in the same partitions
         let color = match (
@@ -280,7 +283,7 @@ pub fn to_pdf(
 pub fn to_dendogram(
     contraction_tree: &ContractionTree,
     tn: &Tensor,
-    cost_function: fn(&Tensor, &Tensor) -> f64,
+    cost_function: fn(&Tensor, &Tensor, &Option<SlicingPlan>) -> f64,
     pdf_name: &str,
 ) {
     let length = 80f64;

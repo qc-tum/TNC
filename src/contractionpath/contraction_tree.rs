@@ -1,6 +1,6 @@
 use crate::pair;
 use crate::tensornetwork::tensor::Tensor;
-use crate::types::ContractionIndex;
+use crate::types::{ContractionIndex, SlicingPlan};
 use node::{child_node, parent_node, Node, NodeRef, WeakNodeRef};
 use rustc_hash::FxHashMap;
 use std::cell::Ref;
@@ -264,7 +264,7 @@ impl ContractionTree {
         tn: &Tensor,
         weights: &mut FxHashMap<usize, f64>,
         scratch: &mut FxHashMap<usize, Tensor>,
-        cost_function: fn(&Tensor, &Tensor) -> f64,
+        cost_function: fn(&Tensor, &Tensor, &Option<SlicingPlan>) -> f64,
     ) {
         if node.is_leaf() {
             let Some(tensor_index) = &node.tensor_index() else {
@@ -287,7 +287,8 @@ impl ContractionTree {
         let t1 = &scratch[&left_ref.id()];
         let t2 = &scratch[&right_ref.id()];
 
-        let cost = weights[&left_ref.id()] + weights[&right_ref.id()] + cost_function(t1, t2);
+        let cost =
+            weights[&left_ref.id()] + weights[&right_ref.id()] + cost_function(t1, t2, &None);
 
         weights.insert(node.id(), cost);
         scratch.insert(node.id(), t1 ^ t2);
@@ -303,7 +304,7 @@ impl ContractionTree {
         &self,
         node_id: usize,
         tn: &Tensor,
-        cost_function: fn(&Tensor, &Tensor) -> f64,
+        cost_function: fn(&Tensor, &Tensor, &Option<SlicingPlan>) -> f64,
     ) -> FxHashMap<usize, f64> {
         let mut weights = FxHashMap::default();
         let mut scratch = FxHashMap::default();

@@ -28,7 +28,7 @@ pub struct Greedy<'a> {
     best_progress: FxHashMap<usize, f64>,
 }
 
-struct SimpleChooser;
+pub(super) struct SimpleChooser;
 
 impl RNGChooser for SimpleChooser {
     fn choose<R: Rng + ?Sized>(
@@ -408,7 +408,7 @@ impl<'a> Greedy<'a> {
 }
 
 #[allow(clippy::type_complexity)]
-fn populate_remaining_tensors(
+pub(super) fn populate_remaining_tensors(
     inputs: &[Tensor],
     output_dims: &Tensor,
 ) -> (
