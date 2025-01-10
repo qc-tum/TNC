@@ -6,7 +6,7 @@ use tetra::{contract, Tensor as DataTensor};
 
 use crate::{
     tensornetwork::Tensor,
-    types::{ContractionIndex, EdgeIndex, Vertex},
+    types::{ContractionIndex, EdgeIndex, TensorIndex},
 };
 
 use super::tensordata::TensorData;
@@ -72,7 +72,7 @@ pub(crate) trait TensorContraction {
     /// Internal method to permute tensor
     fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor;
     /// Internal method to update edges
-    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, (Vertex, Vertex)>;
+    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, (TensorIndex, Option<TensorIndex>)>;
     /// Getter for underlying raw data
     fn get_data(&self) -> DataTensor;
     /// Internal method to swap tensors
@@ -86,7 +86,7 @@ impl TensorContraction for Tensor {
         &mut self.tensors[i]
     }
 
-    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, (Vertex, Vertex)> {
+    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, (TensorIndex, Option<TensorIndex>)> {
         &mut self.edges
     }
 
@@ -110,7 +110,7 @@ impl TensorContraction for Tensor {
             if let Entry::Occupied(ref o) = edge {
                 let entry = o.get();
                 match entry {
-                    &(Vertex::Closed(i), Vertex::Closed(j)) => {
+                    &(i, Some(j)) => {
                         if i == tensor_a_loc && j == tensor_b_loc
                             || i == tensor_b_loc && j == tensor_a_loc
                         {
@@ -118,19 +118,13 @@ impl TensorContraction for Tensor {
                                 o.remove_entry();
                             }
                         } else if i == tensor_b_loc {
-                            edge.and_modify(|v| v.0 = Vertex::Closed(tensor_a_loc));
+                            edge.and_modify(|v| v.0 = tensor_a_loc);
                         } else {
-                            edge.and_modify(|v| v.1 = Vertex::Closed(tensor_a_loc));
+                            edge.and_modify(|v| v.1 = Some(tensor_a_loc));
                         }
                     }
-                    (Vertex::Closed(_), Vertex::Open) => {
-                        edge.and_modify(|v| v.0 = Vertex::Closed(tensor_a_loc));
-                    }
-                    (Vertex::Open, Vertex::Closed(_)) => {
-                        edge.and_modify(|v| v.1 = Vertex::Closed(tensor_a_loc));
-                    }
-                    (Vertex::Open, Vertex::Open) => {
-                        panic!("Empty edge {leg} found connected to {tensor_b_loc}");
+                    (_, None) => {
+                        edge.and_modify(|v| v.0 = tensor_a_loc);
                     }
                 }
             }
@@ -170,7 +164,6 @@ mod tests {
             contraction::TensorContraction, create_tensor_network, tensor::Tensor,
             tensordata::TensorData,
         },
-        types::Vertex,
     };
 
     use num_complex::Complex64;
@@ -513,28 +506,28 @@ mod tests {
         t23.insert_bond_dims(&bond_dims);
 
         let edges_before_contraction = FxHashMap::from_iter([
-            (0, (Vertex::Closed(0), Vertex::Closed(2))),
-            (1, (Vertex::Closed(0), Vertex::Open)),
-            (2, (Vertex::Closed(0), Vertex::Closed(1))),
-            (3, (Vertex::Closed(1), Vertex::Closed(2))),
-            (4, (Vertex::Closed(1), Vertex::Open)),
-            (5, (Vertex::Closed(2), Vertex::Open)),
+            (0, (0, Some(2))),
+            (1, (0, None)),
+            (2, (0, Some(1))),
+            (3, (1, Some(2))),
+            (4, (1, None)),
+            (5, (2, None)),
         ]);
 
         let edges_after_contraction_1 = FxHashMap::from_iter([
-            (0, (Vertex::Closed(0), Vertex::Closed(2))),
-            (1, (Vertex::Closed(0), Vertex::Open)),
-            (3, (Vertex::Closed(0), Vertex::Closed(2))),
-            (4, (Vertex::Closed(0), Vertex::Open)),
-            (5, (Vertex::Closed(2), Vertex::Open)),
+            (0, (0, Some(2))),
+            (1, (0, None)),
+            (3, (0, Some(2))),
+            (4, (0, None)),
+            (5, (2, None)),
         ]);
 
         let edges_after_contraction_2 = FxHashMap::from_iter([
-            (0, (Vertex::Closed(0), Vertex::Closed(1))),
-            (1, (Vertex::Closed(0), Vertex::Open)),
-            (2, (Vertex::Closed(0), Vertex::Closed(1))),
-            (4, (Vertex::Closed(1), Vertex::Open)),
-            (5, (Vertex::Closed(1), Vertex::Open)),
+            (0, (0, Some(1))),
+            (1, (0, None)),
+            (2, (0, Some(1))),
+            (4, (1, None)),
+            (5, (1, None)),
         ]);
 
         let (d1, d2, d3, _) = setup();
@@ -602,19 +595,16 @@ mod tests {
         tout.insert_bond_dims(&bond_dims);
 
         let edges_before_contraction = FxHashMap::from_iter([
-            (0, (Vertex::Closed(0), Vertex::Closed(2))),
-            (1, (Vertex::Closed(0), Vertex::Open)),
-            (2, (Vertex::Closed(0), Vertex::Closed(1))),
-            (3, (Vertex::Closed(1), Vertex::Closed(2))),
-            (4, (Vertex::Closed(1), Vertex::Open)),
-            (5, (Vertex::Closed(2), Vertex::Open)),
+            (0, (0, Some(2))),
+            (1, (0, None)),
+            (2, (0, Some(1))),
+            (3, (1, Some(2))),
+            (4, (1, None)),
+            (5, (2, None)),
         ]);
 
-        let edges_after_contraction = FxHashMap::from_iter([
-            (1, (Vertex::Closed(0), Vertex::Open)),
-            (4, (Vertex::Closed(0), Vertex::Open)),
-            (5, (Vertex::Closed(0), Vertex::Open)),
-        ]);
+        let edges_after_contraction =
+            FxHashMap::from_iter([(1, (0, None)), (4, (0, None)), (5, (0, None))]);
 
         let (d1, d2, d3, dout) = setup();
 

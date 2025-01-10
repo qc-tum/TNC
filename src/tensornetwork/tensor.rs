@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rustc_hash::FxHashMap;
 
-use crate::types::{EdgeIndex, Vertex};
+use crate::types::{EdgeIndex, TensorIndex};
 use crate::utils::datastructures::UnionFind;
 
 use super::tensordata::TensorData;
@@ -25,7 +25,7 @@ pub struct Tensor {
 
     /// All edges of the tensor. Maps an edge index to the vertices that make up the
     /// edge.
-    pub(crate) edges: FxHashMap<EdgeIndex, (Vertex, Vertex)>,
+    pub(crate) edges: FxHashMap<EdgeIndex, (TensorIndex, Option<TensorIndex>)>,
 
     /// The data of the tensor.
     pub(crate) tensordata: TensorData,
@@ -259,13 +259,13 @@ impl Tensor {
     /// tn.push_tensors(vec![v1, v2], Some(&bond_dims));
     /// assert_eq!(tn.edges(), &FxHashMap::from_iter(
     /// [
-    /// (0, (Vertex::Closed(0), Vertex::Open)),
-    /// (1, (Vertex::Closed(0), Vertex::Closed(1))),
-    /// (2, (Vertex::Closed(1), Vertex::Open))
+    /// (0, (0, None)),
+    /// (1, (0, Some(1))),
+    /// (2, (1, None))
     /// ]));
     /// ```
     #[inline]
-    pub fn edges(&self) -> &FxHashMap<EdgeIndex, (Vertex, Vertex)> {
+    pub fn edges(&self) -> &FxHashMap<EdgeIndex, (TensorIndex, Option<TensorIndex>)> {
         &self.edges
     }
 
@@ -516,21 +516,17 @@ impl Tensor {
                 "Leg {leg} bond dimension is not defined"
             );
 
-            // Never introduces a Vertex::Open as this is handled in `[update_external_hyperedge]`
+            // Never introduces a None as this is handled in `[update_external_hyperedge]`
             self.edges
                 .entry(leg)
                 .and_modify(|edge| {
-                    if edge.0 == Vertex::Open {
-                        edge.0 = Vertex::Closed(index);
-                    } else if edge.1 == Vertex::Open {
-                        edge.1 = Vertex::Closed(index);
+                    if edge.1.is_none() {
+                        edge.1 = Some(index);
                     } else {
-                        println!("edge: {:?}", edge);
-                        println!("Adding: {:?}", index);
                         panic!("Attempting to create hyperedge of edge {leg}")
                     }
                 })
-                .or_insert_with(|| (Vertex::Closed(index), Vertex::Open));
+                .or_insert_with(|| (index, None));
         }
     }
 
@@ -587,7 +583,7 @@ impl Tensor {
         let mut uf = UnionFind::new(self.tensors.len());
 
         for edge in self.edges.values() {
-            if let (Vertex::Closed(ta), Vertex::Closed(tb)) = edge {
+            if let (ta, Some(tb)) = edge {
                 uf.union(*ta, *tb)
             }
         }
@@ -742,7 +738,7 @@ mod tests {
 
     use rustc_hash::FxHashMap;
 
-    use crate::{tensornetwork::tensordata::TensorData, types::Vertex};
+    use crate::tensornetwork::tensordata::TensorData;
 
     use super::Tensor;
 
@@ -864,13 +860,13 @@ mod tests {
         assert_eq!(
             tensor.edges(),
             &FxHashMap::from_iter([
-                (2, (Vertex::Closed(0), Vertex::Closed(2))),
-                (3, (Vertex::Closed(0), Vertex::Open)),
-                (4, (Vertex::Closed(0), Vertex::Closed(1))),
-                (7, (Vertex::Closed(2), Vertex::Open)),
-                (8, (Vertex::Closed(1), Vertex::Open)),
-                (9, (Vertex::Closed(1), Vertex::Open)),
-                (10, (Vertex::Closed(2), Vertex::Open)),
+                (2, (0, Some(2))),
+                (3, (0, None)),
+                (4, (0, Some(1))),
+                (7, (2, None)),
+                (8, (1, None)),
+                (9, (1, None)),
+                (10, (2, None)),
             ])
         );
     }
@@ -911,13 +907,13 @@ mod tests {
         assert_eq!(
             tensor.edges(),
             &FxHashMap::from_iter([
-                (2, (Vertex::Closed(0), Vertex::Closed(2))),
-                (3, (Vertex::Closed(0), Vertex::Open)),
-                (4, (Vertex::Closed(0), Vertex::Closed(1))),
-                (7, (Vertex::Closed(2), Vertex::Open)),
-                (8, (Vertex::Closed(1), Vertex::Open)),
-                (9, (Vertex::Closed(1), Vertex::Open)),
-                (10, (Vertex::Closed(2), Vertex::Open)),
+                (2, (0, Some(2))),
+                (3, (0, None)),
+                (4, (0, Some(1))),
+                (7, (2, None)),
+                (8, (1, None)),
+                (9, (1, None)),
+                (10, (2, None)),
             ])
         );
     }

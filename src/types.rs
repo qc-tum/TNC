@@ -7,12 +7,6 @@ use serde::{Deserialize, Serialize};
 pub type EdgeIndex = usize;
 pub type TensorIndex = usize;
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub enum Vertex {
-    Open,
-    Closed(TensorIndex),
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ContractionIndex {
     Pair(TensorIndex, TensorIndex),

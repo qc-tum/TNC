@@ -4,7 +4,6 @@ use rustc_hash::FxHashMap;
 use std::iter::zip;
 
 use super::tensor::Tensor;
-use crate::types::Vertex;
 use kahypar_sys::{partition, KaHyParContext};
 
 pub mod partition_config;
@@ -46,15 +45,14 @@ pub fn find_partitioning(
     for (edges, tensor_ids) in tensor_network.edges() {
         let mut length = 0;
         // Don't add edges that connect only one vertex
-
-        match tensor_ids {
-            (Vertex::Closed(id1), Vertex::Closed(id2)) => {
-                hyperedges.push(*id1 as u32);
-                hyperedges.push(*id2 as u32);
-                length += 2;
-            }
-            _ => continue,
+        if let (id1, Some(id2)) = tensor_ids {
+            hyperedges.push(*id1 as u32);
+            hyperedges.push(*id2 as u32);
+            length += 2;
+        } else {
+            continue;
         }
+
         hyperedge_weights.push(x * bond_dims[edges] as i32);
 
         hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
@@ -128,7 +126,7 @@ pub fn communication_partitioning(
         let mut length = 0;
         // Don't add edges that connect only one vertex
         match tensor_ids {
-            (Vertex::Closed(id1), Vertex::Closed(id2)) => {
+            (id1, Some(id2)) => {
                 if edge_to_virtual_edge.contains_key(id1) {
                     hyperedges.push(edge_to_virtual_edge[id1] as u32);
                 } else {
