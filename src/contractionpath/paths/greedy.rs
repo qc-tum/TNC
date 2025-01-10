@@ -196,8 +196,7 @@ impl<'a> Greedy<'a> {
         let mut queue = BinaryHeap::new();
         // Fill queue with all possible contraction combinations of contractions
         for connected_tensors in edge_to_tensors.values_mut() {
-            connected_tensors
-                .sort_unstable_by_key(|a| ssa_id_to_tensor.get(a).unwrap().legs().len());
+            connected_tensors.sort_unstable_by_key(|a| ssa_id_to_tensor[a].legs().len());
             // Loop over all but the last entry
             for (i, k1_id) in connected_tensors[0..connected_tensors.len() - 1]
                 .iter()
@@ -206,9 +205,9 @@ impl<'a> Greedy<'a> {
                 // Get all possible unconsidered combinations
                 for k2_id in &connected_tensors[(i + 1)..] {
                     let (k12, size_cost, k1_hash, k2_hash) = {
-                        let k1 = ssa_id_to_tensor.get(k1_id).unwrap();
+                        let k1 = &ssa_id_to_tensor[k1_id];
                         let k1_hash = calculate_hash(k1);
-                        let k2 = ssa_id_to_tensor.get(k2_id).unwrap();
+                        let k2 = &ssa_id_to_tensor[k2_id];
                         let k2_hash = calculate_hash(k2);
                         let k12 = k1 ^ k2;
                         let k12_hash = calculate_hash(&k12);
@@ -349,7 +348,7 @@ impl<'a> Greedy<'a> {
 
             if !k2s.is_empty() {
                 for k2_id in k2s {
-                    let k2 = ssa_id_to_tensor.get(k2_id).unwrap();
+                    let k2 = &ssa_id_to_tensor[k2_id];
                     let k2_hash = calculate_hash(k2);
                     let k12 = &k1 ^ k2;
                     let k12_hash = calculate_hash(&k12);
