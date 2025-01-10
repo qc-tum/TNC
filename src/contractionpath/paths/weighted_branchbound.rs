@@ -163,7 +163,7 @@ impl<'a> WeightedBranchBound<'a> {
     }
 }
 
-impl<'a> OptimizePath for WeightedBranchBound<'a> {
+impl OptimizePath for WeightedBranchBound<'_> {
     fn optimize_path(&mut self) {
         if self.tn.is_leaf() {
             return;

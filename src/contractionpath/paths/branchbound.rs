@@ -176,7 +176,7 @@ impl<'a> BranchBound<'a> {
     }
 }
 
-impl<'a> OptimizePath for BranchBound<'a> {
+impl OptimizePath for BranchBound<'_> {
     fn optimize_path(&mut self) {
         if self.tn.is_leaf() {
             return;
