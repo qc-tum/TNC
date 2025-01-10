@@ -353,7 +353,7 @@ pub fn intermediate_reduce_tensor_network(
         let tensor_data = std::mem::take(&mut local_tn.tensordata);
         let mut data_tensor = tensor_data.into_data();
         let raw_data_view = data_tensor.raw_data_mut();
-        debug!(slice_rank=slice_comm.rank(), elements=raw_data_view.len(); "Reducing slice group");
+        debug!(slice_rank=slice_comm.rank(), group_size=slice_comm.size(); "Reducing slice group");
 
         // Directly reduce into the root data tensor
         // TODO: this only supports tensors up to ~275 GB. If we want to go bigger, we need to do multiple broadcasts.
