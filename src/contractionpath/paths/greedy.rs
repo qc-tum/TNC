@@ -472,14 +472,14 @@ fn populate_remaining_tensors(
 ) -> (
     FxHashMap<u64, usize>,
     FxHashMap<usize, Tensor>,
-    FxHashMap<usize, Vec<usize>>,
+    FxHashMap<EdgeIndex, Vec<usize>>,
     Vec<usize>,
     Vec<(usize, usize, usize)>,
     usize,
 ) {
     let mut next_ssa_id = inputs.len();
     let mut ssa_path = Vec::new();
-    let mut leg_id_to_tensor_id: FxHashMap<usize, Vec<usize>> = FxHashMap::default();
+    let mut leg_id_to_tensor_id: FxHashMap<_, Vec<_>> = FxHashMap::default();
     let mut remaining_tensors = FxHashMap::default();
     let mut ssa_id_to_tensor = FxHashMap::default();
 
@@ -593,7 +593,6 @@ mod tests {
     use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
 
-    // use super::populate_edge_to_tensors;
     use super::populate_remaining_tensors;
 
     fn setup_simple() -> Tensor {
