@@ -5,7 +5,7 @@ use std::{
 
 use itertools::Itertools;
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
@@ -101,64 +101,6 @@ impl<'a> Greedy<'a> {
         _k2: &Tensor,
     ) -> f64 {
         size1
-    }
-
-    /// Returns Tensor obtained after contracting k1 and k2.
-    fn get_candidate(
-        output: &Tensor,
-        edge_tensor_counts: &FxHashMap<usize, FxHashSet<EdgeIndex>>,
-        k1: &Tensor,
-        k2: &Tensor,
-    ) -> Tensor {
-        let either = k1 | k2;
-        let two = k1 & k2;
-        let one = &either - &two;
-
-        let ref3 = if let Some(ref_count_3) = edge_tensor_counts.get(&3) {
-            Tensor::new(ref_count_3.iter().copied().collect_vec())
-        } else {
-            Tensor::new(vec![])
-        };
-
-        let ref2 = if let Some(ref_count_2) = edge_tensor_counts.get(&2) {
-            Tensor::new(ref_count_2.iter().copied().collect_vec())
-        } else {
-            Tensor::new(vec![])
-        };
-        // Don't consider uncontracted dimensions
-        &(&(&either & output) | &(&two & &ref3)) | &(&one & &ref2)
-    }
-
-    fn update_ref_counts(
-        edge_to_tensors: &FxHashMap<EdgeIndex, Vec<Tensor>>,
-        edge_tensor_counts: &mut FxHashMap<usize, FxHashSet<EdgeIndex>>,
-        dims: &Tensor,
-    ) {
-        for &leg in dims.legs() {
-            let count = edge_to_tensors[&leg].len();
-            if count <= 1 {
-                edge_tensor_counts.entry(2).and_modify(|e| {
-                    e.remove(&leg);
-                });
-                edge_tensor_counts.entry(3).and_modify(|e| {
-                    e.remove(&leg);
-                });
-            } else if count == 2 {
-                edge_tensor_counts.entry(2).and_modify(|e| {
-                    e.insert(leg);
-                });
-                edge_tensor_counts.entry(3).and_modify(|e| {
-                    e.remove(&leg);
-                });
-            } else {
-                edge_tensor_counts.entry(2).and_modify(|e| {
-                    e.insert(leg);
-                });
-                edge_tensor_counts.entry(3).and_modify(|e| {
-                    e.insert(leg);
-                });
-            }
-        }
     }
 
     /// Greedily finds cheapest contractions based on input `choice_fn` and `cost_fn`.
