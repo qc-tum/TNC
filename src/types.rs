@@ -24,8 +24,8 @@ pub struct SlicingPlan {
 }
 
 impl SlicingPlan {
-    /// Computes the size of the slice when applied to the `target` tensor.
-    /// This is the product of all sliced legs.
+    /// Computes the number of slices when applied to the `target` tensor.
+    /// This is the product of all sliced legs' dimensions.
     ///
     /// # Examples
     /// ```
@@ -39,9 +39,9 @@ impl SlicingPlan {
     /// tc.push_tensors(vec![t1, t2], Some(&bond_dims));
     ///
     /// let plan = SlicingPlan { slices: vec![0, 1] };
-    /// assert_eq!(plan.size(&tc), 6);
+    /// assert_eq!(plan.task_count(&tc), 6);
     /// ```
-    pub fn size(&self, target: &Tensor) -> u64 {
+    pub fn task_count(&self, target: &Tensor) -> u64 {
         self.slices
             .iter()
             .map(|leg| target.bond_dims()[leg])
@@ -50,7 +50,7 @@ impl SlicingPlan {
 
     /// Gets the specified [`SlicingTask`] from this plan. Each combination of
     /// indices of the sliced legs is a separate task. `task_index` has to be less
-    /// than [`SlicingPlan::size`].
+    /// than [`SlicingPlan::task_count`].
     ///
     /// # Examples
     /// ```

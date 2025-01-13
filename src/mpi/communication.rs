@@ -134,7 +134,7 @@ fn get_tensor_mapping_and_slice_groups(
             if let Some(slicing) = slicing {
                 // Determine how many ranks are needed for doing all slices in parallel
                 let local_tensor = r_tn.tensor(*i);
-                let needed_ranks: i32 = slicing.size(local_tensor).try_into().unwrap();
+                let needed_ranks: i32 = slicing.task_count(local_tensor).try_into().unwrap();
 
                 // Assign each of the needed ranks the same color
                 for rank in used_ranks..used_ranks + needed_ranks {
