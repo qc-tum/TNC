@@ -545,7 +545,6 @@ mod tests {
                 Tensor::new(vec![4, 5, 6]),
             ],
             &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-            None,
         )
     }
 
@@ -573,7 +572,6 @@ mod tests {
                 (10, 5),
                 (11, 17),
             ]),
-            None,
         )
     }
 
@@ -601,7 +599,6 @@ mod tests {
                 (10, 5),
                 (11, 17),
             ]),
-            None,
         )
     }
 
@@ -614,7 +611,6 @@ mod tests {
                 Tensor::new(vec![1, 6]),
             ],
             &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-            None,
         )
     }
 
@@ -626,7 +622,6 @@ mod tests {
                 Tensor::new(vec![2]),
             ],
             &FxHashMap::from_iter([(0, 3), (1, 2), (2, 2)]),
-            None,
         )
     }
 
@@ -639,7 +634,6 @@ mod tests {
                 Tensor::new(vec![1]),
             ],
             &FxHashMap::from_iter([(0, 5), (1, 4)]),
-            None,
         )
     }
 

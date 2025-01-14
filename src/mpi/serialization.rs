@@ -183,7 +183,7 @@ mod tests {
         let t2 = Tensor::new(vec![1, 2, 3]);
         let t3 = Tensor::new(vec![2, 3, 4]);
         let t4 = Tensor::new(vec![4, 5]);
-        ta.push_tensors(vec![t2, t3, t4], Some(&bond_dims), None);
+        ta.push_tensors(vec![t2, t3, t4], Some(&bond_dims));
         let serialized = serialize_tensor(&ta);
         let deserialized = deserialize_tensor(&serialized, Some(&bond_dims));
         assert!(Tensor::approx_eq(&ta, &deserialized, 1e-10));

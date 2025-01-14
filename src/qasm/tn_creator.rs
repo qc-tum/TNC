@@ -145,7 +145,7 @@ impl TensorNetworkCreator {
             .map(|e| (e, 2u64))
             .collect::<FxHashMap<_, _>>();
 
-        create_tensor_network(tensors, &bond_dims, None)
+        create_tensor_network(tensors, &bond_dims)
     }
 }
 

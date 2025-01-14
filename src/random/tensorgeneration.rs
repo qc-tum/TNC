@@ -183,11 +183,7 @@ where
         bond_dims.entry(i).or_insert_with(|| bond_die.sample(rng));
     }
 
-    let mut t = create_tensor_network(
-        tensors.into_iter().map(Tensor::new).collect(),
-        &bond_dims,
-        None,
-    );
+    let mut t = create_tensor_network(tensors.into_iter().map(Tensor::new).collect(), &bond_dims);
 
     for tensor in &mut t.tensors {
         tensor.set_tensor_data(random_sparse_tensor_data(&tensor.shape(), None));
@@ -217,13 +213,12 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> Tensor {
 pub fn create_filled_tensor_network<R>(
     tensors: Vec<Tensor>,
     bond_dims: &FxHashMap<usize, u64>,
-    external_legs: Option<&FxHashMap<usize, usize>>,
     rng: &mut R,
 ) -> Tensor
 where
     R: Rng + ?Sized,
 {
-    let mut tn = create_tensor_network(tensors, bond_dims, external_legs);
+    let mut tn = create_tensor_network(tensors, bond_dims);
     for child_tensor in &mut tn.tensors {
         child_tensor.set_tensor_data(random_sparse_tensor_data_with_rng(
             &child_tensor.shape(),

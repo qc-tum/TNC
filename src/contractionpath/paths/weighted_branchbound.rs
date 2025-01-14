@@ -234,7 +234,6 @@ mod tests {
                     Tensor::new(vec![4, 5, 6]),
                 ],
                 &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-                None,
             ),
             FxHashMap::from_iter([(0, 20f64), (1, 40f64), (2, 85f64)]),
         )
@@ -265,7 +264,6 @@ mod tests {
                     (10, 5),
                     (11, 17),
                 ]),
-                None,
             ),
             FxHashMap::from_iter([
                 (0, 120f64),

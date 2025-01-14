@@ -4,7 +4,6 @@ use rustc_hash::FxHashMap;
 use std::iter::zip;
 
 use super::tensor::Tensor;
-use crate::types::Vertex;
 use kahypar_sys::{partition, KaHyParContext};
 
 pub mod partition_config;
@@ -46,20 +45,16 @@ pub fn find_partitioning(
     for (edges, tensor_ids) in tensor_network.edges() {
         let mut length = 0;
         // Don't add edges that connect only one vertex
-        if tensor_ids.len() == 2 && tensor_ids.contains(&Vertex::Open) {
+        if let (id1, Some(id2)) = tensor_ids {
+            hyperedges.push(*id1 as u32);
+            hyperedges.push(*id2 as u32);
+            length += 2;
+        } else {
             continue;
         }
+
         hyperedge_weights.push(x * bond_dims[edges] as i32);
 
-        for id in tensor_ids {
-            match id {
-                Vertex::Closed(id) => {
-                    hyperedges.push(*id as u32);
-                    length += 1;
-                }
-                Vertex::Open => (),
-            }
-        }
         hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
     }
 
@@ -125,32 +120,33 @@ pub fn communication_partitioning(
         .iter()
         .map(|(_, b)| b.clone())
         .collect::<Vec<Tensor>>();
-    intermediate_tensor.push_tensors(tensors, Some(bond_dims), None);
+    intermediate_tensor.push_tensors(tensors, Some(bond_dims));
 
     for (edges, tensor_ids) in intermediate_tensor.edges() {
         let mut length = 0;
         // Don't add edges that connect only one vertex
-        if tensor_ids.len() == 2 && tensor_ids.contains(&Vertex::Open) {
-            continue;
+        match tensor_ids {
+            (id1, Some(id2)) => {
+                if edge_to_virtual_edge.contains_key(id1) {
+                    hyperedges.push(edge_to_virtual_edge[id1] as u32);
+                } else {
+                    edge_to_virtual_edge.insert(id1, edge_count);
+                    hyperedges.push(edge_count as u32);
+                    edge_count += 1;
+                }
+                if edge_to_virtual_edge.contains_key(id2) {
+                    hyperedges.push(edge_to_virtual_edge[id2] as u32);
+                } else {
+                    edge_to_virtual_edge.insert(id2, edge_count);
+                    hyperedges.push(edge_count as u32);
+                    edge_count += 1;
+                }
+                length += 2;
+            }
+            _ => continue,
         }
-
         hyperedge_weights.push(x * bond_dims[edges] as i32);
 
-        for id in tensor_ids {
-            match id {
-                Vertex::Closed(id) => {
-                    if edge_to_virtual_edge.contains_key(id) {
-                        hyperedges.push(edge_to_virtual_edge[id] as u32);
-                    } else {
-                        edge_to_virtual_edge.insert(id, edge_count);
-                        hyperedges.push(edge_count as u32);
-                        edge_count += 1;
-                    }
-                    length += 1;
-                }
-                Vertex::Open => (),
-            }
-        }
         hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
     }
 
@@ -191,12 +187,13 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
             .push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
     }
     let mut partitioned_tn = Tensor::default();
-    partitioned_tn.push_tensors(partitions, Some(&*tn.bond_dims()), None);
+    partitioned_tn.push_tensors(partitions, Some(&*tn.bond_dims()));
     partitioned_tn
 }
 
 #[cfg(test)]
 mod tests {
+
     use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::tensor::Tensor;
@@ -230,7 +227,6 @@ mod tests {
                 (10, 5),
                 (11, 17),
             ]),
-            None,
         )
     }
 
@@ -243,17 +239,14 @@ mod tests {
         ref_tensor_1.push_tensors(
             vec![Tensor::new(vec![6, 8, 9]), Tensor::new(vec![10, 8, 9])],
             Some(&tn.bond_dims()),
-            None,
         );
         ref_tensor_2.push_tensors(
             vec![Tensor::new(vec![0, 1, 3, 2]), Tensor::new(vec![5, 1, 0])],
             Some(&tn.bond_dims()),
-            None,
         );
         ref_tensor_3.push_tensors(
             vec![Tensor::new(vec![4, 3, 2]), Tensor::new(vec![4, 5, 6])],
             Some(&tn.bond_dims()),
-            None,
         );
         let partitioning = find_partitioning(&tn, 3, PartitioningStrategy::MinCut, true);
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);

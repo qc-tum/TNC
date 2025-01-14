@@ -15,7 +15,7 @@ use crate::types::{ContractionIndex, EdgeIndex};
 /// let vec1 = vec![0, 1, 2];
 /// let vec2 = vec![2, 3, 4];
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 350350f64);
 /// ```
 pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
@@ -48,7 +48,7 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// let vec1 = vec![0, 1, 2];
 /// let vec2 = vec![2, 3, 4];
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_op_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 45045f64);
 /// ```
 pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
@@ -74,7 +74,7 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// let vec1 = vec![0, 1, 2];
 /// let vec2 = vec![2, 3, 4];
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1)), 6607f64);
 /// ```
 #[inline]
@@ -100,7 +100,7 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// let vec2 = vec![3, 2]; // requires 1584 bytes
 /// // result = [0, 1, 3], requires 6160 bytes
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims, None);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1)), 799f64);
 /// ```
 pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor) -> f64 {
@@ -330,7 +330,6 @@ mod tests {
                 Tensor::new(vec![4, 5, 6]),
             ],
             &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-            None,
         )
     }
 
@@ -353,12 +352,12 @@ mod tests {
             Tensor::new(vec![0, 1, 3, 2]),
             Tensor::new(vec![4, 5, 6]),
         ];
-        t1.push_tensors(t1_tensors, Some(&bond_dims), None);
+        t1.push_tensors(t1_tensors, Some(&bond_dims));
 
         let mut t2 = Tensor::default();
         let t2_tensors = vec![Tensor::new(vec![5, 6, 8]), Tensor::new(vec![7, 8, 9])];
-        t2.push_tensors(t2_tensors, Some(&bond_dims), None);
-        create_tensor_network(vec![t1, t2], &bond_dims, None)
+        t2.push_tensors(t2_tensors, Some(&bond_dims));
+        create_tensor_network(vec![t1, t2], &bond_dims)
     }
 
     fn setup_parallel() -> Tensor {
@@ -370,7 +369,6 @@ mod tests {
                 Tensor::new(vec![5, 6]),
             ],
             &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-            None,
         )
     }
 

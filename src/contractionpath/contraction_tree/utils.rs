@@ -69,7 +69,7 @@ pub(super) fn subtree_contraction_path(
         .collect::<Vec<_>>();
 
     // Obtain tensor network corresponding to subtree
-    let subtree_tensor_network = create_tensor_network(tensors, &tensor_network.bond_dims(), None);
+    let subtree_tensor_network = create_tensor_network(tensors, &tensor_network.bond_dims());
 
     let mut opt = Greedy::new(&subtree_tensor_network, CostType::Flops);
     opt.optimize_path();
@@ -145,7 +145,6 @@ mod tests {
                     Tensor::new(vec![4, 5, 6]),
                 ],
                 &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-                None,
             ),
             path![(0, 1), (2, 0)].to_vec(),
         )
@@ -175,7 +174,6 @@ mod tests {
                     (9, 65),
                     (10, 5),
                 ]),
-                None,
             ),
             path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
         )
@@ -205,19 +203,19 @@ mod tests {
         let t5 = Tensor::new(vec![10, 8, 9]);
 
         let mut t01 = Tensor::default();
-        t01.push_tensors(vec![t0, t1], Some(&bond_dims), None);
+        t01.push_tensors(vec![t0, t1], Some(&bond_dims));
 
         let mut t012 = Tensor::default();
-        t012.push_tensors(vec![t01, t2], Some(&bond_dims), None);
+        t012.push_tensors(vec![t01, t2], Some(&bond_dims));
 
         let mut t34 = Tensor::default();
-        t34.push_tensors(vec![t3, t4], Some(&bond_dims), None);
+        t34.push_tensors(vec![t3, t4], Some(&bond_dims));
 
         let mut t345 = Tensor::default();
-        t345.push_tensors(vec![t34, t5], Some(&bond_dims), None);
+        t345.push_tensors(vec![t34, t5], Some(&bond_dims));
 
         let mut tensor_network = Tensor::default();
-        tensor_network.push_tensors(vec![t012, t345], Some(&bond_dims), None);
+        tensor_network.push_tensors(vec![t012, t345], Some(&bond_dims));
         (
             tensor_network,
             path![
@@ -252,16 +250,16 @@ mod tests {
         let t7 = Tensor::new(vec![6]);
 
         let mut t012 = Tensor::default();
-        t012.push_tensors(vec![t0, t1, t2], Some(&bond_dims), None);
+        t012.push_tensors(vec![t0, t1, t2], Some(&bond_dims));
 
         let mut t345 = Tensor::default();
-        t345.push_tensors(vec![t3, t4, t5], Some(&bond_dims), None);
+        t345.push_tensors(vec![t3, t4, t5], Some(&bond_dims));
 
         let mut t67 = Tensor::default();
-        t67.push_tensors(vec![t6, t7], Some(&bond_dims), None);
+        t67.push_tensors(vec![t6, t7], Some(&bond_dims));
 
         let mut tensor_network = Tensor::default();
-        tensor_network.push_tensors(vec![t012, t345, t67], Some(&bond_dims), None);
+        tensor_network.push_tensors(vec![t012, t345, t67], Some(&bond_dims));
         (
             tensor_network,
             path![

@@ -567,17 +567,14 @@ mod tests {
         let tensor11 = Tensor::new(vec![4, 5, 10]);
 
         let mut intermediate_tensor2 = Tensor::default();
-        intermediate_tensor2.push_tensors(vec![tensor0, tensor1], Some(&bond_dims), None);
+        intermediate_tensor2.push_tensors(vec![tensor0, tensor1], Some(&bond_dims));
 
         let mut intermediate_tensor7 = Tensor::default();
-        intermediate_tensor7.push_tensors(vec![tensor3, tensor4, tensor5], Some(&bond_dims), None);
+        intermediate_tensor7.push_tensors(vec![tensor3, tensor4, tensor5], Some(&bond_dims));
 
         let mut intermediate_tensor14 = Tensor::default();
-        intermediate_tensor14.push_tensors(
-            vec![tensor8, tensor9, tensor10, tensor11],
-            Some(&bond_dims),
-            None,
-        );
+        intermediate_tensor14
+            .push_tensors(vec![tensor8, tensor9, tensor10, tensor11], Some(&bond_dims));
 
         let mut tensor15 = Tensor::default();
         tensor15.push_tensors(
@@ -587,7 +584,6 @@ mod tests {
                 intermediate_tensor14,
             ],
             Some(&bond_dims),
-            None,
         );
 
         let contraction_path = path![

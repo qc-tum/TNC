@@ -35,7 +35,7 @@ pub fn multiplication_benchmark(c: &mut Criterion) {
         let t1 = Tensor::new(vec![0, 1]);
         let t2 = Tensor::new(vec![2, 1, 3, 4]);
         let bond_dims = FxHashMap::from_iter([(0, n), (1, k), (2, n), (3, n), (4, n)]);
-        let r_tn = create_filled_tensor_network(vec![t1, t2], &bond_dims, None, &mut rng);
+        let r_tn = create_filled_tensor_network(vec![t1, t2], &bond_dims, &mut rng);
 
         mul_group.bench_function(BenchmarkId::from_parameter(k), |b| {
             b.iter_batched_ref(

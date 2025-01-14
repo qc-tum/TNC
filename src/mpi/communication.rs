@@ -201,6 +201,7 @@ pub fn intermediate_reduce_tensor_network(
     for pair in path {
         match pair {
             ContractionIndex::Pair(x, y) => {
+                local_tn.clear_edges();
                 let receiver = *x as Rank;
                 let sender = *y as Rank;
                 final_rank = receiver;
@@ -250,6 +251,7 @@ pub fn naive_reduce_tensor_network(
 ) {
     debug!(rank, size, path:serde; "Reducing tensor network (naive)");
     if rank == 0 {
+        local_tn.clear_edges();
         for i in 1..size {
             // Add received tensor to final tensor network
             debug!(sender = i; "Receiving tensor");

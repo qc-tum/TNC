@@ -3,10 +3,9 @@ use std::hash::{Hash, Hasher};
 use std::iter::zip;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
-use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
-use crate::types::{EdgeIndex, Vertex};
+use crate::types::{EdgeIndex, TensorIndex};
 use crate::utils::datastructures::UnionFind;
 
 use super::tensordata::TensorData;
@@ -26,11 +25,7 @@ pub struct Tensor {
 
     /// All edges of the tensor. Maps an edge index to the vertices that make up the
     /// edge.
-    pub(crate) edges: FxHashMap<EdgeIndex, Vec<Vertex>>,
-
-    /// Maps an edge index which corresponds to a hyperedge to the number of external
-    /// tensors that it connects to.
-    external_hyperedge: FxHashMap<EdgeIndex, usize>,
+    pub(crate) edges: FxHashMap<EdgeIndex, (TensorIndex, Option<TensorIndex>)>,
 
     /// The data of the tensor.
     pub(crate) tensordata: TensorData,
@@ -121,7 +116,7 @@ impl Tensor {
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
     /// let mut tn = Tensor::default();
-    /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims), None);
+    /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims));
     /// v1.insert_bond_dims(&bond_dims);
     /// v2.insert_bond_dims(&bond_dims);
     /// for (tensor, ref_tensor) in std::iter::zip(tn.tensors(), vec![v1, v2]){
@@ -149,11 +144,11 @@ impl Tensor {
     /// (0, 17), (1, 19), (2, 8), (3, 2), (4, 1)
     /// ]);
     /// let mut tn1 = Tensor::default();
-    /// tn1.push_tensors(vec![v1, v2], Some(&bond_dims), None);
+    /// tn1.push_tensors(vec![v1, v2], Some(&bond_dims));
     /// let mut tn2 = Tensor::default();
-    /// tn2.push_tensors(vec![v3.clone(), v4], Some(&bond_dims), None);
+    /// tn2.push_tensors(vec![v3.clone(), v4], Some(&bond_dims));
     /// let mut nested_tn = Tensor::default();
-    /// nested_tn.push_tensors(vec![tn1, tn2], Some(&bond_dims), None);
+    /// nested_tn.push_tensors(vec![tn1, tn2], Some(&bond_dims));
     /// v3.insert_bond_dims(&bond_dims);
     ///
     /// assert_eq!(nested_tn.nested_tensor(&[1, 0]).legs(), v3.legs());
@@ -190,7 +185,7 @@ impl Tensor {
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
     /// let mut tn = Tensor::default();
-    /// tn.push_tensors(vec![v1, v2], Some(&bond_dims), None);
+    /// tn.push_tensors(vec![v1, v2], Some(&bond_dims));
     /// tn.insert_bond_dims(&bond_dims);
     /// let mut ref_tensor = Tensor::new(vec![0, 1]);
     /// ref_tensor.insert_bond_dims(&bond_dims);
@@ -214,7 +209,7 @@ impl Tensor {
     /// let bond_dims = FxHashMap::from_iter([
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
-    /// let tn = create_tensor_network(vec![v1, v2], &bond_dims, None);
+    /// let tn = create_tensor_network(vec![v1, v2], &bond_dims);
     /// assert_eq!(*tn.bond_dims(), bond_dims);
     /// ```
     #[inline]
@@ -235,7 +230,7 @@ impl Tensor {
     /// let bond_dims = FxHashMap::from_iter([
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
-    /// let mut tn = create_tensor_network(vec![v1, v2], &bond_dims, None);
+    /// let mut tn = create_tensor_network(vec![v1, v2], &bond_dims);
     /// tn.insert_bond_dims(&FxHashMap::from_iter([(1, 12), (0, 5)]));
     /// assert_eq!(*tn.bond_dims(), FxHashMap::from_iter([(0, 5), (1, 12), (2, 8)]) );
     /// ```
@@ -261,17 +256,22 @@ impl Tensor {
     /// (0, 17), (1, 19), (2, 8)
     /// ]);
     /// let mut tn = Tensor::default();
-    /// tn.push_tensors(vec![v1, v2], Some(&bond_dims), None);
+    /// tn.push_tensors(vec![v1, v2], Some(&bond_dims));
     /// assert_eq!(tn.edges(), &FxHashMap::from_iter(
     /// [
-    /// (0, vec![Vertex::Closed(0), Vertex::Open]),
-    /// (1, vec![Vertex::Closed(0), Vertex::Closed(1)]),
-    /// (2, vec![Vertex::Closed(1), Vertex::Open])
+    /// (0, (0, None)),
+    /// (1, (0, Some(1))),
+    /// (2, (1, None))
     /// ]));
     /// ```
     #[inline]
-    pub fn edges(&self) -> &FxHashMap<EdgeIndex, Vec<Vertex>> {
+    pub fn edges(&self) -> &FxHashMap<EdgeIndex, (TensorIndex, Option<TensorIndex>)> {
         &self.edges
+    }
+
+    #[inline]
+    pub(crate) fn clear_edges(&mut self) {
+        self.edges.clear()
     }
 
     /// Returns the shape.
@@ -402,9 +402,7 @@ impl Tensor {
         if *self.bond_dims() != *other.bond_dims() {
             return false;
         }
-        if self.external_hyperedge != other.external_hyperedge {
-            return false;
-        }
+
         for (tensor, other_tensor) in zip(&self.tensors, &other.tensors) {
             if !tensor.approx_eq(other_tensor, epsilon) {
                 return false;
@@ -427,7 +425,6 @@ impl Tensor {
                 tensors: _,
                 bond_dims: _,
                 edges: _,
-                external_hyperedge,
                 tensordata,
             } = tensor;
             self.set_legs(legs);
@@ -436,13 +433,6 @@ impl Tensor {
             if let Some(bond_dims) = bond_dims {
                 self.add_bond_dims(bond_dims);
             }
-            for (&key, &value) in &external_hyperedge {
-                self.external_hyperedge
-                    .entry(key)
-                    .and_modify(|old_val| *old_val += value)
-                    .or_insert_with(|| value);
-            }
-            self.update_external_edges(&external_hyperedge);
 
             return;
         }
@@ -462,7 +452,6 @@ impl Tensor {
 
         tensor.bond_dims = Arc::clone(&self.bond_dims);
         self.update_tensor_edges(&tensor);
-        self.update_external_edges(&tensor.external_hyperedge);
 
         self.tensors.push(tensor);
     }
@@ -478,7 +467,6 @@ impl Tensor {
         &mut self,
         tensors: Vec<Self>,
         bond_dims: Option<&FxHashMap<EdgeIndex, u64>>,
-        external_hyperedge: Option<&FxHashMap<EdgeIndex, usize>>,
     ) {
         // If self is a leaf tensor but not empty (i.e. it has legs or data), need to preserve it
         if !self.is_empty() && self.is_leaf() {
@@ -500,10 +488,6 @@ impl Tensor {
             self.update_tensor_edges(&tensor);
             self.tensors.push(tensor);
         }
-
-        if let Some(external_hyperedge) = external_hyperedge {
-            self.update_external_edges(external_hyperedge);
-        };
     }
 
     /// Internal method to update bond dimensions based on `bond_dims`. Only incorporates missing dimensions,
@@ -515,20 +499,6 @@ impl Tensor {
                 .entry(*key)
                 .and_modify(|e| assert_eq!(e, value, "Updating bond dims will overwrite entry at key {key} with value {e} with new value of {value}"))
                 .or_insert(*value);
-        }
-    }
-
-    /// Internal method to update hyperedges in edge `FxHashMap`. Adds an additional open vertex to each indicated edge if they are missing
-    pub(super) fn update_external_edges(
-        &mut self,
-        external_hyperedge: &FxHashMap<EdgeIndex, usize>,
-    ) {
-        for (&edge_index, &count) in external_hyperedge {
-            self.edges.entry(edge_index).and_modify(|edge| {
-                let missing_hyperedges =
-                    edge.iter().filter(|e| e == &&Vertex::Open).count() - count;
-                edge.append(&mut vec![Vertex::Open; missing_hyperedges]);
-            });
         }
     }
 
@@ -546,20 +516,17 @@ impl Tensor {
                 "Leg {leg} bond dimension is not defined"
             );
 
-            // Never introduces a Vertex::Open as this is handled in `[update_external_hyperedge]`
+            // Never introduces a None as this is handled in `[update_external_hyperedge]`
             self.edges
                 .entry(leg)
                 .and_modify(|edge| {
-                    // New tensor contracts on a previous external leg
-                    if let Some(pos) = edge.iter().position(|e| e == &Vertex::Open) {
-                        edge[pos] = Vertex::Closed(index);
-                        // Leg is no longer external as it contracts with new tensor
+                    if edge.1.is_none() {
+                        edge.1 = Some(index);
                     } else {
-                        // New tensor adds a hyper edge to graph
-                        edge.push(Vertex::Closed(index));
+                        panic!("Attempting to create hyperedge of edge {leg}")
                     }
                 })
-                .or_insert_with(|| vec![Vertex::Closed(index), Vertex::Open]);
+                .or_insert_with(|| (index, None));
         }
     }
 
@@ -604,7 +571,7 @@ impl Tensor {
     /// let bond_dims = FxHashMap::from_iter([
     /// (0, 17), (1, 19), (2, 8), (3, 5)
     /// ]);
-    /// let mut tn = create_tensor_network(vec![v1, v2], &bond_dims, None);
+    /// let mut tn = create_tensor_network(vec![v1, v2], &bond_dims);
     /// assert!(tn.is_connected());
     ///
     /// // Introduce a new tensor that is not connected
@@ -614,14 +581,11 @@ impl Tensor {
     /// ```
     pub fn is_connected(&self) -> bool {
         let mut uf = UnionFind::new(self.tensors.len());
+
         for edge in self.edges.values() {
-            edge.iter()
-                .filter_map(|v| match v {
-                    Vertex::Closed(i) => Some(*i),
-                    Vertex::Open => None,
-                })
-                .tuple_windows()
-                .for_each(|(ta, tb)| uf.union(ta, tb));
+            if let (ta, Some(tb)) = edge {
+                uf.union(*ta, *tb)
+            }
         }
         uf.count_sets() == 1
     }
@@ -731,11 +695,8 @@ impl Tensor {
             };
             ext_edges = &ext_edges ^ new_tensor;
         }
-        let mut ext_edges = std::mem::take(&mut ext_edges.legs);
-        for (&edge_index, &count) in &self.external_hyperedge {
-            ext_edges.append(&mut vec![edge_index; count]);
-        }
-        ext_edges
+
+        std::mem::take(&mut ext_edges.legs)
     }
 }
 
@@ -777,7 +738,7 @@ mod tests {
 
     use rustc_hash::FxHashMap;
 
-    use crate::{tensornetwork::tensordata::TensorData, types::Vertex};
+    use crate::tensornetwork::tensordata::TensorData;
 
     use super::Tensor;
 
@@ -829,14 +790,14 @@ mod tests {
 
         let tensor_1 = Tensor::new(vec![2, 3, 4]);
         let tensor_2 = Tensor::new(vec![2, 3, 5]);
-        tensor_12.push_tensors(vec![tensor_1, tensor_2], Some(&bond_dims), None);
+        tensor_12.push_tensors(vec![tensor_1, tensor_2], Some(&bond_dims));
 
         let mut tensor_34 = Tensor::default();
         let tensor_3 = Tensor::new(vec![6, 7, 8]);
         let tensor_4 = Tensor::new(vec![6, 8, 9]);
-        tensor_34.push_tensors(vec![tensor_3, tensor_4], Some(&bond_dims), None);
+        tensor_34.push_tensors(vec![tensor_3, tensor_4], Some(&bond_dims));
 
-        tensor_1234.push_tensors(vec![tensor_12, tensor_34], Some(&bond_dims), None);
+        tensor_1234.push_tensors(vec![tensor_12, tensor_34], Some(&bond_dims));
 
         assert_eq!(vec![4, 5, 7, 9], tensor_1234.external_edges());
     }
@@ -899,13 +860,13 @@ mod tests {
         assert_eq!(
             tensor.edges(),
             &FxHashMap::from_iter([
-                (2, vec![Vertex::Closed(0), Vertex::Closed(2)]),
-                (3, vec![Vertex::Closed(0), Vertex::Open]),
-                (4, vec![Vertex::Closed(0), Vertex::Closed(1)]),
-                (7, vec![Vertex::Closed(2), Vertex::Open]),
-                (8, vec![Vertex::Closed(1), Vertex::Open]),
-                (9, vec![Vertex::Closed(1), Vertex::Open]),
-                (10, vec![Vertex::Closed(2), Vertex::Open]),
+                (2, (0, Some(2))),
+                (3, (0, None)),
+                (4, (0, Some(1))),
+                (7, (2, None)),
+                (8, (1, None)),
+                (9, (1, None)),
+                (10, (2, None)),
             ])
         );
     }
@@ -929,7 +890,7 @@ mod tests {
 
         let tensor_2 = Tensor::new(vec![8, 4, 9]);
         let tensor_3 = Tensor::new(vec![7, 10, 2]);
-        tensor.push_tensors(vec![tensor_2, tensor_3], Some(&reference_bond_dims_3), None);
+        tensor.push_tensors(vec![tensor_2, tensor_3], Some(&reference_bond_dims_3));
 
         assert!(tensor
             .tensor_data()
@@ -946,76 +907,13 @@ mod tests {
         assert_eq!(
             tensor.edges(),
             &FxHashMap::from_iter([
-                (2, vec![Vertex::Closed(0), Vertex::Closed(2)]),
-                (3, vec![Vertex::Closed(0), Vertex::Open]),
-                (4, vec![Vertex::Closed(0), Vertex::Closed(1)]),
-                (7, vec![Vertex::Closed(2), Vertex::Open]),
-                (8, vec![Vertex::Closed(1), Vertex::Open]),
-                (9, vec![Vertex::Closed(1), Vertex::Open]),
-                (10, vec![Vertex::Closed(2), Vertex::Open]),
-            ])
-        );
-    }
-
-    #[test]
-    fn test_push_tensor_hyperedges() {
-        let reference_bond_dims_0 = FxHashMap::from_iter([(2, 17), (3, 1), (4, 11)]);
-        let reference_bond_dims_1 = FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (9, 20)]);
-        let reference_bond_dims_2 = FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (9, 20)]);
-
-        let reference_bond_dims_3 =
-            FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (5, 2), (6, 6), (9, 20)]);
-
-        let mut ref_tensor_0 = Tensor::new(vec![4, 3, 2]);
-        ref_tensor_0.insert_bond_dims(&reference_bond_dims_0);
-
-        let mut ref_tensor_1 = Tensor::new(vec![3, 4, 9]);
-        ref_tensor_1.insert_bond_dims(&reference_bond_dims_1);
-
-        let mut ref_tensor_2 = Tensor::new(vec![4, 9, 2]);
-        ref_tensor_2.insert_bond_dims(&reference_bond_dims_2);
-
-        let mut ref_tensor_3 = Tensor::new(vec![5, 6, 6]);
-        ref_tensor_3.insert_bond_dims(&reference_bond_dims_3);
-
-        let mut tensor = ref_tensor_0.clone();
-
-        let tensor_1 = Tensor::new(vec![3, 4, 9]);
-        let bond_dims_1 = FxHashMap::from_iter([(9, 20)]);
-        tensor.push_tensor(tensor_1, Some(&bond_dims_1));
-
-        assert_eq!(reference_bond_dims_1, *tensor.bond_dims());
-        assert_eq!(tensor.legs(), &Vec::<usize>::new());
-
-        let tensor_2 = Tensor::new(vec![4, 9, 2]);
-
-        tensor.push_tensor(tensor_2, None);
-        assert_eq!(reference_bond_dims_2, *tensor.bond_dims());
-
-        let tensor_3 = Tensor::new(vec![5, 6, 6]);
-        let bond_dims_3 = FxHashMap::from_iter([(5, 2), (6, 6)]);
-        tensor.push_tensor(tensor_3, Some(&bond_dims_3));
-        assert_eq!(reference_bond_dims_3, *tensor.bond_dims());
-
-        for (tensor_legs, other_tensor_legs) in zip(
-            tensor.tensors(),
-            &vec![ref_tensor_0, ref_tensor_1, ref_tensor_2, ref_tensor_3],
-        ) {
-            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs());
-        }
-
-        assert_eq!(
-            tensor.edges(),
-            &FxHashMap::from_iter([
-                (2, vec![Vertex::Closed(0), Vertex::Closed(2)]),
-                (3, vec![Vertex::Closed(0), Vertex::Closed(1)]),
-                (
-                    4,
-                    vec![Vertex::Closed(0), Vertex::Closed(1), Vertex::Closed(2)]
-                ),
-                (5, vec![Vertex::Closed(3), Vertex::Open]),
-                (6, vec![Vertex::Closed(3), Vertex::Closed(3)]),
-                (9, vec![Vertex::Closed(1), Vertex::Closed(2)]),
+                (2, (0, Some(2))),
+                (3, (0, None)),
+                (4, (0, Some(1))),
+                (7, (2, None)),
+                (8, (1, None)),
+                (9, (1, None)),
+                (10, (2, None)),
             ])
         );
     }

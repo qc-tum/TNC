@@ -70,7 +70,7 @@ where
         initial_state.push(new_state);
     }
 
-    sycamore_tn.push_tensors(initial_state, Some(&sycamore_bonddims), None);
+    sycamore_tn.push_tensors(initial_state, Some(&sycamore_bonddims));
 
     let die = Uniform::from(0..single_qubit_gates.len());
     let mut intermediate_gates = Vec::new();
@@ -101,7 +101,7 @@ where
             }
         }
     }
-    sycamore_tn.push_tensors(intermediate_gates, Some(&sycamore_bonddims), None);
+    sycamore_tn.push_tensors(intermediate_gates, Some(&sycamore_bonddims));
 
     // set up final state
     let mut final_state = Vec::with_capacity(open_edges.len());
@@ -110,7 +110,7 @@ where
         new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng));
         final_state.push(new_state);
     }
-    sycamore_tn.push_tensors(final_state, Some(&sycamore_bonddims), None);
+    sycamore_tn.push_tensors(final_state, Some(&sycamore_bonddims));
 
     sycamore_tn
 }
