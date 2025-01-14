@@ -511,14 +511,14 @@ impl Tensor {
     /// assert!(!tn.is_connected());
     /// ```
     pub fn is_connected(&self) -> bool {
-        let mut uf = UnionFind::new(self.tensors.len());
-        let num_tensors = self.total_num_tensors();
+        let num_tensors = self.tensors.len();
+        let mut uf = UnionFind::new(num_tensors);
 
         for t1_id in 0..num_tensors - 1 {
             for t2_id in (t1_id + 1)..num_tensors {
-                let t1 = self.tensor(t1_id);
-                let t2 = self.tensor(t2_id);
-                if !(t1 & t2).legs().is_empty() {
+                let t1 = &self.tensors[t1_id];
+                let t2 = &self.tensors[t2_id];
+                if !(t1 & t2).legs.is_empty() {
                     uf.union(t1_id, t2_id);
                 }
             }
