@@ -23,10 +23,6 @@ pub struct Tensor {
     /// The shared bond dimensions. Maps an edge index to the bond dimension.
     pub(crate) bond_dims: Arc<RwLock<FxHashMap<EdgeIndex, u64>>>,
 
-    /// All edges of the tensor. Maps an edge index to the vertices that make up the
-    /// edge.
-    pub(crate) edges: FxHashMap<EdgeIndex, (TensorIndex, Option<TensorIndex>)>,
-
     /// The data of the tensor.
     pub(crate) tensordata: TensorData,
 }
@@ -192,7 +188,7 @@ impl Tensor {
     /// assert_eq!(tn.tensor(0).legs(), ref_tensor.legs());
     /// ```
     #[inline]
-    pub fn tensor(&self, i: usize) -> &Self {
+    pub fn tensor(&self, i: TensorIndex) -> &Self {
         &self.tensors[i]
     }
 
@@ -239,39 +235,6 @@ impl Tensor {
         for (k, v) in bond_dims {
             own_bond_dims.insert(*k, *v);
         }
-    }
-
-    /// Getter for edges
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::create_tensor_network;
-    /// # use tensorcontraction::types::*;
-    /// # use rustc_hash::FxHashMap;
-    /// let v1 = Tensor::new(vec![0, 1]);
-    /// let v2 = Tensor::new(vec![1, 2]);
-    /// let bond_dims = FxHashMap::from_iter([
-    /// (0, 17), (1, 19), (2, 8)
-    /// ]);
-    /// let mut tn = Tensor::default();
-    /// tn.push_tensors(vec![v1, v2], Some(&bond_dims));
-    /// assert_eq!(tn.edges(), &FxHashMap::from_iter(
-    /// [
-    /// (0, (0, None)),
-    /// (1, (0, Some(1))),
-    /// (2, (1, None))
-    /// ]));
-    /// ```
-    #[inline]
-    pub fn edges(&self) -> &FxHashMap<EdgeIndex, (TensorIndex, Option<TensorIndex>)> {
-        &self.edges
-    }
-
-    #[inline]
-    pub(crate) fn clear_edges(&mut self) {
-        self.edges.clear()
     }
 
     /// Returns the shape.
@@ -417,15 +380,15 @@ impl Tensor {
     /// # Arguments
     /// * `tensor` - new `Tensor` to be added
     /// * `bond_dims` - `FxHashMap<usize, u64>` mapping edge id to bond dimension
-    pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&FxHashMap<usize, u64>>) {
+    pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&FxHashMap<EdgeIndex, u64>>) {
         // In the case of pushing to an empty tensor, avoid unnecessary hierarchies
         if self.is_empty() {
             let Self {
                 legs,
                 tensors: _,
                 bond_dims: _,
-                edges: _,
                 tensordata,
+                ..
             } = tensor;
             self.set_legs(legs);
             self.set_tensor_data(tensordata);
@@ -441,7 +404,6 @@ impl Tensor {
             let old_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
-            self.update_tensor_edges(&old_self);
             self.set_tensor_data(TensorData::Uncontracted);
             self.tensors.push(old_self);
         }
@@ -451,7 +413,6 @@ impl Tensor {
         };
 
         tensor.bond_dims = Arc::clone(&self.bond_dims);
-        self.update_tensor_edges(&tensor);
 
         self.tensors.push(tensor);
     }
@@ -462,7 +423,6 @@ impl Tensor {
     /// # Arguments
     /// * `tensors` - `Vec<Tensor>` to be added
     /// * `bond_dims` - `FxHashMap<usize, u64>` mapping edge id to bond dimension
-    /// * `external_hyperedge` - Optional `FxHashMap<EdgeIndex, usize>` of external hyperedges, mapping the edge index to count of external hyperedges.
     pub fn push_tensors(
         &mut self,
         tensors: Vec<Self>,
@@ -473,7 +433,6 @@ impl Tensor {
             let old_self = self.clone();
             // Only update legs once contraction is complete to keep track of data permutation
             self.legs = Vec::new();
-            self.update_tensor_edges(&old_self);
             self.set_tensor_data(TensorData::Uncontracted);
             self.tensors.push(old_self);
         }
@@ -485,7 +444,6 @@ impl Tensor {
         self.tensors.reserve(tensors.len());
         for mut tensor in tensors {
             tensor.bond_dims = Arc::clone(&self.bond_dims);
-            self.update_tensor_edges(&tensor);
             self.tensors.push(tensor);
         }
     }
@@ -499,34 +457,6 @@ impl Tensor {
                 .entry(*key)
                 .and_modify(|e| assert_eq!(e, value, "Updating bond dims will overwrite entry at key {key} with value {e} with new value of {value}"))
                 .or_insert(*value);
-        }
-    }
-
-    /// Internal method to update edges in tensornetwork after new tensor is added.
-    /// If existing edges are introduced, assume that a contraction occurs between them
-    /// Otherwise, introduce a new open vertex in edges
-    pub(super) fn update_tensor_edges(&mut self, tensor: &Self) {
-        let shared_bond_dims = self.bond_dims.read().unwrap();
-
-        // Index is current length as tensor is pushed after.
-        let index = self.tensors.len();
-        for &leg in &tensor.legs {
-            assert!(
-                shared_bond_dims.contains_key(&leg),
-                "Leg {leg} bond dimension is not defined"
-            );
-
-            // Never introduces a None as this is handled in `[update_external_hyperedge]`
-            self.edges
-                .entry(leg)
-                .and_modify(|edge| {
-                    if edge.1.is_none() {
-                        edge.1 = Some(index);
-                    } else {
-                        panic!("Attempting to create hyperedge of edge {leg}")
-                    }
-                })
-                .or_insert_with(|| (index, None));
         }
     }
 
@@ -580,13 +510,19 @@ impl Tensor {
     /// assert!(!tn.is_connected());
     /// ```
     pub fn is_connected(&self) -> bool {
-        let mut uf = UnionFind::new(self.tensors.len());
+        let num_tensors = self.tensors.len();
+        let mut uf = UnionFind::new(num_tensors);
 
-        for edge in self.edges.values() {
-            if let (ta, Some(tb)) = edge {
-                uf.union(*ta, *tb)
+        for t1_id in 0..num_tensors - 1 {
+            for t2_id in (t1_id + 1)..num_tensors {
+                let t1 = &self.tensors[t1_id];
+                let t2 = &self.tensors[t2_id];
+                if !(t1 & t2).legs.is_empty() {
+                    uf.union(t1_id, t2_id);
+                }
             }
         }
+
         uf.count_sets() == 1
     }
 
@@ -856,19 +792,6 @@ mod tests {
         ) {
             assert_eq!(tensor_legs.legs(), other_tensor_legs.legs());
         }
-
-        assert_eq!(
-            tensor.edges(),
-            &FxHashMap::from_iter([
-                (2, (0, Some(2))),
-                (3, (0, None)),
-                (4, (0, Some(1))),
-                (7, (2, None)),
-                (8, (1, None)),
-                (9, (1, None)),
-                (10, (2, None)),
-            ])
-        );
     }
 
     #[test]
@@ -904,17 +827,5 @@ mod tests {
         }
 
         assert_eq!(*tensor.bond_dims(), reference_bond_dims_3);
-        assert_eq!(
-            tensor.edges(),
-            &FxHashMap::from_iter([
-                (2, (0, Some(2))),
-                (3, (0, None)),
-                (4, (0, Some(1))),
-                (7, (2, None)),
-                (8, (1, None)),
-                (9, (1, None)),
-                (10, (2, None)),
-            ])
-        );
     }
 }

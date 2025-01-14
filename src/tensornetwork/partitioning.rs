@@ -42,20 +42,21 @@ pub fn find_partitioning(
     let mut hyperedge_indices = vec![0];
     let mut hyperedges = vec![];
     let bond_dims = tensor_network.bond_dims();
-    for (edges, tensor_ids) in tensor_network.edges() {
-        let mut length = 0;
-        // Don't add edges that connect only one vertex
-        if let (id1, Some(id2)) = tensor_ids {
-            hyperedges.push(*id1 as u32);
-            hyperedges.push(*id2 as u32);
-            length += 2;
-        } else {
-            continue;
+
+    let mut edge_dict = FxHashMap::default();
+    for (tensor_id, tensor) in tensor_network.tensors().iter().enumerate() {
+        for leg in tensor.legs() {
+            edge_dict
+                .entry(leg)
+                .and_modify(|entry| {
+                    hyperedges.push(*entry as u32);
+                    hyperedges.push(tensor_id as u32);
+                    hyperedge_indices.push(hyperedge_indices.last().unwrap() + 2);
+                    hyperedge_weights.push(x * bond_dims[leg] as i32);
+                    *entry = tensor_id;
+                })
+                .or_insert(tensor_id);
         }
-
-        hyperedge_weights.push(x * bond_dims[edges] as i32);
-
-        hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
     }
 
     let mut partitioning = vec![-1; num_vertices as usize];
@@ -105,50 +106,38 @@ pub fn communication_partitioning(
 
     let imbalance: f64 = 0.03;
     let mut objective = 0;
-
     let mut hyperedge_weights = vec![];
 
     let mut hyperedge_indices = vec![0];
     let mut hyperedges = vec![];
     // Bidirectional mapping to a new index as KaHyPar indexes from 0.
-    let mut edge_to_virtual_edge = FxHashMap::default();
+    // let mut edge_to_virtual_edge = FxHashMap::default();
     // New index that starts from 0
-    let mut edge_count = 0;
+    // let mut edge_count = 0;
+
+    let mut edge_dict = FxHashMap::default();
+    for (tensor_id, tensor) in tensors {
+        for leg in tensor.legs() {
+            edge_dict
+                .entry(leg)
+                .and_modify(|entry| {
+                    hyperedges.push(*entry as u32);
+                    hyperedges.push(*tensor_id as u32);
+                    hyperedge_indices.push(hyperedge_indices.last().unwrap() + 2);
+                    hyperedge_weights.push(x * bond_dims[leg] as i32);
+                    *entry = *tensor_id;
+                })
+                .or_insert(*tensor_id);
+        }
+    }
 
     let mut intermediate_tensor = Tensor::default();
+
     let tensors = tensors
         .iter()
         .map(|(_, b)| b.clone())
         .collect::<Vec<Tensor>>();
     intermediate_tensor.push_tensors(tensors, Some(bond_dims));
-
-    for (edges, tensor_ids) in intermediate_tensor.edges() {
-        let mut length = 0;
-        // Don't add edges that connect only one vertex
-        match tensor_ids {
-            (id1, Some(id2)) => {
-                if edge_to_virtual_edge.contains_key(id1) {
-                    hyperedges.push(edge_to_virtual_edge[id1] as u32);
-                } else {
-                    edge_to_virtual_edge.insert(id1, edge_count);
-                    hyperedges.push(edge_count as u32);
-                    edge_count += 1;
-                }
-                if edge_to_virtual_edge.contains_key(id2) {
-                    hyperedges.push(edge_to_virtual_edge[id2] as u32);
-                } else {
-                    edge_to_virtual_edge.insert(id2, edge_count);
-                    hyperedges.push(edge_count as u32);
-                    edge_count += 1;
-                }
-                length += 2;
-            }
-            _ => continue,
-        }
-        hyperedge_weights.push(x * bond_dims[edges] as i32);
-
-        hyperedge_indices.push(hyperedge_indices.last().unwrap() + length);
-    }
 
     let mut partitioning = vec![-1; num_vertices as usize];
     partition(

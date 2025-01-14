@@ -1,13 +1,7 @@
-use std::collections::hash_map::Entry;
-
 use log::debug;
-use rustc_hash::FxHashMap;
 use tetra::{contract, Tensor as DataTensor};
 
-use crate::{
-    tensornetwork::Tensor,
-    types::{ContractionIndex, EdgeIndex, TensorIndex},
-};
+use crate::{tensornetwork::Tensor, types::ContractionIndex};
 
 use super::tensordata::TensorData;
 
@@ -49,7 +43,6 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
             }
             ContractionIndex::Path(i, inner_contract_path) => {
                 contract_tensor_network(tn.get_mut_tensor(*i), inner_contract_path);
-                tn.update_tensor_edges(&tn.tensor(*i).clone());
             }
         }
     }
@@ -71,8 +64,6 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
 pub(crate) trait TensorContraction {
     /// Internal method to permute tensor
     fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor;
-    /// Internal method to update edges
-    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, (TensorIndex, Option<TensorIndex>)>;
     /// Getter for underlying raw data
     fn get_data(&self) -> DataTensor;
     /// Internal method to swap tensors
@@ -84,10 +75,6 @@ pub(crate) trait TensorContraction {
 impl TensorContraction for Tensor {
     fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor {
         &mut self.tensors[i]
-    }
-
-    fn get_mut_edges(&mut self) -> &mut FxHashMap<EdgeIndex, (TensorIndex, Option<TensorIndex>)> {
-        &mut self.edges
     }
 
     fn get_data(&self) -> DataTensor {
@@ -103,32 +90,6 @@ impl TensorContraction for Tensor {
         let tensor_b = std::mem::take(&mut self.tensors[tensor_b_loc]);
 
         let mut tensor_symmetric_difference = &tensor_b ^ &tensor_a;
-
-        let edges = self.get_mut_edges();
-        for leg in tensor_b.legs() {
-            let edge = edges.entry(*leg);
-            if let Entry::Occupied(ref o) = edge {
-                let entry = o.get();
-                match entry {
-                    &(i, Some(j)) => {
-                        if i == tensor_a_loc && j == tensor_b_loc
-                            || i == tensor_b_loc && j == tensor_a_loc
-                        {
-                            if let Entry::Occupied(o) = edge {
-                                o.remove_entry();
-                            }
-                        } else if i == tensor_b_loc {
-                            edge.and_modify(|v| v.0 = tensor_a_loc);
-                        } else {
-                            edge.and_modify(|v| v.1 = Some(tensor_a_loc));
-                        }
-                    }
-                    (_, None) => {
-                        edge.and_modify(|v| v.0 = tensor_a_loc);
-                    }
-                }
-            }
-        }
 
         let Tensor {
             legs: a_legs,
@@ -505,31 +466,6 @@ mod tests {
         t12.insert_bond_dims(&bond_dims);
         t23.insert_bond_dims(&bond_dims);
 
-        let edges_before_contraction = FxHashMap::from_iter([
-            (0, (0, Some(2))),
-            (1, (0, None)),
-            (2, (0, Some(1))),
-            (3, (1, Some(2))),
-            (4, (1, None)),
-            (5, (2, None)),
-        ]);
-
-        let edges_after_contraction_1 = FxHashMap::from_iter([
-            (0, (0, Some(2))),
-            (1, (0, None)),
-            (3, (0, Some(2))),
-            (4, (0, None)),
-            (5, (2, None)),
-        ]);
-
-        let edges_after_contraction_2 = FxHashMap::from_iter([
-            (0, (0, Some(1))),
-            (1, (0, None)),
-            (2, (0, Some(1))),
-            (4, (1, None)),
-            (5, (1, None)),
-        ]);
-
         let (d1, d2, d3, _) = setup();
 
         t1.set_tensor_data(TensorData::new_from_data(
@@ -563,16 +499,14 @@ mod tests {
         ));
 
         let mut tn_12 = create_tensor_network(vec![t1.clone(), t2.clone(), t3.clone()], &bond_dims);
-        assert_eq!(tn_12.edges(), &edges_before_contraction);
+
         tn_12.contract_tensors(0, 1);
         assert!(t12.approx_eq(tn_12.tensor(0), 1e-8));
-        assert_eq!(tn_12.edges(), &edges_after_contraction_1);
 
         let mut tn_23 = create_tensor_network(vec![t1, t2, t3], &bond_dims);
-        assert_eq!(tn_23.edges(), &edges_before_contraction);
+
         tn_23.contract_tensors(1, 2);
         assert!(t23.approx_eq(tn_23.tensor(1), 1e-8));
-        assert_eq!(tn_23.edges(), &edges_after_contraction_2);
     }
 
     #[test]
@@ -593,18 +527,6 @@ mod tests {
         t3.insert_bond_dims(&bond_dims);
 
         tout.insert_bond_dims(&bond_dims);
-
-        let edges_before_contraction = FxHashMap::from_iter([
-            (0, (0, Some(2))),
-            (1, (0, None)),
-            (2, (0, Some(1))),
-            (3, (1, Some(2))),
-            (4, (1, None)),
-            (5, (2, None)),
-        ]);
-
-        let edges_after_contraction =
-            FxHashMap::from_iter([(1, (0, None)), (4, (0, None)), (5, (0, None))]);
 
         let (d1, d2, d3, dout) = setup();
 
@@ -632,10 +554,9 @@ mod tests {
 
         let mut tn = create_tensor_network(vec![t1, t2, t3], &bond_dims);
         let contract_path = path![(0, 1), (0, 2)];
-        assert_eq!(tn.edges(), &edges_before_contraction);
+
         contract_tensor_network(&mut tn, contract_path);
         assert!(tout.approx_eq(&tn, 1e-8));
-        assert_eq!(tn.edges(), &edges_after_contraction);
     }
 
     #[test]
