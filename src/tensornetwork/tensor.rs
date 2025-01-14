@@ -352,9 +352,7 @@ impl Tensor {
     }
 
     /// Comparison of two Tensors, returns true if Tensor objects are equivalent up to `epsilon` precision.
-    /// Considers `legs`, `bond_dims`, `external_hyperedges` and `tensordata`.
-    /// `edges` are not compared as different contraction ordering will result in
-    /// different edges even though the tensors are otherwise identical.
+    /// Considers `legs`, `bond_dims` and `tensordata`.
     pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
         if self.tensors.len() != other.tensors.len() {
             return false;
