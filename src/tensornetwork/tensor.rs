@@ -360,7 +360,9 @@ impl Tensor {
         if self.legs != other.legs {
             return false;
         }
-        if *self.bond_dims() != *other.bond_dims() {
+        if !Arc::ptr_eq(&self.bond_dims, &other.bond_dims)
+            && *self.bond_dims() != *other.bond_dims()
+        {
             return false;
         }
 
