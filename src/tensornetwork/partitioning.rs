@@ -58,9 +58,7 @@ pub fn find_partitioning(
                 .or_insert(tensor_id);
         }
     }
-    println!("hyperedges: {:?}", hyperedges);
-    println!("hyperedge_indices: {:?}", hyperedge_indices);
-    println!("hyperedge_weights: {:?}", hyperedge_weights);
+
     let mut partitioning = vec![-1; num_vertices as usize];
     partition(
         num_vertices,
