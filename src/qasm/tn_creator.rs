@@ -111,7 +111,7 @@ impl TensorNetworkCreator {
                         .args
                         .iter()
                         .map(|arg| arg.try_into().unwrap())
-                        .collect::<Vec<_>>();
+                        .collect_vec();
 
                     for single_call in Self::broadcast(&call.qargs, &register_sizes) {
                         let mut open_edges = Vec::with_capacity(single_call.len());

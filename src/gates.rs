@@ -76,7 +76,7 @@ fn matrix_transpose_inplace(data: &mut DataTensor) {
     if data.ndim() > 0 {
         assert!(data.ndim().is_power_of_two());
         let half = data.ndim() / 2;
-        let perm = (half..data.ndim()).chain(0..half).collect::<Vec<_>>();
+        let perm = (half..data.ndim()).chain(0..half).collect_vec();
         data.transpose(&Permutation::oneline(perm));
     }
 }

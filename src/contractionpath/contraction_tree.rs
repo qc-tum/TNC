@@ -507,6 +507,7 @@ mod tests {
     use std::iter::zip;
     use std::rc::Weak;
 
+    use itertools::Itertools;
     use node::{child_node, parent_node};
 
     use crate::contractionpath::contraction_cost::contract_cost_tensors;
@@ -883,7 +884,7 @@ mod tests {
         let ref_nodes = [
             node0, node1, node2, node3, node4, node5, node6, node7, node9, node10,
         ];
-        let mut range = (0..8).collect::<Vec<usize>>();
+        let mut range = (0..8).collect_vec();
         range.extend(9..11);
         for (key, ref_node) in zip(range.iter(), ref_nodes.iter()) {
             let node = &nodes[key];

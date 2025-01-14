@@ -263,7 +263,7 @@ where
     let partition_ids = partition_data
         .iter()
         .map(|partition| partition.id)
-        .collect::<Vec<usize>>();
+        .collect_vec();
     let communication_path = match communication_scheme {
         CommunicationScheme::Greedy => {
             communication_schemes::greedy(&children_tensors, &bond_dims, &latency_map)
@@ -521,7 +521,7 @@ where
         let node_options = node_comparison
             .sorted_unstable_by(|a, b| b.1.total_cmp(&a.1))
             .take(*options_considered)
-            .collect::<Vec<(usize, f64)>>();
+            .collect_vec();
         let max = node_options.first().unwrap().1;
         // Initial division done here as sum of weights can cause overflow before normalization.
         *node_options

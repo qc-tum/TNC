@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use rand::{distributions::WeightedIndex, prelude::*};
 use rustc_hash::FxHashMap;
 use std::collections::BinaryHeap;
@@ -64,7 +65,7 @@ impl RNGChooser for ThermalChooser {
             return choices.pop();
         }
 
-        let costs = choices.iter().map(|e| e.size_cost).collect::<Vec<f64>>();
+        let costs = choices.iter().map(|e| e.size_cost).collect_vec();
         let min_cost = costs[0];
 
         // adjust by the overall scale to account for fluctuating absolute costs

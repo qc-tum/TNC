@@ -73,10 +73,7 @@ pub fn find_partitioning(
         &mut context,
         &mut partitioning,
     );
-    partitioning
-        .iter()
-        .map(|e| *e as usize)
-        .collect::<Vec<usize>>()
+    partitioning.iter().map(|e| *e as usize).collect()
 }
 
 /// Repeatedly partitions a tensor network to identify a communication scheme.
@@ -133,10 +130,7 @@ pub fn communication_partitioning(
 
     let mut intermediate_tensor = Tensor::default();
 
-    let tensors = tensors
-        .iter()
-        .map(|(_, b)| b.clone())
-        .collect::<Vec<Tensor>>();
+    let tensors = tensors.iter().map(|(_, b)| b.clone()).collect_vec();
     intermediate_tensor.push_tensors(tensors, Some(bond_dims));
 
     let mut partitioning = vec![-1; num_vertices as usize];
@@ -155,18 +149,11 @@ pub fn communication_partitioning(
     );
 
     // partitioning
-    partitioning
-        .iter()
-        .map(|e| *e as usize)
-        .collect::<Vec<usize>>()
+    partitioning.iter().map(|e| *e as usize).collect()
 }
 
 pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
-    let partition_ids = partitioning
-        .iter()
-        .unique()
-        .copied()
-        .collect::<Vec<usize>>();
+    let partition_ids = partitioning.iter().unique().copied().collect_vec();
     let partition_dict =
         zip(partition_ids.iter().copied(), 0..partition_ids.len()).collect::<FxHashMap<_, _>>();
     let mut partitions = vec![Tensor::default(); partition_ids.len()];

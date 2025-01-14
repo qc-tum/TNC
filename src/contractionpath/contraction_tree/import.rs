@@ -168,13 +168,13 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
     let partition_tensor_ids = partition_root_nodes
         .iter()
         .map(|node| node.borrow().id())
-        .collect::<Vec<_>>();
+        .collect_vec();
 
     // Sort communication by time to ensure no violation of data dependencies
     let communication_path = communication_path
         .iter_mut()
         .sorted_unstable_by_key(|(_, _, timestamp)| *timestamp)
-        .collect::<Vec<_>>();
+        .collect_vec();
 
     let mut communication_data = FxHashMap::default();
     for (rank1, rank2, timestamp) in communication_path {
@@ -339,7 +339,7 @@ fn log_to_subtree(
                             .parse::<usize>()
                             .expect("Unable to parse contracted tensor")
                     })
-                    .collect::<Vec<_>>();
+                    .collect_vec();
 
                 for &tensor_id in &ij {
                     if !replace_to_ssa.contains_key(&tensor_id) {

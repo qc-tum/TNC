@@ -1,4 +1,5 @@
 use super::connectivity::{Connectivity, ConnectivityLayout};
+use itertools::Itertools;
 use rand::distributions::Uniform;
 use rand::prelude::Distribution;
 use rand::{thread_rng, Rng};
@@ -55,7 +56,7 @@ where
         .connectivity
         .iter()
         .filter(|&&(u, v)| u < size && v < size)
-        .collect::<Vec<_>>();
+        .collect_vec();
 
     let mut next_edge = size;
     let uniform_prob = Uniform::new(0.0, 1.0);

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use log::{debug, warn};
 use mpi::topology::{Process, SimpleCommunicator};
 use mpi::traits::{BufferMut, Communicator, Destination, Root, Source};
@@ -119,7 +120,7 @@ pub fn scatter_tensor_network(
         r_tn.bond_dims()
             .iter()
             .map(|(&bond_id, &bond_size)| BondDim { bond_id, bond_size })
-            .collect::<Vec<_>>()
+            .collect_vec()
     } else {
         Vec::new()
     };

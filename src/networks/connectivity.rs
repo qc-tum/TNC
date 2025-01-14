@@ -50,9 +50,7 @@ impl Connectivity {
 fn all_layer_connect(n: usize) -> Vec<(usize, usize)> {
     let mut v = (0..n).collect_vec();
     v.shuffle(&mut thread_rng());
-    v.chunks(2)
-        .map(|x| (x[0], x[1]))
-        .collect::<Vec<(usize, usize)>>()
+    v.chunks(2).map(|x| (x[0], x[1])).collect_vec()
 }
 
 fn all_connect(n: usize) -> Vec<(usize, usize)> {

@@ -66,7 +66,7 @@ pub(super) fn subtree_contraction_path(
                 .nested_tensor(contraction_tree.node(e).tensor_index().as_ref().unwrap())
                 .clone()
         })
-        .collect::<Vec<_>>();
+        .collect_vec();
 
     // Obtain tensor network corresponding to subtree
     let subtree_tensor_network = create_tensor_network(tensors, &tensor_network.bond_dims());
