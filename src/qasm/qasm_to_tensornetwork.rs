@@ -54,24 +54,32 @@ mod tests {
             tensor::Tensor,
             tensordata::TensorData,
         },
-        types::ContractionIndex,
+        types::{ContractionIndex, EdgeIndex, TensorIndex},
     };
 
     use super::create_tensornetwork;
 
     /// Returns whether the edge connects the two tensors.
-    fn edge_connects(edge_id: usize, t1_id: usize, t2_id: usize, tn: &Tensor) -> bool {
+    fn edge_connects(
+        edge_id: EdgeIndex,
+        t1_id: TensorIndex,
+        t2_id: TensorIndex,
+        tn: &Tensor,
+    ) -> bool {
         let overlap = tn.tensor(t1_id) & tn.tensor(t2_id);
         overlap.legs().contains(&edge_id)
     }
 
     /// Returns whether the edge is an open edge of the tensor.
-    fn is_open_edge_of(edge_id: usize, t1_id: usize, tn: &Tensor) -> bool {
+    fn is_open_edge_of(edge_id: EdgeIndex, t1_id: TensorIndex, tn: &Tensor) -> bool {
+        // Check if the edge is a leg of the tensor
         if !tn.tensor(t1_id).legs().contains(&edge_id) {
             return false;
         }
+
+        // Check if the edge is not connected to any other tensor
         for (tensor_id, tensor) in tn.tensors().iter().enumerate() {
-            if tensor.legs().contains(&edge_id) && tensor_id != t1_id {
+            if tensor_id != t1_id && tensor.legs().contains(&edge_id) {
                 return false;
             }
         }

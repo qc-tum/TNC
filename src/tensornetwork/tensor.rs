@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rustc_hash::FxHashMap;
 
-use crate::types::EdgeIndex;
+use crate::types::{EdgeIndex, TensorIndex};
 use crate::utils::datastructures::UnionFind;
 
 use super::tensordata::TensorData;
@@ -188,7 +188,7 @@ impl Tensor {
     /// assert_eq!(tn.tensor(0).legs(), ref_tensor.legs());
     /// ```
     #[inline]
-    pub fn tensor(&self, i: usize) -> &Self {
+    pub fn tensor(&self, i: TensorIndex) -> &Self {
         &self.tensors[i]
     }
 
@@ -380,7 +380,7 @@ impl Tensor {
     /// # Arguments
     /// * `tensor` - new `Tensor` to be added
     /// * `bond_dims` - `FxHashMap<usize, u64>` mapping edge id to bond dimension
-    pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&FxHashMap<usize, u64>>) {
+    pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&FxHashMap<EdgeIndex, u64>>) {
         // In the case of pushing to an empty tensor, avoid unnecessary hierarchies
         if self.is_empty() {
             let Self {
@@ -423,7 +423,6 @@ impl Tensor {
     /// # Arguments
     /// * `tensors` - `Vec<Tensor>` to be added
     /// * `bond_dims` - `FxHashMap<usize, u64>` mapping edge id to bond dimension
-    /// * `external_hyperedge` - Optional `FxHashMap<EdgeIndex, usize>` of external hyperedges, mapping the edge index to count of external hyperedges.
     pub fn push_tensors(
         &mut self,
         tensors: Vec<Self>,
