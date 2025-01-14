@@ -109,7 +109,7 @@ impl<'a> Greedy<'a> {
         &self,
         inputs: &[Tensor],
         output_dims: &Tensor,
-        choice_fn: impl RNGChooser,
+        choice_fn: &impl RNGChooser,
         cost_fn: Box<CostFnType>,
         rng: &mut R,
     ) -> Vec<ContractionIndex>
@@ -478,7 +478,7 @@ impl OptimizePath for Greedy<'_> {
                 let path = self.ssa_greedy_optimize(
                     input_tensor.tensors(),
                     &Tensor::new(external_legs.clone()),
-                    SimpleChooser,
+                    &SimpleChooser,
                     Box::new(&Greedy::cost_memory_removed),
                     &mut rng,
                 );
@@ -495,7 +495,7 @@ impl OptimizePath for Greedy<'_> {
         self.best_path.append(&mut self.ssa_greedy_optimize(
             &inputs,
             &output_dims,
-            SimpleChooser,
+            &SimpleChooser,
             Box::new(&Greedy::cost_memory_removed),
             &mut rng,
         ));

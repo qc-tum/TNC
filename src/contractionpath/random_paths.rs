@@ -111,7 +111,7 @@ impl RandomOptimizePath for Greedy<'_> {
                     let ssa_path = self.ssa_greedy_optimize(
                         input_tensor.tensors(),
                         &Tensor::new(external_legs.clone()),
-                        ThermalChooser,
+                        &ThermalChooser,
                         Box::new(&Greedy::cost_memory_removed),
                         rng,
                     );
@@ -153,7 +153,7 @@ impl RandomOptimizePath for Greedy<'_> {
             let ssa_path = self.ssa_greedy_optimize(
                 &inputs,
                 &output_dims,
-                ThermalChooser,
+                &ThermalChooser,
                 Box::new(&Greedy::cost_memory_removed),
                 rng,
             );
