@@ -41,7 +41,7 @@ where
     pub objective_function: fn(&Tensor, &Tensor) -> f64,
     pub communication_scheme: CommunicationScheme,
     pub balancing_scheme: BalancingScheme,
-    pub max_memory: Option<f64>,
+    pub memory_limit: Option<f64>,
 }
 
 impl BalanceSettings<StdRng> {
@@ -51,7 +51,7 @@ impl BalanceSettings<StdRng> {
         objective_function: fn(&Tensor, &Tensor) -> f64,
         communication_scheme: CommunicationScheme,
         balancing_scheme: BalancingScheme,
-        max_memory: Option<f64>,
+        memory_limit: Option<f64>,
     ) -> Self {
         BalanceSettings::<StdRng> {
             random_balance: None,
@@ -60,7 +60,7 @@ impl BalanceSettings<StdRng> {
             objective_function,
             communication_scheme,
             balancing_scheme,
-            max_memory,
+            memory_limit,
         }
     }
 }
@@ -76,7 +76,7 @@ where
         objective_function: fn(&Tensor, &Tensor) -> f64,
         communication_scheme: CommunicationScheme,
         balancing_scheme: BalancingScheme,
-        max_memory: Option<f64>,
+        memory_limit: Option<f64>,
     ) -> Self {
         BalanceSettings::<R> {
             random_balance,
@@ -85,7 +85,7 @@ where
             objective_function,
             communication_scheme,
             balancing_scheme,
-            max_memory,
+            memory_limit,
         }
     }
 }
@@ -116,10 +116,9 @@ where
         iterations,
         balancing_scheme,
         communication_scheme,
-        max_memory,
+        memory_limit,
         ..
     } = balance_settings;
-    let max_memory = max_memory.unwrap_or(f64::INFINITY);
     let mut partition_data =
         characterize_partition(&contraction_tree, rebalance_depth, tensor_network);
 
@@ -199,7 +198,7 @@ where
         intermediate_path.extend(communication_path);
 
         max_costs.push(flop_cost);
-        if mem_cost > max_memory {
+        if memory_limit.is_some_and(|limit| mem_cost > limit) {
             break;
         }
         if flop_cost < best_cost {

@@ -39,11 +39,7 @@ impl PartitioningFitness<'_> {
         ) * 16.0;
 
         // If the memory limit is exceeded, return infinity
-        let score = if self
-            .memory_limit
-            .map(|limit| mem > limit)
-            .unwrap_or_default()
-        {
+        let score = if self.memory_limit.is_some_and(|limit| mem > limit) {
             f64::INFINITY
         } else {
             cost
