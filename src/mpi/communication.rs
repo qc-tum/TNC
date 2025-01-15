@@ -457,8 +457,8 @@ mod tests {
 
     #[test]
     fn test_serialize_empty_vec_is_nonempty_holds() {
-        // The code relies on the fact that an empty Vec is serialized a to non-empty
-        // sequence of bytes, in order to discriminate between an provided empty Vec
+        // The code relies on the fact that an empty Vec is serialized to a non-empty
+        // sequence of bytes, in order to discriminate between a provided empty Vec
         // and a Default::default(). This test checks that we can rely on this.
         let empty = Vec::<ContractionIndex>::new();
         let serialized = serialize(&empty);
@@ -468,6 +468,8 @@ mod tests {
 
     #[test]
     fn test_serialize_tuple_of_references() {
+        // Check that a tuple of references can be serialized and deserialized
+        // as expected.
         let slicing_plan_ref = Some(SlicingPlan {
             slices: vec![1, 2, 3],
         });
