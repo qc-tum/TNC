@@ -14,6 +14,7 @@ use tensorcontraction::{
         scatter_tensor_network,
     },
     networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
+    path,
     tensornetwork::{
         contraction::contract_tensor_network,
         create_tensor_network,
@@ -171,16 +172,9 @@ fn test_sliced_small_contraction_mpi() {
         ));
         let mut tensor = Tensor::default();
         tensor.push_tensors(vec![tc, t3], Some(&bond_dims));
-        let path = vec![
-            ContractionIndex::Path(
-                0,
-                Some(SlicingPlan { slices: vec![1] }),
-                vec![ContractionIndex::Pair(0, 1)],
-            ),
-            ContractionIndex::Path(1, None, vec![]),
-            ContractionIndex::Pair(0, 1),
-        ];
-        (tensor, path)
+        let sliced_path = path![(0, [1], [(0, 1)]), (1, []), (0, 1)].to_vec();
+
+        (tensor, sliced_path)
     } else {
         Default::default()
     };
