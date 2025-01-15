@@ -298,7 +298,7 @@ pub fn compute_memory_requirements(
                 max_size = max_size.max(size);
                 inputs[i] = contracted;
             }
-            ContractionIndex::Path(i, ref slicing, ref path) => {
+            ContractionIndex::Path(i, ref _slicing, ref path) => {
                 // TODO: consider slicing
                 let max_child_size =
                     compute_memory_requirements(inputs[i].tensors(), path, memory_estimator);
