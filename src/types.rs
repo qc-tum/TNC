@@ -92,6 +92,9 @@ macro_rules! path {
     ($(($index:expr, $($tokens:tt),*)),*) => {
         &[$(path![$index, $($tokens),*]),*]
     };
+    ($index:expr, $slicing:expr, [$($tokens:tt),+]) => {
+        $crate::types::ContractionIndex::Path($index, plan![$slicing], path![$($tokens),+].to_vec())
+    };
     ($index:expr, [$($tokens:tt),+]) => {
         $crate::types::ContractionIndex::Path($index, None, path![$($tokens),+].to_vec())
     };
@@ -107,6 +110,15 @@ macro_rules! pair {
     };
 }
 
+#[macro_export]
+macro_rules! plan {
+    ($x:expr) => {
+        Some($crate::types::SlicingPlan {
+            slices: $x.to_vec(),
+        })
+    };
+}
+
 pub(crate) fn calculate_hash<T: Hash>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();
     t.hash(&mut s);
@@ -115,7 +127,7 @@ pub(crate) fn calculate_hash<T: Hash>(t: &T) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::ContractionIndex;
+    use crate::types::{ContractionIndex, SlicingPlan};
 
     #[test]
     fn test_path_macro() {
@@ -124,6 +136,7 @@ mod tests {
                 (0, 1),
                 (2, [(1, 2), (1, 3)]),
                 (4, [(2, [(1, 2), (1, 3)]), (1, 3)]),
+                (5, [2, 3], [(1, 2), (1, 3)]),
                 (0, 2),
                 (3, [(4, 1), (3, 4), (3, 5)]),
                 (0, 3)
@@ -146,6 +159,11 @@ mod tests {
                         ),
                         ContractionIndex::Pair(1, 3)
                     ]
+                ),
+                ContractionIndex::Path(
+                    5,
+                    Some(SlicingPlan { slices: vec![2, 3] }),
+                    vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
                 ),
                 ContractionIndex::Pair(0, 2),
                 ContractionIndex::Path(
