@@ -91,11 +91,16 @@ pub enum ContractionIndex {
 
 #[macro_export]
 macro_rules! path {
-    ($(($index:expr, $($tokens:tt),*)),*) => {
-        &[$(path![$index, $($tokens),*]),*]
+    ($(($index:expr $(,$tokens:tt)*)),*) => {
+        &[$(path![$index $(,$tokens)*]),*]
+    };
+    ($index:tt, []) => {
+        $crate::types::ContractionIndex::Path($index, None, vec![])
     };
     ($index:expr, $slicing:expr, [$($tokens:tt),+]) => {
-        $crate::types::ContractionIndex::Path($index, $crate::plan![$slicing], path![$($tokens),+].to_vec())
+        $crate::types::ContractionIndex::Path($index, Some($crate::types::SlicingPlan {
+            slices: $slicing.to_vec(),
+        }), path![$($tokens),+].to_vec())
     };
     ($index:expr, [$($tokens:tt),+]) => {
         $crate::types::ContractionIndex::Path($index, None, path![$($tokens),+].to_vec())
@@ -103,21 +108,15 @@ macro_rules! path {
     ($e:expr, $p:expr) => {
         $crate::types::ContractionIndex::Pair($e, $p)
     };
+    ($index:tt) => {
+        $crate::types::ContractionIndex::Path($index, None, vec![])
+    };
 }
 
 #[macro_export]
 macro_rules! pair {
     ($e:expr, $p:expr) => {
         $crate::types::ContractionIndex::Pair($e, $p)
-    };
-}
-
-#[macro_export]
-macro_rules! plan {
-    ($x:expr) => {
-        Some($crate::types::SlicingPlan {
-            slices: $x.to_vec(),
-        })
     };
 }
 
@@ -132,6 +131,22 @@ mod tests {
     use crate::types::{ContractionIndex, SlicingPlan};
 
     #[test]
+    fn test_path_simple_macro() {
+        assert_eq!(
+            path![(0, 1), (2, [(1, 2), (1, 3)]), (2, [])],
+            &[
+                ContractionIndex::Pair(0, 1),
+                ContractionIndex::Path(
+                    2,
+                    None,
+                    vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
+                ),
+                ContractionIndex::Path(2, None, vec![]),
+            ]
+        );
+    }
+
+    #[test]
     fn test_path_macro() {
         assert_eq!(
             path![
@@ -140,6 +155,7 @@ mod tests {
                 (4, [(2, [(1, 2), (1, 3)]), (1, 3)]),
                 (5, [2, 3], [(1, 2), (1, 3)]),
                 (0, 2),
+                (6, []),
                 (3, [(4, 1), (3, 4), (3, 5)]),
                 (0, 3)
             ],
@@ -168,6 +184,7 @@ mod tests {
                     vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
                 ),
                 ContractionIndex::Pair(0, 2),
+                ContractionIndex::Path(6, None, vec![]),
                 ContractionIndex::Path(
                     3,
                     None,
