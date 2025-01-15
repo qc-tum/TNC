@@ -66,6 +66,8 @@ impl SlicingPlan {
     /// let plan = SlicingPlan { slices: vec![0, 1] };
     /// let task = plan.get_task(&tc, 0);
     /// assert_eq!(task.slices, vec![(0, 0), (1, 0)]);
+    /// let task = plan.get_task(&tc, 2);
+    /// assert_eq!(task.slices, vec![(0, 0), (1, 2)]);
     /// ```
     pub fn get_task(&self, target: &Tensor, task_index: usize) -> SlicingTask {
         self.slices
