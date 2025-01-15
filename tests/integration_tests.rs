@@ -24,7 +24,6 @@ use tensorcontraction::{
         tensor::Tensor,
         tensordata::TensorData,
     },
-    types::{ContractionIndex, SlicingPlan},
 };
 use tetra::Layout;
 
