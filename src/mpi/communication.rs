@@ -408,6 +408,8 @@ pub fn intermediate_reduce_tensor_network(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, RwLock};
+
     use mpi::traits::Communicator;
     use mpi_test::mpi_test;
 
@@ -481,5 +483,156 @@ mod tests {
 
         assert_eq!(slicing_plan, slicing_plan_ref);
         assert_eq!(local_path, local_path_ref);
+    }
+
+    #[mpi_test(3)]
+    fn test_scatter_slice() {
+        let universe = mpi::initialize().unwrap();
+        let world = universe.world();
+        let rank = world.rank();
+        let root_process = world.process_at_rank(0);
+
+        let slice = if rank == 0 {
+            vec![0, 1, 2]
+        } else {
+            Default::default()
+        };
+
+        let received_number = scatter_slice(&slice, &root_process);
+
+        assert_eq!(received_number, rank);
+    }
+
+    fn setup_tn() -> Tensor {
+        let bond_dims = FxHashMap::from_iter([
+            (0, 2),
+            (1, 3),
+            (2, 2),
+            (3, 6),
+            (4, 3),
+            (5, 4),
+            (6, 2),
+            (7, 5),
+            (8, 2),
+            (9, 2),
+        ]);
+        let bond_dims = Arc::new(RwLock::new(bond_dims));
+        let t1 = Tensor::new_with_bonddims(vec![0, 1, 2], bond_dims.clone());
+        let t2 = Tensor::new_with_bonddims(vec![2, 3], bond_dims.clone());
+        let t3 = Tensor::new_with_bonddims(vec![1, 3, 4], bond_dims.clone());
+        let mut tn1 = Tensor::new_with_bonddims(vec![], bond_dims.clone());
+        tn1.push_tensors(vec![t1, t2, t3], None);
+        let t4 = Tensor::new_with_bonddims(vec![5, 6], bond_dims.clone());
+        let t5 = Tensor::new_with_bonddims(vec![4, 6, 7], bond_dims.clone());
+        let t6 = Tensor::new_with_bonddims(vec![7], bond_dims.clone());
+        let mut tn2 = Tensor::new_with_bonddims(vec![], bond_dims.clone());
+        tn2.push_tensors(vec![t4, t5, t6], None);
+        let t7 = Tensor::new_with_bonddims(vec![8, 9], bond_dims.clone());
+        let t8 = Tensor::new_with_bonddims(vec![0, 9], bond_dims.clone());
+        let mut tn3 = Tensor::new_with_bonddims(vec![], bond_dims.clone());
+        tn3.push_tensors(vec![t7, t8], None);
+
+        let mut tn = Tensor::new_with_bonddims(vec![], bond_dims);
+        tn.push_tensors(vec![tn1, tn2, tn3], None);
+        tn
+    }
+
+    #[test]
+    fn test_tensor_mapping_no_slicing() {
+        let tn = setup_tn();
+
+        let path = [
+            ContractionIndex::Path(
+                0,
+                None,
+                vec![ContractionIndex::Pair(0, 2), ContractionIndex::Pair(0, 1)],
+            ),
+            ContractionIndex::Path(2, None, vec![ContractionIndex::Pair(0, 1)]),
+            ContractionIndex::Path(
+                1,
+                None,
+                vec![ContractionIndex::Pair(0, 1), ContractionIndex::Pair(0, 1)],
+            ),
+        ];
+
+        let (tensor_mapping, slice_groups, used_ranks) =
+            get_tensor_mapping_and_slice_groups(&tn, &path, 4);
+
+        assert_eq!(used_ranks, 3);
+        assert_eq!(tensor_mapping.rank(0), 0);
+        assert_eq!(tensor_mapping.rank(1), 2);
+        assert_eq!(tensor_mapping.rank(2), 1);
+        assert_eq!(tensor_mapping.tensor(0), Some(0));
+        assert_eq!(tensor_mapping.tensor(1), Some(2));
+        assert_eq!(tensor_mapping.tensor(2), Some(1));
+        assert_eq!(tensor_mapping.tensor(3), None);
+        assert_eq!(slice_groups, [-1; 4]);
+    }
+
+    #[test]
+    fn test_tensor_mapping_one_slicing_group() {
+        let tn = setup_tn();
+
+        let path = [
+            ContractionIndex::Path(
+                0,
+                None,
+                vec![ContractionIndex::Pair(0, 2), ContractionIndex::Pair(0, 1)],
+            ),
+            ContractionIndex::Path(2, None, vec![ContractionIndex::Pair(0, 1)]),
+            ContractionIndex::Path(
+                1,
+                Some(SlicingPlan { slices: vec![6] }),
+                vec![ContractionIndex::Pair(0, 1), ContractionIndex::Pair(0, 1)],
+            ),
+        ];
+
+        let (tensor_mapping, slice_groups, used_ranks) =
+            get_tensor_mapping_and_slice_groups(&tn, &path, 5);
+
+        assert_eq!(used_ranks, 4);
+        assert_eq!(slice_groups, [-1, -1, 0, 0, -1]);
+        assert_eq!(tensor_mapping.rank(0), 0);
+        assert_eq!(tensor_mapping.rank(1), 2);
+        assert_eq!(tensor_mapping.rank(2), 1);
+        assert_eq!(tensor_mapping.tensor(0), Some(0));
+        assert_eq!(tensor_mapping.tensor(1), Some(2));
+        assert_eq!(tensor_mapping.tensor(2), Some(1));
+        assert_eq!(tensor_mapping.tensor(3), None);
+        assert_eq!(tensor_mapping.tensor(4), None);
+    }
+
+    #[test]
+    fn test_tensor_mapping_two_slicing_groups() {
+        let tn = setup_tn();
+
+        let path = [
+            ContractionIndex::Path(
+                0,
+                Some(SlicingPlan { slices: vec![1] }),
+                vec![ContractionIndex::Pair(0, 2), ContractionIndex::Pair(0, 1)],
+            ),
+            ContractionIndex::Path(2, None, vec![ContractionIndex::Pair(0, 1)]),
+            ContractionIndex::Path(
+                1,
+                Some(SlicingPlan { slices: vec![6] }),
+                vec![ContractionIndex::Pair(0, 1), ContractionIndex::Pair(0, 1)],
+            ),
+        ];
+
+        let (tensor_mapping, slice_groups, used_ranks) =
+            get_tensor_mapping_and_slice_groups(&tn, &path, 6);
+
+        assert_eq!(used_ranks, 6);
+        assert_eq!(slice_groups, [0, 0, 0, -1, 1, 1]);
+        assert_eq!(tensor_mapping.rank(0), 0);
+        assert_eq!(tensor_mapping.rank(1), 4);
+        assert_eq!(tensor_mapping.rank(2), 3);
+        assert_eq!(tensor_mapping.tensor(0), Some(0));
+        assert_eq!(tensor_mapping.tensor(1), None);
+        assert_eq!(tensor_mapping.tensor(2), None);
+        assert_eq!(tensor_mapping.tensor(3), Some(2));
+        assert_eq!(tensor_mapping.tensor(4), Some(1));
+        assert_eq!(tensor_mapping.tensor(5), None);
     }
 }
