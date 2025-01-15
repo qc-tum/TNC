@@ -418,7 +418,6 @@ impl Tensor {
     }
 
     /// Pushes additional tensor into Tensor object. If self is a leaf tensor, clone it and push it into itself.
-    /// Assumes that added tensors do not have external hyperedges, which is fed as an optional argument instead
     ///
     /// # Arguments
     /// * `tensors` - `Vec<Tensor>` to be added
