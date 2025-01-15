@@ -541,22 +541,10 @@ mod tests {
     fn test_tensor_mapping_no_slicing() {
         let tn = setup_tn();
 
-        let path = [
-            ContractionIndex::Path(
-                0,
-                None,
-                vec![ContractionIndex::Pair(0, 2), ContractionIndex::Pair(0, 1)],
-            ),
-            ContractionIndex::Path(2, None, vec![ContractionIndex::Pair(0, 1)]),
-            ContractionIndex::Path(
-                1,
-                None,
-                vec![ContractionIndex::Pair(0, 1), ContractionIndex::Pair(0, 1)],
-            ),
-        ];
+        let path = path![(0, [(0, 2), (0, 1)]), (2, [(0, 1)]), (1, [(0, 1), (0, 1)])];
 
         let (tensor_mapping, slice_groups, used_ranks) =
-            get_tensor_mapping_and_slice_groups(&tn, &path, 4);
+            get_tensor_mapping_and_slice_groups(&tn, path, 4);
 
         assert_eq!(used_ranks, 3);
         assert_eq!(tensor_mapping.rank(0), 0);
@@ -573,22 +561,14 @@ mod tests {
     fn test_tensor_mapping_one_slicing_group() {
         let tn = setup_tn();
 
-        let path = [
-            ContractionIndex::Path(
-                0,
-                None,
-                vec![ContractionIndex::Pair(0, 2), ContractionIndex::Pair(0, 1)],
-            ),
-            ContractionIndex::Path(2, None, vec![ContractionIndex::Pair(0, 1)]),
-            ContractionIndex::Path(
-                1,
-                Some(SlicingPlan { slices: vec![6] }),
-                vec![ContractionIndex::Pair(0, 1), ContractionIndex::Pair(0, 1)],
-            ),
+        let path = path![
+            (0, [(0, 2), (0, 1)]),
+            (2, [(0, 1)]),
+            (1, [6], [(0, 1), (0, 1)])
         ];
 
         let (tensor_mapping, slice_groups, used_ranks) =
-            get_tensor_mapping_and_slice_groups(&tn, &path, 5);
+            get_tensor_mapping_and_slice_groups(&tn, path, 5);
 
         assert_eq!(used_ranks, 4);
         assert_eq!(slice_groups, [-1, -1, 0, 0, -1]);
@@ -606,22 +586,14 @@ mod tests {
     fn test_tensor_mapping_two_slicing_groups() {
         let tn = setup_tn();
 
-        let path = [
-            ContractionIndex::Path(
-                0,
-                Some(SlicingPlan { slices: vec![1] }),
-                vec![ContractionIndex::Pair(0, 2), ContractionIndex::Pair(0, 1)],
-            ),
-            ContractionIndex::Path(2, None, vec![ContractionIndex::Pair(0, 1)]),
-            ContractionIndex::Path(
-                1,
-                Some(SlicingPlan { slices: vec![6] }),
-                vec![ContractionIndex::Pair(0, 1), ContractionIndex::Pair(0, 1)],
-            ),
+        let path = path![
+            (0, [1], [(0, 2), (0, 1)]),
+            (2, [(0, 1)]),
+            (1, [6], [(0, 1), (0, 1)])
         ];
 
         let (tensor_mapping, slice_groups, used_ranks) =
-            get_tensor_mapping_and_slice_groups(&tn, &path, 6);
+            get_tensor_mapping_and_slice_groups(&tn, path, 6);
 
         assert_eq!(used_ranks, 6);
         assert_eq!(slice_groups, [0, 0, 0, -1, 1, 1]);
