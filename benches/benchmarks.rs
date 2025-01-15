@@ -8,7 +8,7 @@ use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
 use tensorcontraction::mpi::communication::{
     broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
-    naive_reduce_tensor_network, scatter_tensor_network,
+    scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::sycamore::random_circuit;
@@ -74,49 +74,6 @@ pub fn partitioned_contraction_benchmark(c: &mut Criterion) {
     part_group.finish();
 }
 
-/// Benchmark for the naive contraction of a partitioned tensor network on multiple
-/// nodes (using MPI).
-pub fn parallel_naive_benchmark(c: &mut Criterion) {
-    let mut rng: StdRng = StdRng::seed_from_u64(51);
-
-    let mut par_part_group = c.benchmark_group("MPI Naive");
-
-    let universe = MPI_UNIVERSE.read();
-    let world = universe.world();
-    let size = world.size();
-    let rank = world.rank();
-
-    // TODO: Do we need to know communication beforehand?
-    for k in [25, 30] {
-        let (partitioned_tn, path) = if rank == 0 {
-            let r_tn = random_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
-            let partitioning =
-                find_partitioning(&r_tn, size, PartitioningStrategy::CommunityFinding, true);
-            let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
-
-            let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
-            opt.optimize_path();
-            let path = opt.get_best_replace_path();
-            (partitioned_tn, path)
-        } else {
-            Default::default()
-        };
-        world.barrier();
-
-        par_part_group.bench_function(BenchmarkId::from_parameter(k), |b| {
-            b.iter(|| {
-                let (mut local_tn, local_path) =
-                    scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
-                contract_tensor_network(&mut local_tn, &local_path);
-
-                naive_reduce_tensor_network(&mut local_tn, &path, rank, size, &world);
-                local_tn
-            });
-        });
-    }
-    par_part_group.finish();
-}
-
 /// Benchmark for the parallel contraction of a partitioned tensor network on
 /// multiple nodes (using MPI). This benchmark uses
 /// [`intermediate_reduce_tensor_network`].
@@ -150,8 +107,9 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
 
         par_part_group.bench_function(BenchmarkId::from_parameter(k), |b| {
             b.iter(|| {
-                let (mut local_tn, local_path) =
+                let (mut local_tn, local_path, slicing_task, comm) =
                     scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
+                assert!(slicing_task.is_none());
                 contract_tensor_network(&mut local_tn, &local_path);
 
                 let mut communication_path = if rank == 0 {
@@ -166,6 +124,7 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
                     &communication_path,
                     rank,
                     &world,
+                    &comm,
                 );
                 local_tn
             });
@@ -178,7 +137,6 @@ criterion_group!(
     benches,
     multiplication_benchmark,
     partitioned_contraction_benchmark,
-    parallel_naive_benchmark,
     parallel_partition_benchmark
 );
 criterion_main!(benches);

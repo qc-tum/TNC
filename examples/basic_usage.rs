@@ -87,8 +87,9 @@ fn main() {
 
     // Distribute tensor network and contract
     let local_tn = if size > 1 {
-        let (mut local_tn, local_path) =
+        let (mut local_tn, local_path, slicing_task, comm) =
             scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
+        assert!(slicing_task.is_none());
         contract_tensor_network(&mut local_tn, &local_path);
 
         let mut communication_path = if rank == 0 {
@@ -98,7 +99,7 @@ fn main() {
         };
         broadcast_path(&mut communication_path, &root);
 
-        intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world);
+        intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world, &comm);
         local_tn
     } else {
         contract_tensor_network(&mut partitioned_tn, &path);

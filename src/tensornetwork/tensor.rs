@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rustc_hash::FxHashMap;
 
-use crate::types::{EdgeIndex, TensorIndex};
+use crate::types::{EdgeIndex, SlicingTask, TensorIndex};
 use crate::utils::datastructures::UnionFind;
 
 use super::tensordata::TensorData;
@@ -485,6 +485,24 @@ impl Tensor {
         self.tensordata = tensordata;
     }
 
+    /// Returns an edge by its id. The edge is a tuple of the two tensors it connects,
+    /// or a single tensor if it is an unbound leg.
+    fn get_edge(&self, leg_id: EdgeIndex) -> (TensorIndex, Option<TensorIndex>) {
+        for (t1_id, t1) in self.tensors.iter().enumerate() {
+            if !t1.contains_leg(leg_id) {
+                continue;
+            }
+
+            for (t2_id, t2) in self.tensors.iter().enumerate().skip(t1_id + 1) {
+                if t2.contains_leg(leg_id) {
+                    return (t1_id, Some(t2_id));
+                }
+            }
+            return (t1_id, None);
+        }
+        panic!("Edge {leg_id} not found in tensor");
+    }
+
     /// Returns whether all tensors inside this tensor are connected.
     /// This only checks the top-level, not recursing into composite tensors.
     ///
@@ -523,6 +541,29 @@ impl Tensor {
         }
 
         uf.count_sets() == 1
+    }
+
+    /// Applies a slicing to the tensor. The sliced legs are removed from the tensor
+    /// and the data of the affected tensors is sliced accordingly.
+    pub fn apply_slicing(&mut self, slicing: &SlicingTask) {
+        for (leg, index) in &slicing.slices {
+            let (t1, Some(t2)) = self.get_edge(*leg) else {
+                panic!("Sliced legs must be bound")
+            };
+
+            // Replace with sliced data
+            let t1 = &mut self.tensors[t1];
+            let t1_leg_index = t1.legs.iter().position(|l| l == leg).unwrap();
+            let t1_data = std::mem::take(&mut t1.tensordata);
+            t1.legs.remove(t1_leg_index);
+            t1.set_tensor_data(t1_data.into_sliced(t1_leg_index, *index));
+
+            let t2 = &mut self.tensors[t2];
+            let t2_leg_index = t2.legs.iter().position(|l| l == leg).unwrap();
+            let t2_data = std::mem::take(&mut t2.tensordata);
+            t2.legs.remove(t2_leg_index);
+            t2.set_tensor_data(t2_data.into_sliced(t2_leg_index, *index));
+        }
     }
 
     /// Returns `Tensor` with legs in `self` that are not in `other`.
@@ -671,9 +712,10 @@ impl Sub for &Tensor {
 mod tests {
     use std::iter::zip;
 
+    use num_complex::c64;
     use rustc_hash::FxHashMap;
 
-    use crate::tensornetwork::tensordata::TensorData;
+    use crate::{tensornetwork::tensordata::TensorData, types::SlicingTask};
 
     use super::Tensor;
 
@@ -826,5 +868,54 @@ mod tests {
         }
 
         assert_eq!(*tensor.bond_dims(), reference_bond_dims_3);
+    }
+
+    #[test]
+    fn test_apply_slicing() {
+        let bond_dims = FxHashMap::from_iter([(0, 2), (1, 2), (2, 2)]);
+        let mut t0 = Tensor::new(vec![0, 1]);
+        let mut t1 = Tensor::new(vec![1, 2]);
+        let mut t2 = Tensor::new(vec![0, 2]);
+        t0.set_tensor_data(TensorData::new_from_data(
+            &[2, 2],
+            vec![c64(0, 0), c64(1, 0), c64(2, 0), c64(3, 0)],
+            None,
+        ));
+        t1.set_tensor_data(TensorData::new_from_data(
+            &[2, 2],
+            vec![c64(4, 0), c64(5, 0), c64(6, 0), c64(7, 0)],
+            None,
+        ));
+        t2.set_tensor_data(TensorData::new_from_data(
+            &[2, 2],
+            vec![c64(8, 0), c64(9, 0), c64(10, 0), c64(11, 0)],
+            None,
+        ));
+
+        let mut tensor = Tensor::default();
+        tensor.push_tensors(vec![t0, t1, t2], Some(&bond_dims));
+
+        let slicing_task = SlicingTask {
+            slices: vec![(0, 1), (2, 0)],
+        };
+
+        tensor.apply_slicing(&slicing_task);
+
+        assert_eq!(tensor.tensor(0).legs(), &[1]);
+        assert_eq!(tensor.tensor(1).legs(), &[1]);
+        assert!(tensor.tensor(2).legs().is_empty());
+
+        assert!(tensor.tensor(0).tensor_data().approx_eq(
+            &TensorData::new_from_data(&[2], vec![c64(1, 0), c64(3, 0)], None),
+            1e-12
+        ));
+        assert!(tensor.tensor(1).tensor_data().approx_eq(
+            &TensorData::new_from_data(&[2], vec![c64(4, 0), c64(5, 0)], None),
+            1e-12
+        ));
+        assert!(tensor.tensor(2).tensor_data().approx_eq(
+            &TensorData::new_from_data(&[], vec![c64(9, 0)], None),
+            1e-12
+        ));
     }
 }

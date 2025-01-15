@@ -184,8 +184,11 @@ impl OptimizePath for WeightedBranchBound<'_> {
                     self.minimize,
                 );
                 bb.optimize_path();
-                sub_tensor_contraction
-                    .push(ContractionIndex::Path(index, bb.get_best_path().clone()));
+                sub_tensor_contraction.push(ContractionIndex::Path(
+                    index,
+                    None,
+                    bb.get_best_path().clone(),
+                ));
                 tensor.set_legs(tensor.external_edges());
             }
             self.tensor_cache.insert_new(index, tensor);

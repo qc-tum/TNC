@@ -41,7 +41,8 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
                 tn.contract_tensors(*i, *j);
                 debug!(i, j; "Finished contracting tensors");
             }
-            ContractionIndex::Path(i, inner_contract_path) => {
+            ContractionIndex::Path(i, slicing, inner_contract_path) => {
+                assert!(slicing.is_none(), "Local slicing is not yet supported");
                 contract_tensor_network(tn.get_mut_tensor(*i), inner_contract_path);
             }
         }

@@ -51,7 +51,7 @@ impl ContractionTree {
 
         // Obtain tree structure from composite tensors
         for contr in path {
-            if let ContractionIndex::Path(path_id, path) = contr {
+            if let ContractionIndex::Path(path_id, _, path) = contr {
                 let composite_tensor = tensor.tensor(*path_id);
                 let mut new_prefix = prefix.to_owned();
                 new_prefix.push(*path_id);
