@@ -190,7 +190,7 @@ fn contract_path_custom_cost(
                 mem_cost = mem_cost.max(new_mem_cost);
                 inputs[i] = ij;
             }
-            ContractionIndex::Path(i, ref slicing, ref path) => {
+            ContractionIndex::Path(i, ref _slicing, ref path) => {
                 // TODO: consider slicing
                 let costs = contract_path_custom_cost(inputs[i].tensors(), path, cost_function);
                 op_cost += costs.0;
