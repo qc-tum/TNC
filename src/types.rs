@@ -93,7 +93,7 @@ macro_rules! path {
         &[$(path![$index, $($tokens),*]),*]
     };
     ($index:expr, $slicing:expr, [$($tokens:tt),+]) => {
-        $crate::types::ContractionIndex::Path($index, plan![$slicing], path![$($tokens),+].to_vec())
+        $crate::types::ContractionIndex::Path($index, $crate::plan![$slicing], path![$($tokens),+].to_vec())
     };
     ($index:expr, [$($tokens:tt),+]) => {
         $crate::types::ContractionIndex::Path($index, None, path![$($tokens),+].to_vec())
