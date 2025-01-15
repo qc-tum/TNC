@@ -17,8 +17,15 @@ impl RankTensorMapping {
 
     /// Inserts a new mapping between an MPI rank and a tensor.
     pub fn insert(&mut self, rank: Rank, tensor: TensorIndex) {
-        assert_eq!(self.tensor(rank), None);
-        assert_eq!(self.rank_opt(tensor), None);
+        assert!(
+            self.tensor(rank).is_none(),
+            "Rank {rank} is already associated with a tensor",
+        );
+        assert!(
+            self.rank_opt(tensor).is_none(),
+            "Tensor {tensor} is already associated with a rank",
+        );
+
         self.0.push((rank, tensor));
     }
 
@@ -65,5 +72,51 @@ pub struct MessageBinaryBlob([u8; 192]);
 impl Default for MessageBinaryBlob {
     fn default() -> Self {
         Self([0; 192])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RankTensorMapping;
+
+    #[test]
+    fn test_tensor_mapping() {
+        let mut tensor_mapping = RankTensorMapping::default();
+
+        assert_eq!(tensor_mapping.tensor(2), None);
+        assert_eq!(tensor_mapping.tensor(3), None);
+
+        tensor_mapping.insert(2, 4);
+
+        assert_eq!(tensor_mapping.rank(4), 2);
+        assert_eq!(tensor_mapping.tensor(2), Some(4));
+        assert_eq!(tensor_mapping.tensor(3), None);
+
+        tensor_mapping.insert(3, 0);
+
+        assert_eq!(tensor_mapping.rank(4), 2);
+        assert_eq!(tensor_mapping.tensor(2), Some(4));
+        assert_eq!(tensor_mapping.rank(0), 3);
+        assert_eq!(tensor_mapping.tensor(3), Some(0));
+    }
+
+    #[test]
+    #[should_panic(expected = "Rank 2 is already associated with a tensor")]
+    fn test_tensor_mapping_insert_rank_twice() {
+        let mut tensor_mapping = RankTensorMapping::default();
+
+        tensor_mapping.insert(2, 4);
+        tensor_mapping.insert(3, 0);
+        tensor_mapping.insert(2, 5);
+    }
+
+    #[test]
+    #[should_panic(expected = "Tensor 4 is already associated with a rank")]
+    fn test_tensor_mapping_insert_tensor_twice() {
+        let mut tensor_mapping = RankTensorMapping::default();
+
+        tensor_mapping.insert(2, 4);
+        tensor_mapping.insert(3, 5);
+        tensor_mapping.insert(4, 4);
     }
 }
