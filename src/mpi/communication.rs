@@ -89,13 +89,6 @@ fn send_tensor(tensor: &Tensor, receiver: Rank, world: &SimpleCommunicator) {
     world.process_at_rank(receiver).send(&data);
 }
 
-/// Sends a MPI message to `receiver` that signals that no tensors are being sent,
-/// i.e., that `receiver` doesn't contribute in the contraction.
-fn send_no_tensor(receiver: Rank, world: &SimpleCommunicator) {
-    let empty = Vec::<MessageBinaryBlob>::new();
-    world.process_at_rank(receiver).send(&empty);
-}
-
 /// Receives a tensor from `sender` via MPI.
 fn receive_tensor(
     sender: Rank,
