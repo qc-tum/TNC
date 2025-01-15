@@ -422,7 +422,7 @@ mod tests {
     use crate::path;
 
     #[mpi_test(2)]
-    fn test_sendrecv_contraction_index() {
+    fn test_broadcast_contraction_path() {
         let universe = mpi::initialize().unwrap();
         let world = universe.world();
         let rank = world.rank();
