@@ -99,7 +99,7 @@ impl<'a> GreedySlice<'a> {
             mut ssa_path,
             mut next_ssa_id,
         ) = populate_remaining_tensors(inputs, output_dims);
-        
+
         // Maps tensor ssa_id to size
         let mut tensor_mem_size = ssa_id_to_tensor
             .values()

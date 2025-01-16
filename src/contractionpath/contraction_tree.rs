@@ -287,8 +287,7 @@ impl ContractionTree {
         let t1 = &scratch[&left_ref.id()];
         let t2 = &scratch[&right_ref.id()];
 
-        let cost =
-            weights[&left_ref.id()] + weights[&right_ref.id()] + cost_function(t1, t2, None);
+        let cost = weights[&left_ref.id()] + weights[&right_ref.id()] + cost_function(t1, t2, None);
 
         weights.insert(node.id(), cost);
         scratch.insert(node.id(), t1 ^ t2);

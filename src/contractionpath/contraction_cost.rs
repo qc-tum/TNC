@@ -147,8 +147,7 @@ pub fn contract_op_cost_tensors_slicing(
     } else {
         &Vec::new()
     };
-    all_dims
-        .sliced_size(slicing)
+    all_dims.sliced_size(slicing)
 }
 
 /// Returns Schroedinger contraction space complexity of contracting two [`Tensor`]
