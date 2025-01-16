@@ -1,6 +1,6 @@
 use std::{
     cmp::{max, min},
-    collections::{BinaryHeap, HashSet, VecDeque},
+    collections::{BinaryHeap, HashSet},
 };
 
 use itertools::Itertools;
