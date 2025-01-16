@@ -89,6 +89,7 @@ impl<'a> GreedySlice<'a> {
         const NBRANCH: usize = 5;
         const REL_TEMPERATURE: bool = true;
         let mut slicing = Vec::new();
+        let bond_dims = inputs[0].bond_dims();
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
         let (
             mut remaining_tensors,
@@ -241,14 +242,14 @@ impl<'a> GreedySlice<'a> {
                     .legs()
                     .iter()
                     .filter(|leg| !output_dims.legs().contains(leg))
-                    .sorted_by_key(|leg| k12.bond_dims()[leg])
+                    .sorted_by_key(|leg| bond_dims[leg])
                     .collect::<VecDeque<_>>();
 
                 while mem_size > self.max_memory {
                     let first_leg = sorted_legs.pop_front().unwrap();
 
                     slicing.push(*first_leg);
-                    mem_size /= k12.bond_dims()[first_leg] as f64;
+                    mem_size /= bond_dims[first_leg] as f64;
                 }
             }
 
