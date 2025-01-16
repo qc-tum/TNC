@@ -1,7 +1,35 @@
+use std::borrow::Cow;
 use std::sync::Arc;
+
+use itertools::Itertools;
 
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::{ContractionIndex, EdgeIndex, SlicingPlan};
+
+/// Returns a tensor with the sliced legs removed or the original tensor if
+/// no slicing plan is provided or no legs were sliced.
+fn slice_legs<'a>(t: &'a Tensor, slicing: Option<&SlicingPlan>) -> Cow<'a, Tensor> {
+    if let Some(slicing_plan) = slicing {
+        let new_legs = t
+            .legs()
+            .iter()
+            .filter(|e| !slicing_plan.slices.contains(e))
+            .copied()
+            .collect_vec();
+
+        // Only create a new tensor if a leg was actually sliced
+        if new_legs.len() < t.legs().len() {
+            Cow::Owned(Tensor::new_with_bonddims(
+                new_legs,
+                Arc::clone(&t.bond_dims),
+            ))
+        } else {
+            Cow::Borrowed(t)
+        }
+    } else {
+        Cow::Borrowed(t)
+    }
+}
 
 /// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
 /// objects. Considers cost of complex operations.
@@ -195,20 +223,24 @@ pub fn contract_size_tensors_slicing(
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
 /// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors_exact;
+/// # use tensorcontraction::types::SlicingPlan;
 /// # use rustc_hash::FxHashMap;
 /// let vec1 = vec![0, 1, 2]; // requires 5040 bytes
-/// let vec2 = vec![3, 2]; // requires 1584 bytes
+/// let vec2 = vec![3, 2];    // requires 1584 bytes
 /// // result = [0, 1, 3], requires 6160 bytes
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1), None), 799f64);
+///
+/// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
+/// // vec1 = [0, 1],   requires 35 elements
+/// // vec2 = []    ,   requires  1 element (scalar)
+/// // result = [0, 1], requires 35 elements
+/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 71f64);
 /// ```
 pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor, slicing: Option<&SlicingPlan>) -> f64 {
-    // TODO: implement slicing
-    assert!(
-        slicing.is_none(),
-        "Slicing not yet supported for exact size calculation"
-    );
+    let i = slice_legs(i, slicing);
+    let j = slice_legs(j, slicing);
 
     /// Checks if `prefix` is a prefix of `list`.
     #[inline]
@@ -231,8 +263,8 @@ pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor, slicing: Option<&Slic
             .all(|(a, b)| a == b)
     }
 
-    let ij = i ^ j;
-    let contracted_legs = i & j;
+    let ij = &*i ^ &*j;
+    let contracted_legs = &*i & &*j;
     let i_needs_transpose = !is_suffix(contracted_legs.legs(), i.legs());
     let j_needs_transpose = !is_prefix(contracted_legs.legs(), j.legs());
 
