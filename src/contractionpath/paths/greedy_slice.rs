@@ -259,7 +259,7 @@ impl<'a> GreedySlice<'a> {
 
             tensor_mem_size
                 .entry(k12_hash)
-                .or_insert_with(|| k12.size());
+                .or_insert_with(|| k12.sliced_size(&slicing));
 
             //Find new candidate contractions.
             let k1 = k12;
