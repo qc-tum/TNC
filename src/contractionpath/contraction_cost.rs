@@ -21,19 +21,9 @@ use crate::types::{ContractionIndex, EdgeIndex, SlicingPlan};
 pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>) -> f64 {
     let final_dims = t_1 ^ t_2;
     let shared_dims = t_1 & t_2;
-    let bond_dims = t_1.bond_dims();
-    let single_loop_cost = shared_dims
-        .legs()
-        .iter()
-        .map(|e| bond_dims[e] as f64)
-        .product::<f64>();
 
-    (single_loop_cost - 1f64).mul_add(2f64, single_loop_cost * 6f64)
-        * final_dims
-            .legs()
-            .iter()
-            .map(|e| bond_dims[e] as f64)
-            .product::<f64>()
+    let single_loop_cost = shared_dims.size();
+    (single_loop_cost - 1f64).mul_add(2f64, single_loop_cost * 6f64) * final_dims.size()
 }
 
 /// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
@@ -51,15 +41,10 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_op_cost_tensors(&tn.tensor(0), &tn.tensor(1), None), 45045f64);
 /// ```
+#[inline]
 pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>) -> f64 {
     let all_dims = t_1 | t_2;
-    let bond_dims = t_1.bond_dims();
-
-    all_dims
-        .legs()
-        .iter()
-        .map(|e| bond_dims[e] as f64)
-        .product::<f64>()
+    all_dims.size()
 }
 
 /// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
@@ -111,12 +96,7 @@ pub fn contract_cost_tensors_slicing(
             .iter()
             .map(|e| bond_dims[e] as f64)
             .sum::<f64>())
-        * final_dims
-            .legs()
-            .iter()
-            .filter(|e| !slicing.contains(e))
-            .map(|e| bond_dims[e] as f64)
-            .product::<f64>()
+        * final_dims.sliced_size(slicing)
 }
 
 /// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
