@@ -98,7 +98,7 @@ impl<'a> GreedySlice<'a> {
             mut ssa_path,
             mut next_ssa_id,
         ) = populate_remaining_tensors(inputs, output_dims);
-
+        
         // Maps tensor ssa_id to size
         let mut tensor_mem_size = ssa_id_to_tensor
             .values()
@@ -451,7 +451,7 @@ impl OptimizePath for GreedySlice<'_> {
         let (op_cost, mem_cost) = contract_path_cost_slicing(
             self.tn.tensors(),
             &self.get_best_replace_path(),
-            &Some(slicing_plan),
+            Some(&slicing_plan),
             true,
         );
         self.best_size = mem_cost;
