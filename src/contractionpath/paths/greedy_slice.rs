@@ -667,4 +667,20 @@ mod tests {
             path![(1, 5), (3, 4), (0, 1), (2, 3), (2, 0)]
         );
     }
+
+    #[test]
+    fn test_contract_order_greedy_two_slicing_complex() {
+        let tn = setup_complex();
+        let mut opt = GreedySlice::new(&tn, 150f64, CostType::Flops);
+        opt.optimize_path();
+
+        assert_eq!(opt.slicing, HashSet::from([5, 2]));
+        assert_eq!(opt.best_flops, 271090f64);
+        assert_eq!(opt.best_size, 67365f64);
+        assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 7), (9, 8)]);
+        assert_eq!(
+            opt.get_best_replace_path(),
+            path![(1, 5), (3, 4), (0, 1), (2, 3), (2, 0)]
+        );
+    }
 }
