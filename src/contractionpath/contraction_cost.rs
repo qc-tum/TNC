@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use itertools::Itertools;
+use num_complex::Complex64;
 
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::{ContractionIndex, EdgeIndex, SlicingPlan};
@@ -230,13 +231,13 @@ pub fn contract_size_tensors_slicing(
 /// // result = [0, 1, 3], requires 6160 bytes
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
-/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1), None), 799f64);
+/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1), None), 12784f64);
 ///
 /// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
-/// // vec1 = [0, 1],   requires 35 elements
-/// // vec2 = []    ,   requires  1 element (scalar)
-/// // result = [0, 1], requires 35 elements
-/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 71f64);
+/// // vec1 = [0, 1],   requires 560 bytes
+/// // vec2 = []    ,   requires  16 bytes (scalar)
+/// // result = [0, 1], requires 560 bytes
+/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 1136f64);
 /// ```
 pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor, slicing: Option<&SlicingPlan>) -> f64 {
     let i = slice_legs(i, slicing);
@@ -272,14 +273,16 @@ pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor, slicing: Option<&Slic
     let j_size = j.size();
     let ij_size = ij.size();
 
-    match (i_needs_transpose, j_needs_transpose) {
+    let elements = match (i_needs_transpose, j_needs_transpose) {
         (true, true) => (2.0 * i_size + j_size)
             .max(i_size + 2.0 * j_size)
             .max(i_size + j_size + ij_size),
         (true, false) => (2.0 * i_size + j_size).max(i_size + j_size + ij_size),
         (false, true) => (i_size + 2.0 * j_size).max(i_size + j_size + ij_size),
         (false, false) => i_size + j_size + ij_size,
-    }
+    };
+
+    elements * std::mem::size_of::<Complex64>() as f64
 }
 
 /// Returns Schroedinger contraction time and space complexity of fully contracting

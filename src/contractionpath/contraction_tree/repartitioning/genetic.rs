@@ -36,7 +36,7 @@ impl PartitioningFitness<'_> {
             partitioned_tn.tensors(),
             &path,
             contract_size_tensors_exact,
-        ) * 16.0;
+        );
 
         // If the memory limit is exceeded, return infinity
         let score = if self.memory_limit.is_some_and(|limit| mem > limit) {
