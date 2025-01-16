@@ -604,11 +604,11 @@ mod tests {
     fn test_contract_order_greedy_slicing_simple() {
         let tn = setup_simple();
 
-        let mut opt = GreedySlice::new(&tn, 24f64, CostType::Flops);
+        let mut opt = GreedySlice::new(&tn, 24., CostType::Flops);
         opt.optimize_path();
         assert_eq!(opt.slicing, HashSet::from([4]));
-        assert_eq!(opt.best_flops, 408f64);
-        assert_eq!(opt.best_size, 484f64);
+        assert_eq!(opt.best_flops, 408.);
+        assert_eq!(opt.best_size, 484.);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
     }
@@ -616,12 +616,12 @@ mod tests {
     #[test]
     fn test_contract_order_greedy_slicing_simple_inner() {
         let tn = setup_simple_inner_product();
-        let mut opt = GreedySlice::new(&tn, 60f64, CostType::Flops);
+        let mut opt = GreedySlice::new(&tn, 60., CostType::Flops);
         opt.optimize_path();
 
         assert_eq!(opt.slicing, HashSet::from([]));
-        assert_eq!(opt.best_flops, 228f64);
-        assert_eq!(opt.best_size, 121f64);
+        assert_eq!(opt.best_flops, 228.);
+        assert_eq!(opt.best_size, 121.);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
     }
@@ -629,12 +629,12 @@ mod tests {
     #[test]
     fn test_contract_order_greedy_slicing_simple_outer() {
         let tn = setup_simple_outer_product();
-        let mut opt = GreedySlice::new(&tn, 24f64, CostType::Flops);
+        let mut opt = GreedySlice::new(&tn, 24., CostType::Flops);
         opt.optimize_path();
 
         assert_eq!(opt.slicing, HashSet::from([]));
-        assert_eq!(opt.best_flops, 16f64);
-        assert_eq!(opt.best_size, 19f64);
+        assert_eq!(opt.best_flops, 16.);
+        assert_eq!(opt.best_size, 19.);
         assert_eq!(opt.best_path, path![(1, 2), (0, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 2), (0, 1)]);
     }
@@ -642,12 +642,12 @@ mod tests {
     #[test]
     fn test_contract_order_greedy_slicing_complex_outer() {
         let tn = setup_complex_outer_product();
-        let mut opt = GreedySlice::new(&tn, 200f64, CostType::Flops);
+        let mut opt = GreedySlice::new(&tn, 200., CostType::Flops);
         opt.optimize_path();
 
         assert_eq!(opt.slicing, HashSet::from([]));
-        assert_eq!(opt.best_flops, 10f64);
-        assert_eq!(opt.best_size, 11f64);
+        assert_eq!(opt.best_flops, 10.);
+        assert_eq!(opt.best_size, 11.);
         assert_eq!(opt.best_path, path![(0, 1), (2, 3), (4, 5)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
     }
@@ -655,12 +655,12 @@ mod tests {
     #[test]
     fn test_contract_order_greedy_slicing_complex() {
         let tn = setup_complex();
-        let mut opt = GreedySlice::new(&tn, 200f64, CostType::Flops);
+        let mut opt = GreedySlice::new(&tn, 200., CostType::Flops);
         opt.optimize_path();
 
         assert_eq!(opt.slicing, HashSet::from([5]));
-        assert_eq!(opt.best_flops, 352105f64);
-        assert_eq!(opt.best_size, 88146f64);
+        assert_eq!(opt.best_flops, 352105.);
+        assert_eq!(opt.best_size, 88146.);
         assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 7), (9, 8)]);
         assert_eq!(
             opt.get_best_replace_path(),
@@ -671,12 +671,12 @@ mod tests {
     #[test]
     fn test_contract_order_greedy_two_slicing_complex() {
         let tn = setup_complex();
-        let mut opt = GreedySlice::new(&tn, 150f64, CostType::Flops);
+        let mut opt = GreedySlice::new(&tn, 150., CostType::Flops);
         opt.optimize_path();
 
         assert_eq!(opt.slicing, HashSet::from([5, 2]));
-        assert_eq!(opt.best_flops, 271090f64);
-        assert_eq!(opt.best_size, 67365f64);
+        assert_eq!(opt.best_flops, 271090.);
+        assert_eq!(opt.best_size, 67365.);
         assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 7), (9, 8)]);
         assert_eq!(
             opt.get_best_replace_path(),

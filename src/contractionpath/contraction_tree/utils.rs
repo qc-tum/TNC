@@ -296,8 +296,8 @@ mod tests {
             path![(0, 1), (2, 0), (3, 2)].to_vec(),
         );
 
-        assert_eq!(flop_cost, 8100f64); // 120 + 420 + 7560
-        assert_eq!(mem_cost, 1794f64); // 84 + 630 +1080
+        assert_eq!(flop_cost, 8100.); // 120 + 420 + 7560
+        assert_eq!(mem_cost, 1794.); // 84 + 630 +1080
     }
 
     #[test]
@@ -353,22 +353,22 @@ mod tests {
         let ref_partition_data = vec![
             PartitionData {
                 id: 4,
-                flop_cost: 84f64, // (0, 1, 2) + (1, 2, 3) = 84
-                mem_cost: 44f64,  // (0, 1) + (0, 2) + (0, 1, 2) = 44
+                flop_cost: 84., // (0, 1, 2) + (1, 2, 3) = 84
+                mem_cost: 44.,  // (0, 1) + (0, 2) + (0, 1, 2) = 44
                 contraction: path![(0, 1), (0, 2)].to_vec(),
                 local_tensor: Tensor::new(vec![1, 2, 3]),
             },
             PartitionData {
                 id: 9,
-                flop_cost: 3456f64, // (1, 2, 3, 4, 5, 8) + (1, 2, 3, 4, 5, 7, 8) = 3456
-                mem_cost: 864f64,   // (1, 2, 3, 4, 5, 8) + (4, 7, 8) + (1, 2, 3, 5) = 864
+                flop_cost: 3456., // (1, 2, 3, 4, 5, 8) + (1, 2, 3, 4, 5, 7, 8) = 3456
+                mem_cost: 864.,   // (1, 2, 3, 4, 5, 8) + (4, 7, 8) + (1, 2, 3, 5) = 864
                 contraction: path![(0, 1), (0, 2)].to_vec(),
                 local_tensor: Tensor::new(vec![2, 1, 3, 5, 7]),
             },
             PartitionData {
                 id: 12,
-                flop_cost: 140f64, // (5, 6, 7) = 140
-                mem_cost: 167f64,  // (5, 6, 7) + (6) + (5, 7) = 167
+                flop_cost: 140., // (5, 6, 7) = 140
+                mem_cost: 167.,  // (5, 6, 7) + (6) + (5, 7) = 167
                 contraction: path![(0, 1)].to_vec(),
                 local_tensor: Tensor::new(vec![5, 7]),
             },

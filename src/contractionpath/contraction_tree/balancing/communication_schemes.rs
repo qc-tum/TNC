@@ -57,7 +57,7 @@ pub(crate) fn weighted_branchbound(
     let mut opt = WeightedBranchBound::new(
         &communication_tensors,
         None,
-        5f64,
+        5.,
         latency_map.clone(),
         CostType::Flops,
     );
@@ -154,7 +154,7 @@ mod tests {
     };
 
     fn setup_simple_partition_data() -> FxHashMap<usize, f64> {
-        FxHashMap::from_iter([(0, 40f64), (1, 30f64), (2, 50f64)])
+        FxHashMap::from_iter([(0, 40.), (1, 30.), (2, 50.)])
     }
 
     /// Tensor ids in contraction tree included in variable name for easy tracking
@@ -199,8 +199,8 @@ mod tests {
         let tensor_costs = (0..tensors.len()).map(|i| latency_map[&i]).collect_vec();
         let (flop_cost, mem_cost) =
             communication_path_cost(&tensors, &communication_scheme, true, Some(&tensor_costs));
-        assert_eq!(flop_cost, 210f64);
-        assert_eq!(mem_cost, 80f64);
+        assert_eq!(flop_cost, 210.);
+        assert_eq!(mem_cost, 80.);
     }
 
     #[test]
@@ -223,8 +223,8 @@ mod tests {
         let (flop_cost, mem_cost) =
             communication_path_cost(&tensors, &communication_scheme, true, Some(&tensor_costs));
 
-        assert_eq!(flop_cost, 104f64);
-        assert_eq!(mem_cost, 44f64);
+        assert_eq!(flop_cost, 104.);
+        assert_eq!(mem_cost, 44.);
     }
 
     #[test]
@@ -245,7 +245,7 @@ mod tests {
         let (flop_cost, mem_cost) =
             communication_path_cost(&tensors, &communication_scheme, true, Some(&tensor_costs));
 
-        assert_eq!(flop_cost, 210f64);
-        assert_eq!(mem_cost, 80f64);
+        assert_eq!(flop_cost, 210.);
+        assert_eq!(mem_cost, 80.);
     }
 }
