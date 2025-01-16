@@ -142,18 +142,13 @@ pub fn contract_op_cost_tensors_slicing(
     slicing: &Option<SlicingPlan>,
 ) -> f64 {
     let all_dims = t_1 | t_2;
-    let bond_dims = t_1.bond_dims();
     let slicing = if let Some(slicing_plan) = slicing {
         &slicing_plan.slices
     } else {
         &Vec::new()
     };
     all_dims
-        .legs()
-        .iter()
-        .filter(|e| !slicing.contains(e))
-        .map(|e| bond_dims[e] as f64)
-        .product::<f64>()
+        .sliced_size(slicing)
 }
 
 /// Returns Schroedinger contraction space complexity of contracting two [`Tensor`]
