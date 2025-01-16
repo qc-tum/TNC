@@ -221,9 +221,15 @@ pub fn contract_size_tensors_slicing(
 /// // result = [0, 1, 3], requires 6160 bytes
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
-/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1)), 799f64);
+/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1), None), 799f64);
 /// ```
-pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor) -> f64 {
+pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor, slicing: Option<&SlicingPlan>) -> f64 {
+    // TODO: implement slicing
+    assert!(
+        slicing.is_none(),
+        "Slicing not yet supported for exact size calculation"
+    );
+
     /// Checks if `prefix` is a prefix of `list`.
     #[inline]
     fn is_prefix(prefix: &[EdgeIndex], list: &[EdgeIndex]) -> bool {
@@ -443,37 +449,19 @@ fn communication_path_custom_cost(
 /// two tensors.
 ///
 /// Candidates for `memory_estimator` are e.g.:
-/// - [`contract_size_tensors`]
+/// - [`contract_size_tensors_slicing`]
 /// - [`contract_size_tensors_exact`]
+#[inline]
 pub fn compute_memory_requirements(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
-    memory_estimator: fn(&Tensor, &Tensor) -> f64,
+    memory_estimator: fn(&Tensor, &Tensor, Option<&SlicingPlan>) -> f64,
 ) -> f64 {
-    let mut inputs = inputs.to_vec();
-    let mut max_size = 0.0f64;
-    for index in contract_path {
-        match *index {
-            ContractionIndex::Pair(i, j) => {
-                let contracted = &inputs[i] ^ &inputs[j];
-                let size = memory_estimator(&inputs[i], &inputs[j]);
-                max_size = max_size.max(size);
-                inputs[i] = contracted;
-            }
-            ContractionIndex::Path(i, ref _slicing, ref path) => {
-                // TODO: consider slicing
-                let max_child_size =
-                    compute_memory_requirements(inputs[i].tensors(), path, memory_estimator);
-                max_size = max_size.max(max_child_size);
-                let tn = {
-                    let bond_dims = inputs[i].bond_dims.clone();
-                    Tensor::new_with_bonddims(inputs[i].external_edges(), bond_dims)
-                };
-                inputs[i] = tn;
-            }
-        }
+    fn id(_: &Tensor, _: &Tensor, _: Option<&SlicingPlan>) -> f64 {
+        0.0
     }
-    max_size
+    let (_, mem) = contract_path_custom_cost(inputs, contract_path, id, memory_estimator, None);
+    mem
 }
 
 #[cfg(test)]
