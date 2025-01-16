@@ -242,11 +242,10 @@ impl<'a> GreedySlice<'a> {
                     .legs()
                     .iter()
                     .filter(|leg| !output_dims.legs().contains(leg))
-                    .sorted_by_key(|leg| bond_dims[leg])
-                    .collect::<VecDeque<_>>();
+                    .sorted_unstable_by_key(|leg| bond_dims[leg]);
 
                 while mem_size > self.max_memory {
-                    let first_leg = sorted_legs.pop_front().unwrap();
+                    let first_leg = sorted_legs.next().unwrap();
 
                     slicing.push(*first_leg);
                     mem_size /= bond_dims[first_leg] as f64;
