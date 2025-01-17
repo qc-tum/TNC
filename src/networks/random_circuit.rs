@@ -222,7 +222,6 @@ where
         .filter(|&&(u, v)| u < size && v < size)
         .collect_vec();
 
-    // setup intermediate gates. only place gates if all legs are not -1 (since they will cancel out otherwise)
     let mut intermediate_gates = Vec::new();
     for _ in 1..round {
         // Placing of random two qubit gate if affects outcome of observable
