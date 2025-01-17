@@ -74,7 +74,6 @@ where
 
     circuit_tn.push_tensors(initial_state, Some(&circuit_bonddims));
 
-    let die = Uniform::from(0..single_qubit_gates.len());
     let mut intermediate_gates = Vec::new();
     for _ in 1..round {
         for i in 0..size {
@@ -82,7 +81,7 @@ where
             if rng.sample(uniform_prob) < single_qubit_probability {
                 circuit_bonddims.insert(next_edge, 2);
                 let mut new_tensor = Tensor::new(vec![open_edges[&i], next_edge]);
-                new_tensor.set_tensor_data(single_qubit_gates[die.sample(rng)].clone());
+                new_tensor.set_tensor_data(single_qubit_gates.choose(rng).unwrap().clone());
                 intermediate_gates.push(new_tensor);
                 open_edges.insert(i, next_edge);
                 next_edge += 1;
