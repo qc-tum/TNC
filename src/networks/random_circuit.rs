@@ -1,7 +1,6 @@
 use super::connectivity::{Connectivity, ConnectivityLayout};
 use itertools::Itertools;
 use rand::distributions::Uniform;
-use rand::prelude::Distribution;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use rustc_hash::FxHashMap;
@@ -165,15 +164,18 @@ where
     );
 
     let single_qubit_gates = [
-        TensorData::Gate((String::from("sx"), Vec::new(), false)),
-        TensorData::Gate((String::from("sy"), Vec::new(), false)),
-        TensorData::Gate((String::from("sz"), Vec::new(), false)),
-    ];
-
-    let single_qubit_adjoint_gates = [
-        TensorData::Gate((String::from("sx"), Vec::new(), true)),
-        TensorData::Gate((String::from("sy"), Vec::new(), true)),
-        TensorData::Gate((String::from("sz"), Vec::new(), true)),
+        (
+            TensorData::Gate((String::from("sx"), Vec::new(), false)),
+            TensorData::Gate((String::from("sx"), Vec::new(), true)),
+        ),
+        (
+            TensorData::Gate((String::from("sy"), Vec::new(), false)),
+            TensorData::Gate((String::from("sx"), Vec::new(), true)),
+        ),
+        (
+            TensorData::Gate((String::from("sz"), Vec::new(), false)),
+            TensorData::Gate((String::from("sx"), Vec::new(), true)),
+        ),
     ];
 
     let observables = [
@@ -272,14 +274,14 @@ where
             if rng.sample(uniform_prob) < single_qubit_probability
                 && open_edges[&i].0 != open_edges[&i].1
             {
-                let new_gate_index = single_qubit_gate_die.sample(rng);
-                let left_new_gate = single_qubit_gates[new_gate_index].clone();
+                let (left_new_gate, right_new_gate) =
+                    single_qubit_gates.choose(rng).unwrap().clone();
+
                 bond_dims.insert(next_edge, 2);
                 let mut left_new_tensor = Tensor::new(vec![next_edge, open_edges[&i].0]);
                 left_new_tensor.set_tensor_data(left_new_gate);
                 intermediate_gates.push(left_new_tensor);
 
-                let right_new_gate = single_qubit_adjoint_gates[new_gate_index].clone();
                 bond_dims.insert(next_edge + 1, 2);
                 let mut right_new_tensor = Tensor::new(vec![open_edges[&i].1, next_edge + 1]);
                 right_new_tensor.set_tensor_data(right_new_gate);
