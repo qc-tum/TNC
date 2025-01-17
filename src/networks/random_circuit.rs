@@ -1,6 +1,6 @@
 use super::connectivity::{Connectivity, ConnectivityLayout};
 use itertools::Itertools;
-use rand::distributions::Uniform;
+use rand::distributions::Bernoulli;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use rustc_hash::FxHashMap;
@@ -30,14 +30,6 @@ pub fn random_circuit<R>(
 where
     R: Rng + ?Sized,
 {
-    assert!(
-        (0.0..=1.0).contains(&single_qubit_probability),
-        "Probabilities should range from 0.0 to 1.0"
-    );
-    assert!(
-        (0.0..=1.0).contains(&two_qubit_probability),
-        "Probabilities should range from 0.0 to 1.0"
-    );
     let single_qubit_gates = [
         TensorData::Gate((String::from("sx"), Vec::new(), false)),
         TensorData::Gate((String::from("sy"), Vec::new(), false)),
@@ -50,16 +42,17 @@ where
     let mut circuit_tn = Tensor::default();
     let mut circuit_bonddims = FxHashMap::default();
 
-    let sycamore_connect = Connectivity::new(connectivity);
-    // Filter connectivity map
-    let filtered_connectivity = sycamore_connect
+    // Get connectivity for given size
+    let connectivity_graph = Connectivity::new(connectivity);
+    let filtered_connectivity = connectivity_graph
         .connectivity
         .iter()
         .filter(|&&(u, v)| u < size && v < size)
         .collect_vec();
 
     let mut next_edge = size;
-    let uniform_prob = Uniform::new(0.0, 1.0);
+    let single_qubit_die = Bernoulli::new(single_qubit_probability).unwrap();
+    let two_qubit_die = Bernoulli::new(two_qubit_probability).unwrap();
 
     // set up initial state
     let mut initial_state = Vec::with_capacity(size);
@@ -77,7 +70,7 @@ where
     for _ in 1..round {
         for i in 0..size {
             // Placing of random single qubit gate
-            if rng.sample(uniform_prob) < single_qubit_probability {
+            if rng.sample(single_qubit_die) {
                 circuit_bonddims.insert(next_edge, 2);
                 let mut new_tensor = Tensor::new(vec![open_edges[&i], next_edge]);
                 new_tensor.set_tensor_data(single_qubit_gates.choose(rng).unwrap().clone());
@@ -88,7 +81,7 @@ where
         }
         for (i, j) in &filtered_connectivity {
             // Placing of random two qubit gate
-            if rng.sample(uniform_prob) < two_qubit_probability {
+            if rng.sample(two_qubit_die) {
                 circuit_bonddims.insert(next_edge, 2);
                 circuit_bonddims.insert(next_edge + 1, 2);
                 let mut new_tensor =
@@ -154,15 +147,6 @@ pub fn random_circuit_with_set_observable<R>(
 where
     R: Rng + ?Sized,
 {
-    assert!(
-        (0.0..=1.0).contains(&single_qubit_probability),
-        "Probabilities should range from 0.0 to 1.0"
-    );
-    assert!(
-        (0.0..=1.0).contains(&two_qubit_probability),
-        "Probabilities should range from 0.0 to 1.0"
-    );
-
     let single_qubit_gates = [
         (
             TensorData::Gate((String::from("sx"), Vec::new(), false)),
@@ -184,7 +168,8 @@ where
         TensorData::Gate((String::from("z"), Vec::new(), false)),
     ];
 
-    let uniform_prob = Uniform::new(0.0, 1.0);
+    let single_qubit_die = Bernoulli::new(single_qubit_probability).unwrap();
+    let two_qubit_die = Bernoulli::new(two_qubit_probability).unwrap();
 
     // Initialize tensornetwork of size `usize`
     let mut random_tn = Tensor::default();
@@ -214,8 +199,8 @@ where
         }
     }
 
+    // Get connectivity for given size
     let connectivity_graph = Connectivity::new(connectivity);
-    // Filter connectivity map
     let filtered_connectivity = connectivity_graph
         .connectivity
         .iter()
@@ -227,7 +212,7 @@ where
         // Placing of random two qubit gate if affects outcome of observable
         for (i, j) in &filtered_connectivity {
             // Placing of random two qubit gate
-            if rng.sample(uniform_prob) < two_qubit_probability
+            if rng.sample(two_qubit_die)
                 && (open_edges[i].0 != open_edges[i].1 || open_edges[j].0 != open_edges[j].1)
             {
                 let (left_i_index, right_i_index) = if open_edges[i].0 != open_edges[i].1 {
@@ -275,7 +260,7 @@ where
         for i in 0..size {
             // Placing of random single qubit gate if affects outcome of observable
             let (left_index, right_index) = open_edges[&i];
-            if rng.sample(uniform_prob) < single_qubit_probability && left_index != right_index {
+            if rng.sample(single_qubit_die) && left_index != right_index {
                 let (left_new_gate, right_new_gate) =
                     single_qubit_gates.choose(rng).unwrap().clone();
 
