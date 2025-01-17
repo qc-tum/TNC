@@ -41,9 +41,10 @@ fn slice_legs<'a>(t: &'a Tensor, slicing: Option<&SlicingPlan>) -> Cow<'a, Tenso
 /// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
 /// # use rustc_hash::FxHashMap;
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let vec1 = vec![0, 1, 2];
 /// let vec2 = vec![2, 3, 4];
-/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// // result = [0, 1, 2, 3, 4] // cost of (9-1)*54*5005 = 350350;
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1), None), 350350f64);
 /// ```
@@ -64,9 +65,10 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>
 /// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_op_cost_tensors;
 /// # use rustc_hash::FxHashMap;
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let vec1 = vec![0, 1, 2];
 /// let vec2 = vec![2, 3, 4];
-/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// // result = [0, 1, 2, 3, 4] // cost of 5*7*9*11*13 = 45045;
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_op_cost_tensors(&tn.tensor(0), &tn.tensor(1), None), 45045f64);
 /// ```
@@ -136,12 +138,14 @@ pub fn contract_cost_tensors_slicing(
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_op_cost_tensors_slicing;
 /// # use tensorcontraction::types::SlicingPlan;
 /// # use rustc_hash::FxHashMap;
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let vec1 = vec![0, 1, 2];
 /// let vec2 = vec![2, 3, 4];
-/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
+/// // result = [0, 1, 4] // cost of 5*7*13 = 455
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_op_cost_tensors_slicing(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 455f64);
+/// assert_eq!(contract_op_cost_tensors_slicing(&tn.tensor(0), &tn.tensor(1), None), 45045f64);
 /// ```
 pub fn contract_op_cost_tensors_slicing(
     t_1: &Tensor,
@@ -166,9 +170,10 @@ pub fn contract_op_cost_tensors_slicing(
 /// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors;
 /// # use rustc_hash::FxHashMap;
-/// let vec1 = vec![0, 1, 2];
-/// let vec2 = vec![2, 3, 4];
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let vec1 = vec![0, 1, 2]; // 315 entries
+/// let vec2 = vec![2, 3, 4]; // 1287 entries
+/// // result = [0, 1, 3, 4] //  5005 entries -> total 6607 entries
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1), None), 6607f64);
 /// ```
@@ -188,9 +193,10 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors_slicing;
 /// # use tensorcontraction::types::SlicingPlan;
 /// # use rustc_hash::FxHashMap;
-/// let vec1 = vec![0, 1, 2];
-/// let vec2 = vec![2, 3, 4];
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let vec1 = vec![0, 1, 2]; // 35 entries
+/// let vec2 = vec![2, 3, 4]; // 13 entries
+/// // result = [0, 1, 4] //  455 entries -> total 603 entries
 /// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_size_tensors_slicing(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 503f64);
@@ -224,10 +230,10 @@ pub fn contract_size_tensors_slicing(
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors_exact;
 /// # use tensorcontraction::types::SlicingPlan;
 /// # use rustc_hash::FxHashMap;
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
 /// let vec1 = vec![0, 1, 2]; // requires 5040 bytes
 /// let vec2 = vec![3, 2];    // requires 1584 bytes
 /// // result = [0, 1, 3], requires 6160 bytes
-/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1), None), 12784f64);
 ///
