@@ -2,6 +2,7 @@ use super::connectivity::{Connectivity, ConnectivityLayout};
 use itertools::Itertools;
 use rand::distributions::Uniform;
 use rand::prelude::Distribution;
+use rand::seq::SliceRandom;
 use rand::Rng;
 use rustc_hash::FxHashMap;
 
@@ -190,7 +191,6 @@ where
 
     let mut open_edges = FxHashMap::default();
 
-    let observable_die = Uniform::from(0..observables.len());
     let mut next_edge = 0;
 
     for i in 0..size {
@@ -201,7 +201,7 @@ where
             open_edges.insert(i, (next_edge, next_edge + 1));
             next_edge += 2;
 
-            let new_observable = observables[observable_die.sample(rng)].clone();
+            let new_observable = observables.choose(rng).unwrap().clone();
 
             let mut new_tensor = Tensor::new(vec![open_edges[&i].0, open_edges[&i].1]);
 
