@@ -230,7 +230,7 @@ where
             if rng.sample(uniform_prob) < two_qubit_probability
                 && (open_edges[i].0 != open_edges[i].1 || open_edges[j].0 != open_edges[j].1)
             {
-                let i_indices = if open_edges[i].0 != open_edges[i].1 {
+                let (left_i_index, right_i_index) = if open_edges[i].0 != open_edges[i].1 {
                     (open_edges[i].0, open_edges[i].1)
                 } else {
                     bond_dims.insert(next_edge, 2);
@@ -238,7 +238,7 @@ where
                     (next_edge - 1, next_edge - 1)
                 };
 
-                let j_indices = if open_edges[j].0 != open_edges[j].1 {
+                let (left_j_index, right_j_index) = if open_edges[j].0 != open_edges[j].1 {
                     (open_edges[j].0, open_edges[j].1)
                 } else {
                     bond_dims.insert(next_edge, 2);
@@ -250,14 +250,18 @@ where
                 bond_dims.insert(next_edge + 1, 2);
 
                 let mut left_new_tensor =
-                    Tensor::new(vec![next_edge, next_edge + 1, i_indices.0, j_indices.0]);
+                    Tensor::new(vec![next_edge, next_edge + 1, left_i_index, left_j_index]);
                 left_new_tensor.set_tensor_data(fsim!(0.3, 0.2, false));
                 intermediate_gates.push(left_new_tensor);
 
                 bond_dims.insert(next_edge + 2, 2);
                 bond_dims.insert(next_edge + 3, 2);
-                let mut right_new_tensor =
-                    Tensor::new(vec![i_indices.1, j_indices.1, next_edge + 2, next_edge + 3]);
+                let mut right_new_tensor = Tensor::new(vec![
+                    right_i_index,
+                    right_j_index,
+                    next_edge + 2,
+                    next_edge + 3,
+                ]);
                 right_new_tensor.set_tensor_data(fsim!(0.3, 0.2, true));
                 intermediate_gates.push(right_new_tensor);
 
@@ -270,19 +274,18 @@ where
 
         for i in 0..size {
             // Placing of random single qubit gate if affects outcome of observable
-            if rng.sample(uniform_prob) < single_qubit_probability
-                && open_edges[&i].0 != open_edges[&i].1
-            {
+            let (left_index, right_index) = open_edges[&i];
+            if rng.sample(uniform_prob) < single_qubit_probability && left_index != right_index {
                 let (left_new_gate, right_new_gate) =
                     single_qubit_gates.choose(rng).unwrap().clone();
 
                 bond_dims.insert(next_edge, 2);
-                let mut left_new_tensor = Tensor::new(vec![next_edge, open_edges[&i].0]);
+                let mut left_new_tensor = Tensor::new(vec![next_edge, left_index]);
                 left_new_tensor.set_tensor_data(left_new_gate);
                 intermediate_gates.push(left_new_tensor);
 
                 bond_dims.insert(next_edge + 1, 2);
-                let mut right_new_tensor = Tensor::new(vec![open_edges[&i].1, next_edge + 1]);
+                let mut right_new_tensor = Tensor::new(vec![right_index, next_edge + 1]);
                 right_new_tensor.set_tensor_data(right_new_gate);
                 intermediate_gates.push(right_new_tensor);
 
