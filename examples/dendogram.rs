@@ -8,7 +8,7 @@ use tensorcontraction::{
         },
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
-    networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
+    networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     tensornetwork::partitioning::{
         find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
     },

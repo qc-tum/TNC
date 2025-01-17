@@ -13,7 +13,7 @@ use tensorcontraction::{
         broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
         scatter_tensor_network,
     },
-    networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
+    networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     path,
     tensornetwork::{
         contraction::contract_tensor_network,

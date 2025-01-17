@@ -1,3 +1,3 @@
 pub mod connectivity;
 pub mod peps;
-pub mod sycamore;
+pub mod random_circuit;

@@ -132,7 +132,7 @@ mod tests {
         contractionpath::paths::{
             greedy::Greedy, tree_reconfiguration::TreeReconfigure, CostType, OptimizePath,
         },
-        networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
+        networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
         path,
         tensornetwork::{create_tensor_network, tensor::Tensor},
     };
