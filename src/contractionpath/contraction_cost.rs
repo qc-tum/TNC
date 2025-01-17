@@ -86,12 +86,14 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPl
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors_slicing;
 /// # use tensorcontraction::types::SlicingPlan;
 /// # use rustc_hash::FxHashMap;
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let vec1 = vec![0, 1, 2];
 /// let vec2 = vec![2, 3, 4];
-/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
-/// assert_eq!(contract_cost_tensors_slicing(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 35945f64);
+/// // result = [0, 1, 4] // cost of (1+9-2)*2*(5*7*13) = 10010
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
+/// assert_eq!(contract_cost_tensors_slicing(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 10010f64);
+/// assert_eq!(contract_cost_tensors_slicing(&tn.tensor(0), &tn.tensor(1), None), 350350f64);
 /// ```
 pub fn contract_cost_tensors_slicing(
     t_1: &Tensor,
@@ -101,7 +103,7 @@ pub fn contract_cost_tensors_slicing(
     let final_dims = t_1 ^ t_2;
     let shared_dims = t_1 & t_2;
     let bond_dims = t_1.bond_dims();
-    let mut sliced_internal_legs = Vec::new();
+    let mut internal_slice_size = 1f64;
     let slicing = if let Some(slicing_plan) = slicing {
         &slicing_plan.slices
     } else {
@@ -113,18 +115,14 @@ pub fn contract_cost_tensors_slicing(
         .filter(|e| {
             let internal_slice = slicing.contains(e);
             if internal_slice {
-                sliced_internal_legs.push(**e)
+                internal_slice_size *= *bond_dims.get(e).unwrap() as f64;
             };
-            internal_slice
+            !internal_slice
         })
         .map(|e| bond_dims[e] as f64)
         .product::<f64>();
 
-    ((single_loop_cost - 1f64).mul_add(2f64, single_loop_cost * 6f64)
-        + sliced_internal_legs
-            .iter()
-            .map(|e| bond_dims[e] as f64)
-            .sum::<f64>())
+    (single_loop_cost + internal_slice_size - 2f64).mul_add(2f64, single_loop_cost * 6f64)
         * final_dims.sliced_size(slicing)
 }
 
