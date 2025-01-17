@@ -214,7 +214,6 @@ where
         }
     }
 
-    let single_qubit_gate_die = Uniform::from(0..single_qubit_gates.len());
     let connectivity_graph = Connectivity::new(connectivity);
     // Filter connectivity map
     let filtered_connectivity = connectivity_graph
