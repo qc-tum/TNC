@@ -128,170 +128,19 @@ pub fn random_circuit_with_observable<R>(
 where
     R: Rng + ?Sized,
 {
-    assert!(
-        (0.0..=1.0).contains(&single_qubit_probability),
-        "Probabilities should range from 0.0 to 1.0"
-    );
-    assert!(
-        (0.0..=1.0).contains(&two_qubit_probability),
-        "Probabilities should range from 0.0 to 1.0"
-    );
+    let observable_locations = (0..size)
+        .filter(|_| rng.gen_bool(observable_probability))
+        .collect();
 
-    assert!(
-        (0.0..=1.0).contains(&observable_probability),
-        "Probabilities should range from 0.0 to 1.0"
-    );
-
-    let single_qubit_gates = [
-        TensorData::Gate((String::from("sx"), Vec::new(), false)),
-        TensorData::Gate((String::from("sy"), Vec::new(), false)),
-        TensorData::Gate((String::from("sz"), Vec::new(), false)),
-    ];
-
-    let single_qubit_adjoint_gates = [
-        TensorData::Gate((String::from("sx"), Vec::new(), true)),
-        TensorData::Gate((String::from("sy"), Vec::new(), true)),
-        TensorData::Gate((String::from("sz"), Vec::new(), true)),
-    ];
-
-    let observables = [
-        TensorData::Gate((String::from("x"), Vec::new(), false)),
-        TensorData::Gate((String::from("y"), Vec::new(), false)),
-        TensorData::Gate((String::from("z"), Vec::new(), false)),
-    ];
-
-    let uniform_prob = Uniform::new(0.0, 1.0);
-
-    // Initialize tensornetwork of size `usize`
-    let mut random_tn = Tensor::default();
-    let mut bond_dims = FxHashMap::default();
-
-    let mut open_edges = FxHashMap::default();
-
-    let observable_die = Uniform::from(0..observables.len());
-    let mut next_edge = 0;
-
-    for i in 0..size {
-        // Placing of random observable
-        if rng.sample(uniform_prob) < observable_probability {
-            bond_dims.insert(next_edge, 2);
-            bond_dims.insert(next_edge + 1, 2);
-            open_edges.insert(i, (next_edge, next_edge + 1));
-            next_edge += 2;
-
-            let new_observable = observables[observable_die.sample(rng)].clone();
-
-            let mut new_tensor = Tensor::new(vec![open_edges[&i].0, open_edges[&i].1]);
-
-            new_tensor.set_tensor_data(new_observable);
-            random_tn.push_tensor(new_tensor, Some(&bond_dims));
-        } else {
-            // set empty positions
-            open_edges.insert(i, (0, 0));
-        }
-    }
-
-    let single_qubit_gate_die = Uniform::from(0..single_qubit_gates.len());
-    let connectivity_graph = Connectivity::new(connectivity);
-    // Filter connectivity map
-    let filtered_connectivity = connectivity_graph
-        .connectivity
-        .iter()
-        .filter(|&&(u, v)| u < size && v < size)
-        .collect_vec();
-
-    // setup intermediate gates. only place gates if all legs are not -1 (since they will cancel out otherwise)
-    let mut intermediate_gates = Vec::new();
-    for _ in 1..round {
-        // Placing of random two qubit gate if affects outcome of observable
-        for (i, j) in &filtered_connectivity {
-            // Placing of random two qubit gate
-            if rng.sample(uniform_prob) < two_qubit_probability
-                && (open_edges[i].0 != open_edges[i].1 || open_edges[j].0 != open_edges[j].1)
-            {
-                let i_indices = if open_edges[i].0 != open_edges[i].1 {
-                    (open_edges[i].0, open_edges[i].1)
-                } else {
-                    bond_dims.insert(next_edge, 2);
-                    next_edge += 1;
-                    (next_edge - 1, next_edge - 1)
-                };
-
-                let j_indices = if open_edges[j].0 != open_edges[j].1 {
-                    (open_edges[j].0, open_edges[j].1)
-                } else {
-                    bond_dims.insert(next_edge, 2);
-                    next_edge += 1;
-                    (next_edge - 1, next_edge - 1)
-                };
-
-                bond_dims.insert(next_edge, 2);
-                bond_dims.insert(next_edge + 1, 2);
-
-                let mut left_new_tensor =
-                    Tensor::new(vec![next_edge, next_edge + 1, i_indices.0, j_indices.0]);
-                left_new_tensor.set_tensor_data(fsim!(0.3, 0.2, false));
-                intermediate_gates.push(left_new_tensor);
-
-                bond_dims.insert(next_edge + 2, 2);
-                bond_dims.insert(next_edge + 3, 2);
-                let mut right_new_tensor =
-                    Tensor::new(vec![i_indices.1, j_indices.1, next_edge + 2, next_edge + 3]);
-                right_new_tensor.set_tensor_data(fsim!(0.3, 0.2, true));
-                intermediate_gates.push(right_new_tensor);
-
-                open_edges.insert(*i, (next_edge, next_edge + 2));
-                open_edges.insert(*j, (next_edge + 1, next_edge + 3));
-
-                next_edge += 4;
-            }
-        }
-
-        for i in 0..size {
-            // Placing of random single qubit gate if affects outcome of observable
-            if rng.sample(uniform_prob) < single_qubit_probability
-                && open_edges[&i].0 != open_edges[&i].1
-            {
-                let new_gate_index = single_qubit_gate_die.sample(rng);
-                let left_new_gate = single_qubit_gates[new_gate_index].clone();
-                bond_dims.insert(next_edge, 2);
-                let mut left_new_tensor = Tensor::new(vec![next_edge, open_edges[&i].0]);
-                left_new_tensor.set_tensor_data(left_new_gate);
-                intermediate_gates.push(left_new_tensor);
-
-                let right_new_gate = single_qubit_adjoint_gates[new_gate_index].clone();
-                bond_dims.insert(next_edge + 1, 2);
-                let mut right_new_tensor = Tensor::new(vec![open_edges[&i].1, next_edge + 1]);
-                right_new_tensor.set_tensor_data(right_new_gate);
-                intermediate_gates.push(right_new_tensor);
-
-                open_edges.insert(i, (next_edge, next_edge + 1));
-                next_edge += 2;
-            }
-        }
-    }
-    random_tn.push_tensors(intermediate_gates, Some(&bond_dims));
-
-    // set up random initial state
-    let mut initial_state = Vec::new();
-    for i in 0..size {
-        let (left_index, right_index) = open_edges[&i];
-        if left_index != right_index {
-            let random_sparse_tensor = random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng);
-
-            let mut left_new_state = Tensor::new(vec![left_index]);
-            left_new_state.set_tensor_data(random_sparse_tensor.clone());
-            initial_state.push(left_new_state);
-
-            let mut right_new_state = Tensor::new(vec![right_index]);
-            right_new_state.set_tensor_data(random_sparse_tensor);
-            initial_state.push(right_new_state);
-        }
-    }
-
-    random_tn.push_tensors(initial_state, Some(&bond_dims));
-
-    random_tn
+    random_circuit_with_set_observable(
+        size,
+        round,
+        single_qubit_probability,
+        two_qubit_probability,
+        observable_locations,
+        rng,
+        connectivity,
+    )
 }
 
 pub fn random_circuit_with_set_observable<R>(
