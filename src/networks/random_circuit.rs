@@ -545,10 +545,10 @@ mod tests {
         ];
         assert_eq!(circuit.bond_dims().len(), 48);
         assert_eq!(circuit.tensors().len(), 40);
+
         for (tensor, ref_leg) in zip(circuit.tensors(), ref_legs) {
             assert_eq!(tensor.legs(), ref_leg.legs());
         }
-        assert_eq!(circuit.bond_dims().len(), 48);
     }
 
     #[test]
