@@ -48,8 +48,8 @@ where
     let mut open_edges = FxHashMap::default();
 
     // Initialize tensornetwork of size `usize`
-    let mut sycamore_tn = Tensor::default();
-    let mut sycamore_bonddims = FxHashMap::default();
+    let mut circuit_tn = Tensor::default();
+    let mut circuit_bonddims = FxHashMap::default();
 
     let sycamore_connect = Connectivity::new(connectivity);
     // Filter connectivity map
@@ -67,12 +67,12 @@ where
     for i in 0..size {
         let mut new_state = Tensor::new(vec![i]);
         new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng));
-        sycamore_bonddims.insert(i, 2);
+        circuit_bonddims.insert(i, 2);
         open_edges.insert(i, i);
         initial_state.push(new_state);
     }
 
-    sycamore_tn.push_tensors(initial_state, Some(&sycamore_bonddims));
+    circuit_tn.push_tensors(initial_state, Some(&circuit_bonddims));
 
     let die = Uniform::from(0..single_qubit_gates.len());
     let mut intermediate_gates = Vec::new();
@@ -80,7 +80,7 @@ where
         for i in 0..size {
             // Placing of random single qubit gate
             if rng.sample(uniform_prob) < single_qubit_probability {
-                sycamore_bonddims.insert(next_edge, 2);
+                circuit_bonddims.insert(next_edge, 2);
                 let mut new_tensor = Tensor::new(vec![open_edges[&i], next_edge]);
                 new_tensor.set_tensor_data(single_qubit_gates[die.sample(rng)].clone());
                 intermediate_gates.push(new_tensor);
@@ -91,8 +91,8 @@ where
         for (i, j) in &filtered_connectivity {
             // Placing of random two qubit gate
             if rng.sample(uniform_prob) < two_qubit_probability {
-                sycamore_bonddims.insert(next_edge, 2);
-                sycamore_bonddims.insert(next_edge + 1, 2);
+                circuit_bonddims.insert(next_edge, 2);
+                circuit_bonddims.insert(next_edge + 1, 2);
                 let mut new_tensor =
                     Tensor::new(vec![open_edges[i], open_edges[j], next_edge, next_edge + 1]);
                 new_tensor.set_tensor_data(fsim!(0.3, 0.2, false));
@@ -103,7 +103,7 @@ where
             }
         }
     }
-    sycamore_tn.push_tensors(intermediate_gates, Some(&sycamore_bonddims));
+    circuit_tn.push_tensors(intermediate_gates, Some(&circuit_bonddims));
 
     // set up final state
     let mut final_state = Vec::with_capacity(open_edges.len());
@@ -112,9 +112,9 @@ where
         new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng));
         final_state.push(new_state);
     }
-    sycamore_tn.push_tensors(final_state, Some(&sycamore_bonddims));
+    circuit_tn.push_tensors(final_state, Some(&circuit_bonddims));
 
-    sycamore_tn
+    circuit_tn
 }
 
 pub fn random_circuit_with_observable<R>(
