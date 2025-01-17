@@ -293,3 +293,83 @@ where
 
     random_tn
 }
+
+#[cfg(test)]
+mod tests {
+    use std::iter::zip;
+
+    use rand::thread_rng;
+
+    use crate::{networks::connectivity::ConnectivityLayout, tensornetwork::tensor::Tensor};
+
+    use super::random_circuit_with_observable;
+
+    #[test]
+    fn test_init() {
+        let size = 4;
+        let rounds = 3;
+        let single_qubit_probability = 1f64;
+        let two_qubit_probability = 1f64;
+        let observable_probability = 1f64;
+        // results should be independent of rng used.
+        let mut rng = thread_rng();
+        let connectivity = ConnectivityLayout::Line(size);
+        let circuit = random_circuit_with_observable(
+            size,
+            rounds,
+            single_qubit_probability,
+            two_qubit_probability,
+            observable_probability,
+            &mut rng,
+            connectivity,
+        );
+        let ref_legs = [
+            Tensor::new(vec![0, 1]),
+            Tensor::new(vec![2, 3]),
+            Tensor::new(vec![4, 5]),
+            Tensor::new(vec![6, 7]),
+            Tensor::new(vec![8, 9, 0, 2]),
+            Tensor::new(vec![1, 3, 10, 11]),
+            Tensor::new(vec![12, 13, 9, 4]),
+            Tensor::new(vec![11, 5, 14, 15]),
+            Tensor::new(vec![16, 17, 13, 6]),
+            Tensor::new(vec![15, 7, 18, 19]),
+            Tensor::new(vec![20, 8]),
+            Tensor::new(vec![10, 21]),
+            Tensor::new(vec![22, 12]),
+            Tensor::new(vec![14, 23]),
+            Tensor::new(vec![24, 16]),
+            Tensor::new(vec![18, 25]),
+            Tensor::new(vec![26, 17]),
+            Tensor::new(vec![19, 27]),
+            Tensor::new(vec![28, 29, 20, 22]),
+            Tensor::new(vec![21, 23, 30, 31]),
+            Tensor::new(vec![32, 33, 29, 24]),
+            Tensor::new(vec![31, 25, 34, 35]),
+            Tensor::new(vec![36, 37, 33, 26]),
+            Tensor::new(vec![35, 27, 38, 39]),
+            Tensor::new(vec![40, 28]),
+            Tensor::new(vec![30, 41]),
+            Tensor::new(vec![42, 32]),
+            Tensor::new(vec![34, 43]),
+            Tensor::new(vec![44, 36]),
+            Tensor::new(vec![38, 45]),
+            Tensor::new(vec![46, 37]),
+            Tensor::new(vec![39, 47]),
+            Tensor::new(vec![40]),
+            Tensor::new(vec![41]),
+            Tensor::new(vec![42]),
+            Tensor::new(vec![43]),
+            Tensor::new(vec![44]),
+            Tensor::new(vec![45]),
+            Tensor::new(vec![46]),
+            Tensor::new(vec![47]),
+        ];
+        assert_eq!(circuit.bond_dims().len(), 48);
+        assert_eq!(circuit.tensors().len(), 40);
+        for (tensor, ref_leg) in zip(circuit.tensors(), ref_legs) {
+            assert_eq!(tensor.legs(), ref_leg.legs());
+        }
+        assert_eq!(circuit.bond_dims().len(), 48);
+    }
+}
