@@ -117,7 +117,7 @@ pub fn contract_cost_tensors_slicing(
         .filter(|e| {
             let internal_slice = slicing.contains(e);
             if internal_slice {
-                internal_slice_size *= *bond_dims.get(e).unwrap() as f64;
+                internal_slice_size *= bond_dims[*e] as f64;
             };
             !internal_slice
         })
