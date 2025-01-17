@@ -5,8 +5,8 @@ use rand::prelude::Distribution;
 use rand::{thread_rng, Rng};
 use rustc_hash::FxHashMap;
 
-use crate::contractionpath::paths::OptimizePath;
-use crate::contractionpath::paths::{greedy::Greedy, CostType};
+use crate::contractionpath::paths::greedy::Greedy;
+use crate::contractionpath::paths::{CostType, OptimizePath};
 use crate::contractionpath::random_paths::RandomOptimizePath;
 use crate::random::tensorgeneration::random_sparse_tensor_data_with_rng;
 use crate::tensornetwork::contraction::contract_tensor_network;
@@ -14,8 +14,12 @@ use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 
 macro_rules! fsim {
-    ($a:expr, $b:expr) => {
-        $crate::tensornetwork::tensordata::TensorData::Gate((String::from("fsim"), vec![$a, $b]))
+    ($a:expr, $b:expr, $c:expr) => {
+        $crate::tensornetwork::tensordata::TensorData::Gate((
+            String::from("fsim"),
+            vec![$a, $b],
+            $c,
+        ))
     };
 }
 
@@ -39,9 +43,9 @@ where
         "Probabilities should range from 0.0 to 1.0"
     );
     let single_qubit_gates = [
-        TensorData::Gate((String::from("sx"), Vec::new())),
-        TensorData::Gate((String::from("sy"), Vec::new())),
-        TensorData::Gate((String::from("sz"), Vec::new())),
+        TensorData::Gate((String::from("sx"), Vec::new(), false)),
+        TensorData::Gate((String::from("sy"), Vec::new(), false)),
+        TensorData::Gate((String::from("sz"), Vec::new(), false)),
     ];
 
     let mut open_edges = FxHashMap::default();
@@ -94,7 +98,7 @@ where
                 sycamore_bonddims.insert(next_edge + 1, 2);
                 let mut new_tensor =
                     Tensor::new(vec![open_edges[i], open_edges[j], next_edge, next_edge + 1]);
-                new_tensor.set_tensor_data(fsim!(0.3, 0.2));
+                new_tensor.set_tensor_data(fsim!(0.3, 0.2, false));
                 intermediate_gates.push(new_tensor);
                 open_edges.insert(*i, next_edge);
                 open_edges.insert(*j, next_edge + 1);

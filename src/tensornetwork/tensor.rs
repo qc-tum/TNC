@@ -497,7 +497,7 @@ impl Tensor {
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// let mut tensor = Tensor::new(vec![0, 1]);
-    /// let tensordata = TensorData::Gate((String::from("X"), vec![]));
+    /// let tensordata = TensorData::Gate((String::from("X"), vec![], false));
     /// tensor.set_tensor_data(tensordata);
     /// ```
     #[inline]

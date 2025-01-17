@@ -6,14 +6,17 @@ use std::path::PathBuf;
 use num_complex::Complex64;
 use tetra::{all_close, Layout, Tensor as DataTensor};
 
-use crate::{gates::load_gate, io::load_data};
+use crate::{
+    gates::{load_gate, load_gate_adjoint},
+    io::load_data,
+};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub enum TensorData {
     #[default]
     Uncontracted,
     File(PathBuf),
-    Gate((String, Vec<f64>)),
+    Gate((String, Vec<f64>, bool)),
     Matrix(DataTensor),
 }
 
@@ -33,7 +36,10 @@ impl TensorData {
     pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
         match (self, other) {
             (Self::File(l0), Self::File(r0)) => l0 == r0,
-            (Self::Gate((l0, angles_l)), Self::Gate((r0, angles_r))) => {
+            (Self::Gate((l0, angles_l, adjoint_l)), Self::Gate((r0, angles_r, adjoint_r))) => {
+                if adjoint_l != adjoint_r {
+                    return false;
+                }
                 if l0.to_lowercase() != r0.to_lowercase() {
                     return false;
                 }
@@ -55,7 +61,13 @@ impl TensorData {
         match self {
             TensorData::Uncontracted => panic!("Cannot convert uncontracted tensor to data"),
             TensorData::File(filename) => load_data(filename).unwrap(),
-            TensorData::Gate((gatename, angles)) => load_gate(&gatename, &angles),
+            TensorData::Gate((gatename, angles, adjoint)) => {
+                if adjoint {
+                    load_gate_adjoint(&gatename, &angles)
+                } else {
+                    load_gate(&gatename, &angles)
+                }
+            }
             TensorData::Matrix(tensor) => tensor,
         }
     }
