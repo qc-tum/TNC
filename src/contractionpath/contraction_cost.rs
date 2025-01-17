@@ -196,7 +196,7 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let vec1 = vec![0, 1, 2]; // 35 entries
 /// let vec2 = vec![2, 3, 4]; // 13 entries
-/// // result = [0, 1, 4] //  455 entries -> total 603 entries
+/// // result = [0, 1, 4] //  455 entries -> total 503 entries
 /// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
 /// assert_eq!(contract_size_tensors_slicing(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 503.);
