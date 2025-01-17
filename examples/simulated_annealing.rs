@@ -7,7 +7,7 @@ use tensorcontraction::{
             simulated_annealing::{balance_partitions, calculate_score},
         },
     },
-    networks::{connectivity::ConnectivityLayout, sycamore::random_circuit},
+    networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     tensornetwork::{
         contraction::contract_tensor_network,
         partitioning::{find_partitioning, partition_config::PartitioningStrategy},

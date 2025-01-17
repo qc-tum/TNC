@@ -11,7 +11,7 @@ use tensorcontraction::mpi::communication::{
     scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
-use tensorcontraction::networks::sycamore::random_circuit;
+use tensorcontraction::networks::random_circuit::random_circuit;
 
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};

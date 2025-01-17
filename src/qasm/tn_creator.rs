@@ -133,6 +133,7 @@ impl TensorNetworkCreator {
                         tensor.set_tensor_data(TensorData::Gate((
                             call.name.to_ascii_lowercase(),
                             args.clone(),
+                            false,
                         )));
                         tensors.push(tensor);
                     }

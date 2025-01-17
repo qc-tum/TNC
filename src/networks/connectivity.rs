@@ -18,6 +18,7 @@ pub enum ConnectivityLayout {
     Sycamore,
     AllLayer(usize),
     All(usize),
+    Line(usize),
 }
 
 impl Connectivity {
@@ -42,6 +43,7 @@ impl Connectivity {
             ConnectivityLayout::Sycamore => sycamore_connect(),
             ConnectivityLayout::AllLayer(n) => all_layer_connect(n),
             ConnectivityLayout::All(n) => all_connect(n),
+            ConnectivityLayout::Line(n) => line_connect(n),
         };
         Self { connectivity, name }
     }
@@ -272,4 +274,8 @@ fn condor_connect() -> Vec<(usize, usize)> {
     );
 
     connectivity
+}
+
+fn line_connect(n: usize) -> Vec<(usize, usize)> {
+    (0..n).tuple_windows().collect::<Vec<_>>()
 }
