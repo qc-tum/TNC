@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::tensornetwork::tensor::Tensor;
-use crate::types::{ContractionIndex, EdgeIndex};
+use crate::types::{ContractionIndex, EdgeIndex, SlicingPlan};
 
 /// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
 /// objects. Considers cost of complex operations.
@@ -16,24 +16,14 @@ use crate::types::{ContractionIndex, EdgeIndex};
 /// let vec2 = vec![2, 3, 4];
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
-/// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 350350f64);
+/// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1), None), 350350f64);
 /// ```
-pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
+pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>) -> f64 {
     let final_dims = t_1 ^ t_2;
     let shared_dims = t_1 & t_2;
-    let bond_dims = t_1.bond_dims();
-    let single_loop_cost = shared_dims
-        .legs()
-        .iter()
-        .map(|e| bond_dims[e] as f64)
-        .product::<f64>();
 
-    (single_loop_cost - 1f64).mul_add(2f64, single_loop_cost * 6f64)
-        * final_dims
-            .legs()
-            .iter()
-            .map(|e| bond_dims[e] as f64)
-            .product::<f64>()
+    let single_loop_cost = shared_dims.size();
+    (single_loop_cost - 1f64).mul_add(2f64, single_loop_cost * 6f64) * final_dims.size()
 }
 
 /// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
@@ -49,17 +39,95 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// let vec2 = vec![2, 3, 4];
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
-/// assert_eq!(contract_op_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 45045f64);
+/// assert_eq!(contract_op_cost_tensors(&tn.tensor(0), &tn.tensor(1), None), 45045f64);
 /// ```
-pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
+#[inline]
+pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>) -> f64 {
     let all_dims = t_1 | t_2;
-    let bond_dims = t_1.bond_dims();
+    all_dims.size()
+}
 
-    all_dims
+/// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
+/// objects. Considers cost of complex operations and the usage of slicing.
+///
+/// # Examples
+/// ```
+/// # use tensorcontraction::tensornetwork::tensor::Tensor;
+/// # use tensorcontraction::tensornetwork::create_tensor_network;
+/// # use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors_slicing;
+/// # use tensorcontraction::types::SlicingPlan;
+/// # use rustc_hash::FxHashMap;
+/// let vec1 = vec![0, 1, 2];
+/// let vec2 = vec![2, 3, 4];
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
+/// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
+/// assert_eq!(contract_cost_tensors_slicing(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 35945f64);
+/// ```
+pub fn contract_cost_tensors_slicing(
+    t_1: &Tensor,
+    t_2: &Tensor,
+    slicing: Option<&SlicingPlan>,
+) -> f64 {
+    let final_dims = t_1 ^ t_2;
+    let shared_dims = t_1 & t_2;
+    let bond_dims = t_1.bond_dims();
+    let mut sliced_internal_legs = Vec::new();
+    let slicing = if let Some(slicing_plan) = slicing {
+        &slicing_plan.slices
+    } else {
+        &Vec::new()
+    };
+    let single_loop_cost = shared_dims
         .legs()
         .iter()
+        .filter(|e| {
+            let internal_slice = slicing.contains(e);
+            if internal_slice {
+                sliced_internal_legs.push(**e)
+            };
+            internal_slice
+        })
         .map(|e| bond_dims[e] as f64)
-        .product::<f64>()
+        .product::<f64>();
+
+    ((single_loop_cost - 1f64).mul_add(2f64, single_loop_cost * 6f64)
+        + sliced_internal_legs
+            .iter()
+            .map(|e| bond_dims[e] as f64)
+            .sum::<f64>())
+        * final_dims.sliced_size(slicing)
+}
+
+/// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
+/// objects. Naive op cost, does not consider costs of multiplication, but considers the effects of slicing.
+///
+/// # Examples
+/// ```
+/// # use tensorcontraction::tensornetwork::tensor::Tensor;
+/// # use tensorcontraction::tensornetwork::create_tensor_network;
+/// # use tensorcontraction::contractionpath::contraction_cost::contract_op_cost_tensors_slicing;
+/// # use tensorcontraction::types::SlicingPlan;
+/// # use rustc_hash::FxHashMap;
+/// let vec1 = vec![0, 1, 2];
+/// let vec2 = vec![2, 3, 4];
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
+/// assert_eq!(contract_op_cost_tensors_slicing(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 455f64);
+/// ```
+pub fn contract_op_cost_tensors_slicing(
+    t_1: &Tensor,
+    t_2: &Tensor,
+    slicing: Option<&SlicingPlan>,
+) -> f64 {
+    let all_dims = t_1 | t_2;
+    let slicing = if let Some(slicing_plan) = slicing {
+        &slicing_plan.slices
+    } else {
+        &Vec::new()
+    };
+    all_dims.sliced_size(slicing)
 }
 
 /// Returns Schroedinger contraction space complexity of contracting two [`Tensor`]
@@ -75,12 +143,44 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// let vec2 = vec![2, 3, 4];
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
-/// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1)), 6607f64);
+/// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1), None), 6607f64);
 /// ```
 #[inline]
-pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
+pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>) -> f64 {
     let diff = t_1 ^ t_2;
     diff.size() + t_1.size() + t_2.size()
+}
+
+/// Returns Schroedinger contraction space complexity of contracting two [`Tensor`]
+/// objects. Considers the effects of slicing.
+///
+/// # Examples
+/// ```
+/// # use tensorcontraction::tensornetwork::tensor::Tensor;
+/// # use tensorcontraction::tensornetwork::create_tensor_network;
+/// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors_slicing;
+/// # use tensorcontraction::types::SlicingPlan;
+/// # use rustc_hash::FxHashMap;
+/// let vec1 = vec![0, 1, 2];
+/// let vec2 = vec![2, 3, 4];
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
+/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
+/// assert_eq!(contract_size_tensors_slicing(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 503f64);
+/// ```
+#[inline]
+pub fn contract_size_tensors_slicing(
+    t_1: &Tensor,
+    t_2: &Tensor,
+    slicing: Option<&SlicingPlan>,
+) -> f64 {
+    let slicing = if let Some(slicing_plan) = slicing {
+        &slicing_plan.slices
+    } else {
+        &Vec::new()
+    };
+    let diff = t_1 ^ t_2;
+    diff.sliced_size(slicing) + t_1.sliced_size(slicing) + t_2.sliced_size(slicing)
 }
 
 /// Returns a rather exact estimate of the memory requirements for
@@ -101,9 +201,15 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 /// // result = [0, 1, 3], requires 6160 bytes
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
 /// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
-/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1)), 799f64);
+/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1), None), 799f64);
 /// ```
-pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor) -> f64 {
+pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor, slicing: Option<&SlicingPlan>) -> f64 {
+    // TODO: implement slicing
+    assert!(
+        slicing.is_none(),
+        "Slicing not yet supported for exact size calculation"
+    );
+
     /// Checks if `prefix` is a prefix of `list`.
     #[inline]
     fn is_prefix(prefix: &[EdgeIndex], list: &[EdgeIndex]) -> bool {
@@ -162,7 +268,42 @@ pub fn contract_path_cost(
     } else {
         contract_cost_tensors
     };
-    contract_path_custom_cost(inputs, contract_path, cost_function)
+    contract_path_custom_cost(
+        inputs,
+        contract_path,
+        cost_function,
+        contract_size_tensors,
+        None,
+    )
+}
+
+/// Returns Schroedinger contraction time and space complexity of fully contracting
+/// the input tensors. Considers the effects of slicing.
+///
+/// # Arguments
+/// * `inputs` - Tensors to contract
+/// * `contract_path`  - Contraction order (replace path)
+/// * `slicing_plan` - Associated slicing plan
+/// * `only_count_ops` - If `true`, ignores cost of complex multiplication and addition and only counts number of operations
+#[inline]
+pub fn contract_path_cost_slicing(
+    inputs: &[Tensor],
+    contract_path: &[ContractionIndex],
+    slicing_plan: Option<&SlicingPlan>,
+    only_count_ops: bool,
+) -> (f64, f64) {
+    let cost_function = if only_count_ops {
+        contract_op_cost_tensors_slicing
+    } else {
+        contract_cost_tensors_slicing
+    };
+    contract_path_custom_cost(
+        inputs,
+        contract_path,
+        cost_function,
+        contract_size_tensors_slicing,
+        slicing_plan,
+    )
 }
 
 /// Returns Schroedinger contraction time and space complexity of fully contracting
@@ -175,31 +316,38 @@ pub fn contract_path_cost(
 fn contract_path_custom_cost(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
-    cost_function: fn(&Tensor, &Tensor) -> f64,
+    cost_function: fn(&Tensor, &Tensor, Option<&SlicingPlan>) -> f64,
+    size_function: fn(&Tensor, &Tensor, Option<&SlicingPlan>) -> f64,
+    slicing_plan: Option<&SlicingPlan>,
 ) -> (f64, f64) {
     let mut op_cost = 0f64;
     let mut mem_cost = 0f64;
     let mut inputs = inputs.to_vec();
 
     for index in contract_path {
-        match *index {
+        match index {
             ContractionIndex::Pair(i, j) => {
-                op_cost += cost_function(&inputs[i], &inputs[j]);
-                let ij = &inputs[i] ^ &inputs[j];
-                let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
+                op_cost += cost_function(&inputs[*i], &inputs[*j], slicing_plan);
+                let ij = &inputs[*i] ^ &inputs[*j];
+                let new_mem_cost = size_function(&inputs[*i], &inputs[*j], slicing_plan);
                 mem_cost = mem_cost.max(new_mem_cost);
-                inputs[i] = ij;
+                inputs[*i] = ij;
             }
-            ContractionIndex::Path(i, ref _slicing, ref path) => {
-                // TODO: consider slicing
-                let costs = contract_path_custom_cost(inputs[i].tensors(), path, cost_function);
+            ContractionIndex::Path(i, slicing, ref path) => {
+                let costs = contract_path_custom_cost(
+                    inputs[*i].tensors(),
+                    path,
+                    cost_function,
+                    size_function,
+                    slicing.as_ref(),
+                );
                 op_cost += costs.0;
                 mem_cost = mem_cost.max(costs.1);
                 let intermediate_tensor = Tensor::new_with_bonddims(
-                    inputs[i].external_edges(),
-                    Arc::clone(&inputs[i].bond_dims),
+                    inputs[*i].external_edges(),
+                    Arc::clone(&inputs[*i].bond_dims),
                 );
-                inputs[i] = intermediate_tensor;
+                inputs[*i] = intermediate_tensor;
             }
         }
     }
@@ -247,7 +395,7 @@ pub fn communication_path_cost(
 fn communication_path_custom_cost(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
-    cost_function: fn(&Tensor, &Tensor) -> f64,
+    cost_function: fn(&Tensor, &Tensor, Option<&SlicingPlan>) -> f64,
     tensor_cost: &[f64],
 ) -> (f64, f64) {
     let mut op_cost = 0f64;
@@ -259,11 +407,11 @@ fn communication_path_custom_cost(
         match *index {
             ContractionIndex::Pair(i, j) => {
                 let ij = &inputs[i] ^ &inputs[j];
-                let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
+                let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j], None);
                 mem_cost = mem_cost.max(new_mem_cost);
 
-                op_cost =
-                    cost_function(&inputs[i], &inputs[j]) + tensor_cost[i].max(tensor_cost[j]);
+                op_cost = cost_function(&inputs[i], &inputs[j], None)
+                    + tensor_cost[i].max(tensor_cost[j]);
                 tensor_cost[i] = op_cost;
                 inputs[i] = ij;
             }
@@ -281,37 +429,19 @@ fn communication_path_custom_cost(
 /// two tensors.
 ///
 /// Candidates for `memory_estimator` are e.g.:
-/// - [`contract_size_tensors`]
+/// - [`contract_size_tensors_slicing`]
 /// - [`contract_size_tensors_exact`]
+#[inline]
 pub fn compute_memory_requirements(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
-    memory_estimator: fn(&Tensor, &Tensor) -> f64,
+    memory_estimator: fn(&Tensor, &Tensor, Option<&SlicingPlan>) -> f64,
 ) -> f64 {
-    let mut inputs = inputs.to_vec();
-    let mut max_size = 0.0f64;
-    for index in contract_path {
-        match *index {
-            ContractionIndex::Pair(i, j) => {
-                let contracted = &inputs[i] ^ &inputs[j];
-                let size = memory_estimator(&inputs[i], &inputs[j]);
-                max_size = max_size.max(size);
-                inputs[i] = contracted;
-            }
-            ContractionIndex::Path(i, ref _slicing, ref path) => {
-                // TODO: consider slicing
-                let max_child_size =
-                    compute_memory_requirements(inputs[i].tensors(), path, memory_estimator);
-                max_size = max_size.max(max_child_size);
-                let tn = {
-                    let bond_dims = inputs[i].bond_dims.clone();
-                    Tensor::new_with_bonddims(inputs[i].external_edges(), bond_dims)
-                };
-                inputs[i] = tn;
-            }
-        }
+    fn id(_: &Tensor, _: &Tensor, _: Option<&SlicingPlan>) -> f64 {
+        0.0
     }
-    max_size
+    let (_, mem) = contract_path_custom_cost(inputs, contract_path, id, memory_estimator, None);
+    mem
 }
 
 #[cfg(test)]

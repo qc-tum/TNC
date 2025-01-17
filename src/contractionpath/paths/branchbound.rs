@@ -80,8 +80,8 @@ impl<'a> BranchBound<'a> {
             size_12 = self.size_cache[&k12];
         } else {
             k12 = self.tensor_cache.len();
-            flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
-            size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
+            flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
+            size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
             k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
 
             self.result_cache.entry((i, j)).or_insert_with(|| k12);
