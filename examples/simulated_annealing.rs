@@ -46,7 +46,7 @@ fn main() {
     let initial_score = calculate_score(&tensor, &initial_partitioning, communication_scheme);
     println!("Initial score: {initial_score:?}");
 
-    // Try to find a better partitioning with a simulated annealing algorithm
+    // Try to find a better partitioning with undirected simulated annealing
     let (_, final_score) = balance_partitions::<_, NaivePartitioningModel>(
         &tensor,
         num_partitions as usize,
@@ -55,12 +55,13 @@ fn main() {
         &mut rng,
         None,
     );
-    println!("Normal Final score: {final_score:?}");
+    println!("Normal final score: {final_score:?}");
+
+    // Try to find a better partitioning with directed simulated annealing
     let mut intermediate_tensors = vec![Tensor::new(Vec::new()); num_partitions as usize];
     for (index, partition) in initial_partitioning.iter().enumerate() {
         intermediate_tensors[*partition] ^= tensor.tensor(index);
     }
-    // Try to find a better partitioning with a simulated annealing algorithm
     let (partitioning, final_score) = balance_partitions::<_, LeafPartitioningModel>(
         &tensor,
         num_partitions as usize,
@@ -69,7 +70,7 @@ fn main() {
         &mut rng,
         None,
     );
-    println!("Directed Final score: {final_score:?}");
+    println!("Directed final score: {final_score:?}");
 
     // Partition the tensor network with the found partitioning and contract
     let (mut tensor, path, _) = compute_solution(&tensor, &partitioning.0, communication_scheme);
