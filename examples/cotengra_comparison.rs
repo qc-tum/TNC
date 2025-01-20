@@ -109,7 +109,7 @@ fn main() {
                     initial_partitioned_tensor.tensors(),
                     &initial_contraction_path,
                     contract_size_tensors_exact,
-                ) * 16.0;
+                );
 
                 local_results.push(TensorResult {
                     seed: i,
@@ -304,7 +304,7 @@ fn ga_run(
         partitioned_tensor.tensors(),
         &contraction_path,
         contract_size_tensors_exact,
-    ) * 16.0;
+    );
     (flops, memory)
 }
 
@@ -331,7 +331,7 @@ fn sa_run(
         partitioned_tensor.tensors(),
         &contraction_path,
         contract_size_tensors_exact,
-    ) * 16.0;
+    );
     (flops, memory)
 }
 
@@ -365,7 +365,7 @@ fn iad_run(
         partitioned_tensor.tensors(),
         &contraction_path,
         contract_size_tensors_exact,
-    ) * 16.0;
+    );
     (flops, memory)
 }
 
@@ -393,7 +393,7 @@ fn sad_run(
         partitioned_tensor.tensors(),
         &contraction_path,
         contract_size_tensors_exact,
-    ) * 16.0;
+    );
     (flops, memory)
 }
 

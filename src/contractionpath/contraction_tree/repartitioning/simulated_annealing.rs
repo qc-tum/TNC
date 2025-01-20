@@ -164,7 +164,7 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
             partitioned_tn.tensors(),
             &path,
             contract_size_tensors_exact,
-        ) * 16.0;
+        );
 
         // If the memory limit is exceeded, return infinity
         let score = if self.memory_limit.is_some_and(|limit| mem > limit) {
@@ -242,7 +242,7 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
             partitioned_tn.tensors(),
             &path,
             contract_size_tensors_exact,
-        ) * 16.0;
+        );
 
         // If the memory limit is exceeded, return infinity
         let score = if self
@@ -400,7 +400,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             partitioned_tn.tensors(),
             &path,
             contract_size_tensors_exact,
-        ) * 16.0;
+        );
 
         // If the memory limit is exceeded, return infinity
         let score = if self
