@@ -286,11 +286,11 @@ mod tests {
     #[test]
     fn test_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = BranchBound::new(&tn, None, 20f64, CostType::Flops);
+        let mut opt = BranchBound::new(&tn, None, 20., CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 4540f64);
-        assert_eq!(opt.best_size, 538f64);
+        assert_eq!(opt.best_flops, 4540.);
+        assert_eq!(opt.best_size, 538.);
         assert_eq!(opt.get_best_path(), &path![(1, 0), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 0), (2, 1)]);
     }
@@ -298,11 +298,11 @@ mod tests {
     #[test]
     fn test_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = BranchBound::new(&tn, None, 20f64, CostType::Flops);
+        let mut opt = BranchBound::new(&tn, None, 20., CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 2654474f64);
-        assert_eq!(opt.best_size, 89478f64);
+        assert_eq!(opt.best_flops, 2654474.);
+        assert_eq!(opt.best_size, 89478.);
         assert_eq!(opt.best_path, path![(1, 5), (0, 6), (2, 7), (3, 8), (4, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),

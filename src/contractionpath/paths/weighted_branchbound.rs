@@ -240,7 +240,7 @@ mod tests {
                 ],
                 &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
             ),
-            FxHashMap::from_iter([(0, 20f64), (1, 40f64), (2, 85f64)]),
+            FxHashMap::from_iter([(0, 20.), (1, 40.), (2, 85.)]),
         )
     }
 
@@ -270,25 +270,18 @@ mod tests {
                     (11, 17),
                 ]),
             ),
-            FxHashMap::from_iter([
-                (0, 120f64),
-                (1, 0f64),
-                (2, 15f64),
-                (3, 15f64),
-                (4, 85f64),
-                (5, 15f64),
-            ]),
+            FxHashMap::from_iter([(0, 120.), (1, 0.), (2, 15.), (3, 15.), (4, 85.), (5, 15.)]),
         )
     }
 
     #[test]
     fn test_contract_order_simple() {
         let (tn, latency_costs) = setup_simple();
-        let mut opt = WeightedBranchBound::new(&tn, None, 20f64, latency_costs, CostType::Flops);
+        let mut opt = WeightedBranchBound::new(&tn, None, 20., latency_costs, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 4580f64);
-        assert_eq!(opt.best_size, 538f64);
+        assert_eq!(opt.best_flops, 4580.);
+        assert_eq!(opt.best_size, 538.);
         assert_eq!(opt.get_best_path(), &path![(1, 0), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 0), (2, 1)]);
     }
@@ -296,11 +289,11 @@ mod tests {
     #[test]
     fn test_contract_order_complex() {
         let (tn, latency_costs) = setup_complex();
-        let mut opt = WeightedBranchBound::new(&tn, None, 20f64, latency_costs, CostType::Flops);
+        let mut opt = WeightedBranchBound::new(&tn, None, 20., latency_costs, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 2120615.0f64);
-        assert_eq!(opt.best_size, 89478f64);
+        assert_eq!(opt.best_flops, 2120615.);
+        assert_eq!(opt.best_size, 89478.);
         assert_eq!(opt.best_path, path![(3, 4), (2, 6), (1, 5), (0, 8), (7, 9)]);
         assert_eq!(
             opt.get_best_replace_path(),

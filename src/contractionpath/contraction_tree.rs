@@ -937,17 +937,16 @@ mod tests {
     fn test_tree_weights_simple() {
         let (tensor, path) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
-        let ref_weights =
-            FxHashMap::from_iter([(1, 0f64), (0, 0f64), (2, 0f64), (3, 3820f64), (4, 4540f64)]);
+        let ref_weights = FxHashMap::from_iter([(1, 0.), (0, 0.), (2, 0.), (3, 3820.), (4, 4540.)]);
         let weights = tree.tree_weights(4, &tensor, contract_cost_tensors);
 
         assert_eq!(weights, ref_weights);
-        let ref_weights = FxHashMap::from_iter([(1, 0f64), (0, 0f64), (3, 3820f64)]);
+        let ref_weights = FxHashMap::from_iter([(1, 0.), (0, 0.), (3, 3820.)]);
         let weights = tree.tree_weights(3, &tensor, contract_cost_tensors);
         assert_eq!(weights, ref_weights);
 
         assert_eq!(weights, ref_weights);
-        let ref_weights = FxHashMap::from_iter([(2, 0f64)]);
+        let ref_weights = FxHashMap::from_iter([(2, 0.)]);
         let weights = tree.tree_weights(2, &tensor, contract_cost_tensors);
         assert_eq!(weights, ref_weights);
     }
@@ -957,17 +956,17 @@ mod tests {
         let (tensor, path) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
         let ref_weights = FxHashMap::from_iter([
-            (0, 0f64),
-            (1, 0f64),
-            (2, 0f64),
-            (3, 0f64),
-            (4, 0f64),
-            (5, 0f64),
-            (6, 2098440f64),
-            (7, 2120010f64),
-            (8, 2105820f64),
-            (9, 2116470f64),
-            (10, 4237070f64),
+            (0, 0.),
+            (1, 0.),
+            (2, 0.),
+            (3, 0.),
+            (4, 0.),
+            (5, 0.),
+            (6, 2098440.),
+            (7, 2120010.),
+            (8, 2105820.),
+            (9, 2116470.),
+            (10, 4237070.),
         ]);
         let weights = tree.tree_weights(10, &tensor, contract_cost_tensors);
 

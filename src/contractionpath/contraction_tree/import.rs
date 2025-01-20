@@ -23,8 +23,8 @@ pub enum Direction {
 }
 
 pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
-    let height = 120f64;
-    let width = 80f64;
+    let height = 120.;
+    let width = 80.;
     let LogsToTreeResult {
         tree: contraction_tree,
         tensor_cost: tensor_position,
@@ -73,7 +73,7 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
 
             let x1 = tensor_x_position[i];
             let x2 = tensor_x_position[j];
-            let new_x = (x1 + x2) / 2f64;
+            let new_x = (x1 + x2) / 2.;
             if let Some(parent_id) = contraction_tree.node(*i).parent_id() {
                 let y = tensor_position[&parent_id];
                 let color = tensor_color[&parent_id].clone();

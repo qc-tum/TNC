@@ -58,8 +58,8 @@ pub fn to_dendogram_format(
     tensor_network: &Tensor,
     objective_function: fn(&Tensor, &Tensor, Option<&SlicingPlan>) -> f64,
 ) -> Vec<DendogramEntry> {
-    let length = 80f64;
-    let height = 60f64;
+    let length = 80.;
+    let height = 60.;
 
     let x_spacing = length / tensor_network.total_num_tensors() as f64;
     let mut next_leaf_x = x_spacing;
@@ -175,10 +175,10 @@ pub fn to_dendogram_format(
                 communication_color.clone()
             }
         };
-        node_to_position.insert_new(parent_id, ((x1 + x2) / 2f64, parent_cost));
+        node_to_position.insert_new(parent_id, ((x1 + x2) / 2., parent_cost));
         dendogram_entries.push(DendogramEntry {
             id: parent_id,
-            x: (x1 + x2) / 2f64,
+            x: (x1 + x2) / 2.,
             y: 0f64,
             cost: parent_cost,
             color,
@@ -286,10 +286,10 @@ pub fn to_dendogram(
     cost_function: fn(&Tensor, &Tensor, Option<&SlicingPlan>) -> f64,
     pdf_name: &str,
 ) {
-    let length = 80f64;
+    let length = 80.;
     let x_spacing = length / tn.total_num_tensors() as f64;
     let mut last_leaf_x = x_spacing;
-    let height = 60f64;
+    let height = 60.;
     let mut node_to_position = FxHashMap::default();
     let root_id = contraction_tree.root_id().unwrap();
     let path = contraction_tree.to_flat_contraction_path(root_id, false);
@@ -341,12 +341,12 @@ pub fn to_dendogram(
             parent_cost -= child_cost;
         }
         let scaled_height = parent_cost / scaling_factor * height;
-        node_to_position.insert_new(parent_id, ((x1 + x2) / 2f64, scaled_height));
+        node_to_position.insert_new(parent_id, ((x1 + x2) / 2., scaled_height));
         tikz_picture.push_str(&format!(
             r#"    \node[label={{[shift={{(-0.4,-0.1)}}]{}}}, label=below:{{{parent_id}}}] at ({}, {scaled_height}) ({parent_id}) {{}};
 "#,
             tree_weights[&parent_id],
-            (x1 + x2) / 2f64,
+            (x1 + x2) / 2.,
         ));
         tikz_picture.push_str(&format!(
             r#"    \path[draw] ({node_1_id}.center) -- ({x1}, {scaled_height}) -- ({parent_id}.center);

@@ -516,22 +516,22 @@ mod tests {
         vec![
             PartitionData {
                 id: 2,
-                flop_cost: 1f64,
-                mem_cost: 0f64,
+                flop_cost: 1.,
+                mem_cost: 0.,
                 contraction: Default::default(),
                 local_tensor: Tensor::new(vec![7, 9, 10]),
             },
             PartitionData {
                 id: 7,
-                flop_cost: 2f64,
-                mem_cost: 0f64,
+                flop_cost: 2.,
+                mem_cost: 0.,
                 contraction: Default::default(),
                 local_tensor: Tensor::new(vec![0, 1, 5, 7]),
             },
             PartitionData {
                 id: 14,
-                flop_cost: 3f64,
-                mem_cost: 0f64,
+                flop_cost: 3.,
+                mem_cost: 0.,
                 contraction: Default::default(),
                 local_tensor: Tensor::new(vec![0, 1, 2, 5, 10]),
             },
