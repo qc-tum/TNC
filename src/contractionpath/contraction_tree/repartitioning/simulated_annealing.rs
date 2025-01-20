@@ -33,7 +33,7 @@ pub trait OptModel<'a>: Sync + Send {
         memory_limit: Option<f64>,
     ) -> Self
     where
-        Self: std::marker::Sized;
+        Self: Sized;
 
     /// Generate a new trial solution from current solution
     fn generate_trial_solution<R: Rng + Sized>(
@@ -182,7 +182,7 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
         memory_limit: Option<f64>,
     ) -> Self
     where
-        Self: std::marker::Sized,
+        Self: Sized,
     {
         Self {
             tensor,
@@ -264,7 +264,7 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
         memory_limit: Option<f64>,
     ) -> Self
     where
-        Self: std::marker::Sized,
+        Self: Sized,
     {
         Self {
             tensor,
@@ -422,7 +422,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         memory_limit: Option<f64>,
     ) -> Self
     where
-        Self: std::marker::Sized,
+        Self: Sized,
     {
         Self {
             tensor,
