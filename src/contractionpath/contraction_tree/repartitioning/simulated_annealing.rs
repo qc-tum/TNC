@@ -126,6 +126,7 @@ impl<'a> SimulatedAnnealingOptimizer {
     }
 }
 
+/// A simulated annealing model that moves a random tensor between random partitions.
 pub struct NaivePartitioningModel<'a> {
     tensor: &'a Tensor,
     num_partitions: usize,
@@ -192,6 +193,8 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
     }
 }
 
+/// A simulated annealing model that moves a random tensor to the partition that
+/// maximizes memory reduction.
 pub struct LeafPartitioningModel<'a> {
     tensor: &'a Tensor,
     num_partitions: usize,
@@ -272,6 +275,9 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
     }
 }
 
+/// A simulated annealing model that moves a random intermediate tensor, i.e., a
+/// random number of tensors from one partition to the partition that maximizes
+/// memory reduction.
 pub struct IntermediatePartitioningModel<'a> {
     tensor: &'a Tensor,
     num_partitions: usize,
