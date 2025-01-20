@@ -213,21 +213,27 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
         let (mut partitioning, mut partition_tensors) = current_solution;
         let tensor_index = rng.gen_range(0..partitioning.len());
         let shifted_tensor = self.tensor.tensor(tensor_index);
+        let source_partition = partitioning[tensor_index];
 
         let (new_partition, _) = partition_tensors
             .iter()
             .enumerate()
-            .map(|(i, partition_tensor)| {
-                (
-                    i,
-                    (shifted_tensor ^ partition_tensor).size() - partition_tensor.size(),
-                )
+            .filter_map(|(i, partition_tensor)| {
+                if i != source_partition {
+                    Some((
+                        i,
+                        (shifted_tensor ^ partition_tensor).size() - partition_tensor.size(),
+                    ))
+                } else {
+                    // Don't consider old partition as move target (would be a NOOP)
+                    None
+                }
             })
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .unwrap();
-        let old_partition = partitioning[tensor_index];
+
         partitioning[tensor_index] = new_partition;
-        partition_tensors[old_partition] ^= shifted_tensor;
+        partition_tensors[source_partition] ^= shifted_tensor;
         partition_tensors[new_partition] ^= shifted_tensor;
         (partitioning, partition_tensors)
     }
