@@ -1,8 +1,9 @@
 use std::iter::zip;
 
+use itertools::Itertools;
 use ordered_float::NotNan;
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 
 use crate::{
@@ -78,17 +79,15 @@ impl<'a> SimulatedAnnealingOptimizer {
         let mut best_score = current_score;
         let mut last_improvement = 0;
 
-        let mut seeds = vec![0u64; self.n_trials];
+        let mut rngs = (0..self.n_trials)
+            .map(|_| StdRng::seed_from_u64(rng.gen()))
+            .collect_vec();
         for _ in 0..n_iter {
-            // Get seeds for the RNG of each candidate
-            rng.fill(&mut seeds[..]);
-
             // Generate and evaluate candidate solutions to find the minimum objective
-            let (trial_solution, trial_score) = seeds
-                .par_iter()
-                .map(|seed| {
-                    let mut rng = StdRng::seed_from_u64(*seed);
-                    let trial = model.generate_trial_solution(current_solution.clone(), &mut rng);
+            let (trial_solution, trial_score) = rngs
+                .par_iter_mut()
+                .map(|rng| {
+                    let trial = model.generate_trial_solution(current_solution.clone(), rng);
                     let score = model.evaluate(&trial);
                     (trial, score)
                 })
