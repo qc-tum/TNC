@@ -1,9 +1,8 @@
 use std::iter::zip;
 
-use itertools::Itertools;
 use ordered_float::NotNan;
-use rand::Rng;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rand::{rngs::StdRng, Rng, SeedableRng};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 
 use crate::{
@@ -79,18 +78,19 @@ impl<'a> SimulatedAnnealingOptimizer {
         let mut best_score = current_score;
         let mut last_improvement = 0;
 
+        let mut seeds = vec![0u64; self.n_trials];
         for _ in 0..n_iter {
-            // Generate candidates sequentially (TODO: how to parallelize the RNG?)
-            let candidates = (0..self.n_trials)
-                .map(|_| model.generate_trial_solution(current_solution.clone(), rng))
-                .collect_vec();
+            // Get seeds for the RNG of each candidate
+            rng.fill(&mut seeds[..]);
 
-            // Evaluate candidates in parallel
-            let (trial_solution, trial_score) = candidates
-                .into_par_iter()
-                .map(|candidate| {
-                    let score = model.evaluate(&candidate);
-                    (candidate, score)
+            // Generate and evaluate candidate solutions to find the minimum objective
+            let (trial_solution, trial_score) = seeds
+                .par_iter()
+                .map(|seed| {
+                    let mut rng = StdRng::seed_from_u64(*seed);
+                    let trial = model.generate_trial_solution(current_solution.clone(), &mut rng);
+                    let score = model.evaluate(&trial);
+                    (trial, score)
                 })
                 .min_by_key(|(_, score)| *score)
                 .unwrap();
