@@ -448,7 +448,7 @@ impl Tensor {
     /// * `bond_dims` - `FxHashMap<usize, u64>` mapping edge id to bond dimension
     pub fn push_tensors(
         &mut self,
-        tensors: Vec<Self>,
+        mut tensors: Vec<Self>,
         bond_dims: Option<&FxHashMap<EdgeIndex, u64>>,
     ) {
         // If self is a leaf tensor but not empty (i.e. it has legs or data), need to preserve it
@@ -464,11 +464,10 @@ impl Tensor {
             self.add_bond_dims(bond_dims);
         };
 
-        self.tensors.reserve(tensors.len());
-        for mut tensor in tensors {
+        for tensor in &mut tensors {
             tensor.bond_dims = Arc::clone(&self.bond_dims);
-            self.tensors.push(tensor);
         }
+        self.tensors.append(&mut tensors);
     }
 
     /// Internal method to update bond dimensions based on `bond_dims`. Only incorporates missing dimensions,
