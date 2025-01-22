@@ -441,24 +441,16 @@ impl Tensor {
         self.tensors.push(tensor);
     }
 
-    /// Pushes additional tensor into Tensor object. If self is a leaf tensor, clone it and push it into itself.
-    ///
-    /// # Arguments
-    /// * `tensors` - `Vec<Tensor>` to be added
-    /// * `bond_dims` - `FxHashMap<usize, u64>` mapping edge id to bond dimension
+    /// Pushes additional `tensors` into this tensor, which must be a composite tensor.
     pub fn push_tensors(
         &mut self,
         mut tensors: Vec<Self>,
         bond_dims: Option<&FxHashMap<EdgeIndex, u64>>,
     ) {
-        // If self is a leaf tensor but not empty (i.e. it has legs or data), need to preserve it
-        if !self.is_empty() && self.is_leaf() {
-            let old_self = self.clone();
-            // Only update legs once contraction is complete to keep track of data permutation
-            self.legs = Vec::new();
-            self.set_tensor_data(TensorData::Uncontracted);
-            self.tensors.push(old_self);
-        }
+        assert!(
+            self.legs.is_empty() && matches!(self.tensordata, TensorData::Uncontracted),
+            "Cannot push tensors into a leaf tensor"
+        );
 
         if let Some(bond_dims) = bond_dims {
             self.add_bond_dims(bond_dims);
@@ -873,11 +865,15 @@ mod tests {
         let mut ref_tensor_3 = Tensor::new(vec![7, 10, 2]);
         ref_tensor_3.insert_bond_dims(&reference_bond_dims_3);
 
-        let mut tensor = ref_tensor_1.clone();
+        let mut tensor = Tensor::default();
 
+        let tensor_1 = Tensor::new(vec![4, 3, 2]);
         let tensor_2 = Tensor::new(vec![8, 4, 9]);
         let tensor_3 = Tensor::new(vec![7, 10, 2]);
-        tensor.push_tensors(vec![tensor_2, tensor_3], Some(&reference_bond_dims_3));
+        tensor.push_tensors(
+            vec![tensor_1, tensor_2, tensor_3],
+            Some(&reference_bond_dims_3),
+        );
 
         assert!(tensor
             .tensor_data()

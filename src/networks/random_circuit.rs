@@ -179,6 +179,7 @@ where
 
     let mut next_edge = 0;
 
+    let mut final_state = Vec::with_capacity(observable_location.len());
     for i in 0..size {
         // Placing of random observable
         if observable_location.contains(&i) {
@@ -192,12 +193,13 @@ where
             let mut new_tensor = Tensor::new(vec![open_edges[&i].0, open_edges[&i].1]);
 
             new_tensor.set_tensor_data(new_observable);
-            random_tn.push_tensor(new_tensor, Some(&bond_dims));
+            final_state.push(new_tensor);
         } else {
             // set empty positions
             open_edges.insert(i, (0, 0));
         }
     }
+    random_tn.push_tensors(final_state, Some(&bond_dims));
 
     // Get connectivity for given size
     let connectivity_graph = Connectivity::new(connectivity);
