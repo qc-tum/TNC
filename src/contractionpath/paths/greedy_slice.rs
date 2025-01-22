@@ -89,6 +89,10 @@ impl<'a> GreedySlice<'a> {
         const NBRANCH: usize = 5;
         const REL_TEMPERATURE: bool = true;
         let mut slicing = Vec::new();
+
+        if inputs.is_empty() {
+            return (Vec::new(), slicing);
+        }
         let bond_dims = inputs[0].bond_dims();
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
         let (
