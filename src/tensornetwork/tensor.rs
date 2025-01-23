@@ -1,6 +1,7 @@
 use core::ops::{BitAnd, BitOr, BitXor, Sub};
 use std::hash::{Hash, Hasher};
 use std::iter::zip;
+use std::ops::BitXorAssign;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rustc_hash::FxHashMap;
@@ -599,7 +600,12 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        Self::new_with_bonddims(new_legs, Arc::clone(&self.bond_dims))
+        let bond_dims = if self.bond_dims().is_empty() {
+            other.bond_dims.clone()
+        } else {
+            self.bond_dims.clone()
+        };
+        Self::new_with_bonddims(new_legs, bond_dims)
     }
 
     /// Returns `Tensor` with union of legs in both `self` and `other`.
@@ -621,7 +627,12 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        Self::new_with_bonddims(new_legs, Arc::clone(&self.bond_dims))
+        let bond_dims = if self.bond_dims().is_empty() {
+            other.bond_dims.clone()
+        } else {
+            self.bond_dims.clone()
+        };
+        Self::new_with_bonddims(new_legs, bond_dims)
     }
 
     /// Returns `Tensor` with intersection of legs in `self` and `other`.
@@ -642,7 +653,12 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        Self::new_with_bonddims(new_legs, Arc::clone(&self.bond_dims))
+        let bond_dims = if self.bond_dims().is_empty() {
+            other.bond_dims.clone()
+        } else {
+            self.bond_dims.clone()
+        };
+        Self::new_with_bonddims(new_legs, bond_dims)
     }
 
     /// Returns `Tensor` with symmetrical difference of legs in `self` and `other`.
@@ -668,7 +684,12 @@ impl Tensor {
                 new_legs.push(i);
             }
         }
-        Self::new_with_bonddims(new_legs, Arc::clone(&self.bond_dims))
+        let bond_dims = if self.bond_dims().is_empty() {
+            other.bond_dims.clone()
+        } else {
+            self.bond_dims.clone()
+        };
+        Self::new_with_bonddims(new_legs, bond_dims)
     }
 
     /// Get output legs after tensor contraction
@@ -720,6 +741,13 @@ impl Sub for &Tensor {
     #[inline]
     fn sub(self, rhs: &Tensor) -> Tensor {
         self.difference(rhs)
+    }
+}
+
+impl BitXorAssign<&Tensor> for Tensor {
+    #[inline]
+    fn bitxor_assign(&mut self, rhs: &Tensor) {
+        *self = self.symmetric_difference(rhs);
     }
 }
 

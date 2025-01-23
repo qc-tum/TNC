@@ -4,13 +4,16 @@ use tensorcontraction::{
         balancing::CommunicationScheme,
         repartitioning::{
             compute_solution,
-            simulated_annealing::{balance_partitions, calculate_score},
+            simulated_annealing::{
+                balance_partitions, calculate_score, LeafPartitioningModel, NaivePartitioningModel,
+            },
         },
     },
     networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     tensornetwork::{
         contraction::contract_tensor_network,
         partitioning::{find_partitioning, partition_config::PartitioningStrategy},
+        tensor::Tensor,
     },
 };
 
@@ -36,26 +39,41 @@ fn main() {
     );
 
     // Find an initial partitioning with KaHyPar
-    let partitioning =
+    let initial_partitioning =
         find_partitioning(&tensor, num_partitions, PartitioningStrategy::MinCut, true);
 
     // Calculate the initial score
-    let initial_score = calculate_score(&tensor, &partitioning, communication_scheme);
+    let initial_score = calculate_score(&tensor, &initial_partitioning, communication_scheme);
     println!("Initial score: {initial_score:?}");
 
-    // Try to find a better partitioning with a simulated annealing algorithm
-    let (partitioning, final_score) = balance_partitions(
+    // Try to find a better partitioning with undirected simulated annealing
+    let (_, final_score) = balance_partitions::<_, NaivePartitioningModel>(
         &tensor,
         num_partitions as usize,
-        partitioning,
+        initial_partitioning.clone(),
         communication_scheme,
         &mut rng,
         None,
     );
-    println!("Final score: {final_score:?}");
+    println!("Normal final score: {final_score:?}");
+
+    // Try to find a better partitioning with directed simulated annealing
+    let mut intermediate_tensors = vec![Tensor::new(Vec::new()); num_partitions as usize];
+    for (index, partition) in initial_partitioning.iter().enumerate() {
+        intermediate_tensors[*partition] ^= tensor.tensor(index);
+    }
+    let (partitioning, final_score) = balance_partitions::<_, LeafPartitioningModel>(
+        &tensor,
+        num_partitions as usize,
+        (initial_partitioning, intermediate_tensors),
+        communication_scheme,
+        &mut rng,
+        None,
+    );
+    println!("Directed final score: {final_score:?}");
 
     // Partition the tensor network with the found partitioning and contract
-    let (mut tensor, path, _) = compute_solution(&tensor, &partitioning, communication_scheme);
+    let (mut tensor, path, _) = compute_solution(&tensor, &partitioning.0, communication_scheme);
 
     contract_tensor_network(&mut tensor, &path);
     println!("{:?}", tensor.tensor_data());

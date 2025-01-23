@@ -31,7 +31,8 @@ pub fn compute_solution(
     let path = greedy.get_best_replace_path();
 
     // Store the local paths (and costs)
-    let mut latency_map = FxHashMap::default();
+    let mut latency_map =
+        FxHashMap::from_iter((0..partitioned_tn.tensors().len()).map(|i| (i, 0.0)));
     let mut final_path = Vec::with_capacity(tensor.tensors().len());
     for p in path {
         if let ContractionIndex::Path(i, slicing, local_path) = p {
