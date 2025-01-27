@@ -400,43 +400,17 @@ impl Tensor {
         self.tensordata.approx_eq(&other.tensordata, epsilon)
     }
 
-    /// Pushes additional tensor into Tensor object. If self is a leaf tensor, clone it and push it into itself.
-    ///
-    /// # Arguments
-    /// * `tensor` - new `Tensor` to be added
-    /// * `bond_dims` - `FxHashMap<usize, u64>` mapping edge id to bond dimension
+    /// Pushes additional `tensor` into this tensor, which must be a composite tensor.
     pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&FxHashMap<EdgeIndex, u64>>) {
-        // In the case of pushing to an empty tensor, avoid unnecessary hierarchies
-        if self.is_empty() {
-            let Self {
-                legs,
-                tensors: _,
-                bond_dims: _,
-                tensordata,
-                ..
-            } = tensor;
-            self.set_legs(legs);
-            self.set_tensor_data(tensordata);
-
-            if let Some(bond_dims) = bond_dims {
-                self.add_bond_dims(bond_dims);
-            }
-
-            return;
-        }
-
-        if self.is_leaf() {
-            let old_self = self.clone();
-            // Only update legs once contraction is complete to keep track of data permutation
-            self.legs = Vec::new();
-            self.set_tensor_data(TensorData::Uncontracted);
-            self.tensors.push(old_self);
-        }
+        assert!(
+            self.legs.is_empty() && matches!(self.tensordata, TensorData::Uncontracted),
+            "Cannot push tensors into a leaf tensor"
+        );
 
         if let Some(bond_dims) = bond_dims {
             self.add_bond_dims(bond_dims);
-        };
-
+        }
+        self.add_bond_dims(&tensor.bond_dims());
         tensor.bond_dims = Arc::clone(&self.bond_dims);
 
         self.tensors.push(tensor);
@@ -824,57 +798,50 @@ mod tests {
 
     #[test]
     fn test_push_tensor() {
-        let reference_bond_dims_1 = FxHashMap::from_iter([(2, 17), (3, 1), (4, 11)]);
-        let reference_bond_dims_2 =
+        let reference_bond_dims_1 =
             FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (8, 3), (9, 20)]);
-        let reference_bond_dims_3 =
+        let reference_bond_dims_2 =
             FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (8, 3), (9, 20), (7, 7), (10, 14)]);
 
-        let mut ref_tensor_1 = Tensor::new(vec![4, 3, 2]);
+        let mut ref_tensor_1 = Tensor::new(vec![8, 4, 9]);
         ref_tensor_1.insert_bond_dims(&reference_bond_dims_1);
 
-        let mut ref_tensor_2 = Tensor::new(vec![8, 4, 9]);
+        let mut ref_tensor_2 = Tensor::new(vec![7, 10, 2]);
         ref_tensor_2.insert_bond_dims(&reference_bond_dims_2);
 
-        let mut ref_tensor_3 = Tensor::new(vec![7, 10, 2]);
-        ref_tensor_3.insert_bond_dims(&reference_bond_dims_3);
+        let mut tensor = Tensor::default();
 
-        let mut tensor = ref_tensor_1.clone();
-
-        let tensor_2 = Tensor::new(vec![8, 4, 9]);
-        let bond_dims_2 = FxHashMap::from_iter([(8, 3), (9, 20)]);
-        tensor.push_tensor(tensor_2, Some(&bond_dims_2));
+        // Push tensor 1
+        let tensor_1 = Tensor::new(vec![8, 4, 9]);
+        let bond_dims_1 = FxHashMap::from_iter([(8, 3), (9, 20)]);
+        tensor.push_tensor(tensor_1, Some(&bond_dims_1));
 
         assert!(tensor
             .tensor_data()
-            .approx_eq(&TensorData::Uncontracted, 1e-12),);
+            .approx_eq(&TensorData::Uncontracted, 1e-12));
         for (key, value) in tensor.bond_dims().iter() {
-            assert_eq!(reference_bond_dims_2[key], *value);
+            assert_eq!(reference_bond_dims_1[key], *value);
         }
 
-        for (tensor_legs, other_tensor_legs) in zip(
-            tensor.tensors(),
-            &vec![ref_tensor_1.clone(), ref_tensor_2.clone()],
-        ) {
-            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs());
+        for (tensor_legs, ref_tensor_legs) in zip(tensor.tensors(), [&ref_tensor_1]) {
+            assert_eq!(tensor_legs.legs(), ref_tensor_legs.legs());
         }
 
         assert_eq!(tensor.legs(), &Vec::<usize>::new());
 
-        let tensor_3 = Tensor::new(vec![7, 10, 2]);
-        let bond_dims_3 = FxHashMap::from_iter([(7, 7), (10, 14)]);
+        // Push tensor 2
+        let mut tensor_2 = Tensor::new(vec![7, 10, 2]);
+        let bond_dims_2 = FxHashMap::from_iter([(7, 7), (10, 14)]);
+        tensor_2.insert_bond_dims(&bond_dims_2);
 
-        tensor.push_tensor(tensor_3, Some(&bond_dims_3));
+        tensor.push_tensor(tensor_2, None);
         for (key, value) in tensor.bond_dims().iter() {
-            assert_eq!(reference_bond_dims_3[key], *value);
+            assert_eq!(reference_bond_dims_2[key], *value);
         }
-        ref_tensor_2.insert_bond_dims(&reference_bond_dims_3);
 
-        for (tensor_legs, other_tensor_legs) in zip(
-            tensor.tensors(),
-            &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
-        ) {
-            assert_eq!(tensor_legs.legs(), other_tensor_legs.legs());
+        for (tensor_legs, ref_tensor_legs) in zip(tensor.tensors(), [&ref_tensor_1, &ref_tensor_2])
+        {
+            assert_eq!(tensor_legs.legs(), ref_tensor_legs.legs());
         }
     }
 
