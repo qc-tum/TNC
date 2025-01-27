@@ -23,7 +23,7 @@ pub fn compute_solution(
     communication_scheme: CommunicationScheme,
 ) -> (Tensor, Vec<ContractionIndex>, f64) {
     // Partition the tensor network with the proposed solution
-    let partitioned_tn = partition_tensor_network(tensor, partitioning);
+    let partitioned_tn = partition_tensor_network(tensor.clone(), partitioning);
 
     // Find contraction path
     let mut greedy = Greedy::new(&partitioned_tn, CostType::Flops);

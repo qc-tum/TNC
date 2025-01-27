@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use partition_config::PartitioningStrategy;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::iter::zip;
+use std::{iter::zip, sync::Arc};
 
 use super::tensor::Tensor;
 use kahypar_sys::{partition, KaHyParContext};
@@ -154,7 +154,7 @@ pub fn communication_partitioning(
 
 /// Partitions the tensor network based on the `partitioning` vector that assigns
 /// each vector to a partition. `partitioning` must be zero-based and consecutive.
-pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
+pub fn partition_tensor_network(tn: Tensor, partitioning: &[usize]) -> Tensor {
     let partition_ids = partitioning
         .iter()
         .unique()
@@ -170,12 +170,13 @@ pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
         "Partitioning must be consecutive"
     );
 
+    let mut partitioned_tn = Tensor::new_with_bonddims(vec![], Arc::clone(&tn.bond_dims));
     let mut partitions = vec![Tensor::default(); partition_ids.len()];
-    for (partition_id, tensor) in zip(partitioning.iter(), tn.tensors.iter()) {
-        partitions[*partition_id].push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
+    for (partition_id, tensor) in zip(partitioning, tn.tensors) {
+        let bond_dims = tensor.bond_dims().clone();
+        partitions[*partition_id].push_tensor(tensor, Some(&bond_dims));
     }
-    let mut partitioned_tn = Tensor::default();
-    partitioned_tn.push_tensors(partitions, Some(&*tn.bond_dims()));
+    partitioned_tn.push_tensors(partitions, None);
     partitioned_tn
 }
 
@@ -238,7 +239,7 @@ mod tests {
         );
         let partitioning = find_partitioning(&tn, 3, PartitioningStrategy::MinCut, true);
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);
-        let partitioned_tn = partition_tensor_network(&tn, partitioning.as_slice());
+        let partitioned_tn = partition_tensor_network(tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.tensors().len(), 3);
 
         assert_eq!(partitioned_tn.tensors()[0].legs(), ref_tensor_3.legs());

@@ -66,7 +66,7 @@ fn main() {
         let partitioned_tn = if size > 1 {
             let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
             debug!(partitioning:serde; "Partitioning created");
-            partition_tensor_network(&r_tn, &partitioning)
+            partition_tensor_network(r_tn, &partitioning)
         } else {
             r_tn
         };

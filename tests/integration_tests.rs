@@ -40,7 +40,7 @@ fn test_partitioned_contraction_random() {
     contract_tensor_network(&mut ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
-    let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+    let mut partitioned_tn = partition_tensor_network(r_tn, &partitioning);
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
     opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42));
     let path = opt.get_best_replace_path();
@@ -61,7 +61,7 @@ fn test_partitioned_contraction() {
     contract_tensor_network(&mut ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
-    let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+    let mut partitioned_tn = partition_tensor_network(r_tn, &partitioning);
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
     opt.optimize_path();
     let path = opt.get_best_replace_path();
@@ -82,7 +82,7 @@ fn test_partitioned_contraction_mixed() {
     contract_tensor_network(&mut ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
-    let mut partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+    let mut partitioned_tn = partition_tensor_network(r_tn, &partitioning);
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
     opt.random_optimize_path(15, &mut StdRng::seed_from_u64(42));
     let path = opt.get_best_replace_path();
@@ -105,7 +105,7 @@ fn test_partitioned_contraction_need_mpi() {
         let r_tn = random_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
         let ref_tn = r_tn.clone();
         let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
-        let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+        let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
         opt.optimize_path();
         let path = opt.get_best_replace_path();

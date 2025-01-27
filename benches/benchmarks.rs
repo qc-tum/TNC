@@ -57,7 +57,7 @@ pub fn partitioned_contraction_benchmark(c: &mut Criterion) {
         let r_tn = random_circuit(k, 5, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
         let partitioning =
             find_partitioning(&r_tn, 5, PartitioningStrategy::CommunityFinding, true);
-        let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+        let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
 
         let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
         opt.optimize_path();
@@ -94,7 +94,7 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
             let r_tn = random_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
             let partitioning =
                 find_partitioning(&r_tn, size, PartitioningStrategy::CommunityFinding, true);
-            let partitioned_tn = partition_tensor_network(&r_tn, &partitioning);
+            let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
 
             let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
             opt.optimize_path();

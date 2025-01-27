@@ -19,7 +19,7 @@ fn main() {
     let tensor = random_circuit(5, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
     let partitioning = find_partitioning(&tensor, 3, PartitioningStrategy::MinCut, true);
 
-    let partitioned_tn = partition_tensor_network(&tensor, &partitioning);
+    let partitioned_tn = partition_tensor_network(tensor, &partitioning);
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
 
     opt.optimize_path();
