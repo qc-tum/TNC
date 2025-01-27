@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use partition_config::PartitioningStrategy;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::iter::zip;
 
 use super::tensor::Tensor;
@@ -152,15 +152,27 @@ pub fn communication_partitioning(
     partitioning.iter().map(|e| *e as usize).collect()
 }
 
+/// Partitions the tensor network based on the `partitioning` vector that assigns
+/// each vector to a partition. `partitioning` must be zero-based and consecutive.
 pub fn partition_tensor_network(tn: &Tensor, partitioning: &[usize]) -> Tensor {
-    let partition_ids = partitioning.iter().unique().copied().collect_vec();
-    let partition_dict =
-        zip(partition_ids.iter().copied(), 0..partition_ids.len()).collect::<FxHashMap<_, _>>();
-    let mut partitions = vec![Tensor::default(); partition_ids.len()];
+    let partition_ids = partitioning
+        .iter()
+        .unique()
+        .copied()
+        .collect::<FxHashSet<_>>();
+    assert!(
+        partition_ids.contains(&0),
+        "Partitioning must be zero-based"
+    );
+    assert_eq!(
+        partition_ids,
+        (0..partition_ids.len()).collect(),
+        "Partitioning must be consecutive"
+    );
 
+    let mut partitions = vec![Tensor::default(); partition_ids.len()];
     for (partition_id, tensor) in zip(partitioning.iter(), tn.tensors.iter()) {
-        partitions[partition_dict[partition_id]]
-            .push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
+        partitions[*partition_id].push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
     }
     let mut partitioned_tn = Tensor::default();
     partitioned_tn.push_tensors(partitions, Some(&*tn.bond_dims()));
