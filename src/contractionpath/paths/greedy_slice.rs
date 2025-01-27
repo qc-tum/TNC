@@ -426,10 +426,8 @@ impl OptimizePath for GreedySlice<'_> {
                     &mut rng,
                 );
                 self.slicing.extend(slicing);
-                if !path.is_empty() {
-                    self.best_path
-                        .push(ContractionIndex::Path(index, None, path));
-                }
+                self.best_path
+                    .push(ContractionIndex::Path(index, None, path));
                 input_tensor.set_legs(external_legs);
             }
         }
