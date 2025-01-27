@@ -119,24 +119,40 @@ fn get_tensor_mapping_and_slice_groups(
     let mut slice_groups = vec![-1; size as usize];
     let mut used_groups = 0;
 
+    let Some(last) = path.last() else {
+        // Empty path
+        return (tensor_mapping, slice_groups, used_ranks);
+    };
+    let &ContractionIndex::Pair(final_tensor, _) = last else {
+        panic!("Last part of path should be a pair")
+    };
+
+    // Reserve rank 0 for the final tensor
+    used_ranks = 1;
     for pair in path {
         if let ContractionIndex::Path(i, slicing, _) = pair {
-            // Assign the next available rank to tensor `i`
-            tensor_mapping.insert(used_ranks, *i);
+            if *i == final_tensor {
+                // Assign the final tensor to rank 0
+                tensor_mapping.insert(0, *i);
+            } else {
+                // Assign the next available rank to tensor `i`
+                tensor_mapping.insert(used_ranks, *i);
+                used_ranks += 1;
+            }
 
             if let Some(slicing) = slicing {
                 // Determine how many ranks are needed for doing all slices in parallel
                 let local_tensor = r_tn.tensor(*i);
-                let needed_ranks: i32 = slicing.task_count(local_tensor).try_into().unwrap();
+                let additional_needed_ranks: i32 =
+                    (slicing.task_count(local_tensor) - 1).try_into().unwrap();
 
                 // Assign each of the needed ranks the same color
-                for rank in used_ranks..used_ranks + needed_ranks {
+                slice_groups[tensor_mapping.rank(*i) as usize] = used_groups;
+                for rank in used_ranks..used_ranks + additional_needed_ranks {
                     slice_groups[rank as usize] = used_groups;
                 }
                 used_groups += 1;
-                used_ranks += needed_ranks;
-            } else {
-                used_ranks += 1;
+                used_ranks += additional_needed_ranks;
             }
         }
     }
@@ -546,7 +562,13 @@ mod tests {
     fn test_tensor_mapping_no_slicing() {
         let tn = setup_tn();
 
-        let path = path![(0, [(0, 2), (0, 1)]), (2, [(0, 1)]), (1, [(0, 1), (0, 1)])];
+        let path = path![
+            (0, [(0, 2), (0, 1)]),
+            (2, [(0, 1)]),
+            (1, [(0, 1), (0, 1)]),
+            (0, 2),
+            (0, 1)
+        ];
 
         let (tensor_mapping, slice_groups, used_ranks) =
             get_tensor_mapping_and_slice_groups(&tn, path, 4);
@@ -569,19 +591,22 @@ mod tests {
         let path = path![
             (0, [(0, 2), (0, 1)]),
             (2, [(0, 1)]),
-            (1, [6], [(0, 1), (0, 1)])
+            (1, [6], [(0, 1), (0, 1)]),
+            (1, 0),
+            (2, 1)
         ];
+        // final tensor is 2 -> should end up on rank 0
 
         let (tensor_mapping, slice_groups, used_ranks) =
             get_tensor_mapping_and_slice_groups(&tn, path, 5);
 
         assert_eq!(used_ranks, 4);
         assert_eq!(slice_groups, [-1, -1, 0, 0, -1]);
-        assert_eq!(tensor_mapping.rank(0), 0);
+        assert_eq!(tensor_mapping.rank(0), 1);
         assert_eq!(tensor_mapping.rank(1), 2);
-        assert_eq!(tensor_mapping.rank(2), 1);
-        assert_eq!(tensor_mapping.tensor(0), Some(0));
-        assert_eq!(tensor_mapping.tensor(1), Some(2));
+        assert_eq!(tensor_mapping.rank(2), 0);
+        assert_eq!(tensor_mapping.tensor(0), Some(2));
+        assert_eq!(tensor_mapping.tensor(1), Some(0));
         assert_eq!(tensor_mapping.tensor(2), Some(1));
         assert_eq!(tensor_mapping.tensor(3), None);
         assert_eq!(tensor_mapping.tensor(4), None);
@@ -594,7 +619,9 @@ mod tests {
         let path = path![
             (0, [1], [(0, 2), (0, 1)]),
             (2, [(0, 1)]),
-            (1, [6], [(0, 1), (0, 1)])
+            (1, [6], [(0, 1), (0, 1)]),
+            (1, 0),
+            (0, 2)
         ];
 
         let (tensor_mapping, slice_groups, used_ranks) =
