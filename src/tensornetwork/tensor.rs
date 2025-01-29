@@ -846,6 +846,20 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Cannot push tensors into a leaf tensor")]
+    fn test_push_tensor_to_leaf() {
+        let reference_bond_dims =
+            FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (8, 3), (9, 20), (7, 7), (10, 14)]);
+        let mut leaf_tensor = Tensor::new(vec![4, 3, 2]);
+        leaf_tensor.insert_bond_dims(&reference_bond_dims);
+
+        let mut pushed_tensor = Tensor::new(vec![8, 4, 9]);
+        pushed_tensor.insert_bond_dims(&reference_bond_dims);
+
+        leaf_tensor.push_tensor(pushed_tensor, None);
+    }
+
+    #[test]
     fn test_push_tensors() {
         let reference_bond_dims_1 = FxHashMap::from_iter([(2, 17), (3, 1), (4, 11)]);
         let reference_bond_dims_3 =
@@ -882,6 +896,23 @@ mod tests {
         }
 
         assert_eq!(*tensor.bond_dims(), reference_bond_dims_3);
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot push tensors into a leaf tensor")]
+    fn test_push_tensors_to_leaf() {
+        let reference_bond_dims =
+            FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (8, 3), (9, 20), (7, 7), (10, 14)]);
+        let mut leaf_tensor = Tensor::new(vec![4, 3, 2]);
+        leaf_tensor.insert_bond_dims(&reference_bond_dims);
+
+        let mut pushed_tensor_1 = Tensor::new(vec![8, 4, 9]);
+        pushed_tensor_1.insert_bond_dims(&reference_bond_dims);
+
+        let mut pushed_tensor_2 = Tensor::new(vec![7, 10, 2]);
+        pushed_tensor_2.insert_bond_dims(&reference_bond_dims);
+
+        leaf_tensor.push_tensors(vec![pushed_tensor_1, pushed_tensor_2], None);
     }
 
     #[test]
