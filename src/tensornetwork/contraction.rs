@@ -67,8 +67,6 @@ pub(crate) trait TensorContraction {
     fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor;
     /// Getter for underlying raw data
     fn get_data(&self) -> DataTensor;
-    /// Internal method to swap tensors
-    fn swap(&mut self, i: usize, j: usize);
     /// Contracts two tensors
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize);
 }
@@ -80,10 +78,6 @@ impl TensorContraction for Tensor {
 
     fn get_data(&self) -> DataTensor {
         self.tensor_data().clone().into_data()
-    }
-
-    fn swap(&mut self, i: usize, j: usize) {
-        self.tensors.swap(i, j);
     }
 
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) {
