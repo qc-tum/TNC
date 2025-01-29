@@ -376,9 +376,9 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         let mut to_tensor = Tensor::new(Vec::new());
         for (partition_index, tensor) in zip(&partitioning, self.tensor.tensors()) {
             if *partition_index == source_partition {
-                from_tensor.push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
+                from_tensor.push_tensor(tensor.clone(), None);
             } else if *partition_index == target_partition {
-                to_tensor.push_tensor(tensor.clone(), Some(&tensor.bond_dims()));
+                to_tensor.push_tensor(tensor.clone(), None);
             }
         }
 

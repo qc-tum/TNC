@@ -338,6 +338,7 @@ pub fn intermediate_reduce_tensor_network(
     communication: &Communication,
 ) {
     debug!(rank, path:serde; "Reducing tensor network (intermediate)");
+    assert!(local_tn.is_leaf());
 
     // Reduce the slice groups
     if let Some(slice_comm) = &communication.slice_comm {
@@ -371,11 +372,15 @@ pub fn intermediate_reduce_tensor_network(
                 let sender = communication.tensor_mapping.rank(*y);
                 final_rank = receiver;
                 if receiver == rank {
-                    // Insert received tensor into local tensor
+                    // Receive tensor
                     debug!(sender; "Start receiving tensor");
                     let received_tensor = receive_tensor(sender, world, None);
                     debug!(sender; "Finish receiving tensor");
+
+                    // Add local tensor and received tensor into a new tensor network
+                    let local_tensor = std::mem::take(local_tn);
                     local_tn.push_tensor(received_tensor, None);
+                    local_tn.push_tensor(local_tensor, None);
 
                     // Contract tensors
                     contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);

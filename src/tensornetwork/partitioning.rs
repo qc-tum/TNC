@@ -173,8 +173,7 @@ pub fn partition_tensor_network(tn: Tensor, partitioning: &[usize]) -> Tensor {
     let mut partitioned_tn = Tensor::new_with_bonddims(vec![], Arc::clone(&tn.bond_dims));
     let mut partitions = vec![Tensor::default(); partition_ids.len()];
     for (partition_id, tensor) in zip(partitioning, tn.tensors) {
-        let bond_dims = tensor.bond_dims().clone();
-        partitions[*partition_id].push_tensor(tensor, Some(&bond_dims));
+        partitions[*partition_id].push_tensor(tensor, None);
     }
     partitioned_tn.push_tensors(partitions, None);
     partitioned_tn
