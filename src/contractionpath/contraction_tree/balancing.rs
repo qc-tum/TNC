@@ -273,6 +273,7 @@ where
         CommunicationScheme::WeightedBranchBound => {
             communication_schemes::weighted_branchbound(&children_tensors, &latency_map)
         }
+        CommunicationScheme::BranchBound => communication_schemes::branchbound(&children_tensors),
     };
 
     contraction_tree.replace_communication_path(partition_ids, &communication_path);

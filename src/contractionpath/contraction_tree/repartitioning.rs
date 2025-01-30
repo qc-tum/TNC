@@ -59,6 +59,9 @@ pub fn compute_solution(
             CommunicationScheme::WeightedBranchBound => {
                 communication_schemes::weighted_branchbound(&children_tensors, &latency_map)
             }
+            CommunicationScheme::BranchBound => {
+                communication_schemes::branchbound(&children_tensors)
+            }
         }
     };
     let tensor_costs = (0..children_tensors.len())

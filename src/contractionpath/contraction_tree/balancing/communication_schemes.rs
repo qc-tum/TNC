@@ -8,6 +8,8 @@ use crate::pair;
 use crate::tensornetwork::partitioning::communication_partitioning;
 use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 
+use std::fmt;
+
 use crate::types::ContractionIndex;
 
 use crate::tensornetwork::tensor::Tensor;
@@ -20,6 +22,20 @@ pub enum CommunicationScheme {
     Bipartition,
     /// Uses a filtered search that considered time to intermediate tensor
     WeightedBranchBound,
+    /// Uses a filtered search
+    BranchBound,
+}
+
+impl fmt::Display for CommunicationScheme {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let comm_str = match self {
+            CommunicationScheme::Greedy => "greedy",
+            CommunicationScheme::Bipartition => "bipartition",
+            CommunicationScheme::WeightedBranchBound => "weightedbranchbound",
+            CommunicationScheme::BranchBound => "branchbound",
+        };
+        write!(f, "{}", comm_str)
+    }
 }
 
 pub(crate) fn greedy(
@@ -51,6 +67,21 @@ pub(crate) fn weighted_branchbound(
         None,
         5.,
         latency_map.clone(),
+        CostType::Flops,
+    );
+    opt.optimize_path();
+    opt.get_best_replace_path()
+}
+
+pub(crate) fn branchbound(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
+    let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
+    let latency_map = FxHashMap::from_iter((0..children_tensors.len()).map(|i| (i, 0.0)));
+
+    let mut opt = WeightedBranchBound::new(
+        &communication_tensors,
+        None,
+        5.,
+        latency_map,
         CostType::Flops,
     );
     opt.optimize_path();
