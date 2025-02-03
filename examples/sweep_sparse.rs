@@ -1,9 +1,9 @@
-use std::io::{BufWriter, Write};
 use std::{fs, panic};
 
+use itertools::Itertools;
 use log::info;
 use ordered_float::NotNan;
-use rand::distributions::Uniform;
+use rand::distributions::Standard;
 use rand::rngs::StdRng;
 use rand::{thread_rng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use tensorcontraction::contractionpath::contraction_tree::repartitioning::simula
     IntermediatePartitioningModel, LeafPartitioningModel, NaivePartitioningModel,
 };
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
-    compute_solution, genetic, simulated_annealing,
+    compute_solution, simulated_annealing,
 };
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
@@ -38,40 +38,54 @@ struct TensorResult {
     mem_ratio: f64,
 }
 
-// Run with at least 2 processes
+impl TensorResult {
+    fn new_invalid(
+        seed: u64,
+        num_qubits: usize,
+        circuit_depth: usize,
+        partitions: i32,
+        method: impl Into<String>,
+    ) -> Self {
+        TensorResult {
+            seed,
+            num_qubits,
+            circuit_depth,
+            partitions,
+            method: method.into(),
+            flops: -1.0,
+            mem: -1.0,
+            flops_ratio: -1.0,
+            mem_ratio: -1.0,
+        }
+    }
+}
+
 fn main() {
-    let file = fs::OpenOptions::new()
+    let mut file = fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open("sweep_sparse.json")
         .unwrap();
-    let mut writer = BufWriter::new(file);
 
     let single_qubit_probability = 0.4;
     let two_qubit_probability = 0.4;
     let observable_probability = 1.0;
     let connectivity = ConnectivityLayout::Sycamore;
 
-    let qubit_range = (5..15).step_by(5);
-    let circuit_depth_range = (5..15).step_by(5);
-    let partition_range = 1..4;
+    let qubit_range = (5..15).step_by(5).collect_vec();
+    let circuit_depth_range = (5..15).step_by(5).collect_vec();
+    let partition_range = (1..4).map(|p| 2i32.pow(p)).collect_vec();
     let rng = thread_rng();
-    let seed_range = rng
-        .sample_iter(Uniform::new(u64::MIN, u64::MAX))
-        .take(10)
-        .collect::<Vec<_>>();
-    serde_json::to_writer(&mut writer, &seed_range).unwrap();
-
-    writer.flush().unwrap();
-    let mut results = Vec::new();
+    let seed_range = rng.sample_iter(Standard).take(10).collect_vec();
     let communication_scheme = CommunicationScheme::WeightedBranchBound;
+    serde_json::to_writer(&mut file, &seed_range).unwrap();
 
     for num_qubits in qubit_range {
         println!("qubits: {num_qubits}");
-        for circuit_depth in circuit_depth_range.clone() {
+        for &circuit_depth in &circuit_depth_range {
             println!("circuit_depth: {:?}", circuit_depth);
-            for seed in seed_range.clone() {
-                for partitions in partition_range.clone() {
+            for &seed in &seed_range {
+                for &num_partitions in &partition_range {
                     let mut local_results = Vec::new();
                     info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
                     let tensor = random_circuit_with_observable(
@@ -83,8 +97,6 @@ fn main() {
                         &mut StdRng::seed_from_u64(seed),
                         connectivity,
                     );
-                    let num_partitions = 1 << partitions;
-                    // let communication_scheme = CommunicationScheme::WeightedBranchBound;
 
                     let (
                         initial_partitioning,
@@ -106,17 +118,13 @@ fn main() {
                             original_flops,
                         ),
                         Err(_) => {
-                            local_results.push(TensorResult {
+                            local_results.push(TensorResult::new_invalid(
                                 seed,
                                 num_qubits,
                                 circuit_depth,
-                                partitions: num_partitions,
-                                method: communication_scheme.to_string(),
-                                flops: -1f64,
-                                mem: -1f64,
-                                flops_ratio: 1f64,
-                                mem_ratio: 1f64,
-                            });
+                                num_partitions,
+                                communication_scheme.to_string(),
+                            ));
                             continue;
                         }
                     };
@@ -244,38 +252,7 @@ fn main() {
                         mem_ratio,
                     });
 
-                    // let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
-                    //     ga_run(
-                    //         tensor,
-                    //         num_partitions,
-                    //         initial_partitioning,
-                    //         communication_scheme,
-                    //     )
-                    // }) {
-                    //     Ok((flops, memory)) => (
-                    //         flops,
-                    //         memory,
-                    //         flops / original_flops,
-                    //         memory / original_memory,
-                    //     ),
-                    //     Err(_) => (-1f64, -1f64, -1f64, -1f64),
-                    // };
-
-                    // local_results.push(TensorResult {
-                    //     seed,
-                    //     num_qubits,
-                    //     circuit_depth,
-                    //     partitions: num_partitions,
-                    //     method: "GA".to_string(),
-                    //     flops,
-                    //     mem: memory,
-                    //     flops_ratio,
-                    //     mem_ratio,
-                    // });
-
-                    serde_json::to_writer(&mut writer, &local_results).unwrap();
-                    writer.flush().unwrap();
-                    results.append(&mut local_results);
+                    serde_json::to_writer(&mut file, &local_results).unwrap();
                 }
             }
         }
@@ -298,30 +275,6 @@ fn initial_problem(
         original_flops,
     )
 }
-
-// fn ga_run(
-//     tensor: Tensor,
-//     num_partitions: i32,
-//     initial_partitioning: Vec<usize>,
-//     communication_scheme: CommunicationScheme,
-// ) -> (f64, f64) {
-//     let (partitioning, _) = genetic::balance_partitions(
-//         &tensor,
-//         num_partitions as usize,
-//         &initial_partitioning,
-//         communication_scheme,
-//         None,
-//     );
-
-//     let (partitioned_tensor, contraction_path, flops) =
-//         compute_solution(&tensor, &partitioning, communication_scheme);
-//     let memory = compute_memory_requirements(
-//         partitioned_tensor.tensors(),
-//         &contraction_path,
-//         contract_size_tensors_exact,
-//     );
-//     (flops, memory)
-// }
 
 fn sa_run(
     tensor: &Tensor,
