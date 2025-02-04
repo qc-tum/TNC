@@ -71,7 +71,10 @@ fn main() {
     let partition_range = (2..4).map(|p| 2i32.pow(p)).collect_vec();
     let rng = thread_rng();
     let seed_range = rng.sample_iter(Standard).take(10).collect_vec();
-    serde_json::to_writer(&mut file, &seed_range).unwrap();
+
+    let mut write = |result: TensorResult| {
+        serde_json::to_writer(&mut file, &[result]).unwrap();
+    };
 
     for &num_qubits in &qubit_range {
         println!("qubits: {num_qubits}");
@@ -79,7 +82,6 @@ fn main() {
             println!("circuit_depth: {:?}", circuit_depth);
             for &seed in &seed_range {
                 for &num_partitions in &partition_range {
-                    let mut local_results = Vec::new();
                     info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
                     let tensor = random_circuit_with_observable(
                         num_qubits,
@@ -107,7 +109,7 @@ fn main() {
                                 original_flops,
                             ),
                             Err(_) => {
-                                local_results.push(TensorResult::new_invalid(
+                                write(TensorResult::new_invalid(
                                     seed,
                                     num_qubits,
                                     circuit_depth,
@@ -122,7 +124,7 @@ fn main() {
                         &initial_contraction_path,
                         contract_size_tensors_exact,
                     );
-                    local_results.push(TensorResult {
+                    write(TensorResult {
                         seed,
                         num_qubits,
                         circuit_depth,
@@ -161,7 +163,7 @@ fn main() {
                                 original_flops,
                             ),
                             Err(_) => {
-                                local_results.push(TensorResult::new_invalid(
+                                write(TensorResult::new_invalid(
                                     seed,
                                     num_qubits,
                                     circuit_depth,
@@ -176,7 +178,7 @@ fn main() {
                             &initial_contraction_path,
                             contract_size_tensors_exact,
                         );
-                        local_results.push(TensorResult {
+                        write(TensorResult {
                             seed,
                             num_qubits,
                             circuit_depth,
@@ -187,8 +189,6 @@ fn main() {
                             flops_ratio: strategy_flops / greedy_flops,
                             mem_ratio: strategy_memory / greedy_memory,
                         });
-
-                        serde_json::to_writer(&mut file, &local_results).unwrap();
                     }
                 }
             }
