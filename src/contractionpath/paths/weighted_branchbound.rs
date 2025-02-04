@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap;
 use crate::{
     contractionpath::{
         candidates::Candidate,
-        contraction_cost::{contract_cost_tensors, contract_size_tensors},
+        contraction_cost::{contract_op_cost_tensors, contract_size_tensors},
         ssa_ordering, ssa_replace_ordering,
     },
     tensornetwork::tensor::Tensor,
@@ -68,7 +68,7 @@ impl<'a> WeightedBranchBound<'a> {
         let &mut (k12, flops_12, size_12) = self.result_cache.entry((i, j)).or_insert_with(|| {
             let k12 = self.tensor_cache.len();
             let flops_12 =
-                contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
+                contract_op_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
             let size_12 =
                 contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
             let k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
