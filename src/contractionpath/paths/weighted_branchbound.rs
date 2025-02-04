@@ -65,19 +65,18 @@ impl<'a> WeightedBranchBound<'a> {
             (i, j) = (j, i);
         }
 
-        let &mut (k12, current_flops, size_12) =
-            self.result_cache.entry((i, j)).or_insert_with(|| {
-                let tensor_i = &self.tensor_cache[&i];
-                let tensor_j = &self.tensor_cache[&j];
-                let k12 = self.tensor_cache.len();
-                let flops_12 = contract_cost_tensors(tensor_i, tensor_j, None);
-                let size_12 = contract_size_tensors(tensor_i, tensor_j, None);
-                let k12_tensor = tensor_i ^ tensor_j;
-                let total_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
-                self.tensor_cache.insert_new(k12, k12_tensor);
-                self.comm_cache.insert_new(k12, total_flops);
-                (k12, total_flops, size_12)
-            });
+        let &mut (k12, flops_12, size_12) = self.result_cache.entry((i, j)).or_insert_with(|| {
+            let k12 = self.tensor_cache.len();
+            let flops_12 =
+                contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
+            let size_12 =
+                contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
+            let k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
+            self.tensor_cache.insert_new(k12, k12_tensor);
+            (k12, flops_12, size_12)
+        });
+        let current_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
+        self.comm_cache.insert(k12, current_flops);
         let current_size = size.max(size_12);
 
         if current_flops > self.best_flops && current_size > self.best_size {
