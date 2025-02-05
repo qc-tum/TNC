@@ -13,7 +13,7 @@ use tensorcontraction::contractionpath::contraction_tree::balancing::Communicati
 
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::compute_solution;
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
-use tensorcontraction::networks::random_circuit::random_circuit_with_observable;
+use tensorcontraction::networks::random_circuit::random_circuit;
 use tensorcontraction::tensornetwork::partitioning::find_partitioning;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::tensor::Tensor;
@@ -58,7 +58,7 @@ fn main() {
     let mut file = fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open("sweep_communication.json")
+        .open("sweep_communication_latency_comparison.json")
         .unwrap();
 
     let single_qubit_probability = 0.6;
@@ -66,9 +66,9 @@ fn main() {
     let observable_probability = 1.0;
     let connectivity = ConnectivityLayout::Sycamore;
 
-    let qubit_range = (5..40).step_by(5).collect_vec();
-    let circuit_depth_range = (5..40).step_by(5).collect_vec();
-    let partition_range = (2..4).map(|p| 2i32.pow(p)).collect_vec();
+    let qubit_range = (40..60).step_by(10).collect_vec();
+    let circuit_depth_range = (10..40).step_by(10).collect_vec();
+    let partition_range = (2..8).map(|p| 2i32.pow(p)).collect_vec();
     let rng = thread_rng();
     let seed_range = rng.sample_iter(Standard).take(10).collect_vec();
 
@@ -81,14 +81,16 @@ fn main() {
         for &circuit_depth in &circuit_depth_range {
             println!("circuit_depth: {:?}", circuit_depth);
             for &seed in &seed_range {
+                println!("seed: {:?}", seed);
                 for &num_partitions in &partition_range {
+                    println!("partitions: {:?}", num_partitions);
                     info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
-                    let tensor = random_circuit_with_observable(
+                    let tensor = random_circuit(
                         num_qubits,
                         circuit_depth,
                         single_qubit_probability,
                         two_qubit_probability,
-                        observable_probability,
+                        // observable_probability,
                         &mut StdRng::seed_from_u64(seed),
                         connectivity,
                     );
@@ -138,8 +140,11 @@ fn main() {
 
                     for communication_scheme in [
                         CommunicationScheme::Bipartition,
-                        CommunicationScheme::WeightedBranchBound,
-                        CommunicationScheme::BranchBound,
+                        // CommunicationScheme::WeightedBranchBound,
+                        // CommunicationScheme::BranchBound,
+                        CommunicationScheme::RandomGreedy,
+                        CommunicationScheme::RandomGreedyLatency,
+                        CommunicationScheme::BipartitionSweep,
                     ] {
                         info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
 

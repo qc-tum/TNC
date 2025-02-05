@@ -1,11 +1,12 @@
+use std::io::{BufWriter, Write};
 use std::{fs, panic};
 
-use itertools::Itertools;
 use log::info;
 use ordered_float::NotNan;
-use rand::distributions::Standard;
+use rand::distributions::Uniform;
 use rand::rngs::StdRng;
 use rand::{thread_rng, Rng, SeedableRng};
+
 use serde::{Deserialize, Serialize};
 use tensorcontraction::contractionpath::contraction_cost::{
     compute_memory_requirements, contract_size_tensors_exact,
@@ -20,6 +21,7 @@ use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
     compute_solution, genetic, simulated_annealing,
 };
 use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
+
 use tensorcontraction::contractionpath::paths::tree_reconfiguration::TreeReconfigure;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
@@ -42,57 +44,43 @@ struct TensorResult {
     mem_ratio: f64,
 }
 
-impl TensorResult {
-    fn new_invalid(
-        seed: u64,
-        num_qubits: usize,
-        circuit_depth: usize,
-        partitions: i32,
-        method: impl Into<String>,
-    ) -> Self {
-        TensorResult {
-            seed,
-            num_qubits,
-            circuit_depth,
-            partitions,
-            method: method.into(),
-            flops: -1.0,
-            mem: -1.0,
-            flops_ratio: -1.0,
-            mem_ratio: -1.0,
-        }
-    }
-}
-
+// Run with at least 2 processes
 fn main() {
-    let mut file = fs::OpenOptions::new()
+    let file = fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open("sweep_sparse_sycamore_randomgreedy.json")
+        .open("sweep_dense_sycamore_randomgreedy.json")
         .unwrap();
+    let mut writer = BufWriter::new(file);
 
-    let single_qubit_probability = 0.4;
-    let two_qubit_probability = 0.4;
+    let single_qubit_probability = 1.0;
+    let two_qubit_probability = 1.0;
     let observable_probability = 1.0;
     let connectivity = ConnectivityLayout::Sycamore;
 
-    let qubit_range = (40..60).step_by(10).collect_vec();
-    let circuit_depth_range = (10..40).step_by(10).collect_vec();
-    let partition_range = (2..7).map(|p| 2i32.pow(p)).collect_vec();
+    let qubit_range = (40..60).step_by(10);
+    let circuit_depth_range = (10..40).step_by(10);
+    let partition_range = 2..7;
     let rng = thread_rng();
-    let communication_scheme = CommunicationScheme::RandomGreedy;
-    let seed_range = rng.sample_iter(Standard).take(10).collect_vec();
+    let seed_range = rng
+        .sample_iter(Uniform::new(u64::MIN, u64::MAX))
+        .take(10)
+        .collect::<Vec<_>>();
+    serde_json::to_writer(&mut writer, &seed_range).unwrap();
 
-    let mut write = |result: TensorResult| {
-        serde_json::to_writer(&mut file, &[result]).unwrap();
-    };
+    writer.flush().unwrap();
+    let mut results = Vec::new();
+    let communication_scheme = CommunicationScheme::RandomGreedy;
 
     for num_qubits in qubit_range {
         println!("qubits: {num_qubits}");
-        for &circuit_depth in &circuit_depth_range {
+        for circuit_depth in circuit_depth_range.clone() {
             println!("circuit_depth: {:?}", circuit_depth);
-            for &seed in &seed_range {
-                for &num_partitions in &partition_range {
+            for seed in seed_range.clone() {
+                println!("seed: {:?}", seed);
+                for bipartitions in partition_range.clone() {
+                    println!("bipart: {:?}", bipartitions);
+                    let mut local_results = Vec::new();
                     info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
                     let tensor = random_circuit(
                         num_qubits,
@@ -103,6 +91,8 @@ fn main() {
                         &mut StdRng::seed_from_u64(seed),
                         connectivity,
                     );
+                    let num_partitions = 1 << bipartitions;
+                    // let communication_scheme = CommunicationScheme::WeightedBranchBound;
 
                     let (
                         initial_partitioning,
@@ -124,13 +114,17 @@ fn main() {
                             original_flops,
                         ),
                         Err(_) => {
-                            write(TensorResult::new_invalid(
+                            local_results.push(TensorResult {
                                 seed,
                                 num_qubits,
                                 circuit_depth,
-                                num_partitions,
-                                "Generic",
-                            ));
+                                partitions: num_partitions,
+                                method: "Generic".to_string(),
+                                flops: -1f64,
+                                mem: -1f64,
+                                flops_ratio: 1f64,
+                                mem_ratio: 1f64,
+                            });
                             continue;
                         }
                     };
@@ -139,7 +133,7 @@ fn main() {
                         &initial_contraction_path,
                         contract_size_tensors_exact,
                     );
-                    write(TensorResult {
+                    local_results.push(TensorResult {
                         seed,
                         num_qubits,
                         circuit_depth,
@@ -169,7 +163,7 @@ fn main() {
                         Err(_) => (-1f64, -1f64, -1f64, -1f64),
                     };
 
-                    write(TensorResult {
+                    local_results.push(TensorResult {
                         seed,
                         num_qubits,
                         circuit_depth,
@@ -205,7 +199,7 @@ fn main() {
                         Err(_) => (-1f64, -1f64, -1f64, -1f64),
                     };
 
-                    write(TensorResult {
+                    local_results.push(TensorResult {
                         seed,
                         num_qubits,
                         circuit_depth,
@@ -246,7 +240,7 @@ fn main() {
                         Err(_) => (-1f64, -1f64, -1f64, -1f64),
                     };
 
-                    write(TensorResult {
+                    local_results.push(TensorResult {
                         seed,
                         num_qubits,
                         circuit_depth,
@@ -258,31 +252,33 @@ fn main() {
                         mem_ratio,
                     });
 
-                    let (flops, memory, flops_ratio, mem_ratio, cotengra_partitions) =
-                        match panic::catch_unwind(|| {
-                            cotengra_run(&tensor, num_partitions, communication_scheme)
-                        }) {
-                            Ok((flops, memory, cotengra_partitions)) => (
-                                flops,
-                                memory,
-                                flops / original_flops,
-                                memory / original_memory,
-                                cotengra_partitions,
-                            ),
-                            Err(_) => (-1f64, -1f64, -1f64, -1f64, 0usize),
-                        };
+                    {
+                        let (flops, memory, flops_ratio, mem_ratio, cotengra_partitions) =
+                            match panic::catch_unwind(|| {
+                                cotengra_run(&tensor, bipartitions, communication_scheme)
+                            }) {
+                                Ok((flops, memory, cotengra_partitions)) => (
+                                    flops,
+                                    memory,
+                                    flops / original_flops,
+                                    memory / original_memory,
+                                    cotengra_partitions,
+                                ),
+                                Err(_) => (-1f64, -1f64, -1f64, -1f64, num_partitions as usize),
+                            };
 
-                    write(TensorResult {
-                        seed,
-                        num_qubits,
-                        circuit_depth,
-                        partitions: cotengra_partitions as i32,
-                        method: "cotengra".to_string(),
-                        flops,
-                        mem: memory,
-                        flops_ratio,
-                        mem_ratio,
-                    });
+                        local_results.push(TensorResult {
+                            seed,
+                            num_qubits,
+                            circuit_depth,
+                            partitions: cotengra_partitions as i32,
+                            method: "cotengra".to_string(),
+                            flops,
+                            mem: memory,
+                            flops_ratio,
+                            mem_ratio,
+                        });
+                    }
 
                     let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
                         sa_run(
@@ -302,7 +298,7 @@ fn main() {
                         Err(_) => (-1f64, -1f64, -1f64, -1f64),
                     };
 
-                    write(TensorResult {
+                    local_results.push(TensorResult {
                         seed,
                         num_qubits,
                         circuit_depth,
@@ -314,34 +310,38 @@ fn main() {
                         mem_ratio,
                     });
 
-                    let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
-                        ga_run(
-                            tensor,
-                            num_partitions,
-                            initial_partitioning,
-                            communication_scheme,
-                        )
-                    }) {
-                        Ok((flops, memory)) => (
-                            flops,
-                            memory,
-                            flops / original_flops,
-                            memory / original_memory,
-                        ),
-                        Err(_) => (-1f64, -1f64, -1f64, -1f64),
-                    };
+                    // let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
+                    //     ga_run(
+                    //         tensor,
+                    //         num_partitions,
+                    //         initial_partitioning,
+                    //         communication_scheme,
+                    //     )
+                    // }) {
+                    //     Ok((flops, memory)) => (
+                    //         flops,
+                    //         memory,
+                    //         flops / original_flops,
+                    //         memory / original_memory,
+                    //     ),
+                    //     Err(_) => (-1f64, -1f64, -1f64, -1f64),
+                    // };
 
-                    write(TensorResult {
-                        seed,
-                        num_qubits,
-                        circuit_depth,
-                        partitions: num_partitions,
-                        method: "GA".to_string(),
-                        flops,
-                        mem: memory,
-                        flops_ratio,
-                        mem_ratio,
-                    });
+                    // local_results.push(TensorResult {
+                    //     seed,
+                    //     num_qubits,
+                    //     circuit_depth,
+                    //     partitions: num_partitions,
+                    //     method: "GA".to_string(),
+                    //     flops,
+                    //     mem: memory,
+                    //     flops_ratio,
+                    //     mem_ratio,
+                    // });
+
+                    serde_json::to_writer(&mut writer, &local_results).unwrap();
+                    writer.flush().unwrap();
+                    results.append(&mut local_results);
                 }
             }
         }
