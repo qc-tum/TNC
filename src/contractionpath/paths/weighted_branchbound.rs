@@ -26,6 +26,7 @@ pub struct WeightedBranchBound<'a> {
     best_size: f64,
     best_path: Vec<ContractionIndex>,
     best_progress: FxHashMap<usize, f64>,
+    largest_latency: f64,
     result_cache: FxHashMap<(usize, usize), (usize, f64, f64)>,
     comm_cache: FxHashMap<usize, f64>,
     tensor_cache: FxHashMap<usize, Tensor>,
@@ -48,6 +49,7 @@ impl<'a> WeightedBranchBound<'a> {
             best_size: f64::INFINITY,
             best_path: Vec::new(),
             best_progress: FxHashMap::default(),
+            largest_latency: Default::default(),
             result_cache: FxHashMap::default(),
             comm_cache: latency_map,
             tensor_cache: FxHashMap::default(),
@@ -95,7 +97,7 @@ impl<'a> WeightedBranchBound<'a> {
 
         if current_flops < best_flops {
             self.best_progress.insert(remaining_len, current_flops);
-        } else if current_flops > self.cutoff_flops_factor * best_flops {
+        } else if current_flops > (self.cutoff_flops_factor * best_flops + self.largest_latency) {
             return None;
         }
 
@@ -180,6 +182,12 @@ impl OptimizePath for WeightedBranchBound<'_> {
         let tensors = self.tn.tensors().clone();
         self.result_cache.clear();
         self.tensor_cache.clear();
+        self.largest_latency = *self
+            .comm_cache
+            .iter()
+            .max_by(|a, b| a.1.partial_cmp(b.1).expect("Tried to compare NaN"))
+            .unwrap()
+            .1;
         let mut sub_tensor_contraction = Vec::new();
         // Get the initial space requirements for uncontracted tensors
         for (index, mut tensor) in tensors.into_iter().enumerate() {
