@@ -1,5 +1,6 @@
 use std::{fs, panic};
 
+use clap::Parser;
 use itertools::Itertools;
 use log::info;
 use ordered_float::NotNan;
@@ -10,20 +11,31 @@ use serde::{Deserialize, Serialize};
 use tensorcontraction::contractionpath::contraction_cost::{
     compute_memory_requirements, contract_size_tensors_exact,
 };
-use tensorcontraction::contractionpath::contraction_tree::balancing::CommunicationScheme;
+use tensorcontraction::contractionpath::contraction_tree::balancing::{
+    balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
+};
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::{
     IntermediatePartitioningModel, LeafPartitioningModel, NaivePartitioningModel,
 };
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
     compute_solution, simulated_annealing,
 };
+use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
+use tensorcontraction::contractionpath::paths::tree_reconfiguration::TreeReconfigure;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
-use tensorcontraction::networks::random_circuit::random_circuit_with_observable;
+use tensorcontraction::networks::random_circuit::random_circuit;
 use tensorcontraction::tensornetwork::partitioning::find_partitioning;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::tensor::Tensor;
 use tensorcontraction::types::ContractionIndex;
+
+#[derive(Parser)]
+struct Cli {
+    single_qubit_probability: f64,
+    two_qubit_probability: f64,
+    out_file: String,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct TensorResult {
@@ -61,15 +73,17 @@ impl TensorResult {
 }
 
 fn main() {
+    let args = Cli::parse();
+    let out_file = args.out_file;
     let mut file = fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open("sweep_sparse.json")
+        .open(out_file)
         .unwrap();
 
-    let single_qubit_probability = 0.4;
-    let two_qubit_probability = 0.4;
-    let observable_probability = 1.0;
+    let single_qubit_probability = args.single_qubit_probability;
+    let two_qubit_probability = args.two_qubit_probability;
+    // let observable_probability = 1.0;
     let connectivity = ConnectivityLayout::Sycamore;
 
     let qubit_range = (5..15).step_by(5).collect_vec();
@@ -77,7 +91,7 @@ fn main() {
     let partition_range = (1..4).map(|p| 2i32.pow(p)).collect_vec();
     let rng = thread_rng();
     let seed_range = rng.sample_iter(Standard).take(10).collect_vec();
-    let communication_scheme = CommunicationScheme::WeightedBranchBound;
+    let communication_scheme = CommunicationScheme::RandomGreedyLatency;
 
     let mut write = |result: TensorResult| {
         serde_json::to_writer(&mut file, &[result]).unwrap();
@@ -90,12 +104,12 @@ fn main() {
             for &seed in &seed_range {
                 for &num_partitions in &partition_range {
                     info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
-                    let tensor = random_circuit_with_observable(
+                    let tensor = random_circuit(
                         num_qubits,
                         circuit_depth,
                         single_qubit_probability,
                         two_qubit_probability,
-                        observable_probability,
+                        // observable_probability,
                         &mut StdRng::seed_from_u64(seed),
                         connectivity,
                     );
@@ -106,7 +120,12 @@ fn main() {
                         initial_contraction_path,
                         original_flops,
                     ) = match panic::catch_unwind(|| {
-                        initial_problem(&tensor, num_partitions, communication_scheme)
+                        initial_problem(
+                            &tensor,
+                            num_partitions,
+                            communication_scheme,
+                            &mut StdRng::seed_from_u64(seed),
+                        )
                     }) {
                         Ok((
                             initial_partitioning,
@@ -125,7 +144,7 @@ fn main() {
                                 num_qubits,
                                 circuit_depth,
                                 num_partitions,
-                                communication_scheme.to_string(),
+                                "Generic".to_string(),
                             ));
                             continue;
                         }
@@ -151,6 +170,69 @@ fn main() {
                     for (index, partition) in initial_partitioning.iter().enumerate() {
                         intermediate_tensors[*partition] ^= tensor.tensor(index);
                     }
+
+                    let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
+                        greedy_balancing_run(
+                            &initial_partitioned_tensor,
+                            &initial_contraction_path,
+                            40,
+                            communication_scheme,
+                            BalancingScheme::AlternatingIntermediateTensors { height_limit: 8 },
+                            &mut StdRng::seed_from_u64(seed),
+                        )
+                    }) {
+                        Ok((flops, memory)) => (
+                            flops,
+                            memory,
+                            flops / original_flops,
+                            memory / original_memory,
+                        ),
+                        Err(_) => (-1f64, -1f64, -1f64, -1f64),
+                    };
+
+                    write(TensorResult {
+                        seed,
+                        num_qubits,
+                        circuit_depth,
+                        partitions: num_partitions,
+                        method: "GreedyBalance".to_string(),
+                        flops,
+                        mem: memory,
+                        flops_ratio,
+                        mem_ratio,
+                    });
+
+                    let (flops, memory, flops_ratio, mem_ratio, cotengra_partitions) =
+                        match panic::catch_unwind(|| {
+                            cotengra_run(
+                                &tensor,
+                                num_partitions,
+                                communication_scheme,
+                                &mut StdRng::seed_from_u64(seed),
+                            )
+                        }) {
+                            Ok((flops, memory, cotengra_partitions)) => (
+                                flops,
+                                memory,
+                                flops / original_flops,
+                                memory / original_memory,
+                                cotengra_partitions,
+                            ),
+                            Err(_) => (-1f64, -1f64, -1f64, -1f64, 0usize),
+                        };
+
+                    write(TensorResult {
+                        seed,
+                        num_qubits,
+                        circuit_depth,
+                        partitions: cotengra_partitions as i32,
+                        method: "cotengra".to_string(),
+                        flops,
+                        mem: memory,
+                        flops_ratio,
+                        mem_ratio,
+                    });
+
                     // Try to find a better partitioning with a simulated annealing algorithm
                     let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
                         sad_run(
@@ -259,15 +341,23 @@ fn main() {
     }
 }
 
-fn initial_problem(
+fn initial_problem<R>(
     tensor: &Tensor,
     num_partitions: i32,
     communication_scheme: CommunicationScheme,
-) -> (Vec<usize>, Tensor, Vec<ContractionIndex>, f64) {
+    rng: &mut R,
+) -> (Vec<usize>, Tensor, Vec<ContractionIndex>, f64)
+where
+    R: ?Sized + Rng,
+{
     let initial_partitioning =
         find_partitioning(tensor, num_partitions, PartitioningStrategy::MinCut, true);
-    let (initial_partitioned_tensor, initial_contraction_path, original_flops) =
-        compute_solution(tensor, &initial_partitioning, communication_scheme);
+    let (initial_partitioned_tensor, initial_contraction_path, original_flops) = compute_solution(
+        tensor,
+        &initial_partitioning,
+        communication_scheme,
+        Some(rng),
+    );
     (
         initial_partitioning,
         initial_partitioned_tensor,
@@ -294,7 +384,7 @@ fn sa_run(
         );
 
     let (partitioned_tensor, contraction_path, flops) =
-        compute_solution(tensor, &partitioning, communication_scheme);
+        compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
     let memory = compute_memory_requirements(
         partitioned_tensor.tensors(),
         &contraction_path,
@@ -328,7 +418,7 @@ fn iad_run(
     let (partitioning, ..) = solution;
 
     let (partitioned_tensor, contraction_path, flops) =
-        compute_solution(tensor, &partitioning, communication_scheme);
+        compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
     let memory = compute_memory_requirements(
         partitioned_tensor.tensors(),
         &contraction_path,
@@ -356,11 +446,94 @@ fn sad_run(
     let (partitioning, ..) = solution;
 
     let (partitioned_tensor, contraction_path, flops) =
-        compute_solution(tensor, &partitioning, communication_scheme);
+        compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
     let memory = compute_memory_requirements(
         partitioned_tensor.tensors(),
         &contraction_path,
         contract_size_tensors_exact,
     );
     (flops, memory)
+}
+
+fn objective_function(a: &Tensor, b: &Tensor) -> f64 {
+    a.size() + b.size() - (a ^ b).size()
+}
+
+fn greedy_balancing_run(
+    tensor: &Tensor,
+    initial_contractions: &[ContractionIndex],
+    iterations: usize,
+    communication_scheme: CommunicationScheme,
+    balancing_scheme: BalancingScheme,
+    rng: &mut StdRng,
+) -> (f64, f64)
+where
+{
+    let balance_settings = BalanceSettings::new(
+        1,
+        iterations,
+        objective_function,
+        communication_scheme,
+        balancing_scheme,
+        None,
+    );
+    let (best_iteration, partitioned_tensor, contraction_path, max_costs) =
+        balance_partitions_iter(tensor, initial_contractions, balance_settings, None, rng);
+    let flops = max_costs[best_iteration];
+
+    let memory = compute_memory_requirements(
+        partitioned_tensor.tensors(),
+        &contraction_path,
+        contract_size_tensors_exact,
+    );
+    (flops, memory)
+}
+
+fn cotengra_run<R>(
+    tensor: &Tensor,
+    num_bipartitions: i32,
+    communication_scheme: CommunicationScheme,
+    rng: &mut R,
+) -> (f64, f64, usize)
+where
+    R: ?Sized + Rng,
+{
+    let mut tree = TreeReconfigure::new(tensor, 4, CostType::Flops);
+    tree.optimize_path();
+    let best_path = tree.get_best_replace_path();
+
+    let contraction_tree = ContractionTree::from_contraction_path(tensor, &best_path);
+
+    let tree_root = contraction_tree.root_id().unwrap();
+    let mut leaves = vec![];
+    let mut traversal = vec![tree_root];
+    let num_partitions = 1 << num_bipartitions;
+    while (leaves.len() + traversal.len()) < num_partitions && !traversal.is_empty() {
+        let node_id = traversal.pop().unwrap();
+        let node = contraction_tree.node(node_id);
+        if node.is_leaf() {
+            leaves.push(node_id);
+        } else {
+            traversal.push(node.left_child_id().unwrap());
+            traversal.push(node.right_child_id().unwrap());
+        }
+    }
+    traversal.append(&mut leaves);
+    let num_partitions = traversal.len();
+    let mut partitioning = vec![0; tensor.tensors().len()];
+    for (i, partition_root) in traversal.iter().enumerate() {
+        let leaf_tensors = contraction_tree.leaf_ids(*partition_root);
+        for leaf in leaf_tensors {
+            partitioning[leaf] = i;
+        }
+    }
+
+    let (partitioned_tensor, contraction_path, flops) =
+        compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
+    let memory = compute_memory_requirements(
+        partitioned_tensor.tensors(),
+        &contraction_path,
+        contract_size_tensors_exact,
+    );
+    (flops, memory, num_partitions)
 }
