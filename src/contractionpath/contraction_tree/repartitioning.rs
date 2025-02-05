@@ -7,6 +7,7 @@ use crate::{
     types::ContractionIndex,
 };
 use itertools::Itertools;
+use rand::{thread_rng, Rng};
 use rustc_hash::FxHashMap;
 
 use super::balancing::{communication_schemes, CommunicationScheme};
@@ -16,11 +17,15 @@ pub mod simulated_annealing;
 
 /// Given a `tensor` and a `partitioning` for it, this constructs the partitioned
 /// tensor and finds a contraction path for it.
-pub fn compute_solution(
+pub fn compute_solution<R>(
     tensor: &Tensor,
     partitioning: &[usize],
     communication_scheme: CommunicationScheme,
-) -> (Tensor, Vec<ContractionIndex>, f64) {
+    rng: Option<&mut R>,
+) -> (Tensor, Vec<ContractionIndex>, f64)
+where
+    R: ?Sized + Rng,
+{
     // Partition the tensor network with the proposed solution
     let partitioned_tn = partition_tensor_network(tensor.clone(), partitioning);
 
@@ -54,17 +59,42 @@ pub fn compute_solution(
                 communication_schemes::greedy(&children_tensors, &latency_map)
             }
             CommunicationScheme::RandomGreedy => {
-                communication_schemes::random_greedy(&children_tensors)
+                if let Some(rng) = rng {
+                    communication_schemes::random_greedy(&children_tensors, rng)
+                } else {
+                    communication_schemes::random_greedy(&children_tensors, &mut thread_rng())
+                }
             }
             CommunicationScheme::RandomGreedyLatency => {
-                communication_schemes::random_greedy_latency(&children_tensors, &latency_map)
+                if let Some(rng) = rng {
+                    communication_schemes::random_greedy_latency(
+                        &children_tensors,
+                        &latency_map,
+                        rng,
+                    )
+                } else {
+                    communication_schemes::random_greedy_latency(
+                        &children_tensors,
+                        &latency_map,
+                        &mut thread_rng(),
+                    )
+                }
             }
             CommunicationScheme::Bipartition => {
                 communication_schemes::bipartition(&children_tensors, &latency_map)
             }
             CommunicationScheme::BipartitionSweep => {
-                communication_schemes::bipartition_sweep(&children_tensors, &latency_map)
+                if let Some(rng) = rng {
+                    communication_schemes::bipartition_sweep(&children_tensors, &latency_map, rng)
+                } else {
+                    communication_schemes::bipartition_sweep(
+                        &children_tensors,
+                        &latency_map,
+                        &mut thread_rng(),
+                    )
+                }
             }
+
             CommunicationScheme::WeightedBranchBound => {
                 communication_schemes::weighted_branchbound(&children_tensors, &latency_map)
             }
@@ -93,10 +123,14 @@ pub fn compute_solution(
 /// the `partitioning` list and the `communication_scheme` for finding the
 /// communication path.
 #[inline]
-fn compute_partitioning_cost(
+fn compute_partitioning_cost<R>(
     tensor: &Tensor,
     partitioning: &[usize],
     communication_scheme: CommunicationScheme,
-) -> f64 {
-    compute_solution(tensor, partitioning, communication_scheme).2
+    rng: Option<&mut R>,
+) -> f64
+where
+    R: ?Sized + Rng,
+{
+    compute_solution(tensor, partitioning, communication_scheme, rng).2
 }

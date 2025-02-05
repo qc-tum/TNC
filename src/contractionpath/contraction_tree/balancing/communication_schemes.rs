@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use rand::distributions::Uniform;
-use rand::{thread_rng, Rng};
+use rand::Rng;
 use rustc_hash::FxHashMap;
 
 use crate::contractionpath::contraction_cost::communication_path_cost;
@@ -71,23 +71,26 @@ pub(crate) fn bipartition(
     tensor_bipartition(&children_tensors, imbalance)
 }
 
-pub(crate) fn bipartition_sweep(
+pub(crate) fn bipartition_sweep<R>(
     children_tensors: &[Tensor],
     latency_map: &FxHashMap<usize, f64>,
-) -> Vec<ContractionIndex> {
+    rng: &mut R,
+) -> Vec<ContractionIndex>
+where
+    R: ?Sized + Rng,
+{
     let tensors = children_tensors.iter().cloned().enumerate().collect_vec();
-    let mut rng = thread_rng();
     let mut best_flops = f64::INFINITY;
     let mut best_path = vec![];
     let partition_latencies = latency_map
         .iter()
-        .sorted_by_key(|(k, v)| **k)
-        .map(|(k, v)| *v)
+        .sorted_by_key(|(k, _)| **k)
+        .map(|(_, v)| *v)
         .collect::<Vec<_>>();
     for _ in 0..20 {
         let imbalance = rng.sample(Uniform::new(0.01, 0.5));
         let path = tensor_bipartition(&tensors, imbalance);
-        let (flops, mem) =
+        let (flops, _) =
             communication_path_cost(children_tensors, &path, true, Some(&partition_latencies));
         if flops < best_flops {
             best_flops = flops;
@@ -215,29 +218,37 @@ pub fn tensor_bipartition(
     contraction_path
 }
 
-pub(crate) fn random_greedy(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
+pub(crate) fn random_greedy<R>(children_tensors: &[Tensor], rng: &mut R) -> Vec<ContractionIndex>
+where
+    R: ?Sized + Rng,
+{
+    let mut communication_tensors = Tensor::default();
     let partition_latencies = vec![0f64; children_tensors.len()];
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
     let mut opt = Greedy::new(&communication_tensors, CostType::Size);
 
-    opt.random_optimize_path(500, &mut thread_rng(), Some(&partition_latencies));
+    opt.random_optimize_path(500, rng, Some(&partition_latencies));
     opt.get_best_replace_path()
 }
 
-pub(crate) fn random_greedy_latency(
+pub(crate) fn random_greedy_latency<R>(
     children_tensors: &[Tensor],
     latency_map: &FxHashMap<usize, f64>,
-) -> Vec<ContractionIndex> {
+    rng: &mut R,
+) -> Vec<ContractionIndex>
+where
+    R: ?Sized + Rng,
+{
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
     let mut opt = Greedy::new(&communication_tensors, CostType::Size);
     let partition_latencies = latency_map
         .iter()
-        .sorted_by_key(|(k, v)| **k)
-        .map(|(k, v)| *v)
+        .sorted_by_key(|(k, _)| **k)
+        .map(|(_, v)| *v)
         .collect::<Vec<_>>();
-    opt.random_optimize_path(500, &mut thread_rng(), Some(&partition_latencies));
+    opt.random_optimize_path(500, rng, Some(&partition_latencies));
     opt.get_best_replace_path()
 }
 

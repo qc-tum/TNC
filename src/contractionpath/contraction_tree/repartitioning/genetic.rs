@@ -7,6 +7,7 @@ use genetic_algorithm::{
     strategy::{evolve::Evolve, Strategy},
 };
 use ordered_float::NotNan;
+use rand::rngs::StdRng;
 
 use crate::{
     contractionpath::{
@@ -29,7 +30,7 @@ impl PartitioningFitness<'_> {
     fn calculate_fitness(&self, partitioning: &[usize]) -> NotNan<f64> {
         // Construct the tensor network and contraction path from the partitioning
         let (partitioned_tn, path, cost) =
-            compute_solution(self.tensor, partitioning, self.communication_scheme);
+            compute_solution::<StdRng>(self.tensor, partitioning, self.communication_scheme, None);
 
         // Compute memory usage
         let mem = compute_memory_requirements(

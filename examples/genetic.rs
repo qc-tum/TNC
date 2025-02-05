@@ -54,7 +54,8 @@ fn main() {
     println!("Final fitness: {final_fitness:?}");
 
     // Partition the tensor network with the found partitioning and contract
-    let (tensor, path, _) = compute_solution(&tensor, &partitioning, communication_scheme);
+    let (tensor, path, _) =
+        compute_solution::<StdRng>(&tensor, &partitioning, communication_scheme, None);
 
     let tensor = contract_tensor_network(tensor, &path);
     println!("{:?}", tensor.tensor_data());

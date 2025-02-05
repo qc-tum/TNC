@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use itertools::Itertools;
 use log::info;
-use rand::{rngs::StdRng, seq::SliceRandom, Rng};
+use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng};
 use rustc_hash::FxHashMap;
 
 use crate::{
@@ -104,9 +104,10 @@ pub fn balance_partitions_iter<R>(
     path: &[ContractionIndex],
     mut balance_settings: BalanceSettings<R>,
     dendogram_settings: Option<&DendogramSettings>,
+    rng: &mut R,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>)
 where
-    R: Sized + Rng,
+    R: Sized + Rng + Clone,
 {
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor_network, path);
 
@@ -175,6 +176,7 @@ where
             &mut contraction_tree,
             &new_tensor_network,
             &balance_settings,
+            Some(&mut rng.clone()),
         );
 
         let (partition_tensors, partition_costs): (Vec<_>, Vec<_>) = partition_data
@@ -243,6 +245,7 @@ fn communicate_partitions<R>(
     contraction_tree: &mut ContractionTree,
     tensor_network: &Tensor,
     balance_settings: &BalanceSettings<R>,
+    rng: Option<&mut R>,
 ) -> Vec<ContractionIndex>
 where
     R: Sized + Rng,
@@ -268,18 +271,36 @@ where
             communication_schemes::greedy(&children_tensors, &latency_map)
         }
         CommunicationScheme::RandomGreedy => {
-            communication_schemes::random_greedy(&children_tensors, &bond_dims)
+            if let Some(rng) = rng {
+                communication_schemes::random_greedy(&children_tensors, rng)
+            } else {
+                communication_schemes::random_greedy(&children_tensors, &mut thread_rng())
+            }
         }
-        CommunicationScheme::RandomGreedyLatency => communication_schemes::random_greedy_latency(
-            &children_tensors,
-            &bond_dims,
-            &latency_map,
-        ),
+        CommunicationScheme::RandomGreedyLatency => {
+            if let Some(rng) = rng {
+                communication_schemes::random_greedy_latency(&children_tensors, &latency_map, rng)
+            } else {
+                communication_schemes::random_greedy_latency(
+                    &children_tensors,
+                    &latency_map,
+                    &mut thread_rng(),
+                )
+            }
+        }
         CommunicationScheme::Bipartition => {
             communication_schemes::bipartition(&children_tensors, &latency_map)
         }
         CommunicationScheme::BipartitionSweep => {
-            communication_schemes::bipartition_sweep(&children_tensors, &bond_dims, &latency_map)
+            if let Some(rng) = rng {
+                communication_schemes::bipartition_sweep(&children_tensors, &latency_map, rng)
+            } else {
+                communication_schemes::bipartition_sweep(
+                    &children_tensors,
+                    &latency_map,
+                    &mut thread_rng(),
+                )
+            }
         }
         CommunicationScheme::WeightedBranchBound => {
             communication_schemes::weighted_branchbound(&children_tensors, &latency_map)

@@ -1,11 +1,11 @@
-use rand::{rngs::StdRng, SeedableRng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use tensorcontraction::{
     contractionpath::contraction_tree::{
         balancing::CommunicationScheme,
         repartitioning::{
             compute_solution,
             simulated_annealing::{
-                balance_partitions, calculate_score, LeafPartitioningModel, NaivePartitioningModel,
+                balance_partitions, LeafPartitioningModel, NaivePartitioningModel,
             },
         },
     },
@@ -16,6 +16,18 @@ use tensorcontraction::{
         tensor::Tensor,
     },
 };
+
+fn compute_partitioning_cost<R>(
+    tensor: &Tensor,
+    partitioning: &[usize],
+    communication_scheme: CommunicationScheme,
+    rng: Option<&mut R>,
+) -> f64
+where
+    R: ?Sized + Rng,
+{
+    compute_solution(tensor, partitioning, communication_scheme, rng).2
+}
 
 fn main() {
     let mut rng = StdRng::seed_from_u64(42);
@@ -43,7 +55,12 @@ fn main() {
         find_partitioning(&tensor, num_partitions, PartitioningStrategy::MinCut, true);
 
     // Calculate the initial score
-    let initial_score = calculate_score(&tensor, &initial_partitioning, communication_scheme);
+    let initial_score = compute_partitioning_cost(
+        &tensor,
+        &initial_partitioning,
+        communication_scheme,
+        Some(&mut rng),
+    );
     println!("Initial score: {initial_score:?}");
 
     // Try to find a better partitioning with undirected simulated annealing
@@ -73,7 +90,8 @@ fn main() {
     println!("Directed final score: {final_score:?}");
 
     // Partition the tensor network with the found partitioning and contract
-    let (tensor, path, _) = compute_solution(&tensor, &partitioning.0, communication_scheme);
+    let (tensor, path, _) =
+        compute_solution::<StdRng>(&tensor, &partitioning.0, communication_scheme, None);
 
     let tensor = contract_tensor_network(tensor, &path);
     println!("{:?}", tensor.tensor_data());

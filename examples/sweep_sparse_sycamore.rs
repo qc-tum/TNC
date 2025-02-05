@@ -1,7 +1,6 @@
 use std::{fs, panic};
 
 use itertools::Itertools;
-use log::info;
 use ordered_float::NotNan;
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
@@ -73,7 +72,7 @@ fn main() {
 
     let single_qubit_probability = 0.4;
     let two_qubit_probability = 0.4;
-    let observable_probability = 1.0;
+    // let observable_probability = 1.0;
     let connectivity = ConnectivityLayout::Sycamore;
 
     let qubit_range = (40..60).step_by(10).collect_vec();
@@ -93,7 +92,8 @@ fn main() {
             println!("circuit_depth: {:?}", circuit_depth);
             for &seed in &seed_range {
                 for &num_partitions in &partition_range {
-                    info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
+                    // info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
+
                     let tensor = random_circuit(
                         num_qubits,
                         circuit_depth,
@@ -110,7 +110,12 @@ fn main() {
                         initial_contraction_path,
                         original_flops,
                     ) = match panic::catch_unwind(|| {
-                        initial_problem(&tensor, num_partitions, communication_scheme)
+                        initial_problem(
+                            &tensor,
+                            num_partitions,
+                            communication_scheme,
+                            &mut StdRng::seed_from_u64(seed),
+                        )
                     }) {
                         Ok((
                             initial_partitioning,
@@ -158,6 +163,7 @@ fn main() {
                             40,
                             communication_scheme,
                             BalancingScheme::AlternatingIntermediateTensors { height_limit: 8 },
+                            &mut StdRng::seed_from_u64(seed),
                         )
                     }) {
                         Ok((flops, memory)) => (
@@ -260,7 +266,12 @@ fn main() {
 
                     let (flops, memory, flops_ratio, mem_ratio, cotengra_partitions) =
                         match panic::catch_unwind(|| {
-                            cotengra_run(&tensor, num_partitions, communication_scheme)
+                            cotengra_run(
+                                &tensor,
+                                num_partitions,
+                                communication_scheme,
+                                &mut StdRng::seed_from_u64(seed),
+                            )
                         }) {
                             Ok((flops, memory, cotengra_partitions)) => (
                                 flops,
@@ -320,6 +331,7 @@ fn main() {
                             num_partitions,
                             initial_partitioning,
                             communication_scheme,
+                            &mut StdRng::seed_from_u64(seed),
                         )
                     }) {
                         Ok((flops, memory)) => (
@@ -348,15 +360,23 @@ fn main() {
     }
 }
 
-fn initial_problem(
+fn initial_problem<R>(
     tensor: &Tensor,
     num_partitions: i32,
     communication_scheme: CommunicationScheme,
-) -> (Vec<usize>, Tensor, Vec<ContractionIndex>, f64) {
+    rng: &mut R,
+) -> (Vec<usize>, Tensor, Vec<ContractionIndex>, f64)
+where
+    R: ?Sized + Rng,
+{
     let initial_partitioning =
         find_partitioning(tensor, num_partitions, PartitioningStrategy::MinCut, true);
-    let (initial_partitioned_tensor, initial_contraction_path, original_flops) =
-        compute_solution(tensor, &initial_partitioning, communication_scheme);
+    let (initial_partitioned_tensor, initial_contraction_path, original_flops) = compute_solution(
+        tensor,
+        &initial_partitioning,
+        communication_scheme,
+        Some(rng),
+    );
     (
         initial_partitioning,
         initial_partitioned_tensor,
@@ -365,12 +385,16 @@ fn initial_problem(
     )
 }
 
-fn ga_run(
+fn ga_run<R>(
     tensor: Tensor,
     num_partitions: i32,
     initial_partitioning: Vec<usize>,
     communication_scheme: CommunicationScheme,
-) -> (f64, f64) {
+    rng: &mut R,
+) -> (f64, f64)
+where
+    R: ?Sized + Rng,
+{
     let (partitioning, _) = genetic::balance_partitions(
         &tensor,
         num_partitions as usize,
@@ -380,7 +404,7 @@ fn ga_run(
     );
 
     let (partitioned_tensor, contraction_path, flops) =
-        compute_solution(&tensor, &partitioning, communication_scheme);
+        compute_solution(&tensor, &partitioning, communication_scheme, Some(rng));
     let memory = compute_memory_requirements(
         partitioned_tensor.tensors(),
         &contraction_path,
@@ -407,7 +431,7 @@ fn sa_run(
         );
 
     let (partitioned_tensor, contraction_path, flops) =
-        compute_solution(tensor, &partitioning, communication_scheme);
+        compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
     let memory = compute_memory_requirements(
         partitioned_tensor.tensors(),
         &contraction_path,
@@ -441,7 +465,7 @@ fn iad_run(
     let (partitioning, ..) = solution;
 
     let (partitioned_tensor, contraction_path, flops) =
-        compute_solution(tensor, &partitioning, communication_scheme);
+        compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
     let memory = compute_memory_requirements(
         partitioned_tensor.tensors(),
         &contraction_path,
@@ -469,7 +493,7 @@ fn sad_run(
     let (partitioning, ..) = solution;
 
     let (partitioned_tensor, contraction_path, flops) =
-        compute_solution(tensor, &partitioning, communication_scheme);
+        compute_solution::<StdRng>(tensor, &partitioning, communication_scheme, Some(rng));
     let memory = compute_memory_requirements(
         partitioned_tensor.tensors(),
         &contraction_path,
@@ -488,6 +512,7 @@ fn greedy_balancing_run(
     iterations: usize,
     communication_scheme: CommunicationScheme,
     balancing_scheme: BalancingScheme,
+    rng: &mut StdRng,
 ) -> (f64, f64) {
     let balance_settings = BalanceSettings::new(
         1,
@@ -498,7 +523,7 @@ fn greedy_balancing_run(
         None,
     );
     let (best_iteration, partitioned_tensor, contraction_path, max_costs) =
-        balance_partitions_iter(tensor, initial_contractions, balance_settings, None);
+        balance_partitions_iter(tensor, initial_contractions, balance_settings, None, rng);
     let flops = max_costs[best_iteration];
 
     let memory = compute_memory_requirements(
@@ -509,11 +534,15 @@ fn greedy_balancing_run(
     (flops, memory)
 }
 
-fn cotengra_run(
+fn cotengra_run<R>(
     tensor: &Tensor,
     num_bipartitions: i32,
     communication_scheme: CommunicationScheme,
-) -> (f64, f64, usize) {
+    rng: &mut R,
+) -> (f64, f64, usize)
+where
+    R: ?Sized + Rng,
+{
     let mut tree = TreeReconfigure::new(tensor, 4, CostType::Flops);
     tree.optimize_path();
     let best_path = tree.get_best_replace_path();
@@ -545,7 +574,7 @@ fn cotengra_run(
     }
 
     let (partitioned_tensor, contraction_path, flops) =
-        compute_solution(tensor, &partitioning, communication_scheme);
+        compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
     let memory = compute_memory_requirements(
         partitioned_tensor.tensors(),
         &contraction_path,

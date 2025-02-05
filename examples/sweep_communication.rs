@@ -1,5 +1,6 @@
 use std::{fs, panic};
 
+use clap::Parser;
 use itertools::Itertools;
 use log::info;
 use rand::distributions::Standard;
@@ -18,6 +19,13 @@ use tensorcontraction::tensornetwork::partitioning::find_partitioning;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::tensor::Tensor;
 use tensorcontraction::types::ContractionIndex;
+
+#[derive(Parser)]
+struct Cli {
+    single_qubit_probability: f64,
+    two_qubit_probability: f64,
+    out_file: String,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct TensorResult {
@@ -55,20 +63,22 @@ impl TensorResult {
 }
 
 fn main() {
+    let args = Cli::parse();
+    let out_file = args.out_file;
     let mut file = fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open("sweep_communication_latency_comparison.json")
+        .open(out_file)
         .unwrap();
 
-    let single_qubit_probability = 0.6;
-    let two_qubit_probability = 0.6;
-    let observable_probability = 1.0;
+    let single_qubit_probability = args.single_qubit_probability;
+    let two_qubit_probability = args.two_qubit_probability;
+    // let observable_probability = 1.0;
     let connectivity = ConnectivityLayout::Sycamore;
 
-    let qubit_range = (40..60).step_by(10).collect_vec();
-    let circuit_depth_range = (10..40).step_by(10).collect_vec();
-    let partition_range = (2..8).map(|p| 2i32.pow(p)).collect_vec();
+    let qubit_range = (50..60).step_by(10).collect_vec();
+    let circuit_depth_range = (20..40).step_by(10).collect_vec();
+    let partition_range = (7..8).map(|p| 2i32.pow(p)).collect_vec();
     let rng = thread_rng();
     let seed_range = rng.sample_iter(Standard).take(10).collect_vec();
 
@@ -97,7 +107,12 @@ fn main() {
 
                     let (_, initial_partitioned_tensor, initial_contraction_path, greedy_flops) =
                         match panic::catch_unwind(|| {
-                            initial_problem(&tensor, num_partitions, CommunicationScheme::Greedy)
+                            initial_problem(
+                                &tensor,
+                                num_partitions,
+                                CommunicationScheme::Greedy,
+                                &mut StdRng::seed_from_u64(seed),
+                            )
                         }) {
                             Ok((
                                 initial_partitioning,
@@ -154,7 +169,12 @@ fn main() {
                             initial_contraction_path,
                             strategy_flops,
                         ) = match panic::catch_unwind(|| {
-                            initial_problem(&tensor, num_partitions, communication_scheme)
+                            initial_problem(
+                                &tensor,
+                                num_partitions,
+                                communication_scheme,
+                                &mut StdRng::seed_from_u64(seed),
+                            )
                         }) {
                             Ok((
                                 initial_partitioning,
@@ -201,15 +221,23 @@ fn main() {
     }
 }
 
-fn initial_problem(
+fn initial_problem<R>(
     tensor: &Tensor,
     num_partitions: i32,
     communication_scheme: CommunicationScheme,
-) -> (Vec<usize>, Tensor, Vec<ContractionIndex>, f64) {
+    rng: &mut R,
+) -> (Vec<usize>, Tensor, Vec<ContractionIndex>, f64)
+where
+    R: ?Sized + Rng,
+{
     let initial_partitioning =
         find_partitioning(tensor, num_partitions, PartitioningStrategy::MinCut, true);
-    let (initial_partitioned_tensor, initial_contraction_path, original_flops) =
-        compute_solution(tensor, &initial_partitioning, communication_scheme);
+    let (initial_partitioned_tensor, initial_contraction_path, original_flops) = compute_solution(
+        tensor,
+        &initial_partitioning,
+        communication_scheme,
+        Some(rng),
+    );
     (
         initial_partitioning,
         initial_partitioned_tensor,

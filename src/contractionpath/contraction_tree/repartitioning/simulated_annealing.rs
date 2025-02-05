@@ -10,8 +10,7 @@ use crate::{
     contractionpath::{
         contraction_cost::{compute_memory_requirements, contract_size_tensors_exact},
         contraction_tree::{
-            balancing::communication_schemes::CommunicationScheme,
-            repartitioning::{compute_partitioning_cost, compute_solution},
+            balancing::communication_schemes::CommunicationScheme, repartitioning::compute_solution,
         },
         paths::{greedy::Greedy, CostType, OptimizePath},
     },
@@ -157,7 +156,7 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
     fn evaluate(&self, partitioning: &Self::SolutionType) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
         let (partitioned_tn, path, cost) =
-            compute_solution(self.tensor, partitioning, self.communication_scheme);
+            compute_solution::<StdRng>(self.tensor, partitioning, self.communication_scheme, None);
 
         // Compute memory usage
         let mem = compute_memory_requirements(
@@ -239,8 +238,12 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
 
     fn evaluate(&self, partitioning: &Self::SolutionType) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, cost) =
-            compute_solution(self.tensor, &partitioning.0, self.communication_scheme);
+        let (partitioned_tn, path, cost) = compute_solution::<StdRng>(
+            self.tensor,
+            &partitioning.0,
+            self.communication_scheme,
+            None,
+        );
 
         // Compute memory usage
         let mem = compute_memory_requirements(
@@ -407,8 +410,12 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
 
     fn evaluate(&self, partitioning: &Self::SolutionType) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, cost) =
-            compute_solution(self.tensor, &partitioning.0, self.communication_scheme);
+        let (partitioned_tn, path, cost) = compute_solution::<StdRng>(
+            self.tensor,
+            &partitioning.0,
+            self.communication_scheme,
+            None,
+        );
 
         // Compute memory usage
         let mem = compute_memory_requirements(
@@ -474,13 +481,4 @@ where
         w: 1.0,
     };
     optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, 300, rng)
-}
-
-/// Computes the score of a partitioning.
-pub fn calculate_score(
-    tensor: &Tensor,
-    partitioning: &[usize],
-    communication_scheme: CommunicationScheme,
-) -> f64 {
-    compute_partitioning_cost(tensor, partitioning, communication_scheme)
 }
