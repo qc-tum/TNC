@@ -267,8 +267,19 @@ where
         CommunicationScheme::Greedy => {
             communication_schemes::greedy(&children_tensors, &latency_map)
         }
+        CommunicationScheme::RandomGreedy => {
+            communication_schemes::random_greedy(&children_tensors, &bond_dims)
+        }
+        CommunicationScheme::RandomGreedyLatency => communication_schemes::random_greedy_latency(
+            &children_tensors,
+            &bond_dims,
+            &latency_map,
+        ),
         CommunicationScheme::Bipartition => {
             communication_schemes::bipartition(&children_tensors, &latency_map)
+        }
+        CommunicationScheme::BipartitionSweep => {
+            communication_schemes::bipartition_sweep(&children_tensors, &bond_dims, &latency_map)
         }
         CommunicationScheme::WeightedBranchBound => {
             communication_schemes::weighted_branchbound(&children_tensors, &latency_map)

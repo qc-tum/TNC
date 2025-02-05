@@ -65,7 +65,7 @@ impl Node {
         self.parent.upgrade().map(|node| node.borrow().id)
     }
 
-    pub(crate) fn is_leaf(&self) -> bool {
+    pub fn is_leaf(&self) -> bool {
         self.left_child.upgrade().is_none() && self.right_child.upgrade().is_none()
     }
 

@@ -101,8 +101,8 @@ impl<'a> Greedy<'a> {
     where
         R: ?Sized + Rng,
     {
-        const TEMPERATURE: f64 = 0.3;
-        const NBRANCH: usize = 5;
+        const TEMPERATURE: f64 = 0.9;
+        const NBRANCH: usize = 15;
         const REL_TEMPERATURE: bool = true;
         // Keeps track of remaining vectors, mapping between Vector of tensor leg ids to ssa number
         let (

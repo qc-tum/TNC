@@ -7,14 +7,14 @@ use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
 use super::{
     candidates::Candidate,
-    contraction_cost::contract_path_cost,
+    contraction_cost::{communication_path_cost, contract_path_cost},
     paths::{CostType, OptimizePath, RNGChooser},
     ssa_replace_ordering,
 };
 use crate::contractionpath::paths::greedy::Greedy;
 
 pub trait RandomOptimizePath {
-    fn random_optimize_path<R>(&mut self, trials: usize, rng: &mut R)
+    fn random_optimize_path<R>(&mut self, trials: usize, rng: &mut R, latency_map: Option<&[f64]>)
     where
         R: ?Sized + Rng;
 }
@@ -96,7 +96,7 @@ impl RNGChooser for ThermalChooser {
 }
 
 impl RandomOptimizePath for Greedy<'_> {
-    fn random_optimize_path<R>(&mut self, trials: usize, rng: &mut R)
+    fn random_optimize_path<R>(&mut self, trials: usize, rng: &mut R, latency_map: Option<&[f64]>)
     where
         R: ?Sized + Rng,
     {
@@ -115,10 +115,11 @@ impl RandomOptimizePath for Greedy<'_> {
                         Box::new(&Greedy::cost_memory_removed),
                         rng,
                     );
-                    let (cost, size) = contract_path_cost(
+                    let (cost, size) = communication_path_cost(
                         input_tensor.tensors(),
                         &ssa_replace_ordering(&ssa_path, input_tensor.tensors().len()),
-                        false,
+                        true,
+                        latency_map,
                     );
                     match self.minimize {
                         CostType::Size => {
@@ -157,10 +158,11 @@ impl RandomOptimizePath for Greedy<'_> {
                 Box::new(&Greedy::cost_memory_removed),
                 rng,
             );
-            let (cost, size) = contract_path_cost(
+            let (cost, size) = communication_path_cost(
                 &inputs,
                 &ssa_replace_ordering(&ssa_path, inputs.len()),
-                false,
+                true,
+                latency_map,
             );
 
             match self.minimize {
@@ -180,7 +182,7 @@ impl RandomOptimizePath for Greedy<'_> {
         }
         self.best_path.append(&mut best_path);
         let (op_cost, mem_cost) =
-            contract_path_cost(self.tn.tensors(), &self.get_best_replace_path(), false);
+            contract_path_cost(self.tn.tensors(), &self.get_best_replace_path(), true);
         self.best_size = mem_cost;
         self.best_flops = op_cost;
     }
@@ -238,8 +240,8 @@ mod tests {
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
         let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42));
-        assert_eq!(opt.best_flops, 4540.);
+        opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42), None);
+        assert_eq!(opt.best_flops, 600.);
         assert_eq!(opt.best_size, 538.);
         assert_eq!(opt.best_path, path![(1, 0), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 0), (2, 1)]);
@@ -249,14 +251,14 @@ mod tests {
     fn test_contract_order_greedy_complex() {
         let tn = setup_complex();
         let mut opt = Greedy::new(&tn, CostType::Flops);
-        opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42));
+        opt.random_optimize_path(120, &mut StdRng::seed_from_u64(42), None);
 
-        assert_eq!(opt.best_flops, 4228664.);
+        assert_eq!(opt.best_flops, 529815.);
         assert_eq!(opt.best_size, 89478.);
-        assert_eq!(opt.best_path, path![(1, 5), (3, 4), (0, 6), (2, 8), (7, 9)]);
+        assert_eq!(opt.best_path, path![(1, 5), (0, 6), (3, 4), (2, 8), (9, 7)]);
         assert_eq!(
             opt.get_best_replace_path(),
-            path![(1, 5), (3, 4), (0, 1), (2, 0), (3, 2)]
+            path![(1, 5), (0, 1), (3, 4), (2, 3), (2, 0)]
         );
     }
 }

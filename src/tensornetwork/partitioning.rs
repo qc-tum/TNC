@@ -99,6 +99,7 @@ pub fn find_partitioning(
 pub fn communication_partitioning(
     tensors: &[(usize, Tensor)],
     k: i32,
+    imbalance: f64,
     partitioning_strategy: PartitioningStrategy,
     min: bool,
 ) -> Vec<usize> {
@@ -109,7 +110,6 @@ pub fn communication_partitioning(
 
     let x = if min { 1 } else { -1 };
 
-    let imbalance = 0.03;
     let mut objective = 0;
     let mut hyperedge_weights = vec![];
 

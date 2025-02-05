@@ -27,14 +27,14 @@ fn test_partitioned_contraction_random() {
     let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Eagle);
     let ref_tn = r_tn.clone();
     let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
-    ref_opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42));
+    ref_opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42), None);
     let ref_path = ref_opt.get_best_replace_path();
     let ref_result = contract_tensor_network(ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
     let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
-    opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42));
+    opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42), None);
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
     assert!(&ref_result.approx_eq(&result, 1e-12));
@@ -76,7 +76,7 @@ fn test_partitioned_contraction_mixed() {
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
     let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
     let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
-    opt.random_optimize_path(15, &mut StdRng::seed_from_u64(42));
+    opt.random_optimize_path(15, &mut StdRng::seed_from_u64(42), None);
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
     assert!(&ref_result.approx_eq(&result, 1e-12));
@@ -121,7 +121,7 @@ fn test_partitioned_contraction_need_mpi() {
 
     if rank == 0 {
         let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
-        ref_opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42));
+        ref_opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42), None);
         let ref_path = ref_opt.get_best_replace_path();
 
         let ref_tn = contract_tensor_network(ref_tn, &ref_path);
