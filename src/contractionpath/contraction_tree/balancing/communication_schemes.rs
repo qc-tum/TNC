@@ -222,13 +222,10 @@ pub(crate) fn random_greedy<R>(children_tensors: &[Tensor], rng: &mut R) -> Vec<
 where
     R: ?Sized + Rng,
 {
-    let mut communication_tensors = Tensor::default();
-    let partition_latencies = vec![0f64; children_tensors.len()];
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
     let mut opt = Greedy::new(&communication_tensors, CostType::Size);
-
-    opt.random_optimize_path(500, rng, Some(&partition_latencies));
+    opt.random_optimize_path(500, rng, None);
     opt.get_best_replace_path()
 }
 
@@ -241,11 +238,11 @@ where
     R: ?Sized + Rng,
 {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
-
-    let mut opt = Greedy::new(&communication_tensors, CostType::Size);
     let partition_latencies = (0..children_tensors.len())
         .map(|i| latency_map[&i])
         .collect_vec();
+
+    let mut opt = Greedy::new(&communication_tensors, CostType::Size);
     opt.random_optimize_path(500, rng, Some(&partition_latencies));
     opt.get_best_replace_path()
 }
