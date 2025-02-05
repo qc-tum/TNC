@@ -243,11 +243,9 @@ where
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
     let mut opt = Greedy::new(&communication_tensors, CostType::Size);
-    let partition_latencies = latency_map
-        .iter()
-        .sorted_by_key(|(k, _)| **k)
-        .map(|(_, v)| *v)
-        .collect::<Vec<_>>();
+    let partition_latencies = (0..children_tensors.len())
+        .map(|i| latency_map[&i])
+        .collect_vec();
     opt.random_optimize_path(500, rng, Some(&partition_latencies));
     opt.get_best_replace_path()
 }
