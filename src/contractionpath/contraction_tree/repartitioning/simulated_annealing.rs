@@ -459,7 +459,7 @@ where
 
     let optimizer = SimulatedAnnealingOptimizer {
         patience: 300,
-        n_trials: 50,
+        n_trials: 48,
         restart_iter: 100,
         w: 1.0,
     };
