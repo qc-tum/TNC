@@ -2,7 +2,7 @@ use core::f64;
 use std::rc::Rc;
 
 use itertools::Itertools;
-use log::info;
+use log::debug;
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng};
 use rustc_hash::FxHashMap;
 
@@ -155,7 +155,7 @@ where
     let mut best_tn = tensor_network.clone();
 
     for iteration in 1..=iterations {
-        info!("Balancing iteration {iteration} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
+        debug!("Balancing iteration {iteration} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
 
         // Balances and updates partitions
         let (mut intermediate_path, new_tensor_network) = balance_partitions(
@@ -176,7 +176,7 @@ where
             &mut contraction_tree,
             &new_tensor_network,
             &balance_settings,
-            Some(&mut rng.clone()),
+            Some(rng),
         );
 
         let (partition_tensors, partition_costs): (Vec<_>, Vec<_>) = partition_data
