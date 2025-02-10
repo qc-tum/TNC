@@ -31,9 +31,22 @@ use tensorcontraction::tensornetwork::tensor::Tensor;
 use tensorcontraction::types::ContractionIndex;
 
 #[derive(Parser)]
+#[command(version, about, long_about=None)]
 struct Cli {
     single_qubit_probability: f64,
     two_qubit_probability: f64,
+    #[arg(short, long, default_value_t = 20)]
+    qubit_min: usize,
+    #[arg(short, long, default_value_t = 60)]
+    qubit_max: usize,
+    #[arg(short, long, default_value_t = 10)]
+    depth_min: usize,
+    #[arg(short, long, default_value_t = 40)]
+    depth_max: usize,
+    #[arg(short, long, default_value_t = 1)]
+    partition_min: u32,
+    #[arg(short, long, default_value_t = 4)]
+    partition_max: u32,
     out_file: String,
 }
 
@@ -85,10 +98,15 @@ fn main() {
     let two_qubit_probability = args.two_qubit_probability;
     // let observable_probability = 1.0;
     let connectivity = ConnectivityLayout::Sycamore;
-
-    let qubit_range = (5..15).step_by(5).collect_vec();
-    let circuit_depth_range = (5..15).step_by(5).collect_vec();
-    let partition_range = (1..4).map(|p| 2i32.pow(p)).collect_vec();
+    let qubit_min = args.qubit_min;
+    let qubit_max = args.qubit_max;
+    let depth_min = args.depth_min;
+    let depth_max = args.depth_max;
+    let partition_min = args.partition_min;
+    let partition_max = args.partition_max;
+    let qubit_range = (qubit_min..qubit_max).step_by(20).collect_vec();
+    let circuit_depth_range = (depth_min..depth_max).step_by(5).collect_vec();
+    let partition_range = (partition_min..partition_max).map(|p| 2i32.pow(p)).collect_vec();
     let rng = thread_rng();
     let seed_range = rng.sample_iter(Standard).take(10).collect_vec();
     let communication_scheme = CommunicationScheme::RandomGreedyLatency;
@@ -159,7 +177,7 @@ fn main() {
                         num_qubits,
                         circuit_depth,
                         partitions: num_partitions,
-                        method: communication_scheme.to_string(),
+                        method: "Generic".to_string(),
                         flops: original_flops,
                         mem: original_memory,
                         flops_ratio: 1f64,
@@ -203,35 +221,35 @@ fn main() {
                     });
 
                     let (flops, memory, flops_ratio, mem_ratio, cotengra_partitions) =
-                        match panic::catch_unwind(|| {
-                            cotengra_run(
-                                &tensor,
-                                num_partitions,
-                                communication_scheme,
-                                &mut StdRng::seed_from_u64(seed),
-                            )
-                        }) {
-                            Ok((flops, memory, cotengra_partitions)) => (
-                                flops,
-                                memory,
-                                flops / original_flops,
-                                memory / original_memory,
-                                cotengra_partitions,
-                            ),
-                            Err(_) => (-1f64, -1f64, -1f64, -1f64, 0usize),
-                        };
+                         match panic::catch_unwind(|| {
+                             cotengra_run(
+                                 &tensor,
+                                 num_partitions as usize,
+                                 communication_scheme,
+                                 &mut StdRng::seed_from_u64(seed),
+                             )
+                         }) {
+                             Ok((flops, memory, cotengra_partitions)) => (
+                                 flops,
+                                 memory,
+                                 flops / original_flops,
+                                 memory / original_memory,
+                                 cotengra_partitions,
+                             ),
+                             Err(_) => (-1f64, -1f64, -1f64, -1f64, 0usize),
+                         };
 
-                    write(TensorResult {
-                        seed,
-                        num_qubits,
-                        circuit_depth,
-                        partitions: cotengra_partitions as i32,
-                        method: "cotengra".to_string(),
-                        flops,
-                        mem: memory,
-                        flops_ratio,
-                        mem_ratio,
-                    });
+                     write(TensorResult {
+                         seed,
+                         num_qubits,
+                         circuit_depth,
+                         partitions: cotengra_partitions as i32,
+                         method: "cotengra".to_string(),
+                         flops,
+                         mem: memory,
+                         flops_ratio,
+                         mem_ratio,
+                     });
 
                     // Try to find a better partitioning with a simulated annealing algorithm
                     let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
@@ -491,7 +509,7 @@ where
 
 fn cotengra_run<R>(
     tensor: &Tensor,
-    num_bipartitions: i32,
+    num_partitions: usize,
     communication_scheme: CommunicationScheme,
     rng: &mut R,
 ) -> (f64, f64, usize)
@@ -507,7 +525,6 @@ where
     let tree_root = contraction_tree.root_id().unwrap();
     let mut leaves = vec![];
     let mut traversal = vec![tree_root];
-    let num_partitions = 1 << num_bipartitions;
     while (leaves.len() + traversal.len()) < num_partitions && !traversal.is_empty() {
         let node_id = traversal.pop().unwrap();
         let node = contraction_tree.node(node_id);
