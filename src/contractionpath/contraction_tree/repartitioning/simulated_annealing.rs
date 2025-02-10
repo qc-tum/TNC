@@ -463,7 +463,7 @@ where
         restart_iter: 100,
         w: 1.0,
     };
-    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, 1000, rng)
+    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, 300, rng)
 }
 
 /// Computes the score of a partitioning.
