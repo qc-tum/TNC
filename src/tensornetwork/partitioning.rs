@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use partition_config::PartitioningStrategy;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use std::iter::zip;
 
 use super::tensor::Tensor;
@@ -159,26 +159,15 @@ pub fn communication_partitioning(
 }
 
 /// Partitions the tensor network based on the `partitioning` vector that assigns
-/// each vector to a partition. `partitioning` must be zero-based and consecutive.
+/// each vector to a partition.
 pub fn partition_tensor_network(tn: Tensor, partitioning: &[usize]) -> Tensor {
-    let partition_ids = partitioning
-        .iter()
-        .unique()
-        .copied()
-        .collect::<FxHashSet<_>>();
-    assert!(
-        partition_ids.contains(&0),
-        "Partitioning must be zero-based"
-    );
-    assert_eq!(
-        partition_ids,
-        (0..partition_ids.len()).collect(),
-        "Partitioning must be consecutive"
-    );
+    let partition_ids = partitioning.iter().unique().copied().collect_vec();
+    let partition_dict =
+        zip(partition_ids.iter().copied(), 0..partition_ids.len()).collect::<FxHashMap<_, _>>();
 
     let mut partitions = vec![Tensor::default(); partition_ids.len()];
     for (partition_id, tensor) in zip(partitioning, tn.tensors) {
-        partitions[*partition_id].push_tensor(tensor);
+        partitions[partition_dict[partition_id]].push_tensor(tensor);
     }
     Tensor::new_composite(partitions)
 }
@@ -243,8 +232,8 @@ mod tests {
         let partitioned_tn = partition_tensor_network(tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.tensors().len(), 3);
 
-        assert!(partitioned_tn.tensor(0).approx_eq(&ref_tensor_1, 1e-12));
+        assert!(partitioned_tn.tensor(2).approx_eq(&ref_tensor_1, 1e-12));
         assert!(partitioned_tn.tensor(1).approx_eq(&ref_tensor_2, 1e-12));
-        assert!(partitioned_tn.tensor(2).approx_eq(&ref_tensor_3, 1e-12));
+        assert!(partitioned_tn.tensor(0).approx_eq(&ref_tensor_3, 1e-12));
     }
 }
