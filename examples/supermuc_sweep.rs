@@ -455,7 +455,7 @@ impl MethodRun for GreedyBalance {
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
-        let (_, initial_contraction_path, _) = compute_solution(
+        let (initial_partitioned_tensor, initial_contraction_path, _) = compute_solution(
             tensor,
             initial_partitioning,
             communication_scheme,
@@ -472,7 +472,7 @@ impl MethodRun for GreedyBalance {
         );
         let (best_iteration, partitioned_tensor, contraction_path, max_costs) =
             balance_partitions_iter(
-                tensor,
+                &initial_partitioned_tensor,
                 &initial_contraction_path,
                 balance_settings,
                 None,
