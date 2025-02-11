@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::fs;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -50,7 +51,7 @@ struct RunResult {
     flops: f64,
 }
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(version, about, long_about=None)]
 struct Cli {
     single_qubit_probability: f64,
@@ -61,6 +62,8 @@ struct Cli {
     depths: Vec<usize>,
     #[arg(short, long, value_delimiter = ',', num_args = 1..)]
     partitions: Vec<i32>,
+    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
+    skips: Vec<usize>,
     out_file: String,
     seeds: Vec<u64>,
 }
@@ -120,6 +123,7 @@ fn main() {
     let circuit_depth_range = args.depths;
     let partition_range = args.partitions;
     let seed_range = args.seeds;
+    let skip_list: HashSet<_> = HashSet::from_iter(args.skips);
     let communication_scheme = CommunicationScheme::RandomGreedyLatency;
 
     let methods: Vec<Rc<dyn MethodRun>> = vec![
@@ -142,8 +146,11 @@ fn main() {
         methods,
     );
 
-    // TODO: skip invalid runs (see theoretical runs)
-    for scenario in scenarios {
+    for scenario in scenarios
+        .enumerate()
+        .filter(|(i, _)| !skip_list.contains(i))
+        .map(|(_, x)| x)
+    {
         let (num_qubits, circuit_depth, seed, num_partitions, method) = scenario;
         info!(num_qubits, circuit_depth, seed, num_partitions, single_qubit_probability, two_qubit_probability, connectivity:?, method=method.name(); "Doing run");
 
