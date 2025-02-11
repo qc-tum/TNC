@@ -1,3 +1,4 @@
+use std::io::{Read, Write};
 use std::{fs, panic};
 
 use clap::Parser;
@@ -88,12 +89,47 @@ impl TensorResult {
 fn main() {
     let args = Cli::parse();
     let out_file = args.out_file;
+    let counter_file = out_file.clone() + "_counter";
+    let seed_file = out_file.clone() + "_seed";
+
     let mut file = fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(out_file)
+        .open(&out_file)
         .unwrap();
 
+    let mut counter_handle = fs::OpenOptions::new()
+    .create(true)
+    .write(true)
+    .read(true)
+    .open(&counter_file)
+    .unwrap();
+
+    let mut content = String::new();
+    counter_handle.read_to_string(&mut content).unwrap();
+    let last_counter = content.parse().unwrap_or(0);
+    
+    let mut seed_handle = fs::OpenOptions::new()
+    .create(true)
+    .read(true)
+    .write(true)
+    .open(&seed_file)
+    .unwrap();
+
+    
+    let mut content = String::new();
+    seed_handle.read_to_string(&mut content).unwrap();
+
+    let seed_range = if content.is_empty(){
+        let rng = thread_rng();
+        let seed_range = rng.sample_iter(Standard).take(10).collect_vec();
+        for seed in &seed_range{
+            write!(seed_handle, "{seed}\n").unwrap();
+        }
+        seed_range
+    }else{
+        content.lines().filter_map(|seed| seed.parse::<u64>().ok()).collect()
+    };
     let single_qubit_probability = args.single_qubit_probability;
     let two_qubit_probability = args.two_qubit_probability;
     // let observable_probability = 1.0;
@@ -107,20 +143,24 @@ fn main() {
     let qubit_range = (qubit_min..qubit_max).step_by(20).collect_vec();
     let circuit_depth_range = (depth_min..depth_max).step_by(5).collect_vec();
     let partition_range = (partition_min..partition_max).map(|p| 2i32.pow(p)).collect_vec();
-    let rng = thread_rng();
-    let seed_range = rng.sample_iter(Standard).take(10).collect_vec();
+    
     let communication_scheme = CommunicationScheme::RandomGreedyLatency;
 
     let mut write = |result: TensorResult| {
         serde_json::to_writer(&mut file, &[result]).unwrap();
     };
 
+    let mut current_counter = 0;
     for num_qubits in qubit_range {
         println!("qubits: {num_qubits}");
         for &circuit_depth in &circuit_depth_range {
             println!("circuit_depth: {:?}", circuit_depth);
             for &seed in &seed_range {
                 for &num_partitions in &partition_range {
+                    if current_counter < last_counter{
+                        current_counter +=1;
+                        continue;
+                    }
                     info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
                     let tensor = random_circuit(
                         num_qubits,
@@ -353,6 +393,15 @@ fn main() {
                         flops_ratio,
                         mem_ratio,
                     });
+
+                    current_counter += 1;
+                    let mut counter_handle = fs::OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .open(&counter_file)
+                    .unwrap();
+                    write!(counter_handle, "{current_counter}").unwrap();
+
                 }
             }
         }
