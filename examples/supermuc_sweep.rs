@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use clap::{command, Parser};
 use flexi_logger::{json_format, Duplicate, FileSpec, Logger};
-use itertools::iproduct;
+use itertools::{iproduct, Itertools};
 use log::{info, LevelFilter};
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::{Communicator, CommunicatorCollectives};
@@ -63,7 +63,7 @@ struct Cli {
     #[arg(short, long, value_delimiter = ',', num_args = 1..)]
     partitions: Vec<i32>,
     #[arg(short, long, value_delimiter = ',', num_args = 1..)]
-    skips: Vec<usize>,
+    skips: Vec<String>,
     out_file: String,
     seeds: Vec<u64>,
 }
@@ -99,6 +99,28 @@ impl Writer {
     }
 }
 
+/// Parses a list of numbers and ranges into a set of numbers.
+fn parse_skip_list(skips: &[String]) -> HashSet<usize> {
+    let mut out = HashSet::new();
+    for skip in skips {
+        if skip.contains("-") {
+            // An inclusive range
+            let parts = skip.split("-").collect_vec();
+            assert_eq!(parts.len(), 2);
+            let start = parts[0].parse().unwrap();
+            let end = parts[1].parse().unwrap();
+            for i in start..=end {
+                out.insert(i);
+            }
+        } else {
+            // A single number
+            let number = skip.parse().unwrap();
+            out.insert(number);
+        }
+    }
+    out
+}
+
 fn main() {
     let universe = mpi::initialize().unwrap();
     let world = universe.world();
@@ -123,7 +145,7 @@ fn main() {
     let circuit_depth_range = args.depths;
     let partition_range = args.partitions;
     let seed_range = args.seeds;
-    let skip_list: HashSet<_> = HashSet::from_iter(args.skips);
+    let skip_list = parse_skip_list(&args.skips);
     let communication_scheme = CommunicationScheme::RandomGreedyLatency;
 
     let methods: Vec<Rc<dyn MethodRun>> = vec![
