@@ -23,7 +23,7 @@ use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
 use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
 
 use tensorcontraction::contractionpath::paths::tree_reconfiguration::TreeReconfigure;
-use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
+use tensorcontraction::contractionpath::paths::{CostType, OptimizePath};
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::random_circuit::random_circuit;
 use tensorcontraction::tensornetwork::partitioning::find_partitioning;
@@ -217,8 +217,6 @@ fn main() {
                         mem_ratio,
                     });
 
-                    let mut opt = Greedy::new(&initial_partitioned_tensor, CostType::Flops);
-                    opt.optimize_path();
                     let mut initial_contractions = Vec::new();
                     for contraction_path in initial_contraction_path {
                         if let ContractionIndex::Path(_, _, path) = contraction_path {
