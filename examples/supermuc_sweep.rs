@@ -63,7 +63,9 @@ struct Cli {
     #[arg(short, long, value_delimiter = ',', num_args = 1..)]
     partitions: Vec<i32>,
     #[arg(short, long, value_delimiter = ',', num_args = 1..)]
-    skips: Vec<String>,
+    include: Vec<String>,
+    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
+    exclude: Vec<String>,
     out_file: String,
     seeds: Vec<u64>,
 }
@@ -100,12 +102,12 @@ impl Writer {
 }
 
 /// Parses a list of numbers and ranges into a set of numbers.
-fn parse_skip_list(skips: &[String]) -> HashSet<usize> {
+fn parse_range_list(entries: &[String]) -> HashSet<usize> {
     let mut out = HashSet::new();
-    for skip in skips {
-        if skip.contains("-") {
+    for entry in entries {
+        if entry.contains("-") {
             // An inclusive range
-            let parts = skip.split("-").collect_vec();
+            let parts = entry.split("-").collect_vec();
             assert_eq!(parts.len(), 2);
             let start = parts[0].parse().unwrap();
             let end = parts[1].parse().unwrap();
@@ -114,7 +116,7 @@ fn parse_skip_list(skips: &[String]) -> HashSet<usize> {
             }
         } else {
             // A single number
-            let number = skip.parse().unwrap();
+            let number = entry.parse().unwrap();
             out.insert(number);
         }
     }
@@ -145,7 +147,12 @@ fn main() {
     let circuit_depth_range = args.depths;
     let partition_range = args.partitions;
     let seed_range = args.seeds;
-    let skip_list = parse_skip_list(&args.skips);
+    assert!(
+        args.include.is_empty() || args.exclude.is_empty(),
+        "Can not pass 'include' and 'exclude' parameters at the same time"
+    );
+    let includes = parse_range_list(&args.include);
+    let excludes = parse_range_list(&args.exclude);
     let communication_scheme = CommunicationScheme::RandomGreedyLatency;
 
     let methods: Vec<Rc<dyn MethodRun>> = vec![
@@ -170,7 +177,8 @@ fn main() {
 
     for scenario in scenarios
         .enumerate()
-        .filter(|(i, _)| !skip_list.contains(i))
+        .filter(|(i, _)| includes.is_empty() || includes.contains(i))
+        .filter(|(i, _)| excludes.is_empty() || !excludes.contains(i))
         .map(|(_, x)| x)
     {
         let (num_qubits, circuit_depth, seed, num_partitions, method) = scenario;
