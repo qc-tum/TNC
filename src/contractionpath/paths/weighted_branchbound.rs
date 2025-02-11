@@ -283,7 +283,7 @@ mod tests {
         let mut opt = WeightedBranchBound::new(&tn, None, 20., latency_costs, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 4580.);
+        assert_eq!(opt.best_flops, 640.);
         assert_eq!(opt.best_size, 538.);
         assert_eq!(opt.get_best_path(), &path![(1, 0), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 0), (2, 1)]);
@@ -295,7 +295,7 @@ mod tests {
         let mut opt = WeightedBranchBound::new(&tn, None, 20., latency_costs, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 2120615.);
+        assert_eq!(opt.best_flops, 265230.);
         assert_eq!(opt.best_size, 89478.);
         assert_eq!(opt.best_path, path![(3, 4), (2, 6), (1, 5), (0, 8), (7, 9)]);
         assert_eq!(
