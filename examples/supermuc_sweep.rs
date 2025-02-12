@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fs;
+use std::io::Write;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -28,8 +29,8 @@ use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
 use tensorcontraction::contractionpath::paths::tree_reconfiguration::TreeReconfigure;
 use tensorcontraction::contractionpath::paths::{CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{
-    broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
-    scatter_tensor_network,
+    broadcast_path, broadcast_serializing, extract_communication_path,
+    intermediate_reduce_tensor_network, scatter_tensor_network,
 };
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
 use tensorcontraction::networks::random_circuit::random_circuit;
@@ -90,7 +91,11 @@ struct Writer(Option<fs::File>);
 
 impl Writer {
     fn new(filename: &str) -> Self {
-        let file = fs::File::create(filename).unwrap();
+        let file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(filename)
+            .unwrap();
         Self(Some(file))
     }
 
@@ -98,6 +103,56 @@ impl Writer {
         if let Some(file) = &mut self.0 {
             serde_json::to_writer(file, &[result]).unwrap();
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+enum LogEntry {
+    Trying(usize),
+    Done(usize),
+    Error(usize),
+}
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+struct Protocol(Vec<LogEntry>);
+
+impl Protocol {
+    fn from_file(file: fs::File) -> Self {
+        let mut protocol: Protocol = serde_json::from_reader(file).unwrap();
+        protocol.0.iter_mut().for_each(|entry| {
+            if let LogEntry::Trying(id) = entry {
+                *entry = LogEntry::Error(*id);
+            }
+        });
+        protocol
+    }
+
+    fn write(&self, filename: &str) {
+        let mut file = fs::File::create(filename).unwrap();
+        serde_json::to_writer(&mut file, &self).unwrap();
+        file.flush().unwrap();
+    }
+
+    fn contains(&self, id: &usize) -> bool {
+        self.0.iter().any(|entry| match entry {
+            LogEntry::Done(x) => x == id,
+            LogEntry::Error(x) => x == id,
+            LogEntry::Trying(_) => panic!("Trying entry should not be in the protocol"),
+        })
+    }
+
+    fn write_trying(&mut self, id: usize) {
+        self.0.push(LogEntry::Trying(id));
+        self.write("protocol.json");
+    }
+
+    fn write_done(&mut self, id: usize) {
+        let LogEntry::Trying(x) = self.0.pop().unwrap() else {
+            panic!("Expected a trying entry when writing a done entry")
+        };
+        assert_eq!(id, x);
+        self.0.push(LogEntry::Done(id));
+        self.write("protocol.json");
     }
 }
 
@@ -128,6 +183,7 @@ fn main() {
     let world = universe.world();
     let size = world.size();
     let rank = world.rank();
+    let root = world.process_at_rank(0);
     setup_logging_mpi(rank);
     info!(rank, size; "Logging setup");
 
@@ -155,6 +211,18 @@ fn main() {
     let excludes = parse_range_list(&args.exclude);
     let communication_scheme = CommunicationScheme::RandomGreedyLatency;
 
+    // Read the protocol and broadcast it to all ranks
+    let protocol = if rank == 0 {
+        if let Ok(log_file) = fs::File::open("protocol.json") {
+            Protocol::from_file(log_file)
+        } else {
+            Default::default()
+        }
+    } else {
+        Default::default()
+    };
+    let mut protocol = broadcast_serializing(protocol, &root);
+
     let methods: Vec<Rc<dyn MethodRun>> = vec![
         Rc::new(InitialProblem),
         Rc::new(GreedyBalance {
@@ -175,11 +243,12 @@ fn main() {
         methods,
     );
 
-    for scenario in scenarios
+    let past_protocol = protocol.clone();
+    for (id, scenario) in scenarios
         .enumerate()
         .filter(|(i, _)| includes.is_empty() || includes.contains(i))
-        .filter(|(i, _)| excludes.is_empty() || !excludes.contains(i))
-        .map(|(_, x)| x)
+        .filter(|(i, _)| !excludes.contains(i))
+        .filter(|(i, _)| !past_protocol.contains(i))
     {
         let (num_qubits, circuit_depth, seed, num_partitions, method) = scenario;
         info!(num_qubits, circuit_depth, seed, num_partitions, single_qubit_probability, two_qubit_probability, connectivity:?, method=method.name(); "Doing run");
@@ -189,6 +258,7 @@ fn main() {
             perform_contraction(&Default::default(), Default::default(), &world);
         } else {
             // Generate circuit
+            protocol.write_trying(id);
             let tensor = random_circuit(
                 num_qubits,
                 circuit_depth,
@@ -229,6 +299,7 @@ fn main() {
             });
 
             std::hint::black_box(final_tensor);
+            protocol.write_done(id);
         }
     }
 }
