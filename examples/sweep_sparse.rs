@@ -86,8 +86,8 @@ impl TensorResult {
     }
 }
 
-fn get_main_rng(qubits: u32, depth: u32) -> StdRng {
-    let seed = qubits << 32 | depth;
+fn get_main_rng(qubits: u64, depth: u64) -> StdRng {
+    let seed= qubits << 32 | depth;
     StdRng::seed_from_u64(seed as u64)
 }
 
@@ -140,7 +140,7 @@ fn main() {
         println!("qubits: {num_qubits}");
         for &circuit_depth in &circuit_depth_range {
             println!("circuit_depth: {:?}", circuit_depth);
-            let main_rng = get_main_rng(num_qubits as u32, circuit_depth as u32);
+            let main_rng = get_main_rng(num_qubits as u64, circuit_depth as u64);
             let seed_range = main_rng.sample_iter(Standard).take(10).collect_vec();
             for seed in seed_range {
                 for &num_partitions in &partition_range {
