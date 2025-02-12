@@ -13,8 +13,9 @@ use mpi::topology::SimpleCommunicator;
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use mpi::Rank;
 use ordered_float::NotNan;
+use rand::distributions::Standard;
 use rand::rngs::StdRng;
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use tensorcontraction::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
@@ -67,8 +68,9 @@ struct Cli {
     include: Vec<String>,
     #[arg(short, long, value_delimiter = ',', num_args = 1..)]
     exclude: Vec<String>,
+    #[arg(short, long, default_value_t = 10)]
+    num_seeds: usize,
     out_file: String,
-    seeds: Vec<u64>,
 }
 
 /// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
@@ -178,6 +180,12 @@ fn parse_range_list(entries: &[String]) -> HashSet<usize> {
     out
 }
 
+/// Gets the main RNG used to generate the list of seeds.
+fn get_main_rng(qubits: u32, depth: u32) -> StdRng {
+    let seed = qubits << 32 | depth;
+    StdRng::seed_from_u64(seed as u64)
+}
+
 fn main() {
     let universe = mpi::initialize().unwrap();
     let world = universe.world();
@@ -202,7 +210,7 @@ fn main() {
     let qubit_range = args.qubits;
     let circuit_depth_range = args.depths;
     let partition_range = args.partitions;
-    let seed_range = args.seeds;
+    let seed_index_range = 0..args.num_seeds;
     assert!(
         args.include.is_empty() || args.exclude.is_empty(),
         "Can not pass 'include' and 'exclude' parameters at the same time"
@@ -238,7 +246,7 @@ fn main() {
     let scenarios = iproduct!(
         qubit_range,
         circuit_depth_range,
-        seed_range,
+        seed_index_range,
         partition_range,
         methods,
     );
@@ -250,7 +258,9 @@ fn main() {
         .filter(|(i, _)| !excludes.contains(i))
         .filter(|(i, _)| !past_protocol.contains(i))
     {
-        let (num_qubits, circuit_depth, seed, num_partitions, method) = scenario;
+        let (num_qubits, circuit_depth, seed_index, num_partitions, method) = scenario;
+        let rng = get_main_rng(num_qubits as u32, circuit_depth as u32);
+        let seed = rng.sample_iter(Standard).nth(seed_index).unwrap();
         info!(num_qubits, circuit_depth, seed, num_partitions, single_qubit_probability, two_qubit_probability, connectivity:?, method=method.name(); "Doing run");
 
         if rank != 0 {
