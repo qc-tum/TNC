@@ -464,13 +464,16 @@ where
     let (larger_subtree_id, rebalanced_node, _) = partition_data
         .iter()
         .skip(1)
-        .map(|larger| {
+        .filter_map(|larger| {
             let mut larger_subtree_nodes = populate_subtree_tensor_map(
                 contraction_tree,
                 larger.id,
                 tensor,
                 Some(height_limit),
             );
+            if larger_subtree_nodes.len() == 1{
+                return None;
+            }
             larger_subtree_nodes.remove(&larger.id);
             let (rebalanced_node, objective) = find_rebalance_node(
                 random_balance,
@@ -479,7 +482,7 @@ where
                 objective_function,
             );
 
-            (larger.id, rebalanced_node, objective)
+            Some((larger.id, rebalanced_node, objective))
         })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
