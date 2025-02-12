@@ -478,7 +478,7 @@ impl MethodRun for Iad {
             tensor,
             initial_partitioning,
             communication_scheme,
-            Some(rng),
+            Some(&mut rng.clone()),
         );
 
         let mut initial_contractions = Vec::new();
@@ -570,7 +570,7 @@ impl MethodRun for GreedyBalance {
             tensor,
             initial_partitioning,
             communication_scheme,
-            Some(rng),
+            Some(&mut rng.clone()),
         );
 
         let balance_settings = BalanceSettings::new(
