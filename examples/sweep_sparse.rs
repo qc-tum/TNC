@@ -86,6 +86,12 @@ impl TensorResult {
     }
 }
 
+fn get_main_rng(qubits: u32, depth: u32) -> StdRng {
+    let seed = qubits << 32 | depth;
+    StdRng::seed_from_u64(seed as u64)
+}
+
+
 fn main() {
     let args = Cli::parse();
     let out_file = args.out_file;
@@ -109,27 +115,6 @@ fn main() {
     counter_handle.read_to_string(&mut content).unwrap();
     let last_counter = content.parse().unwrap_or(0);
     
-    let mut seed_handle = fs::OpenOptions::new()
-    .create(true)
-    .read(true)
-    .write(true)
-    .open(&seed_file)
-    .unwrap();
-
-    
-    let mut content = String::new();
-    seed_handle.read_to_string(&mut content).unwrap();
-
-    let seed_range = if content.is_empty(){
-        let rng = thread_rng();
-        let seed_range = rng.sample_iter(Standard).take(10).collect_vec();
-        for seed in &seed_range{
-            write!(seed_handle, "{seed}\n").unwrap();
-        }
-        seed_range
-    }else{
-        content.lines().filter_map(|seed| seed.parse::<u64>().ok()).collect()
-    };
     let single_qubit_probability = args.single_qubit_probability;
     let two_qubit_probability = args.two_qubit_probability;
     // let observable_probability = 1.0;
@@ -155,7 +140,9 @@ fn main() {
         println!("qubits: {num_qubits}");
         for &circuit_depth in &circuit_depth_range {
             println!("circuit_depth: {:?}", circuit_depth);
-            for &seed in &seed_range {
+            let main_rng = get_main_rng(num_qubits as u32, circuit_depth as u32);
+            let seed_range = main_rng.sample_iter(Standard).take(10).collect_vec();
+            for seed in seed_range {
                 for &num_partitions in &partition_range {
                     if current_counter < last_counter{
                         current_counter +=1;
