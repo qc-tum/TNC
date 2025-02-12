@@ -181,9 +181,9 @@ fn parse_range_list(entries: &[String]) -> HashSet<usize> {
 }
 
 /// Gets the main RNG used to generate the list of seeds.
-fn get_main_rng(qubits: u32, depth: u32) -> StdRng {
-    let seed = qubits << 32 | depth;
-    StdRng::seed_from_u64(seed as u64)
+fn get_main_rng(qubits: u64, depth: u64) -> StdRng {
+    let seed = (qubits << 32) | depth;
+    StdRng::seed_from_u64(seed)
 }
 
 fn main() {
@@ -259,7 +259,7 @@ fn main() {
         .filter(|(i, _)| !past_protocol.contains(i))
     {
         let (num_qubits, circuit_depth, seed_index, num_partitions, method) = scenario;
-        let rng = get_main_rng(num_qubits as u32, circuit_depth as u32);
+        let rng = get_main_rng(num_qubits as u64, circuit_depth as u64);
         let seed = rng.sample_iter(Standard).nth(seed_index).unwrap();
         info!(num_qubits, circuit_depth, seed, num_partitions, single_qubit_probability, two_qubit_probability, connectivity:?, method=method.name(); "Doing run");
 
