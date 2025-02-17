@@ -108,17 +108,24 @@ impl Writer {
     }
 }
 
+/// A log entry documents the progress of a single run.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 enum LogEntry {
+    /// The run with the given ID is currently attempted.
     Trying(usize),
+    /// The run with the given ID has been completed.
     Done(usize),
+    /// The run with the given ID has failed.
     Error(usize),
 }
 
+/// A protocol is a list of [`LogEntry`]s, describing all runs that have been attempted.
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 struct Protocol(Vec<LogEntry>);
 
 impl Protocol {
+    /// Reads a protocol from a file. Converts all `Trying` entries to `Error`, because
+    /// they failed to finish.
     fn from_file(file: fs::File) -> Self {
         let mut protocol: Protocol = serde_json::from_reader(file).unwrap();
         protocol.0.iter_mut().for_each(|entry| {
@@ -129,12 +136,14 @@ impl Protocol {
         protocol
     }
 
+    /// Writes the protocol to a file.
     fn write(&self, filename: &str) {
         let mut file = fs::File::create(filename).unwrap();
         serde_json::to_writer(&mut file, &self).unwrap();
         file.flush().unwrap();
     }
 
+    /// Checks if the protocol contains a run with the given ID (Done or Error).
     fn contains(&self, id: &usize) -> bool {
         self.0.iter().any(|entry| match entry {
             LogEntry::Done(x) => x == id,
@@ -143,11 +152,13 @@ impl Protocol {
         })
     }
 
+    /// Writes a `Trying` entry to the protocol and saves it to file.
     fn write_trying(&mut self, id: usize) {
         self.0.push(LogEntry::Trying(id));
         self.write("protocol.json");
     }
 
+    /// Writes a `Done` entry to the protocol and saves it to file.
     fn write_done(&mut self, id: usize) {
         let LogEntry::Trying(x) = self.0.pop().unwrap() else {
             panic!("Expected a trying entry when writing a done entry")
@@ -159,6 +170,7 @@ impl Protocol {
 }
 
 /// Parses a list of numbers and ranges into a set of numbers.
+/// E.g. `1,3-4,7-9` -> `{1, 3, 4, 7, 8, 9}`.
 fn parse_range_list(entries: &[String]) -> HashSet<usize> {
     let mut out = HashSet::new();
     for entry in entries {
@@ -203,6 +215,7 @@ fn main() {
         Writer::default()
     };
 
+    // Set the parameters
     let single_qubit_probability = args.single_qubit_probability;
     let two_qubit_probability = args.two_qubit_probability;
     let connectivity = ConnectivityLayout::Sycamore;
@@ -231,6 +244,7 @@ fn main() {
     };
     let mut protocol = broadcast_serializing(protocol, &root);
 
+    // Define the methods to run
     let methods: Vec<Rc<dyn MethodRun>> = vec![
         Rc::new(InitialProblem),
         Rc::new(GreedyBalance {
@@ -251,6 +265,7 @@ fn main() {
         methods,
     );
 
+    // Run the scenarios
     let past_protocol = protocol.clone();
     for (id, scenario) in scenarios
         .enumerate()
@@ -357,12 +372,19 @@ fn perform_contraction(
 }
 
 trait MethodRun {
+    /// Returns the name of the method.
     fn name(&self) -> &'static str;
 
+    /// Returns the actual number of partitions used by the method. This is useful
+    /// for methods that dynamically determine the number of partitions.
+    ///
+    /// If the method did not use a different number of partitions, return `None`.
     fn actual_num_partitions(&self) -> Option<i32> {
         None
     }
 
+    /// Runs the method on the given tensor, returning the partitioned tensor, the
+    /// contraction path and the number of operations it takes to constract.
     fn run(
         &self,
         tensor: &Tensor,
@@ -372,6 +394,9 @@ trait MethodRun {
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64);
 
+    /// Runs the method on the given tensor, returning the partitioned tensor, the
+    /// contraction path, the number of operations it takes to constract and the
+    /// time it took to run the method.
     fn timed_run(
         &self,
         tensor: &Tensor,
