@@ -7,7 +7,7 @@ use log::info;
 use ordered_float::NotNan;
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
-use rand::{thread_rng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use tensorcontraction::contractionpath::contraction_cost::{
     compute_memory_requirements, contract_size_tensors_exact,
@@ -87,16 +87,14 @@ impl TensorResult {
 }
 
 fn get_main_rng(qubits: u64, depth: u64) -> StdRng {
-    let seed= qubits << 32 | depth;
+    let seed = qubits << 32 | depth;
     StdRng::seed_from_u64(seed as u64)
 }
-
 
 fn main() {
     let args = Cli::parse();
     let out_file = args.out_file;
     let counter_file = out_file.clone() + "_counter";
-    let seed_file = out_file.clone() + "_seed";
 
     let mut file = fs::OpenOptions::new()
         .create(true)
@@ -105,16 +103,16 @@ fn main() {
         .unwrap();
 
     let mut counter_handle = fs::OpenOptions::new()
-    .create(true)
-    .write(true)
-    .read(true)
-    .open(&counter_file)
-    .unwrap();
+        .create(true)
+        .write(true)
+        .read(true)
+        .open(&counter_file)
+        .unwrap();
 
     let mut content = String::new();
     counter_handle.read_to_string(&mut content).unwrap();
     let last_counter = content.parse().unwrap_or(0);
-    
+
     let single_qubit_probability = args.single_qubit_probability;
     let two_qubit_probability = args.two_qubit_probability;
     // let observable_probability = 1.0;
@@ -127,8 +125,10 @@ fn main() {
     let partition_max = args.partition_max;
     let qubit_range = (qubit_min..qubit_max).step_by(20).collect_vec();
     let circuit_depth_range = (depth_min..depth_max).step_by(5).collect_vec();
-    let partition_range = (partition_min..partition_max).map(|p| 2i32.pow(p)).collect_vec();
-    
+    let partition_range = (partition_min..partition_max)
+        .map(|p| 2i32.pow(p))
+        .collect_vec();
+
     let communication_scheme = CommunicationScheme::RandomGreedyLatency;
 
     let mut write = |result: TensorResult| {
@@ -144,8 +144,8 @@ fn main() {
             let seed_range = main_rng.sample_iter(Standard).take(10).collect_vec();
             for seed in seed_range {
                 for &num_partitions in &partition_range {
-                    if current_counter < last_counter{
-                        current_counter +=1;
+                    if current_counter < last_counter {
+                        current_counter += 1;
                         continue;
                     }
                     info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
@@ -248,35 +248,35 @@ fn main() {
                     });
 
                     let (flops, memory, flops_ratio, mem_ratio, cotengra_partitions) =
-                         match panic::catch_unwind(|| {
-                             cotengra_run(
-                                 &tensor,
-                                 num_partitions as usize,
-                                 communication_scheme,
-                                 &mut StdRng::seed_from_u64(seed),
-                             )
-                         }) {
-                             Ok((flops, memory, cotengra_partitions)) => (
-                                 flops,
-                                 memory,
-                                 flops / original_flops,
-                                 memory / original_memory,
-                                 cotengra_partitions,
-                             ),
-                             Err(_) => (-1f64, -1f64, -1f64, -1f64, 0usize),
-                         };
+                        match panic::catch_unwind(|| {
+                            cotengra_run(
+                                &tensor,
+                                num_partitions as usize,
+                                communication_scheme,
+                                &mut StdRng::seed_from_u64(seed),
+                            )
+                        }) {
+                            Ok((flops, memory, cotengra_partitions)) => (
+                                flops,
+                                memory,
+                                flops / original_flops,
+                                memory / original_memory,
+                                cotengra_partitions,
+                            ),
+                            Err(_) => (-1f64, -1f64, -1f64, -1f64, 0usize),
+                        };
 
-                     write(TensorResult {
-                         seed,
-                         num_qubits,
-                         circuit_depth,
-                         partitions: cotengra_partitions as i32,
-                         method: "cotengra".to_string(),
-                         flops,
-                         mem: memory,
-                         flops_ratio,
-                         mem_ratio,
-                     });
+                    write(TensorResult {
+                        seed,
+                        num_qubits,
+                        circuit_depth,
+                        partitions: cotengra_partitions as i32,
+                        method: "cotengra".to_string(),
+                        flops,
+                        mem: memory,
+                        flops_ratio,
+                        mem_ratio,
+                    });
 
                     // Try to find a better partitioning with a simulated annealing algorithm
                     let (flops, memory, flops_ratio, mem_ratio) = match panic::catch_unwind(|| {
@@ -383,12 +383,11 @@ fn main() {
 
                     current_counter += 1;
                     let mut counter_handle = fs::OpenOptions::new()
-                    .write(true)
-                    .truncate(true)
-                    .open(&counter_file)
-                    .unwrap();
+                        .write(true)
+                        .truncate(true)
+                        .open(&counter_file)
+                        .unwrap();
                     write!(counter_handle, "{current_counter}").unwrap();
-
                 }
             }
         }
