@@ -87,8 +87,8 @@ impl TensorResult {
 }
 
 fn get_main_rng(qubits: u64, depth: u64) -> StdRng {
-    let seed = qubits << 32 | depth;
-    StdRng::seed_from_u64(seed as u64)
+    let seed = (qubits << 32) | depth;
+    StdRng::seed_from_u64(seed)
 }
 
 fn main() {
