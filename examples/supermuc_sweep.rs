@@ -17,6 +17,9 @@ use rand::distributions::Standard;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
+use tensorcontraction::contractionpath::contraction_cost::{
+    compute_memory_requirements, contract_size_tensors_exact,
+};
 use tensorcontraction::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
 };
@@ -41,16 +44,33 @@ use tensorcontraction::tensornetwork::partitioning::partition_config::Partitioni
 use tensorcontraction::tensornetwork::tensor::Tensor;
 use tensorcontraction::types::ContractionIndex;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct RunResult {
-    seed: u64,
+#[derive(Debug, Serialize, Deserialize)]
+struct OptimizationResult {
     num_qubits: usize,
     circuit_depth: usize,
+    seed: u64,
     partitions: i32,
+    actual_partitions: i32,
     method: String,
     optimization_time: Duration,
-    time_to_solution: Duration,
     flops: f64,
+    memory: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct RunResult {
+    num_qubits: usize,
+    circuit_depth: usize,
+    seed: u64,
+    partitions: i32,
+    method: String,
+    time_to_solution: Duration,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum Mode {
+    Sweep,
+    Run,
 }
 
 #[derive(Debug, Parser)]
@@ -70,6 +90,8 @@ struct Cli {
     exclude: Vec<String>,
     #[arg(short, long, default_value_t = 10)]
     num_seeds: usize,
+    cache_dir: String,
+    mode: Mode,
     out_file: String,
 }
 
@@ -101,7 +123,10 @@ impl Writer {
         Self(Some(file))
     }
 
-    fn write(&mut self, result: RunResult) {
+    fn write<R>(&mut self, result: R)
+    where
+        R: Serialize,
+    {
         if let Some(file) = &mut self.0 {
             serde_json::to_writer(file, &[result]).unwrap();
         }
@@ -231,6 +256,11 @@ fn main() {
     let includes = parse_range_list(&args.include);
     let excludes = parse_range_list(&args.exclude);
     let communication_scheme = CommunicationScheme::RandomGreedyLatency;
+    let mode = args.mode;
+    let cache_dir = args.cache_dir;
+
+    // Create the cache dir
+    fs::create_dir_all(&cache_dir).unwrap();
 
     // Read the protocol and broadcast it to all ranks
     let protocol = if rank == 0 {
@@ -278,55 +308,157 @@ fn main() {
         let seed = rng.sample_iter(Standard).nth(seed_index).unwrap();
         info!(num_qubits, circuit_depth, seed, num_partitions, single_qubit_probability, two_qubit_probability, connectivity:?, method=method.name(); "Doing run");
 
+        let key = format!("{num_qubits}_{circuit_depth}_{seed}_{num_partitions}_{single_qubit_probability}_{two_qubit_probability}_{connectivity:?}_{}", method.name());
+
         if rank != 0 {
             // Other ranks are just for contraction
             perform_contraction(&Default::default(), Default::default(), &world);
         } else {
-            // Generate circuit
             protocol.write_trying(id);
-            let tensor = random_circuit(
-                num_qubits,
-                circuit_depth,
-                single_qubit_probability,
-                two_qubit_probability,
-                &mut StdRng::seed_from_u64(seed),
-                connectivity,
-            );
 
-            // Get initial partitioning
-            let initial_partitioning =
-                find_partitioning(&tensor, num_partitions, PartitioningStrategy::MinCut, true);
-
-            // Run method
-            let (partitioned_tensor, contraction_path, flops, optimization_time) = method
-                .timed_run(
-                    &tensor,
+            match mode {
+                Mode::Sweep => do_sweep(
+                    &cache_dir,
+                    &key,
+                    single_qubit_probability,
+                    two_qubit_probability,
+                    num_qubits,
+                    circuit_depth,
+                    &method,
                     num_partitions,
-                    &initial_partitioning,
+                    connectivity,
                     communication_scheme,
-                    &mut StdRng::seed_from_u64(seed),
-                );
+                    seed,
+                    &mut writer,
+                ),
+                Mode::Run => do_run(
+                    &cache_dir,
+                    &key,
+                    num_qubits,
+                    circuit_depth,
+                    &method,
+                    num_partitions,
+                    seed,
+                    &world,
+                    &mut writer,
+                ),
+            }
 
-            // Perform the actual contraction
-            let (final_tensor, time_to_solution) =
-                perform_contraction(&partitioned_tensor, &contraction_path, &world);
-
-            // Write the results
-            writer.write(RunResult {
-                seed,
-                num_qubits,
-                circuit_depth,
-                partitions: method.actual_num_partitions().unwrap_or(num_partitions),
-                method: method.name().into(),
-                flops,
-                optimization_time,
-                time_to_solution,
-            });
-
-            std::hint::black_box(final_tensor);
             protocol.write_done(id);
         }
     }
+}
+
+fn write_to_cache(
+    directory: &str,
+    key: &str,
+    partitioned_tensor: &Tensor,
+    contraction_path: &[ContractionIndex],
+) {
+    let file = fs::File::create_new(format!("{directory}/{key}")).unwrap();
+    let serializable = (partitioned_tensor, contraction_path);
+    bincode::serialize_into(file, &serializable).unwrap();
+}
+
+fn read_from_cache(directory: &str, key: &str) -> (Tensor, Vec<ContractionIndex>) {
+    let file = fs::File::open(format!("{directory}/{key}")).unwrap();
+    let (deserializable, path): (Tensor, Vec<ContractionIndex>) =
+        bincode::deserialize_from(file).unwrap();
+    (deserializable, path)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn do_sweep(
+    cache_dir: &str,
+    key: &str,
+    single_qubit_probability: f64,
+    two_qubit_probability: f64,
+    num_qubits: usize,
+    circuit_depth: usize,
+    method: &Rc<dyn MethodRun>,
+    num_partitions: i32,
+    connectivity: ConnectivityLayout,
+    communication_scheme: CommunicationScheme,
+    seed: u64,
+    writer: &mut Writer,
+) {
+    // Generate circuit
+    let tensor = random_circuit(
+        num_qubits,
+        circuit_depth,
+        single_qubit_probability,
+        two_qubit_probability,
+        &mut StdRng::seed_from_u64(seed),
+        connectivity,
+    );
+
+    // Get initial partitioning
+    let initial_partitioning =
+        find_partitioning(&tensor, num_partitions, PartitioningStrategy::MinCut, true);
+
+    // Run method
+    let (partitioned_tensor, contraction_path, flops, optimization_time) = method.timed_run(
+        &tensor,
+        num_partitions,
+        &initial_partitioning,
+        communication_scheme,
+        &mut StdRng::seed_from_u64(seed),
+    );
+
+    // Compute the memory
+    let memory = compute_memory_requirements(
+        partitioned_tensor.tensors(),
+        &contraction_path,
+        contract_size_tensors_exact,
+    );
+
+    // Store the partitioning and contraction path
+    write_to_cache(cache_dir, key, &partitioned_tensor, &contraction_path);
+
+    // Write the results
+    writer.write(OptimizationResult {
+        seed,
+        num_qubits,
+        circuit_depth,
+        partitions: num_partitions,
+        actual_partitions: method.actual_num_partitions().unwrap_or(num_partitions),
+        method: method.name().into(),
+        flops,
+        memory,
+        optimization_time,
+    });
+}
+
+#[allow(clippy::too_many_arguments)]
+fn do_run(
+    cache_dir: &str,
+    key: &str,
+    num_qubits: usize,
+    circuit_depth: usize,
+    method: &Rc<dyn MethodRun>,
+    num_partitions: i32,
+    seed: u64,
+    world: &SimpleCommunicator,
+    writer: &mut Writer,
+) {
+    // Load partitioned tensor and contraction path
+    let (partitioned_tensor, contraction_path) = read_from_cache(cache_dir, key);
+
+    // Perform the actual contraction
+    let (final_tensor, time_to_solution) =
+        perform_contraction(&partitioned_tensor, &contraction_path, world);
+
+    // Write the results
+    writer.write(RunResult {
+        num_qubits,
+        circuit_depth,
+        seed,
+        partitions: num_partitions,
+        method: method.name().into(),
+        time_to_solution,
+    });
+
+    std::hint::black_box(final_tensor);
 }
 
 fn perform_contraction(
