@@ -308,7 +308,12 @@ fn main() {
         let seed = rng.sample_iter(Standard).nth(seed_index).unwrap();
         info!(num_qubits, circuit_depth, seed, num_partitions, single_qubit_probability, two_qubit_probability, connectivity:?, method=method.name(); "Doing run");
 
-        let key = format!("{num_qubits}_{circuit_depth}_{seed}_{num_partitions}_{single_qubit_probability}_{two_qubit_probability}_{connectivity:?}_{}", method.name());
+        let key = format!(
+            "{connectivity:?}_{:.0}_{:.0}_{num_qubits}_{circuit_depth}_{seed}_{num_partitions}_{}",
+            method.name(),
+            single_qubit_probability * 100.0,
+            two_qubit_probability * 100.0
+        );
 
         if rank != 0 {
             // Other ranks are just for contraction
