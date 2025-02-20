@@ -2616,6 +2616,7 @@ dependencies = [
  "clap",
  "cotengrust",
  "criterion",
+ "flate2",
  "flexi_logger",
  "float-cmp",
  "genetic_algorithm",

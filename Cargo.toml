@@ -35,6 +35,7 @@ ordered-float = "4.5.0"
 rustengra = { git = "ssh://gitlab.lrz.de/quantum-research/tensornetworksimulation/rustengra" }
 cotengrust = { git = "https://github.com/Ectras/cotengrust.git", branch = "rust_extension" }
 clap = {version=  "4.5.28", features = ["derive"]}
+flate2 = "1.0.35"
 
 [dev-dependencies]
 criterion = "0.5.1"

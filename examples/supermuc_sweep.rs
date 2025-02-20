@@ -6,6 +6,9 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use clap::{command, Parser};
+use flate2::read::ZlibDecoder;
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
 use flexi_logger::{json_format, Duplicate, FileSpec, Logger};
 use itertools::{iproduct, Itertools};
 use log::{info, LevelFilter};
@@ -361,14 +364,16 @@ fn write_to_cache(
     contraction_path: &[ContractionIndex],
 ) {
     let file = fs::File::create_new(format!("{directory}/{key}")).unwrap();
+    let stream = ZlibEncoder::new(file, Compression::default());
     let serializable = (partitioned_tensor, contraction_path);
-    bincode::serialize_into(file, &serializable).unwrap();
+    bincode::serialize_into(stream, &serializable).unwrap();
 }
 
 fn read_from_cache(directory: &str, key: &str) -> (Tensor, Vec<ContractionIndex>) {
     let file = fs::File::open(format!("{directory}/{key}")).unwrap();
+    let stream = ZlibDecoder::new(file);
     let (deserializable, path): (Tensor, Vec<ContractionIndex>) =
-        bincode::deserialize_from(file).unwrap();
+        bincode::deserialize_from(stream).unwrap();
     (deserializable, path)
 }
 
