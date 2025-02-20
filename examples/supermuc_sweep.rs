@@ -313,9 +313,9 @@ fn main() {
 
         let key = format!(
             "{connectivity:?}_{:.0}_{:.0}_{num_qubits}_{circuit_depth}_{seed}_{num_partitions}_{}",
-            method.name(),
             single_qubit_probability * 100.0,
-            two_qubit_probability * 100.0
+            two_qubit_probability * 100.0,
+            method.name(),
         );
 
         if rank != 0 {
@@ -363,7 +363,7 @@ fn write_to_cache(
     partitioned_tensor: &Tensor,
     contraction_path: &[ContractionIndex],
 ) {
-    let file = fs::File::create_new(format!("{directory}/{key}")).unwrap();
+    let file = fs::File::create(format!("{directory}/{key}")).unwrap();
     let stream = ZlibEncoder::new(file, Compression::default());
     let serializable = (partitioned_tensor, contraction_path);
     bincode::serialize_into(stream, &serializable).unwrap();
