@@ -3,7 +3,7 @@ use std::iter::zip;
 use itertools::Itertools;
 use ordered_float::NotNan;
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 
 use crate::{
@@ -84,14 +84,15 @@ impl<'a> SimulatedAnnealingOptimizer {
             .collect_vec();
         for _ in 0..n_iter {
             // Generate and evaluate candidate solutions to find the minimum objective
-            let (trial_solution, trial_score) = rngs
+            let (_, trial_solution, trial_score) = rngs
                 .par_iter_mut()
-                .map(|rng| {
+                .enumerate()
+                .map(|(index, rng)| {
                     let trial = model.generate_trial_solution(current_solution.clone(), rng);
                     let score = model.evaluate(&trial);
-                    (trial, score)
+                    (index, trial, score)
                 })
-                .min_by_key(|(_, score)| *score)
+                .min_by_key(|(index, _, score)| (*score, *index))
                 .unwrap();
 
             let diff = (trial_score - current_score) / current_score;
