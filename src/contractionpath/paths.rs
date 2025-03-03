@@ -8,7 +8,9 @@ use crate::types::ContractionIndex;
 pub mod branchbound;
 pub mod cotengrust;
 pub mod greedy;
+pub mod tree_annealing;
 pub mod tree_reconfiguration;
+pub mod tree_tempering;
 pub mod weighted_branchbound;
 //pub mod parallel_greedy;
 
