@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::f64::consts::{FRAC_PI_2, FRAC_PI_6};
 
 use rand::{seq::SliceRandom, Rng};
 use rustc_hash::FxHashMap;
@@ -8,16 +8,6 @@ use crate::{
     random::tensorgeneration::random_sparse_tensor_data_with_rng,
     tensornetwork::{tensor::Tensor, tensordata::TensorData},
 };
-
-macro_rules! fsim {
-    ($a:expr, $b:expr, $c:expr) => {
-        $crate::tensornetwork::tensordata::TensorData::Gate((
-            String::from("fsim"),
-            vec![$a, $b],
-            $c,
-        ))
-    };
-}
 
 pub fn sycamore_circuit<R>(qubits: usize, depth: usize, rng: &mut R) -> Tensor
 where
@@ -34,6 +24,8 @@ where
         TensorData::Gate((String::from("sy"), Vec::new(), false)),
         TensorData::Gate((String::from("sz"), Vec::new(), false)),
     ];
+    let two_qubit_gate =
+        TensorData::Gate((String::from("fsim"), vec![FRAC_PI_2, FRAC_PI_6], false));
 
     // Initialize tensornetwork of size `usize`
     let mut circuit_tn = Tensor::default();
@@ -72,7 +64,7 @@ where
                 vec![open_edges[&i], open_edges[&j], next_edge, next_edge + 1],
                 2,
             );
-            new_tensor.set_tensor_data(fsim!(PI / 2., PI / 6., false));
+            new_tensor.set_tensor_data(two_qubit_gate.clone());
             intermediate_gates.push(new_tensor);
             open_edges.insert(i, next_edge);
             open_edges.insert(j, next_edge + 1);
