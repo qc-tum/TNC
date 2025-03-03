@@ -2235,7 +2235,7 @@ checksum = "c7fb8039b3032c191086b10f11f319a6e99e1e82889c5cc6046f515c9db1d497"
 [[package]]
 name = "rustengra"
 version = "0.1.0"
-source = "git+ssh://gitlab.lrz.de/quantum-research/tensornetworksimulation/rustengra#023266c78477b5cd2dad3d5a13e273427fb5790d"
+source = "git+ssh://gitlab.lrz.de/quantum-research/tensornetworksimulation/rustengra#b80b77932d923339fee45f6af56eb9adaac8c069"
 dependencies = [
  "pyo3",
  "rustc-hash 2.1.0",
