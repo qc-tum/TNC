@@ -471,7 +471,7 @@ where
                 tensor,
                 Some(height_limit),
             );
-            if larger_subtree_nodes.len() == 1{
+            if larger_subtree_nodes.len() == 1 {
                 return None;
             }
             larger_subtree_nodes.remove(&larger.id);
