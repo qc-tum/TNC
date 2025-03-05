@@ -233,9 +233,7 @@ impl Tensor {
     /// ```
     pub fn insert_bond_dims(&mut self, bond_dims: &FxHashMap<EdgeIndex, u64>) {
         let mut own_bond_dims = self.bond_dims.write().unwrap();
-        for (k, v) in bond_dims {
-            own_bond_dims.insert(*k, *v);
-        }
+        own_bond_dims.extend(bond_dims);
     }
 
     /// Returns the shape.
