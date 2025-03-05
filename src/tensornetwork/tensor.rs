@@ -820,7 +820,7 @@ mod tests {
             .tensor_data()
             .approx_eq(&TensorData::Uncontracted, 1e-12));
         for (key, value) in tensor.bond_dims().iter() {
-            assert_eq!(reference_bond_dims_1[key], *value);
+            assert_eq!(*value, reference_bond_dims_1[key]);
         }
 
         for (tensor_legs, ref_tensor_legs) in zip(tensor.tensors(), [&ref_tensor_1]) {
@@ -836,7 +836,7 @@ mod tests {
 
         tensor.push_tensor(tensor_2, None);
         for (key, value) in tensor.bond_dims().iter() {
-            assert_eq!(reference_bond_dims_2[key], *value);
+            assert_eq!(*value, reference_bond_dims_2[key]);
         }
 
         for (tensor_legs, ref_tensor_legs) in zip(tensor.tensors(), [&ref_tensor_1, &ref_tensor_2])
