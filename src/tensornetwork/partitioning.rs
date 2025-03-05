@@ -128,11 +128,6 @@ pub fn communication_partitioning(
         }
     }
 
-    let mut intermediate_tensor = Tensor::default();
-
-    let tensors = tensors.iter().map(|(_, b)| b.clone()).collect_vec();
-    intermediate_tensor.push_tensors(tensors, Some(bond_dims));
-
     let mut partitioning = vec![-1; num_vertices as usize];
     partition(
         num_vertices,
