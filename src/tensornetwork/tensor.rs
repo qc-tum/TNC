@@ -793,7 +793,7 @@ mod tests {
 
         tensor_1234.push_tensors(vec![tensor_12, tensor_34], Some(&bond_dims));
 
-        assert_eq!(vec![4, 5, 7, 9], tensor_1234.external_edges());
+        assert_eq!(tensor_1234.external_edges(), vec![4, 5, 7, 9]);
     }
 
     #[test]
