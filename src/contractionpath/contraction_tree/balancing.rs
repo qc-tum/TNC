@@ -412,6 +412,25 @@ where
                 )
             }
         }
+        BalancingScheme::AlternatingTreeTensors { height_limit } => {
+            if iteration % 2 == 1 {
+                balancing_schemes::tree_tensors_odd(
+                    partition_data,
+                    contraction_tree,
+                    *objective_function,
+                    tensor_network,
+                    *height_limit,
+                )
+            } else {
+                balancing_schemes::tree_tensors_even(
+                    partition_data,
+                    contraction_tree,
+                    *objective_function,
+                    tensor_network,
+                    *height_limit,
+                )
+            }
+        }
         _ => panic!("Balancing Scheme not implemented"),
     };
     let mut shifted_indices = FxHashMap::default();

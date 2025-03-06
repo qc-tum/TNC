@@ -1,3 +1,4 @@
+use std::io::{Read, Write};
 use std::{fs, panic};
 
 use clap::Parser;
@@ -14,7 +15,7 @@ use tensorcontraction::contractionpath::contraction_tree::balancing::Communicati
 
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::compute_solution;
 use tensorcontraction::networks::connectivity::ConnectivityLayout;
-use tensorcontraction::networks::random_circuit::random_circuit;
+use tensorcontraction::networks::sycamore_circuit::sycamore_circuit;
 use tensorcontraction::tensornetwork::partitioning::find_partitioning;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::tensor::Tensor;
@@ -76,33 +77,44 @@ fn main() {
     // let observable_probability = 1.0;
     let connectivity = ConnectivityLayout::Sycamore;
 
-    let qubit_range = (50..60).step_by(10).collect_vec();
+    let qubit_range = (10..=50).step_by(10).collect_vec();
     let circuit_depth_range = (20..40).step_by(10).collect_vec();
-    let partition_range = (7..8).map(|p| 2i32.pow(p)).collect_vec();
+    let partition_range = (4..8).map(|p| 2i32.pow(p)).collect_vec();
     let rng = thread_rng();
     let seed_range = rng.sample_iter(Standard).take(10).collect_vec();
+
+    let mut counter_file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .read(true)
+        .open("sweep_count")
+        .unwrap();
+    let mut last_count = String::new();
+    let _ = counter_file.read_to_string(&mut last_count);
+    let last_count = last_count.parse::<usize>().unwrap_or_default();
+    let mut count = 0;
 
     let mut write = |result: TensorResult| {
         serde_json::to_writer(&mut file, &[result]).unwrap();
     };
 
     for &num_qubits in &qubit_range {
-        println!("qubits: {num_qubits}");
+        // println!("qubits: {num_qubits}");
         for &circuit_depth in &circuit_depth_range {
-            println!("circuit_depth: {:?}", circuit_depth);
+            // println!("circuit_depth: {:?}", circuit_depth);
             for &seed in &seed_range {
-                println!("seed: {:?}", seed);
+                // println!("seed: {:?}", seed);
                 for &num_partitions in &partition_range {
-                    println!("partitions: {:?}", num_partitions);
+                    // println!("partitions: {:?}", num_partitions);
                     info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
-                    let tensor = random_circuit(
+                    let tensor = sycamore_circuit(
                         num_qubits,
                         circuit_depth,
-                        single_qubit_probability,
-                        two_qubit_probability,
+                        // single_qubit_probability,
+                        // two_qubit_probability,
                         // observable_probability,
                         &mut StdRng::seed_from_u64(seed),
-                        connectivity,
+                        // connectivity,
                     );
 
                     let (_, initial_partitioned_tensor, initial_contraction_path, greedy_flops) =
@@ -141,18 +153,19 @@ fn main() {
                         &initial_contraction_path,
                         contract_size_tensors_exact,
                     );
-                    write(TensorResult {
-                        seed,
-                        num_qubits,
-                        circuit_depth,
-                        partitions: num_partitions,
-                        method: CommunicationScheme::Greedy.to_string(),
-                        flops: greedy_flops,
-                        mem: greedy_memory,
-                        flops_ratio: 1.0,
-                        mem_ratio: 1.0,
-                    });
-
+                    if count > last_count {
+                        write(TensorResult {
+                            seed,
+                            num_qubits,
+                            circuit_depth,
+                            partitions: num_partitions,
+                            method: CommunicationScheme::Greedy.to_string(),
+                            flops: greedy_flops,
+                            mem: greedy_memory,
+                            flops_ratio: 1.0,
+                            mem_ratio: 1.0,
+                        });
+                    }
                     for communication_scheme in [
                         CommunicationScheme::Bipartition,
                         // CommunicationScheme::WeightedBranchBound,
@@ -161,8 +174,12 @@ fn main() {
                         CommunicationScheme::RandomGreedyLatency,
                         CommunicationScheme::BipartitionSweep,
                     ] {
+                        if count < last_count {
+                            count += 1;
+                            continue;
+                        }
                         info!(seed, num_qubits, circuit_depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
-
+                        println!("Count: {count}");
                         let (
                             _,
                             initial_partitioned_tensor,
@@ -214,6 +231,14 @@ fn main() {
                             flops_ratio: strategy_flops / greedy_flops,
                             mem_ratio: strategy_memory / greedy_memory,
                         });
+                        let mut counter_file = fs::OpenOptions::new()
+                            .create(true)
+                            .truncate(true)
+                            .write(true)
+                            .open("sweep_count")
+                            .unwrap();
+                        count += 1;
+                        write!(counter_file, "{}", count).unwrap();
                     }
                 }
             }
