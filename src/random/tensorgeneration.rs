@@ -9,55 +9,6 @@ use rand::Rng;
 use rustc_hash::FxHashMap;
 use tetra::Tensor as DataTensor;
 
-/// Generates random [`Tensor`] object with `n` dimensions and corresponding `bond_dims`,
-/// bond dimensions are uniformly distributed between 1 and 20.
-///
-/// # Arguments
-///
-/// * `n` - Sets number of dimensions in random tensor
-/// * `rng` - The random number generator to use.
-///
-/// # Examples
-/// ```
-/// # use tensorcontraction::random::tensorgeneration::random_tensor_with_rng;
-/// let legs = 4;
-/// let (tensor, hs) = random_tensor_with_rng(legs, &mut rand::thread_rng());
-/// assert_eq!(tensor.legs().len(), legs);
-/// ```
-pub fn random_tensor_with_rng<R>(n: usize, rng: &mut R) -> (Tensor, FxHashMap<usize, u64>)
-where
-    R: Rng + ?Sized,
-{
-    let range = Uniform::new(1u64, 21);
-    let bond_dims = (0..n).map(|_| rng.sample(range));
-    let edges = 0..n;
-    let hs = edges.zip(bond_dims).collect_vec();
-    let mut bond_dims = FxHashMap::default();
-    for (i, j) in hs {
-        bond_dims.insert(i, j);
-    }
-    (Tensor::new((0..n).collect()), bond_dims)
-}
-
-/// Generates random [`Tensor`] object with `n` dimensions and corresponding `bond_dims`,
-/// bond dimensions are uniformly distributed between 1 and 20. Uses the thread-local random number generator.
-///
-/// # Arguments
-///
-/// * `n` - Sets number of dimensions in random tensor
-///
-/// # Examples
-/// ```
-/// # use tensorcontraction::random::tensorgeneration::random_tensor;
-/// let legs = 4;
-/// let (tensor, hs) = random_tensor(legs);
-/// assert_eq!(tensor.legs().len(), legs);
-/// ```
-#[must_use]
-pub fn random_tensor(n: usize) -> (Tensor, FxHashMap<usize, u64>) {
-    random_tensor_with_rng(n, &mut rand::thread_rng())
-}
-
 /// Generates random sparse [`DataTensor`] object.
 /// Fills in sparse tensor based on `sparsity` value (defaults to `0.5`).
 ///
