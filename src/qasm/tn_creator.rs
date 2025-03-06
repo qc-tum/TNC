@@ -2,7 +2,7 @@ use itertools::Itertools;
 use num_complex::Complex64;
 use rustc_hash::FxHashMap;
 
-use crate::tensornetwork::{create_tensor_network, tensor::Tensor};
+use crate::tensornetwork::tensor::Tensor;
 
 use super::ast::{Argument, Program, Statement};
 use crate::tensornetwork::tensordata::TensorData;
@@ -97,7 +97,7 @@ impl TensorNetworkCreator {
                         tensors.reserve(*count as usize);
                         for i in 0..*count {
                             let edge = self.new_edge();
-                            let mut tensor = Tensor::new(vec![edge]);
+                            let mut tensor = Tensor::new_from_const(vec![edge], 2);
                             tensor.set_tensor_data(TensorData::Matrix(ket0.clone()));
                             tensors.push(tensor);
                             wires.insert(Argument(name.clone(), Some(i)), edge);
@@ -129,7 +129,7 @@ impl TensorNetworkCreator {
                         // Create the tensor
                         open_edges.reverse();
                         out_edges.append(&mut open_edges);
-                        let mut tensor = Tensor::new(out_edges);
+                        let mut tensor = Tensor::new_from_const(out_edges, 2);
                         tensor.set_tensor_data(TensorData::Gate((
                             call.name.to_ascii_lowercase(),
                             args.clone(),
@@ -142,11 +142,7 @@ impl TensorNetworkCreator {
             }
         }
 
-        let bond_dims = (0..self.edge_counter)
-            .map(|e| (e, 2u64))
-            .collect::<FxHashMap<_, _>>();
-
-        create_tensor_network(tensors, &bond_dims)
+        Tensor::new_composite(tensors)
     }
 }
 

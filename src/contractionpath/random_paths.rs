@@ -106,11 +106,11 @@ impl RandomOptimizePath for Greedy<'_> {
                 let mut best_path = vec![];
                 let mut best_cost = f64::INFINITY;
                 let mut best_size = f64::INFINITY;
-                let external_legs = input_tensor.external_edges();
+                let external_tensor = input_tensor.external_tensor();
                 for _ in 0..trials {
                     let ssa_path = self.ssa_greedy_optimize(
                         input_tensor.tensors(),
-                        &Tensor::new(external_legs.clone()),
+                        &external_tensor,
                         &ThermalChooser,
                         Box::new(&Greedy::cost_memory_removed),
                         rng,
@@ -140,11 +140,11 @@ impl RandomOptimizePath for Greedy<'_> {
                     self.best_path
                         .push(ContractionIndex::Path(index, None, best_path));
                 }
-                input_tensor.set_legs(external_legs);
+                *input_tensor = external_tensor;
             }
         }
         // Vector of output leg ids
-        let output_dims = Tensor::new(self.tn.external_edges());
+        let output_dims = self.tn.external_tensor();
         // Dictionary that maps leg id to bond dimension
         let mut best_path = vec![];
         let mut best_cost = f64::INFINITY;
@@ -193,51 +193,45 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::contractionpath::paths::CostType;
-    // use rand::distributions::{Distribution, Uniform};
-    // TODO: Use random tensors
     use crate::contractionpath::paths::OptimizePath;
     use crate::contractionpath::random_paths::Greedy;
     use crate::contractionpath::random_paths::RandomOptimizePath;
     use crate::path;
-    use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
 
     fn setup_simple() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-            ],
-            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-        )
+        let bond_dims =
+            FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        ])
     }
 
     fn setup_complex() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-                Tensor::new(vec![6, 8, 9]),
-                Tensor::new(vec![10, 8, 9]),
-                Tensor::new(vec![5, 1, 0]),
-            ],
-            &FxHashMap::from_iter([
-                (0, 27),
-                (1, 18),
-                (2, 12),
-                (3, 15),
-                (4, 5),
-                (5, 3),
-                (6, 18),
-                (7, 22),
-                (8, 45),
-                (9, 65),
-                (10, 5),
-                (11, 17),
-            ]),
-        )
+        let bond_dims = FxHashMap::from_iter([
+            (0, 27),
+            (1, 18),
+            (2, 12),
+            (3, 15),
+            (4, 5),
+            (5, 3),
+            (6, 18),
+            (7, 22),
+            (8, 45),
+            (9, 65),
+            (10, 5),
+            (11, 17),
+        ]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
+            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
+            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+        ])
     }
 
     #[test]

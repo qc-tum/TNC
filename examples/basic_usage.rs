@@ -53,7 +53,7 @@ fn main() {
     info!(seed, qubits, depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
 
     // Setup tensor network
-    let (mut partitioned_tn, path) = if rank == 0 {
+    let (partitioned_tn, path) = if rank == 0 {
         let r_tn = random_circuit(
             qubits,
             depth,
@@ -90,7 +90,7 @@ fn main() {
         let (mut local_tn, local_path, slicing_task, comm) =
             scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
         assert!(slicing_task.is_none());
-        contract_tensor_network(&mut local_tn, &local_path);
+        local_tn = contract_tensor_network(local_tn, &local_path);
 
         let mut communication_path = if rank == 0 {
             extract_communication_path(&path)
@@ -102,8 +102,7 @@ fn main() {
         intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world, &comm);
         local_tn
     } else {
-        contract_tensor_network(&mut partitioned_tn, &path);
-        partitioned_tn
+        contract_tensor_network(partitioned_tn, &path)
     };
 
     // Print the result

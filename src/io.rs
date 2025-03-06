@@ -5,7 +5,6 @@ use itertools::Itertools;
 use ndarray::Array;
 use num_complex::Complex64;
 
-use rustc_hash::FxHashMap;
 use tetra::Tensor as DataTensor;
 
 use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
@@ -56,18 +55,14 @@ fn read_tensor(file: &File) -> Result<Tensor> {
         let bond_ids = tensor.attr("bids").unwrap().read_1d::<usize>()?;
         let tensor_dataset = gr.dataset(&tensor_name).unwrap().read_dyn::<Complex64>()?;
         let tensor_shape = tensor_dataset.shape().to_vec();
-        let mut bond_dims = FxHashMap::default();
-        for (&bond_id, &bond_dim) in std::iter::zip(&bond_ids, &tensor_shape) {
-            bond_dims.entry(bond_id).or_insert(bond_dim as u64);
-        }
-
-        let mut new_tensor = Tensor::new(bond_ids.to_vec());
+        let bond_dims = tensor_shape.iter().map(|s| *s as u64).collect();
+        let mut new_tensor = Tensor::new(bond_ids.to_vec(), bond_dims);
         new_tensor.set_tensor_data(TensorData::Matrix(DataTensor::new_from_flat(
             &tensor_shape,
             tensor_dataset.into_raw_vec(),
             None,
         )));
-        new_tensor_network.push_tensor(new_tensor, Some(&bond_dims));
+        new_tensor_network.push_tensor(new_tensor);
     }
     new_tensor_network.set_legs(out_bond_ids.to_vec());
 
@@ -117,7 +112,6 @@ mod tests {
         distributions::{Alphanumeric, DistString},
         thread_rng,
     };
-    use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
 
@@ -204,7 +198,7 @@ mod tests {
         let tensor = read_tensor(&file).unwrap();
 
         let mut ref_tn = Tensor::default();
-        let mut ref_tensor = Tensor::new(vec![0, 1]);
+        let mut ref_tensor = Tensor::new(vec![0, 1], vec![2, 2]);
         ref_tensor.set_tensor_data(TensorData::new_from_data(
             &[2, 2],
             vec![
@@ -215,7 +209,7 @@ mod tests {
             ],
             None,
         ));
-        ref_tn.push_tensor(ref_tensor, Some(&FxHashMap::from_iter([(0, 2), (1, 2)])));
+        ref_tn.push_tensor(ref_tensor);
         ref_tn.set_legs(vec![0, 1]);
         assert!(tensor.approx_eq(&ref_tn, 1e-12));
     }

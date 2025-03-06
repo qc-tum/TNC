@@ -1,7 +1,5 @@
 use std::borrow::Cow;
-use std::sync::Arc;
 
-use itertools::Itertools;
 use num_complex::Complex64;
 
 use crate::tensornetwork::tensor::Tensor;
@@ -11,19 +9,14 @@ use crate::types::{ContractionIndex, EdgeIndex, SlicingPlan};
 /// no slicing plan is provided or no legs were sliced.
 fn slice_legs<'a>(t: &'a Tensor, slicing: Option<&SlicingPlan>) -> Cow<'a, Tensor> {
     if let Some(slicing_plan) = slicing {
-        let new_legs = t
-            .legs()
-            .iter()
-            .filter(|e| !slicing_plan.slices.contains(e))
-            .copied()
-            .collect_vec();
+        let (new_legs, new_bond_dims): (Vec<_>, Vec<_>) = t
+            .edges()
+            .filter(|&(leg, _)| !slicing_plan.slices.contains(leg))
+            .unzip();
 
         // Only create a new tensor if a leg was actually sliced
         if new_legs.len() < t.legs().len() {
-            Cow::Owned(Tensor::new_with_bonddims(
-                new_legs,
-                Arc::clone(&t.bond_dims),
-            ))
+            Cow::Owned(Tensor::new(new_legs, new_bond_dims))
         } else {
             Cow::Borrowed(t)
         }
@@ -38,14 +31,13 @@ fn slice_legs<'a>(t: &'a Tensor, slicing: Option<&SlicingPlan>) -> Cow<'a, Tenso
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let vec1 = vec![0, 1, 2];
-/// let vec2 = vec![2, 3, 4];
+/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims);
+/// let tensor2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims);
 /// // result = [0, 1, 2, 3, 4] // cost of (9-1)*54*5005 = 350350;
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
+/// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
 /// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1), None), 350350.);
 /// ```
 pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>) -> f64 {
@@ -62,14 +54,13 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_op_cost_tensors;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let vec1 = vec![0, 1, 2];
-/// let vec2 = vec![2, 3, 4];
+/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims);
+/// let tensor2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims);
 /// // result = [0, 1, 2, 3, 4] // cost of 5*7*9*11*13 = 45045;
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
+/// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
 /// assert_eq!(contract_op_cost_tensors(&tn.tensor(0), &tn.tensor(1), None), 45045.);
 /// ```
 #[inline]
@@ -84,16 +75,15 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPl
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors_slicing;
 /// # use tensorcontraction::types::SlicingPlan;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let vec1 = vec![0, 1, 2];
-/// let vec2 = vec![2, 3, 4];
+/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims);
+/// let tensor2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims);
 /// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
 /// // result = [0, 1, 4] // cost of (1+9-2)*2*(5*7*13) = 10010
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
+/// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
 /// assert_eq!(contract_cost_tensors_slicing(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 10010.);
 /// assert_eq!(contract_cost_tensors_slicing(&tn.tensor(0), &tn.tensor(1), None), 350350.);
 /// ```
@@ -104,7 +94,6 @@ pub fn contract_cost_tensors_slicing(
 ) -> f64 {
     let final_dims = t_1 ^ t_2;
     let shared_dims = t_1 & t_2;
-    let bond_dims = t_1.bond_dims();
     let mut internal_slice_size = 1f64;
     let slicing = if let Some(slicing_plan) = slicing {
         &slicing_plan.slices
@@ -112,16 +101,15 @@ pub fn contract_cost_tensors_slicing(
         &Vec::new()
     };
     let single_loop_cost = shared_dims
-        .legs()
-        .iter()
-        .filter(|e| {
-            let internal_slice = slicing.contains(e);
+        .edges()
+        .filter(|(leg, dim)| {
+            let internal_slice = slicing.contains(leg);
             if internal_slice {
-                internal_slice_size *= bond_dims[*e] as f64;
+                internal_slice_size *= **dim as f64;
             };
             !internal_slice
         })
-        .map(|e| bond_dims[e] as f64)
+        .map(|(_, dim)| *dim as f64)
         .product::<f64>();
 
     (single_loop_cost + internal_slice_size - 2f64).mul_add(2f64, single_loop_cost * 6f64)
@@ -134,16 +122,15 @@ pub fn contract_cost_tensors_slicing(
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_op_cost_tensors_slicing;
 /// # use tensorcontraction::types::SlicingPlan;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let vec1 = vec![0, 1, 2];
-/// let vec2 = vec![2, 3, 4];
+/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims);
+/// let tensor2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims);
 /// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
 /// // result = [0, 1, 4] // cost of 5*7*13 = 455
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
+/// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
 /// assert_eq!(contract_op_cost_tensors_slicing(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 455.);
 /// assert_eq!(contract_op_cost_tensors_slicing(&tn.tensor(0), &tn.tensor(1), None), 45045.);
 /// ```
@@ -167,14 +154,13 @@ pub fn contract_op_cost_tensors_slicing(
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let vec1 = vec![0, 1, 2]; // 315 entries
-/// let vec2 = vec![2, 3, 4]; // 1287 entries
+/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims); // 315 entries
+/// let tensor2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims); // 1287 entries
 /// // result = [0, 1, 3, 4] //  5005 entries -> total 6607 entries
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
+/// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
 /// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1), None), 6607.);
 /// ```
 #[inline]
@@ -189,16 +175,15 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor, _: Option<&SlicingPlan>
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors_slicing;
 /// # use tensorcontraction::types::SlicingPlan;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let vec1 = vec![0, 1, 2]; // 35 entries
-/// let vec2 = vec![2, 3, 4]; // 13 entries
+/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims); // 35 entries
+/// let tensor2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims); // 13 entries
 /// // result = [0, 1, 4] //  455 entries -> total 503 entries
 /// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
+/// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
 /// assert_eq!(contract_size_tensors_slicing(&tn.tensor(0), &tn.tensor(1), Some(&slicing_plan)), 503.);
 /// ```
 #[inline]
@@ -226,15 +211,14 @@ pub fn contract_size_tensors_slicing(
 /// # Examples
 /// ```
 /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::tensornetwork::create_tensor_network;
 /// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors_exact;
 /// # use tensorcontraction::types::SlicingPlan;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
-/// let vec1 = vec![0, 1, 2]; // requires 5040 bytes
-/// let vec2 = vec![3, 2];    // requires 1584 bytes
+/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims); // requires 5040 bytes
+/// let tensor2 = Tensor::new_from_map(vec![3, 2], &bond_dims);    // requires 1584 bytes
 /// // result = [0, 1, 3], requires 6160 bytes
-/// let tn = create_tensor_network(vec![Tensor::new(vec1), Tensor::new(vec2)], &bond_dims);
+/// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
 /// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1), None), 12784.);
 ///
 /// let slicing_plan = SlicingPlan{ slices: vec![2, 3] };
@@ -382,11 +366,7 @@ fn contract_path_custom_cost(
                 );
                 op_cost += costs.0;
                 mem_cost = mem_cost.max(costs.1);
-                let intermediate_tensor = Tensor::new_with_bonddims(
-                    inputs[*i].external_edges(),
-                    Arc::clone(&inputs[*i].bond_dims),
-                );
-                inputs[*i] = intermediate_tensor;
+                inputs[*i] = inputs[*i].external_tensor();
             }
         }
     }
@@ -490,18 +470,16 @@ mod tests {
 
     use crate::contractionpath::contraction_cost::{communication_path_cost, contract_path_cost};
     use crate::path;
-    use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
 
     fn setup_simple() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-            ],
-            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-        )
+        let bond_dims =
+            FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        ])
     }
 
     fn setup_complex() -> Tensor {
@@ -517,30 +495,30 @@ mod tests {
             (8, 2),
             (9, 2),
         ]);
-        let mut t1 = Tensor::default();
         let t1_tensors = vec![
-            Tensor::new(vec![4, 3, 2]),
-            Tensor::new(vec![0, 1, 3, 2]),
-            Tensor::new(vec![4, 5, 6]),
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
         ];
-        t1.push_tensors(t1_tensors, Some(&bond_dims));
+        let t1 = Tensor::new_composite(t1_tensors);
 
-        let mut t2 = Tensor::default();
-        let t2_tensors = vec![Tensor::new(vec![5, 6, 8]), Tensor::new(vec![7, 8, 9])];
-        t2.push_tensors(t2_tensors, Some(&bond_dims));
-        create_tensor_network(vec![t1, t2], &bond_dims)
+        let t2_tensors = vec![
+            Tensor::new_from_map(vec![5, 6, 8], &bond_dims),
+            Tensor::new_from_map(vec![7, 8, 9], &bond_dims),
+        ];
+        let t2 = Tensor::new_composite(t2_tensors);
+        Tensor::new_composite(vec![t1, t2])
     }
 
     fn setup_parallel() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-                Tensor::new(vec![5, 6]),
-            ],
-            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-        )
+        let bond_dims =
+            FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            Tensor::new_from_map(vec![5, 6], &bond_dims),
+        ])
     }
 
     #[test]

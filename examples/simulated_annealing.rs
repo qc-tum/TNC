@@ -58,7 +58,7 @@ fn main() {
     println!("Normal final score: {final_score:?}");
 
     // Try to find a better partitioning with directed simulated annealing
-    let mut intermediate_tensors = vec![Tensor::new(Vec::new()); num_partitions as usize];
+    let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
     for (index, partition) in initial_partitioning.iter().enumerate() {
         intermediate_tensors[*partition] ^= tensor.tensor(index);
     }
@@ -73,8 +73,8 @@ fn main() {
     println!("Directed final score: {final_score:?}");
 
     // Partition the tensor network with the found partitioning and contract
-    let (mut tensor, path, _) = compute_solution(&tensor, &partitioning.0, communication_scheme);
+    let (tensor, path, _) = compute_solution(&tensor, &partitioning.0, communication_scheme);
 
-    contract_tensor_network(&mut tensor, &path);
+    let tensor = contract_tensor_network(tensor, &path);
     println!("{:?}", tensor.tensor_data());
 }

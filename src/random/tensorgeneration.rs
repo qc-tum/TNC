@@ -1,4 +1,3 @@
-use crate::tensornetwork::create_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 use itertools::Itertools;
@@ -129,15 +128,20 @@ where
         return random_tensor_network_with_rng(n, cycles, rng);
     }
     let bond_die = Uniform::from(2..4);
-    let mut bond_dims = FxHashMap::default();
-    for i in 0..=index {
-        bond_dims.entry(i).or_insert_with(|| bond_die.sample(rng));
-    }
+    let bond_dims = rng
+        .sample_iter(bond_die)
+        .take(index + 1)
+        .enumerate()
+        .collect::<FxHashMap<_, _>>();
 
-    let mut t = create_tensor_network(tensors.into_iter().map(Tensor::new).collect(), &bond_dims);
-
+    let mut t = Tensor::new_composite(
+        tensors
+            .into_iter()
+            .map(|legs| Tensor::new_from_map(legs, &bond_dims))
+            .collect(),
+    );
     for tensor in &mut t.tensors {
-        tensor.set_tensor_data(random_sparse_tensor_data(&tensor.shape(), None));
+        tensor.set_tensor_data(random_sparse_tensor_data(&tensor.shape().unwrap(), None));
     }
     t
 }
@@ -161,18 +165,14 @@ pub fn random_tensor_network(n: usize, cycles: usize) -> Tensor {
 }
 
 #[must_use]
-pub fn create_filled_tensor_network<R>(
-    tensors: Vec<Tensor>,
-    bond_dims: &FxHashMap<usize, u64>,
-    rng: &mut R,
-) -> Tensor
+pub fn create_filled_tensor_network<R>(tensors: Vec<Tensor>, rng: &mut R) -> Tensor
 where
     R: Rng + ?Sized,
 {
-    let mut tn = create_tensor_network(tensors, bond_dims);
+    let mut tn = Tensor::new_composite(tensors);
     for child_tensor in &mut tn.tensors {
         child_tensor.set_tensor_data(random_sparse_tensor_data_with_rng(
-            &child_tensor.shape(),
+            &child_tensor.shape().unwrap(),
             None,
             rng,
         ));
