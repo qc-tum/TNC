@@ -1,12 +1,12 @@
 use std::collections::BinaryHeap;
 
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
         candidates::Candidate,
-        contraction_cost::{contract_cost_tensors, contract_size_tensors},
+        contraction_cost::{contract_op_cost_tensors, contract_size_tensors},
         ssa_ordering, ssa_replace_ordering,
     },
     tensornetwork::tensor::Tensor,
@@ -26,6 +26,7 @@ pub struct WeightedBranchBound<'a> {
     best_size: f64,
     best_path: Vec<ContractionIndex>,
     best_progress: FxHashMap<usize, f64>,
+    largest_latency: f64,
     result_cache: FxHashMap<(usize, usize), (usize, f64, f64)>,
     comm_cache: FxHashMap<usize, f64>,
     tensor_cache: FxHashMap<usize, Tensor>,
@@ -48,6 +49,7 @@ impl<'a> WeightedBranchBound<'a> {
             best_size: f64::INFINITY,
             best_path: Vec::new(),
             best_progress: FxHashMap::default(),
+            largest_latency: Default::default(),
             result_cache: FxHashMap::default(),
             comm_cache: latency_map,
             tensor_cache: FxHashMap::default(),
@@ -68,15 +70,21 @@ impl<'a> WeightedBranchBound<'a> {
         let &mut (k12, flops_12, size_12) = self.result_cache.entry((i, j)).or_insert_with(|| {
             let k12 = self.tensor_cache.len();
             let flops_12 =
-                contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
+                contract_op_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
             let size_12 =
                 contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
             let k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
             self.tensor_cache.insert_new(k12, k12_tensor);
             (k12, flops_12, size_12)
         });
-        let current_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
-        self.comm_cache.entry(k12).or_insert(current_flops);
+
+        let current_flops = if let Some(total_flops) = self.comm_cache.get(&k12) {
+            *total_flops
+        } else {
+            let total_flops = flops_12 + self.comm_cache[&i].max(self.comm_cache[&j]);
+            self.comm_cache.insert(k12, total_flops);
+            total_flops
+        };
         let current_size = size.max(size_12);
 
         if current_flops > self.best_flops && current_size > self.best_size {
@@ -89,7 +97,7 @@ impl<'a> WeightedBranchBound<'a> {
 
         if current_flops < best_flops {
             self.best_progress.insert(remaining_len, current_flops);
-        } else if current_flops > self.cutoff_flops_factor * best_flops {
+        } else if current_flops > (self.cutoff_flops_factor * best_flops + self.largest_latency) {
             return None;
         }
 
@@ -139,22 +147,23 @@ impl<'a> WeightedBranchBound<'a> {
                 candidates.push(new_candidate);
             }
         }
+        let candidates = candidates.into_iter_sorted();
+        let candidates = if let Some(limit) = self.nbranch {
+            Either::Left(candidates.take(limit))
+        } else {
+            Either::Right(candidates)
+        };
 
         let mut new_path = Vec::with_capacity(path.len() + 1);
         new_path.extend_from_slice(path);
 
-        let mut bi = 0;
-        while self.nbranch.is_none() || bi < self.nbranch.unwrap() {
-            bi += 1;
-            let Some(Candidate {
+        for candidate in candidates {
+            let Candidate {
                 flop_cost,
                 size_cost,
                 parent_ids,
                 child_id,
-            }) = candidates.pop()
-            else {
-                break;
-            };
+            } = candidate;
             let mut new_remaining = remaining.to_vec();
             new_remaining.retain(|e| *e != parent_ids.0 && *e != parent_ids.1);
             new_remaining.push(child_id);
@@ -173,6 +182,12 @@ impl OptimizePath for WeightedBranchBound<'_> {
         let tensors = self.tn.tensors().clone();
         self.result_cache.clear();
         self.tensor_cache.clear();
+        self.largest_latency = *self
+            .comm_cache
+            .iter()
+            .max_by(|a, b| a.1.partial_cmp(b.1).expect("Tried to compare NaN"))
+            .unwrap()
+            .1;
         let mut sub_tensor_contraction = Vec::new();
         // Get the initial space requirements for uncontracted tensors
         for (index, mut tensor) in tensors.into_iter().enumerate() {
@@ -276,7 +291,7 @@ mod tests {
         let mut opt = WeightedBranchBound::new(&tn, None, 20., latency_costs, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 4580.);
+        assert_eq!(opt.best_flops, 640.);
         assert_eq!(opt.best_size, 538.);
         assert_eq!(opt.get_best_path(), &path![(1, 0), (2, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(1, 0), (2, 1)]);
@@ -288,7 +303,7 @@ mod tests {
         let mut opt = WeightedBranchBound::new(&tn, None, 20., latency_costs, CostType::Flops);
         opt.optimize_path();
 
-        assert_eq!(opt.best_flops, 2120615.);
+        assert_eq!(opt.best_flops, 265230.);
         assert_eq!(opt.best_size, 89478.);
         assert_eq!(opt.best_path, path![(3, 4), (2, 6), (1, 5), (0, 8), (7, 9)]);
         assert_eq!(
