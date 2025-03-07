@@ -43,15 +43,12 @@ where
 mod tests {
     use std::f64::consts::FRAC_1_SQRT_2;
 
-    use float_cmp::assert_approx_eq;
     use itertools::Itertools;
-    use num_complex::Complex64;
+    use num_complex::{c64, Complex64};
 
     use crate::{
         tensornetwork::{
-            contraction::{contract_tensor_network, TensorContraction},
-            tensor::Tensor,
-            tensordata::TensorData,
+            contraction::contract_tensor_network, tensor::Tensor, tensordata::TensorData,
         },
         types::{ContractionIndex, EdgeIndex, TensorIndex},
     };
@@ -170,17 +167,22 @@ mod tests {
             .map(|tid| ContractionIndex::Pair(0, tid))
             .collect_vec();
         let tn = contract_tensor_network(tn, &opt_path);
+        let resulting_state = tn.tensor_data();
 
-        let resulting_state = tn.get_data();
-        assert_eq!(resulting_state.shape(), &[2, 2]);
-        assert_approx_eq!(f64, resulting_state.get(&[0, 0]).re, FRAC_1_SQRT_2);
-        assert_approx_eq!(f64, resulting_state.get(&[0, 0]).im, 0.0);
-        assert_approx_eq!(f64, resulting_state.get(&[0, 1]).re, 0.0);
-        assert_approx_eq!(f64, resulting_state.get(&[0, 1]).im, 0.0);
-        assert_approx_eq!(f64, resulting_state.get(&[1, 0]).re, 0.0);
-        assert_approx_eq!(f64, resulting_state.get(&[1, 0]).im, 0.0);
-        assert_approx_eq!(f64, resulting_state.get(&[1, 1]).re, FRAC_1_SQRT_2);
-        assert_approx_eq!(f64, resulting_state.get(&[1, 1]).im, 0.0);
+        let expected = TensorData::new_from_data(
+            &[2, 2],
+            vec![
+                c64(FRAC_1_SQRT_2, 0.),
+                c64(0, 0),
+                c64(0, 0),
+                c64(FRAC_1_SQRT_2, 0.),
+            ],
+            None,
+        );
+        assert!(
+            resulting_state.approx_eq(&expected, f64::EPSILON),
+            "Got: {resulting_state:?}\nExpected: {expected:?}"
+        );
     }
 
     #[test]
