@@ -332,6 +332,10 @@ impl GateCallData {
 
 /// A QASM2 statement.
 #[derive(Debug, PartialEq)]
+#[allow(
+    dead_code,
+    reason = "The AST should be able to represent all QASM2 statements, even if not all are used."
+)]
 pub enum Statement {
     Declaration {
         is_quantum: bool,
