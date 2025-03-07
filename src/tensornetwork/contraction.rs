@@ -1,5 +1,5 @@
 use log::debug;
-use tetra::{contract, Tensor as DataTensor};
+use tetra::contract;
 
 use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
@@ -56,23 +56,11 @@ pub fn contract_tensor_network(mut tn: Tensor, contract_path: &[ContractionIndex
 }
 
 pub(crate) trait TensorContraction {
-    /// Internal method to permute tensor
-    fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor;
-    /// Getter for underlying raw data
-    fn get_data(&self) -> DataTensor;
     /// Contracts two tensors
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize);
 }
 
 impl TensorContraction for Tensor {
-    fn get_mut_tensor(&mut self, i: usize) -> &mut Tensor {
-        &mut self.tensors[i]
-    }
-
-    fn get_data(&self) -> DataTensor {
-        self.tensor_data().clone().into_data()
-    }
-
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize) {
         let tensor_a = std::mem::take(&mut self.tensors[tensor_a_loc]);
         let tensor_b = std::mem::take(&mut self.tensors[tensor_b_loc]);
