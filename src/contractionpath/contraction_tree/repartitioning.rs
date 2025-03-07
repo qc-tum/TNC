@@ -8,7 +8,6 @@ use crate::{
 };
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
-use std::sync::Arc;
 
 use super::balancing::{communication_schemes, CommunicationScheme};
 
@@ -47,23 +46,18 @@ pub fn compute_solution(
     let children_tensors = partitioned_tn
         .tensors()
         .iter()
-        .map(|t| Tensor::new_with_bonddims(t.external_edges(), Arc::clone(&t.bond_dims)))
+        .map(Tensor::external_tensor)
         .collect_vec();
     let mut communication_path = {
-        let bond_dims = partitioned_tn.bond_dims();
         match communication_scheme {
             CommunicationScheme::Greedy => {
-                communication_schemes::greedy(&children_tensors, &bond_dims, &latency_map)
+                communication_schemes::greedy(&children_tensors, &latency_map)
             }
             CommunicationScheme::Bipartition => {
-                communication_schemes::bipartition(&children_tensors, &bond_dims, &latency_map)
+                communication_schemes::bipartition(&children_tensors, &latency_map)
             }
             CommunicationScheme::WeightedBranchBound => {
-                communication_schemes::weighted_branchbound(
-                    &children_tensors,
-                    &bond_dims,
-                    &latency_map,
-                )
+                communication_schemes::weighted_branchbound(&children_tensors, &latency_map)
             }
         }
     };

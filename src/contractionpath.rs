@@ -6,20 +6,18 @@ pub mod contraction_cost;
 pub mod contraction_tree;
 pub mod paths;
 pub mod random_paths;
-// pub mod optimizer;
 
-/// The contraction ordering labels [Tensor] objects from each possible contraction with a
-/// unique identifier in ssa format. As only a subset of these [Tensor] objects are seen in
+/// The contraction ordering labels [`Tensor`] objects from each possible contraction with a
+/// unique identifier in SSA format. As only a subset of these [`Tensor`] objects are seen in
 /// a contraction path, the tensors in the optimal path search are not sequential. This converts
-/// the output to strictly obey an ssa format.
+/// the output to strictly obey an SSA format.
 ///
 /// # Arguments
-///
 /// * `path` - Output path as `&[(usize, usize, usize)]` after an `optimize_path` call.
 /// * `n` - Number of initial input tensors.
-/// # Returns
 ///
-/// Identical path using ssa format
+/// # Returns
+/// Identical path using SSA format
 fn ssa_ordering(path: &[(usize, usize, usize)], mut n: usize) -> Vec<ContractionIndex> {
     let mut ssa_path = Vec::with_capacity(path.len());
     let mut hs = FxHashMap::default();
@@ -69,7 +67,6 @@ pub(super) fn ssa_replace_ordering(
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
         contractionpath::{ssa_ordering, ssa_replace_ordering},
         path,

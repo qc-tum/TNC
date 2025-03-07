@@ -5,7 +5,6 @@ use node::{child_node, parent_node, Node, NodeRef, WeakNodeRef};
 use rustc_hash::FxHashMap;
 use std::cell::Ref;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use super::paths::validate_path;
 
@@ -396,7 +395,7 @@ impl ContractionTree {
     /// Empty tensor with legs (dimensions) of data after fully contracted.
     pub fn tensor(&self, node_id: usize, tensor: &Tensor) -> Tensor {
         let leaf_nodes = self.leaf_ids(node_id);
-        let mut new_tensor = Tensor::new_with_bonddims(Vec::new(), Arc::clone(&tensor.bond_dims));
+        let mut new_tensor = Tensor::default();
 
         for leaf_id in leaf_nodes {
             new_tensor = &new_tensor
@@ -514,81 +513,77 @@ mod tests {
     use crate::contractionpath::contraction_tree::{ContractionTree, Node};
     use crate::contractionpath::ssa_replace_ordering;
     use crate::path;
-    use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
-    use crate::types::ContractionIndex;
+    use crate::types::{ContractionIndex, EdgeIndex};
 
     use super::*;
 
-    fn setup_simple() -> (Tensor, Vec<ContractionIndex>) {
+    fn setup_simple() -> (Tensor, Vec<ContractionIndex>, FxHashMap<EdgeIndex, u64>) {
+        let bond_dims =
+            FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
         (
-            create_tensor_network(
-                vec![
-                    Tensor::new(vec![4, 3, 2]),
-                    Tensor::new(vec![0, 1, 3, 2]),
-                    Tensor::new(vec![4, 5, 6]),
-                ],
-                &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-            ),
+            Tensor::new_composite(vec![
+                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            ]),
             path![(0, 1), (2, 0)].to_vec(),
+            bond_dims,
         )
     }
 
-    fn setup_complex() -> (Tensor, Vec<ContractionIndex>) {
+    fn setup_complex() -> (Tensor, Vec<ContractionIndex>, FxHashMap<EdgeIndex, u64>) {
+        let bond_dims = FxHashMap::from_iter([
+            (0, 27),
+            (1, 18),
+            (2, 12),
+            (3, 15),
+            (4, 5),
+            (5, 3),
+            (6, 18),
+            (7, 22),
+            (8, 45),
+            (9, 65),
+            (10, 5),
+        ]);
         (
-            create_tensor_network(
-                vec![
-                    Tensor::new(vec![4, 3, 2]),
-                    Tensor::new(vec![0, 1, 3, 2]),
-                    Tensor::new(vec![4, 5, 6]),
-                    Tensor::new(vec![6, 8, 9]),
-                    Tensor::new(vec![10, 8, 9]),
-                    Tensor::new(vec![5, 1, 0]),
-                ],
-                &FxHashMap::from_iter([
-                    (0, 27),
-                    (1, 18),
-                    (2, 12),
-                    (3, 15),
-                    (4, 5),
-                    (5, 3),
-                    (6, 18),
-                    (7, 22),
-                    (8, 45),
-                    (9, 65),
-                    (10, 5),
-                ]),
-            ),
+            Tensor::new_composite(vec![
+                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+                Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
+                Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
+                Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+            ]),
             path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
+            bond_dims,
         )
     }
 
     fn setup_unbalanced() -> (Tensor, Vec<ContractionIndex>) {
+        let bond_dims = FxHashMap::from_iter([
+            (0, 27),
+            (1, 18),
+            (2, 12),
+            (3, 15),
+            (4, 5),
+            (5, 3),
+            (6, 18),
+            (7, 22),
+            (8, 45),
+            (9, 65),
+            (10, 5),
+            (11, 17),
+        ]);
         (
-            create_tensor_network(
-                vec![
-                    Tensor::new(vec![4, 3, 2]),
-                    Tensor::new(vec![0, 1, 3, 2]),
-                    Tensor::new(vec![4, 5, 6]),
-                    Tensor::new(vec![6, 8, 9]),
-                    Tensor::new(vec![10, 8, 9]),
-                    Tensor::new(vec![5, 1, 0]),
-                ],
-                &FxHashMap::from_iter([
-                    (0, 27),
-                    (1, 18),
-                    (2, 12),
-                    (3, 15),
-                    (4, 5),
-                    (5, 3),
-                    (6, 18),
-                    (7, 22),
-                    (8, 45),
-                    (9, 65),
-                    (10, 5),
-                    (11, 17),
-                ]),
-            ),
+            Tensor::new_composite(vec![
+                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+                Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
+                Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
+                Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+            ]),
             path![(0, 1), (2, 0), (3, 2), (4, 3), (5, 4)].to_vec(),
         )
     }
@@ -609,24 +604,17 @@ mod tests {
             (11, 17),
         ]);
 
-        let t0 = Tensor::new(vec![4, 3, 2]);
-        let t1 = Tensor::new(vec![0, 1, 3, 2]);
-        let t2 = Tensor::new(vec![4, 5, 6]);
-        let t3 = Tensor::new(vec![6, 8, 9]);
-        let t4 = Tensor::new(vec![5, 1, 0]);
-        let t5 = Tensor::new(vec![10, 8, 9]);
+        let t0 = Tensor::new_from_map(vec![4, 3, 2], &bond_dims);
+        let t1 = Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims);
+        let t2 = Tensor::new_from_map(vec![4, 5, 6], &bond_dims);
+        let t3 = Tensor::new_from_map(vec![6, 8, 9], &bond_dims);
+        let t4 = Tensor::new_from_map(vec![5, 1, 0], &bond_dims);
+        let t5 = Tensor::new_from_map(vec![10, 8, 9], &bond_dims);
 
-        let mut t01 = Tensor::default();
-        t01.push_tensors(vec![t0, t1], Some(&bond_dims));
-
-        let mut t23 = Tensor::default();
-        t23.push_tensors(vec![t2, t3], Some(&bond_dims));
-
-        let mut t45 = Tensor::default();
-        t45.push_tensors(vec![t4, t5], Some(&bond_dims));
-
-        let mut tensor_network = Tensor::default();
-        tensor_network.push_tensors(vec![t01, t23, t45], Some(&bond_dims));
+        let t01 = Tensor::new_composite(vec![t0, t1]);
+        let t23 = Tensor::new_composite(vec![t2, t3]);
+        let t45 = Tensor::new_composite(vec![t4, t5]);
+        let tensor_network = Tensor::new_composite(vec![t01, t23, t45]);
         (
             tensor_network,
             path![(0, [(0, 1)]), (1, [(0, 1)]), (2, [(0, 1)]), (0, 1), (0, 2)].to_vec(),
@@ -649,27 +637,18 @@ mod tests {
             (11, 17),
         ]);
 
-        let t0 = Tensor::new(vec![4, 3, 2]);
-        let t1 = Tensor::new(vec![0, 1, 3, 2]);
-        let t2 = Tensor::new(vec![4, 5, 6]);
-        let t3 = Tensor::new(vec![6, 8, 9]);
-        let t4 = Tensor::new(vec![5, 1, 0]);
-        let t5 = Tensor::new(vec![10, 8, 9]);
+        let t0 = Tensor::new_from_map(vec![4, 3, 2], &bond_dims);
+        let t1 = Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims);
+        let t2 = Tensor::new_from_map(vec![4, 5, 6], &bond_dims);
+        let t3 = Tensor::new_from_map(vec![6, 8, 9], &bond_dims);
+        let t4 = Tensor::new_from_map(vec![5, 1, 0], &bond_dims);
+        let t5 = Tensor::new_from_map(vec![10, 8, 9], &bond_dims);
 
-        let mut t01 = Tensor::default();
-        t01.push_tensors(vec![t0, t1], Some(&bond_dims));
-
-        let mut t012 = Tensor::default();
-        t012.push_tensors(vec![t01, t2], Some(&bond_dims));
-
-        let mut t34 = Tensor::default();
-        t34.push_tensors(vec![t3, t4], Some(&bond_dims));
-
-        let mut t345 = Tensor::default();
-        t345.push_tensors(vec![t34, t5], Some(&bond_dims));
-
-        let mut tensor_network = Tensor::default();
-        tensor_network.push_tensors(vec![t012, t345], Some(&bond_dims));
+        let t01 = Tensor::new_composite(vec![t0, t1]);
+        let t012 = Tensor::new_composite(vec![t01, t2]);
+        let t34 = Tensor::new_composite(vec![t3, t4]);
+        let t345 = Tensor::new_composite(vec![t34, t5]);
+        let tensor_network = Tensor::new_composite(vec![t012, t345]);
         (
             tensor_network,
             path![
@@ -693,7 +672,7 @@ mod tests {
 
     #[test]
     fn test_from_contraction_path_simple() {
-        let (tensor, path) = setup_simple();
+        let (tensor, path, _) = setup_simple();
         let ContractionTree { nodes, root, .. } =
             ContractionTree::from_contraction_path(&tensor, &path);
 
@@ -716,7 +695,7 @@ mod tests {
 
     #[test]
     fn test_from_contraction_path_complex() {
-        let (tensor, path) = setup_complex();
+        let (tensor, path, _) = setup_complex();
         let ContractionTree { nodes, root, .. } =
             ContractionTree::from_contraction_path(&tensor, &path);
 
@@ -809,7 +788,7 @@ mod tests {
 
     #[test]
     fn test_leaf_ids_simple() {
-        let (tn, path) = setup_simple();
+        let (tn, path, _) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tn, &path);
 
         assert_eq!(tree.leaf_ids(4), vec![2, 0, 1]);
@@ -819,7 +798,7 @@ mod tests {
 
     #[test]
     fn test_leaf_ids_complex() {
-        let (tn, path) = setup_complex();
+        let (tn, path, _) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tn, &path);
 
         assert_eq!(tree.leaf_ids(10), vec![0, 1, 5, 2, 3, 4]);
@@ -935,7 +914,7 @@ mod tests {
 
     #[test]
     fn test_tree_weights_simple() {
-        let (tensor, path) = setup_simple();
+        let (tensor, path, _) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
         let ref_weights = FxHashMap::from_iter([(1, 0.), (0, 0.), (2, 0.), (3, 3820.), (4, 4540.)]);
         let weights = tree.tree_weights(4, &tensor, contract_cost_tensors);
@@ -953,7 +932,7 @@ mod tests {
 
     #[test]
     fn test_tree_weights_complex() {
-        let (tensor, path) = setup_complex();
+        let (tensor, path, _) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &path);
         let ref_weights = FxHashMap::from_iter([
             (0, 0.),
@@ -975,7 +954,7 @@ mod tests {
 
     #[test]
     fn test_to_contraction_path_simple() {
-        let (tensor, ref_path) = setup_simple();
+        let (tensor, ref_path, _) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let path = tree.to_flat_contraction_path(4, false);
         let path = ssa_replace_ordering(&path, 3);
@@ -984,7 +963,7 @@ mod tests {
 
     #[test]
     fn test_to_contraction_path_complex() {
-        let (tensor, ref_path) = setup_complex();
+        let (tensor, ref_path, _) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let path = tree.to_flat_contraction_path(10, false);
         let path = ssa_replace_ordering(&path, 6);
@@ -1002,17 +981,17 @@ mod tests {
 
     #[test]
     fn test_populate_subtree_tensor_map_simple() {
-        let (tensor, ref_path) = setup_simple();
+        let (tensor, ref_path, bond_dims) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut node_tensor_map = FxHashMap::default();
         populate_subtree_tensor_map_recursive(&tree, 4, &mut node_tensor_map, &tensor, None);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
-            (0, Tensor::new(vec![4, 3, 2])),
-            (1, Tensor::new(vec![0, 1, 3, 2])),
-            (2, Tensor::new(vec![4, 5, 6])),
-            (3, Tensor::new(vec![4, 0, 1])),
-            (4, Tensor::new(vec![5, 6, 0, 1])),
+            (0, Tensor::new_from_map(vec![4, 3, 2], &bond_dims)),
+            (1, Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
+            (2, Tensor::new_from_map(vec![4, 5, 6], &bond_dims)),
+            (3, Tensor::new_from_map(vec![4, 0, 1], &bond_dims)),
+            (4, Tensor::new_from_map(vec![5, 6, 0, 1], &bond_dims)),
         ]);
 
         for (key, value) in ref_node_tensor_map {
@@ -1022,23 +1001,23 @@ mod tests {
 
     #[test]
     fn test_populate_subtree_tensor_map_complex() {
-        let (tensor, ref_path) = setup_complex();
+        let (tensor, ref_path, bond_dims) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let mut node_tensor_map = FxHashMap::default();
         populate_subtree_tensor_map_recursive(&tree, 10, &mut node_tensor_map, &tensor, None);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
-            (0, Tensor::new(vec![4, 3, 2])),
-            (1, Tensor::new(vec![0, 1, 3, 2])),
-            (2, Tensor::new(vec![4, 5, 6])),
-            (3, Tensor::new(vec![6, 8, 9])),
-            (4, Tensor::new(vec![10, 8, 9])),
-            (5, Tensor::new(vec![5, 1, 0])),
-            (6, Tensor::new(vec![3, 2, 5])),
-            (7, Tensor::new(vec![4, 5])),
-            (8, Tensor::new(vec![6, 10])),
-            (9, Tensor::new(vec![4, 5, 10])),
-            (10, Tensor::new(vec![10])),
+            (0, Tensor::new_from_map(vec![4, 3, 2], &bond_dims)),
+            (1, Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
+            (2, Tensor::new_from_map(vec![4, 5, 6], &bond_dims)),
+            (3, Tensor::new_from_map(vec![6, 8, 9], &bond_dims)),
+            (4, Tensor::new_from_map(vec![10, 8, 9], &bond_dims)),
+            (5, Tensor::new_from_map(vec![5, 1, 0], &bond_dims)),
+            (6, Tensor::new_from_map(vec![3, 2, 5], &bond_dims)),
+            (7, Tensor::new_from_map(vec![4, 5], &bond_dims)),
+            (8, Tensor::new_from_map(vec![6, 10], &bond_dims)),
+            (9, Tensor::new_from_map(vec![4, 5, 10], &bond_dims)),
+            (10, Tensor::new_from_map(vec![10], &bond_dims)),
         ]);
 
         for (key, value) in ref_node_tensor_map {
@@ -1048,19 +1027,19 @@ mod tests {
 
     #[test]
     fn test_populate_subtree_tensor_map_height_limit() {
-        let (tensor, ref_path) = setup_complex();
+        let (tensor, ref_path, bond_dims) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let node_tensor_map = populate_subtree_tensor_map(&tree, 10, &tensor, Some(1));
 
         let ref_node_tensor_map = FxHashMap::from_iter([
-            (0, Tensor::new(vec![4, 3, 2])),
-            (1, Tensor::new(vec![0, 1, 3, 2])),
-            (2, Tensor::new(vec![4, 5, 6])),
-            (3, Tensor::new(vec![6, 8, 9])),
-            (4, Tensor::new(vec![10, 8, 9])),
-            (5, Tensor::new(vec![5, 1, 0])),
-            (6, Tensor::new(vec![3, 2, 5])),
-            (8, Tensor::new(vec![6, 10])),
+            (0, Tensor::new_from_map(vec![4, 3, 2], &bond_dims)),
+            (1, Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
+            (2, Tensor::new_from_map(vec![4, 5, 6], &bond_dims)),
+            (3, Tensor::new_from_map(vec![6, 8, 9], &bond_dims)),
+            (4, Tensor::new_from_map(vec![10, 8, 9], &bond_dims)),
+            (5, Tensor::new_from_map(vec![5, 1, 0], &bond_dims)),
+            (6, Tensor::new_from_map(vec![3, 2, 5], &bond_dims)),
+            (8, Tensor::new_from_map(vec![6, 10], &bond_dims)),
         ]);
 
         for (key, value) in ref_node_tensor_map {
@@ -1070,15 +1049,15 @@ mod tests {
 
     #[test]
     fn test_populate_leaf_node_tensor_map_simple() {
-        let (tensor, ref_path) = setup_simple();
+        let (tensor, ref_path, bond_dims) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
 
         let node_tensor_map = populate_leaf_node_tensor_map(&tree, 4, &tensor);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
-            (0, Tensor::new(vec![4, 3, 2])),
-            (1, Tensor::new(vec![0, 1, 3, 2])),
-            (2, Tensor::new(vec![4, 5, 6])),
+            (0, Tensor::new_from_map(vec![4, 3, 2], &bond_dims)),
+            (1, Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
+            (2, Tensor::new_from_map(vec![4, 5, 6], &bond_dims)),
         ]);
 
         for (key, value) in ref_node_tensor_map {
@@ -1088,16 +1067,16 @@ mod tests {
 
     #[test]
     fn test_populate_leaf_node_tensor_map_complex() {
-        let (tensor, ref_path) = setup_complex();
+        let (tensor, ref_path, bond_dims) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let node_tensor_map = populate_subtree_tensor_map(&tree, 10, &tensor, None);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
-            (0, Tensor::new(vec![4, 3, 2])),
-            (1, Tensor::new(vec![0, 1, 3, 2])),
-            (2, Tensor::new(vec![4, 5, 6])),
-            (3, Tensor::new(vec![6, 8, 9])),
-            (4, Tensor::new(vec![10, 8, 9])),
+            (0, Tensor::new_from_map(vec![4, 3, 2], &bond_dims)),
+            (1, Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
+            (2, Tensor::new_from_map(vec![4, 5, 6], &bond_dims)),
+            (3, Tensor::new_from_map(vec![6, 8, 9], &bond_dims)),
+            (4, Tensor::new_from_map(vec![10, 8, 9], &bond_dims)),
         ]);
 
         for (key, value) in ref_node_tensor_map {
@@ -1107,7 +1086,7 @@ mod tests {
 
     #[test]
     fn test_add_path_as_subtree() {
-        let (tensor, path) = setup_complex();
+        let (tensor, path, _) = setup_complex();
 
         let mut complex_tree = ContractionTree::from_contraction_path(&tensor, &path);
         complex_tree.remove_subtree(9);
@@ -1144,7 +1123,7 @@ mod tests {
     #[test]
     #[should_panic = "Tensor 2 is already used in another contraction"]
     fn test_add_path_as_subtree_invalid_path() {
-        let (tensor, path) = setup_complex();
+        let (tensor, path, _) = setup_complex();
 
         let mut complex_tree = ContractionTree::from_contraction_path(&tensor, &path);
         complex_tree.remove_subtree(8);

@@ -41,7 +41,6 @@ where
 
 #[cfg(test)]
 mod tests {
-
     use std::f64::consts::FRAC_1_SQRT_2;
 
     use float_cmp::assert_approx_eq;
@@ -166,11 +165,11 @@ mod tests {
         h q[0];
         cx q[0], q[1];
         ";
-        let mut tn = create_tensornetwork(code);
+        let tn = create_tensornetwork(code);
         let opt_path = (1..tn.tensors().len())
             .map(|tid| ContractionIndex::Pair(0, tid))
             .collect_vec();
-        contract_tensor_network(&mut tn, &opt_path);
+        let tn = contract_tensor_network(tn, &opt_path);
 
         let resulting_state = tn.get_data();
         assert_eq!(resulting_state.shape(), &[2, 2]);
@@ -197,11 +196,11 @@ mod tests {
         x q[0];
         myswap q[1], q[0];
         ";
-        let mut tn = create_tensornetwork(code);
+        let tn = create_tensornetwork(code);
         let opt_path = (1..tn.tensors().len())
             .map(|tid| ContractionIndex::Pair(0, tid))
             .collect_vec();
-        contract_tensor_network(&mut tn, &opt_path);
+        let tn = contract_tensor_network(tn, &opt_path);
 
         let resulting_state = tn.tensor_data();
 

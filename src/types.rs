@@ -5,7 +5,6 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::tensornetwork::tensor::Tensor;
-// use std::hash::DefaultHasher;
 
 pub type EdgeIndex = usize;
 pub type TensorIndex = usize;
@@ -24,6 +23,21 @@ pub struct SlicingPlan {
 }
 
 impl SlicingPlan {
+    /// Gets the dimensions of the specified legs in the `target` (composite) tensor.
+    fn get_bond_dims(target: &Tensor, searched_legs: &[EdgeIndex]) -> Vec<u64> {
+        assert!(target.legs().is_empty());
+
+        let mut dimensions = vec![None; searched_legs.len()];
+        for tensor in target.tensors() {
+            for (i, &searched_leg) in searched_legs.iter().enumerate() {
+                if let Some((_, dim)) = tensor.edges().find(|(&leg, _)| leg == searched_leg) {
+                    dimensions[i] = Some(*dim);
+                }
+            }
+        }
+        dimensions.into_iter().flatten().collect()
+    }
+
     /// Computes the number of slices when applied to the `target` tensor.
     /// This is the product of all sliced legs' dimensions.
     ///
@@ -33,19 +47,16 @@ impl SlicingPlan {
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(0, 2), (1, 3)]);
-    /// let t1 = Tensor::new(vec![0, 1]);
-    /// let t2 = Tensor::new(vec![0, 1]);
-    /// let mut tc = Tensor::default();
-    /// tc.push_tensors(vec![t1, t2], Some(&bond_dims));
+    /// let t1 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+    /// let t2 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+    /// let mut tc = Tensor::new_composite(vec![t1, t2]);
     ///
     /// let plan = SlicingPlan { slices: vec![0, 1] };
     /// assert_eq!(plan.task_count(&tc), 6);
     /// ```
     pub fn task_count(&self, target: &Tensor) -> u64 {
-        self.slices
-            .iter()
-            .map(|leg| target.bond_dims()[leg])
-            .product()
+        let sizes = SlicingPlan::get_bond_dims(target, &self.slices);
+        sizes.into_iter().product()
     }
 
     /// Gets the specified [`SlicingTask`] from this plan. Each combination of
@@ -58,10 +69,9 @@ impl SlicingPlan {
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(0, 2), (1, 3)]);
-    /// let t1 = Tensor::new(vec![0, 1]);
-    /// let t2 = Tensor::new(vec![0, 1]);
-    /// let mut tc = Tensor::default();
-    /// tc.push_tensors(vec![t1, t2], Some(&bond_dims));
+    /// let t1 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+    /// let t2 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+    /// let mut tc = Tensor::new_composite(vec![t1, t2]);
     ///
     /// let plan = SlicingPlan { slices: vec![0, 1] };
     /// let task = plan.get_task(&tc, 0);
@@ -70,10 +80,10 @@ impl SlicingPlan {
     /// assert_eq!(task.slices, vec![(0, 0), (1, 2)]);
     /// ```
     pub fn get_task(&self, target: &Tensor, task_index: usize) -> SlicingTask {
-        self.slices
-            .iter()
-            .map(|leg| target.bond_dims()[leg] as usize)
-            .map(|dim| 0..dim)
+        let sizes = SlicingPlan::get_bond_dims(target, &self.slices);
+        sizes
+            .into_iter()
+            .map(|dim| 0..dim as usize)
             .multi_cartesian_product()
             .nth(task_index)
             .map(|indices| SlicingTask {

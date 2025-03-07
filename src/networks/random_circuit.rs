@@ -40,7 +40,6 @@ where
 
     // Initialize tensornetwork of size `usize`
     let mut circuit_tn = Tensor::default();
-    let mut circuit_bonddims = FxHashMap::default();
 
     // Get connectivity for given size
     let connectivity_graph = Connectivity::new(connectivity);
@@ -57,22 +56,19 @@ where
     // set up initial state
     let mut initial_state = Vec::with_capacity(size);
     for i in 0..size {
-        let mut new_state = Tensor::new(vec![i]);
+        let mut new_state = Tensor::new_from_const(vec![i], 2);
         new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng));
-        circuit_bonddims.insert(i, 2);
         open_edges.insert(i, i);
         initial_state.push(new_state);
     }
-
-    circuit_tn.push_tensors(initial_state, Some(&circuit_bonddims));
+    circuit_tn.push_tensors(initial_state);
 
     let mut intermediate_gates = Vec::new();
     for _ in 1..round {
         for i in 0..size {
             // Placing of random single qubit gate
             if rng.sample(single_qubit_die) {
-                circuit_bonddims.insert(next_edge, 2);
-                let mut new_tensor = Tensor::new(vec![open_edges[&i], next_edge]);
+                let mut new_tensor = Tensor::new_from_const(vec![open_edges[&i], next_edge], 2);
                 new_tensor.set_tensor_data(single_qubit_gates.choose(rng).unwrap().clone());
                 intermediate_gates.push(new_tensor);
                 open_edges.insert(i, next_edge);
@@ -82,10 +78,10 @@ where
         for (i, j) in &filtered_connectivity {
             // Placing of random two qubit gate
             if rng.sample(two_qubit_die) {
-                circuit_bonddims.insert(next_edge, 2);
-                circuit_bonddims.insert(next_edge + 1, 2);
-                let mut new_tensor =
-                    Tensor::new(vec![open_edges[i], open_edges[j], next_edge, next_edge + 1]);
+                let mut new_tensor = Tensor::new_from_const(
+                    vec![open_edges[i], open_edges[j], next_edge, next_edge + 1],
+                    2,
+                );
                 new_tensor.set_tensor_data(fsim!(0.3, 0.2, false));
                 intermediate_gates.push(new_tensor);
                 open_edges.insert(*i, next_edge);
@@ -94,16 +90,16 @@ where
             }
         }
     }
-    circuit_tn.push_tensors(intermediate_gates, Some(&circuit_bonddims));
+    circuit_tn.push_tensors(intermediate_gates);
 
     // set up final state
-    let mut final_state = Vec::with_capacity(open_edges.len());
+    let mut final_state = Vec::with_capacity(size);
     for i in 0..size {
-        let mut new_state = Tensor::new(vec![open_edges[&i]]);
+        let mut new_state = Tensor::new_from_const(vec![open_edges[&i]], 2);
         new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng));
         final_state.push(new_state);
     }
-    circuit_tn.push_tensors(final_state, Some(&circuit_bonddims));
+    circuit_tn.push_tensors(final_state);
 
     circuit_tn
 }
@@ -173,7 +169,6 @@ where
 
     // Initialize tensornetwork of size `usize`
     let mut random_tn = Tensor::default();
-    let mut bond_dims = FxHashMap::default();
 
     let mut open_edges = FxHashMap::default();
 
@@ -183,15 +178,12 @@ where
     for i in 0..size {
         // Placing of random observable
         if observable_location.contains(&i) {
-            bond_dims.insert(next_edge, 2);
-            bond_dims.insert(next_edge + 1, 2);
             open_edges.insert(i, (next_edge, next_edge + 1));
             next_edge += 2;
 
             let new_observable = observables.choose(rng).unwrap().clone();
-
-            let mut new_tensor = Tensor::new(vec![open_edges[&i].0, open_edges[&i].1]);
-
+            let mut new_tensor =
+                Tensor::new_from_const(vec![open_edges[&i].0, open_edges[&i].1], 2);
             new_tensor.set_tensor_data(new_observable);
             final_state.push(new_tensor);
         } else {
@@ -199,7 +191,7 @@ where
             open_edges.insert(i, (0, 0));
         }
     }
-    random_tn.push_tensors(final_state, Some(&bond_dims));
+    random_tn.push_tensors(final_state);
 
     // Get connectivity for given size
     let connectivity_graph = Connectivity::new(connectivity);
@@ -220,7 +212,6 @@ where
                 let (left_i_index, right_i_index) = if open_edges[i].0 != open_edges[i].1 {
                     (open_edges[i].0, open_edges[i].1)
                 } else {
-                    bond_dims.insert(next_edge, 2);
                     next_edge += 1;
                     (next_edge - 1, next_edge - 1)
                 };
@@ -228,27 +219,21 @@ where
                 let (left_j_index, right_j_index) = if open_edges[j].0 != open_edges[j].1 {
                     (open_edges[j].0, open_edges[j].1)
                 } else {
-                    bond_dims.insert(next_edge, 2);
                     next_edge += 1;
                     (next_edge - 1, next_edge - 1)
                 };
 
-                bond_dims.insert(next_edge, 2);
-                bond_dims.insert(next_edge + 1, 2);
-
-                let mut left_new_tensor =
-                    Tensor::new(vec![next_edge, next_edge + 1, left_i_index, left_j_index]);
+                let mut left_new_tensor = Tensor::new_from_const(
+                    vec![next_edge, next_edge + 1, left_i_index, left_j_index],
+                    2,
+                );
                 left_new_tensor.set_tensor_data(fsim!(0.3, 0.2, false));
                 intermediate_gates.push(left_new_tensor);
 
-                bond_dims.insert(next_edge + 2, 2);
-                bond_dims.insert(next_edge + 3, 2);
-                let mut right_new_tensor = Tensor::new(vec![
-                    right_i_index,
-                    right_j_index,
-                    next_edge + 2,
-                    next_edge + 3,
-                ]);
+                let mut right_new_tensor = Tensor::new_from_const(
+                    vec![right_i_index, right_j_index, next_edge + 2, next_edge + 3],
+                    2,
+                );
                 right_new_tensor.set_tensor_data(fsim!(0.3, 0.2, true));
                 intermediate_gates.push(right_new_tensor);
 
@@ -266,13 +251,12 @@ where
                 let (left_new_gate, right_new_gate) =
                     single_qubit_gates.choose(rng).unwrap().clone();
 
-                bond_dims.insert(next_edge, 2);
-                let mut left_new_tensor = Tensor::new(vec![next_edge, left_index]);
+                let mut left_new_tensor = Tensor::new_from_const(vec![next_edge, left_index], 2);
                 left_new_tensor.set_tensor_data(left_new_gate);
                 intermediate_gates.push(left_new_tensor);
 
-                bond_dims.insert(next_edge + 1, 2);
-                let mut right_new_tensor = Tensor::new(vec![right_index, next_edge + 1]);
+                let mut right_new_tensor =
+                    Tensor::new_from_const(vec![right_index, next_edge + 1], 2);
                 right_new_tensor.set_tensor_data(right_new_gate);
                 intermediate_gates.push(right_new_tensor);
 
@@ -281,26 +265,25 @@ where
             }
         }
     }
-    random_tn.push_tensors(intermediate_gates, Some(&bond_dims));
+    random_tn.push_tensors(intermediate_gates);
 
     // set up random initial state
-    let mut initial_state = Vec::new();
+    let mut initial_state = Vec::with_capacity(size);
     for i in 0..size {
         let (left_index, right_index) = open_edges[&i];
         if left_index != right_index {
             let random_sparse_tensor = random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng);
 
-            let mut left_new_state = Tensor::new(vec![left_index]);
+            let mut left_new_state = Tensor::new_from_const(vec![left_index], 2);
             left_new_state.set_tensor_data(random_sparse_tensor.clone());
             initial_state.push(left_new_state);
 
-            let mut right_new_state = Tensor::new(vec![right_index]);
+            let mut right_new_state = Tensor::new_from_const(vec![right_index], 2);
             right_new_state.set_tensor_data(random_sparse_tensor);
             initial_state.push(right_new_state);
         }
     }
-
-    random_tn.push_tensors(initial_state, Some(&bond_dims));
+    random_tn.push_tensors(initial_state);
 
     random_tn
 }
@@ -340,52 +323,52 @@ mod tests {
             connectivity,
         );
         let ref_legs = [
-            Tensor::new(vec![0, 1]),
-            Tensor::new(vec![2, 3]),
-            Tensor::new(vec![4, 5]),
-            Tensor::new(vec![6, 7]),
-            Tensor::new(vec![8, 9, 0, 2]),
-            Tensor::new(vec![1, 3, 10, 11]),
-            Tensor::new(vec![12, 13, 9, 4]),
-            Tensor::new(vec![11, 5, 14, 15]),
-            Tensor::new(vec![16, 17, 13, 6]),
-            Tensor::new(vec![15, 7, 18, 19]),
-            Tensor::new(vec![20, 8]),
-            Tensor::new(vec![10, 21]),
-            Tensor::new(vec![22, 12]),
-            Tensor::new(vec![14, 23]),
-            Tensor::new(vec![24, 16]),
-            Tensor::new(vec![18, 25]),
-            Tensor::new(vec![26, 17]),
-            Tensor::new(vec![19, 27]),
-            Tensor::new(vec![28, 29, 20, 22]),
-            Tensor::new(vec![21, 23, 30, 31]),
-            Tensor::new(vec![32, 33, 29, 24]),
-            Tensor::new(vec![31, 25, 34, 35]),
-            Tensor::new(vec![36, 37, 33, 26]),
-            Tensor::new(vec![35, 27, 38, 39]),
-            Tensor::new(vec![40, 28]),
-            Tensor::new(vec![30, 41]),
-            Tensor::new(vec![42, 32]),
-            Tensor::new(vec![34, 43]),
-            Tensor::new(vec![44, 36]),
-            Tensor::new(vec![38, 45]),
-            Tensor::new(vec![46, 37]),
-            Tensor::new(vec![39, 47]),
-            Tensor::new(vec![40]),
-            Tensor::new(vec![41]),
-            Tensor::new(vec![42]),
-            Tensor::new(vec![43]),
-            Tensor::new(vec![44]),
-            Tensor::new(vec![45]),
-            Tensor::new(vec![46]),
-            Tensor::new(vec![47]),
+            Tensor::new_from_const(vec![0, 1], 2),
+            Tensor::new_from_const(vec![2, 3], 2),
+            Tensor::new_from_const(vec![4, 5], 2),
+            Tensor::new_from_const(vec![6, 7], 2),
+            Tensor::new_from_const(vec![8, 9, 0, 2], 2),
+            Tensor::new_from_const(vec![1, 3, 10, 11], 2),
+            Tensor::new_from_const(vec![12, 13, 9, 4], 2),
+            Tensor::new_from_const(vec![11, 5, 14, 15], 2),
+            Tensor::new_from_const(vec![16, 17, 13, 6], 2),
+            Tensor::new_from_const(vec![15, 7, 18, 19], 2),
+            Tensor::new_from_const(vec![20, 8], 2),
+            Tensor::new_from_const(vec![10, 21], 2),
+            Tensor::new_from_const(vec![22, 12], 2),
+            Tensor::new_from_const(vec![14, 23], 2),
+            Tensor::new_from_const(vec![24, 16], 2),
+            Tensor::new_from_const(vec![18, 25], 2),
+            Tensor::new_from_const(vec![26, 17], 2),
+            Tensor::new_from_const(vec![19, 27], 2),
+            Tensor::new_from_const(vec![28, 29, 20, 22], 2),
+            Tensor::new_from_const(vec![21, 23, 30, 31], 2),
+            Tensor::new_from_const(vec![32, 33, 29, 24], 2),
+            Tensor::new_from_const(vec![31, 25, 34, 35], 2),
+            Tensor::new_from_const(vec![36, 37, 33, 26], 2),
+            Tensor::new_from_const(vec![35, 27, 38, 39], 2),
+            Tensor::new_from_const(vec![40, 28], 2),
+            Tensor::new_from_const(vec![30, 41], 2),
+            Tensor::new_from_const(vec![42, 32], 2),
+            Tensor::new_from_const(vec![34, 43], 2),
+            Tensor::new_from_const(vec![44, 36], 2),
+            Tensor::new_from_const(vec![38, 45], 2),
+            Tensor::new_from_const(vec![46, 37], 2),
+            Tensor::new_from_const(vec![39, 47], 2),
+            Tensor::new_from_const(vec![40], 2),
+            Tensor::new_from_const(vec![41], 2),
+            Tensor::new_from_const(vec![42], 2),
+            Tensor::new_from_const(vec![43], 2),
+            Tensor::new_from_const(vec![44], 2),
+            Tensor::new_from_const(vec![45], 2),
+            Tensor::new_from_const(vec![46], 2),
+            Tensor::new_from_const(vec![47], 2),
         ];
-        assert_eq!(circuit.bond_dims().len(), 48);
-        assert_eq!(circuit.tensors().len(), 40);
 
-        for (tensor, ref_leg) in zip(circuit.tensors(), ref_legs) {
-            assert_eq!(tensor.legs(), ref_leg.legs());
+        assert_eq!(circuit.tensors().len(), 40);
+        for (tensor, ref_tensor) in zip(circuit.tensors(), ref_legs) {
+            assert_eq!(tensor.legs(), ref_tensor.legs());
+            assert_eq!(tensor.bond_dims(), ref_tensor.bond_dims());
         }
     }
 
@@ -409,45 +392,45 @@ mod tests {
             connectivity,
         );
         let ref_legs = [
-            Tensor::new(vec![0, 1]),
-            Tensor::new(vec![3, 4, 2, 0]),
-            Tensor::new(vec![2, 1, 5, 6]),
-            Tensor::new(vec![8, 9, 4, 7]),
-            Tensor::new(vec![6, 7, 10, 11]),
-            Tensor::new(vec![12, 3]),
-            Tensor::new(vec![5, 13]),
-            Tensor::new(vec![14, 8]),
-            Tensor::new(vec![10, 15]),
-            Tensor::new(vec![16, 9]),
-            Tensor::new(vec![11, 17]),
-            Tensor::new(vec![19, 20, 18, 12]),
-            Tensor::new(vec![18, 13, 21, 22]),
-            Tensor::new(vec![23, 24, 20, 14]),
-            Tensor::new(vec![22, 15, 25, 26]),
-            Tensor::new(vec![27, 28, 24, 16]),
-            Tensor::new(vec![26, 17, 29, 30]),
-            Tensor::new(vec![31, 19]),
-            Tensor::new(vec![21, 32]),
-            Tensor::new(vec![33, 23]),
-            Tensor::new(vec![25, 34]),
-            Tensor::new(vec![35, 27]),
-            Tensor::new(vec![29, 36]),
-            Tensor::new(vec![37, 28]),
-            Tensor::new(vec![30, 38]),
-            Tensor::new(vec![31]),
-            Tensor::new(vec![32]),
-            Tensor::new(vec![33]),
-            Tensor::new(vec![34]),
-            Tensor::new(vec![35]),
-            Tensor::new(vec![36]),
-            Tensor::new(vec![37]),
-            Tensor::new(vec![38]),
+            Tensor::new_from_const(vec![0, 1], 2),
+            Tensor::new_from_const(vec![3, 4, 2, 0], 2),
+            Tensor::new_from_const(vec![2, 1, 5, 6], 2),
+            Tensor::new_from_const(vec![8, 9, 4, 7], 2),
+            Tensor::new_from_const(vec![6, 7, 10, 11], 2),
+            Tensor::new_from_const(vec![12, 3], 2),
+            Tensor::new_from_const(vec![5, 13], 2),
+            Tensor::new_from_const(vec![14, 8], 2),
+            Tensor::new_from_const(vec![10, 15], 2),
+            Tensor::new_from_const(vec![16, 9], 2),
+            Tensor::new_from_const(vec![11, 17], 2),
+            Tensor::new_from_const(vec![19, 20, 18, 12], 2),
+            Tensor::new_from_const(vec![18, 13, 21, 22], 2),
+            Tensor::new_from_const(vec![23, 24, 20, 14], 2),
+            Tensor::new_from_const(vec![22, 15, 25, 26], 2),
+            Tensor::new_from_const(vec![27, 28, 24, 16], 2),
+            Tensor::new_from_const(vec![26, 17, 29, 30], 2),
+            Tensor::new_from_const(vec![31, 19], 2),
+            Tensor::new_from_const(vec![21, 32], 2),
+            Tensor::new_from_const(vec![33, 23], 2),
+            Tensor::new_from_const(vec![25, 34], 2),
+            Tensor::new_from_const(vec![35, 27], 2),
+            Tensor::new_from_const(vec![29, 36], 2),
+            Tensor::new_from_const(vec![37, 28], 2),
+            Tensor::new_from_const(vec![30, 38], 2),
+            Tensor::new_from_const(vec![31], 2),
+            Tensor::new_from_const(vec![32], 2),
+            Tensor::new_from_const(vec![33], 2),
+            Tensor::new_from_const(vec![34], 2),
+            Tensor::new_from_const(vec![35], 2),
+            Tensor::new_from_const(vec![36], 2),
+            Tensor::new_from_const(vec![37], 2),
+            Tensor::new_from_const(vec![38], 2),
         ];
-        assert_eq!(circuit.bond_dims().len(), 39);
-        assert_eq!(circuit.tensors().len(), 33);
 
-        for (tensor, ref_leg) in zip(circuit.tensors(), ref_legs) {
-            assert_eq!(tensor.legs(), ref_leg.legs());
+        assert_eq!(circuit.tensors().len(), 33);
+        for (tensor, ref_tensor) in zip(circuit.tensors(), ref_legs) {
+            assert_eq!(tensor.legs(), ref_tensor.legs());
+            assert_eq!(tensor.bond_dims(), ref_tensor.bond_dims());
         }
     }
 }

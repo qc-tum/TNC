@@ -1,5 +1,5 @@
 use core::f64;
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
 
 use itertools::Itertools;
 use log::info;
@@ -248,11 +248,10 @@ where
     R: Sized + Rng,
 {
     let communication_scheme = balance_settings.communication_scheme;
-    let bond_dims = tensor_network.bond_dims();
     let children_tensors = tensor_network
         .tensors()
         .iter()
-        .map(|t| Tensor::new_with_bonddims(t.external_edges(), Arc::clone(&t.bond_dims)))
+        .map(Tensor::external_tensor)
         .collect_vec();
     let latency_map = partition_data
         .iter()
@@ -266,13 +265,13 @@ where
         .collect_vec();
     let communication_path = match communication_scheme {
         CommunicationScheme::Greedy => {
-            communication_schemes::greedy(&children_tensors, &bond_dims, &latency_map)
+            communication_schemes::greedy(&children_tensors, &latency_map)
         }
         CommunicationScheme::Bipartition => {
-            communication_schemes::bipartition(&children_tensors, &bond_dims, &latency_map)
+            communication_schemes::bipartition(&children_tensors, &latency_map)
         }
         CommunicationScheme::WeightedBranchBound => {
-            communication_schemes::weighted_branchbound(&children_tensors, &bond_dims, &latency_map)
+            communication_schemes::weighted_branchbound(&children_tensors, &latency_map)
         }
     };
 
@@ -308,7 +307,6 @@ where
 
     partition_data.sort_unstable_by(|a, b| a.flop_cost.total_cmp(&b.flop_cost));
 
-    let bond_dims = tensor_network.bond_dims();
     let shifted_nodes = match balancing_scheme {
         BalancingScheme::BestWorst => balancing_schemes::best_worst(
             partition_data,
@@ -477,7 +475,7 @@ where
                         tensor_network.nested_tensor(&nested_indices).clone()
                     })
                     .collect_vec();
-                child_tensor.push_tensors(leaf_tensors, Some(&bond_dims));
+                child_tensor.push_tensors(leaf_tensors);
                 (child_tensor, *id)
             },
         )
@@ -488,7 +486,7 @@ where
         .insert(*rebalance_depth, partition_ids);
 
     let mut updated_tn = Tensor::default();
-    updated_tn.push_tensors(partition_tensors, Some(&bond_dims));
+    updated_tn.push_tensors(partition_tensors);
     (rebalanced_path, updated_tn)
 }
 
@@ -655,36 +653,34 @@ mod tests {
             ContractionTree,
         },
         path,
-        tensornetwork::{create_tensor_network, tensor::Tensor},
+        tensornetwork::tensor::Tensor,
     };
 
     use super::shift_node_between_subtrees;
 
     fn setup_complex() -> (ContractionTree, Tensor) {
+        let bond_dims = FxHashMap::from_iter([
+            (0, 27),
+            (1, 18),
+            (2, 12),
+            (3, 15),
+            (4, 5),
+            (5, 3),
+            (6, 18),
+            (7, 22),
+            (8, 45),
+            (9, 65),
+            (10, 5),
+        ]);
         let (tensor, contraction_path) = (
-            create_tensor_network(
-                vec![
-                    Tensor::new(vec![4, 3, 2]),
-                    Tensor::new(vec![0, 1, 3, 2]),
-                    Tensor::new(vec![4, 5, 6]),
-                    Tensor::new(vec![6, 8, 9]),
-                    Tensor::new(vec![10, 8, 9]),
-                    Tensor::new(vec![5, 1, 0]),
-                ],
-                &FxHashMap::from_iter([
-                    (0, 27),
-                    (1, 18),
-                    (2, 12),
-                    (3, 15),
-                    (4, 5),
-                    (5, 3),
-                    (6, 18),
-                    (7, 22),
-                    (8, 45),
-                    (9, 65),
-                    (10, 5),
-                ]),
-            ),
+            Tensor::new_composite(vec![
+                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+                Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
+                Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
+                Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+            ]),
             path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
         );
         (
@@ -766,13 +762,16 @@ mod tests {
 
     #[test]
     fn test_find_rebalance_node() {
+        let bond_dims =
+            FxHashMap::from_iter([(0, 2), (1, 1), (2, 3), (3, 5), (4, 3), (5, 8), (6, 7)]);
         let larger_hash = FxHashMap::from_iter([
-            (0, Tensor::new(vec![0, 1, 2])),
-            (1, Tensor::new(vec![1, 2, 3])),
-            (2, Tensor::new(vec![3, 4, 5])),
+            (0, Tensor::new_from_map(vec![0, 1, 2], &bond_dims)),
+            (1, Tensor::new_from_map(vec![1, 2, 3], &bond_dims)),
+            (2, Tensor::new_from_map(vec![3, 4, 5], &bond_dims)),
         ]);
 
-        let smaller_hash = FxHashMap::from_iter([(3, Tensor::new(vec![4, 5, 6]))]);
+        let smaller_hash =
+            FxHashMap::from_iter([(3, Tensor::new_from_map(vec![4, 5, 6], &bond_dims))]);
 
         let ref_balanced_node = 2;
         let (node_id, cost) = find_rebalance_node::<StdRng>(
@@ -787,13 +786,16 @@ mod tests {
 
     #[test]
     fn test_find_random_rebalance_node() {
+        let bond_dims =
+            FxHashMap::from_iter([(0, 2), (1, 1), (2, 3), (3, 5), (4, 3), (5, 8), (6, 7)]);
         let larger_hash = FxHashMap::from_iter([
-            (0, Tensor::new(vec![0, 1, 2])),
-            (1, Tensor::new(vec![1, 2, 6])),
-            (2, Tensor::new(vec![3, 4, 5])),
+            (0, Tensor::new_from_map(vec![0, 1, 2], &bond_dims)),
+            (1, Tensor::new_from_map(vec![1, 2, 6], &bond_dims)),
+            (2, Tensor::new_from_map(vec![3, 4, 5], &bond_dims)),
         ]);
 
-        let smaller_hash = FxHashMap::from_iter([(3, Tensor::new(vec![4, 5, 6]))]);
+        let smaller_hash =
+            FxHashMap::from_iter([(3, Tensor::new_from_map(vec![4, 5, 6], &bond_dims))]);
 
         let ref_balanced_node = 1;
         let (node_id, cost) = find_rebalance_node(

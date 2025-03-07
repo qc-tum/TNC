@@ -63,10 +63,17 @@ impl OptimizePath for TreeReconfigure<'_> {
             .iter()
             .map(|tensor| tensor.legs().clone())
             .collect_vec();
-        let outputs = self.tensor.external_edges();
-        let size_dict = self.tensor.bond_dims();
+        let outputs = self.tensor.external_tensor();
+        let size_dict = self.tensor.tensors().iter().map(|t| t.edges()).fold(
+            FxHashMap::default(),
+            |mut acc, edges| {
+                acc.extend(edges);
+                acc
+            },
+        );
 
-        let (inputs, outputs, size_dict) = tensor_legs_to_digit(&inputs, &outputs, &size_dict);
+        let (inputs, outputs, size_dict) =
+            tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
 
         // Map ContractIndex to (i, j) tuples
         let best_path = self
@@ -134,45 +141,42 @@ mod tests {
         },
         networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
         path,
-        tensornetwork::{create_tensor_network, tensor::Tensor},
+        tensornetwork::tensor::Tensor,
     };
 
     fn setup_simple() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-            ],
-            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-        )
+        let bond_dims =
+            FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        ])
     }
 
     fn setup_complex() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-                Tensor::new(vec![6, 8, 9]),
-                Tensor::new(vec![10, 8, 9]),
-                Tensor::new(vec![5, 1, 0]),
-            ],
-            &FxHashMap::from_iter([
-                (0, 27),
-                (1, 18),
-                (2, 12),
-                (3, 15),
-                (4, 5),
-                (5, 3),
-                (6, 18),
-                (7, 22),
-                (8, 45),
-                (9, 65),
-                (10, 5),
-                (11, 17),
-            ]),
-        )
+        let bond_dims = FxHashMap::from_iter([
+            (0, 27),
+            (1, 18),
+            (2, 12),
+            (3, 15),
+            (4, 5),
+            (5, 3),
+            (6, 18),
+            (7, 22),
+            (8, 45),
+            (9, 65),
+            (10, 5),
+            (11, 17),
+        ]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
+            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
+            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+        ])
     }
 
     fn setup_large() -> Tensor {

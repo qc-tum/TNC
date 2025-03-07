@@ -123,8 +123,7 @@ fn main() {
                 });
                 println!("Original: {original_flops} / {original_memory}");
 
-                let mut intermediate_tensors =
-                    vec![Tensor::new(Vec::new()); num_partitions as usize];
+                let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
                 for (index, partition) in initial_partitioning.iter().enumerate() {
                     intermediate_tensors[*partition] ^= tensor.tensor(index);
                 }

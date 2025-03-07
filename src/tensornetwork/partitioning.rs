@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use partition_config::PartitioningStrategy;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::{iter::zip, sync::Arc};
+use std::iter::zip;
 
 use super::tensor::Tensor;
 use kahypar_sys::{partition, KaHyParContext};
@@ -41,18 +41,17 @@ pub fn find_partitioning(
     let mut hyperedge_weights = vec![];
     let mut hyperedge_indices = vec![0];
     let mut hyperedges = vec![];
-    let bond_dims = tensor_network.bond_dims();
 
     let mut edge_dict = FxHashMap::default();
     for (tensor_id, tensor) in tensor_network.tensors().iter().enumerate() {
-        for leg in tensor.legs() {
+        for (leg, dim) in tensor.edges() {
             edge_dict
                 .entry(leg)
                 .and_modify(|entry| {
                     hyperedges.push(*entry as u32);
                     hyperedges.push(tensor_id as u32);
                     hyperedge_indices.push(hyperedge_indices.last().unwrap() + 2);
-                    hyperedge_weights.push(x * bond_dims[leg] as i32);
+                    hyperedge_weights.push(x * *dim as i32);
                     *entry = tensor_id;
                 })
                 .or_insert(tensor_id);
@@ -89,7 +88,6 @@ pub fn find_partitioning(
 ///
 pub fn communication_partitioning(
     tensors: &[(usize, Tensor)],
-    bond_dims: &FxHashMap<usize, u64>,
     k: i32,
     partitioning_strategy: PartitioningStrategy,
     min: bool,
@@ -114,14 +112,14 @@ pub fn communication_partitioning(
 
     let mut edge_dict = FxHashMap::default();
     for (tensor_id, tensor) in tensors {
-        for leg in tensor.legs() {
+        for (leg, dim) in tensor.edges() {
             edge_dict
                 .entry(leg)
                 .and_modify(|entry| {
                     hyperedges.push(*entry as u32);
                     hyperedges.push(*tensor_id as u32);
                     hyperedge_indices.push(hyperedge_indices.last().unwrap() + 2);
-                    hyperedge_weights.push(x * bond_dims[leg] as i32);
+                    hyperedge_weights.push(x * *dim as i32);
                     *entry = *tensor_id;
                 })
                 .or_insert(*tensor_id);
@@ -165,13 +163,11 @@ pub fn partition_tensor_network(tn: Tensor, partitioning: &[usize]) -> Tensor {
         "Partitioning must be consecutive"
     );
 
-    let mut partitioned_tn = Tensor::new_with_bonddims(vec![], Arc::clone(&tn.bond_dims));
     let mut partitions = vec![Tensor::default(); partition_ids.len()];
     for (partition_id, tensor) in zip(partitioning, tn.tensors) {
-        partitions[*partition_id].push_tensor(tensor, None);
+        partitions[*partition_id].push_tensor(tensor);
     }
-    partitioned_tn.push_tensors(partitions, None);
-    partitioned_tn
+    Tensor::new_composite(partitions)
 }
 
 #[cfg(test)]
@@ -180,64 +176,62 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::tensor::Tensor;
-    use crate::tensornetwork::{
-        create_tensor_network, partitioning::partition_config::PartitioningStrategy,
+    use crate::{
+        tensornetwork::partitioning::partition_config::PartitioningStrategy, types::EdgeIndex,
     };
 
     use super::{find_partitioning, partition_tensor_network};
 
-    fn setup_complex() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-                Tensor::new(vec![6, 8, 9]),
-                Tensor::new(vec![10, 8, 9]),
-                Tensor::new(vec![5, 1, 0]),
-            ],
-            &FxHashMap::from_iter([
-                (0, 27),
-                (1, 18),
-                (2, 12),
-                (3, 15),
-                (4, 5),
-                (5, 3),
-                (6, 18),
-                (7, 22),
-                (8, 45),
-                (9, 65),
-                (10, 5),
-                (11, 17),
+    fn setup_complex() -> (Tensor, FxHashMap<EdgeIndex, u64>) {
+        let bond_dims = FxHashMap::from_iter([
+            (0, 27),
+            (1, 18),
+            (2, 12),
+            (3, 15),
+            (4, 5),
+            (5, 3),
+            (6, 18),
+            (7, 22),
+            (8, 45),
+            (9, 65),
+            (10, 5),
+            (11, 17),
+        ]);
+        (
+            Tensor::new_composite(vec![
+                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+                Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
+                Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
+                Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
             ]),
+            bond_dims,
         )
     }
 
     #[test]
     fn test_simple_partitioning() {
-        let tn = setup_complex();
-        let mut ref_tensor_1 = Tensor::default();
-        let mut ref_tensor_2 = Tensor::default();
-        let mut ref_tensor_3 = Tensor::default();
-        ref_tensor_1.push_tensors(
-            vec![Tensor::new(vec![6, 8, 9]), Tensor::new(vec![10, 8, 9])],
-            Some(&tn.bond_dims()),
-        );
-        ref_tensor_2.push_tensors(
-            vec![Tensor::new(vec![0, 1, 3, 2]), Tensor::new(vec![5, 1, 0])],
-            Some(&tn.bond_dims()),
-        );
-        ref_tensor_3.push_tensors(
-            vec![Tensor::new(vec![4, 3, 2]), Tensor::new(vec![4, 5, 6])],
-            Some(&tn.bond_dims()),
-        );
+        let (tn, bond_dims) = setup_complex();
+        let ref_tensor_1 = Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
+            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
+        ]);
+        let ref_tensor_2 = Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+        ]);
+        let ref_tensor_3 = Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        ]);
         let partitioning = find_partitioning(&tn, 3, PartitioningStrategy::MinCut, true);
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);
         let partitioned_tn = partition_tensor_network(tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.tensors().len(), 3);
 
-        assert_eq!(partitioned_tn.tensors()[0].legs(), ref_tensor_3.legs());
-        assert_eq!(partitioned_tn.tensors()[1].legs(), ref_tensor_2.legs());
-        assert_eq!(partitioned_tn.tensors()[2].legs(), ref_tensor_1.legs());
+        assert!(partitioned_tn.tensors()[0].approx_eq(&ref_tensor_1, 1e-12));
+        assert!(partitioned_tn.tensors()[1].approx_eq(&ref_tensor_2, 1e-12));
+        assert!(partitioned_tn.tensors()[2].approx_eq(&ref_tensor_3, 1e-12));
     }
 }

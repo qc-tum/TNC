@@ -1,7 +1,7 @@
 use log::debug;
 use tetra::{contract, Tensor as DataTensor};
 
-use crate::{tensornetwork::Tensor, types::ContractionIndex};
+use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
 use super::tensordata::TensorData;
 
@@ -15,7 +15,6 @@ use super::tensordata::TensorData;
 /// # Examples
 ///
 /// ```
-/// # extern crate tensorcontraction;
 /// # use tensorcontraction::{
 ///     contractionpath::paths::{branchbound::BranchBound, CostType, OptimizePath},
 ///     random::tensorgeneration::random_tensor_network_with_rng,
@@ -24,15 +23,14 @@ use super::tensordata::TensorData;
 /// };
 /// # use rand::rngs::StdRng;
 /// # use rand::SeedableRng;
-///
 /// let mut r = StdRng::seed_from_u64(42);
 /// let mut r_tn = random_tensor_network_with_rng(2, 3, &mut r);
 /// let mut opt = BranchBound::new(&r_tn, None, 20., CostType::Flops);
 /// opt.optimize_path();
 /// let opt_path = opt.get_best_replace_path();
-/// contract_tensor_network(&mut r_tn, &opt_path);
+/// let result = contract_tensor_network(r_tn, &opt_path);
 /// ```
-pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionIndex]) {
+pub fn contract_tensor_network(mut tn: Tensor, contract_path: &[ContractionIndex]) -> Tensor {
     debug!(len = tn.tensors().len(); "Start contracting tensor network");
     for contract_index in contract_path {
         match contract_index {
@@ -43,7 +41,9 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
             }
             ContractionIndex::Path(i, slicing, inner_contract_path) => {
                 assert!(slicing.is_none(), "Local slicing is not yet supported");
-                contract_tensor_network(tn.get_mut_tensor(*i), inner_contract_path);
+                let composite = std::mem::take(&mut tn.tensors[*i]);
+                let contracted = contract_tensor_network(composite, inner_contract_path);
+                tn.tensors[*i] = contracted;
             }
         }
     }
@@ -51,14 +51,8 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
 
     tn.tensors
         .retain(|x| !matches!(x.tensor_data(), TensorData::Uncontracted) || x.is_composite());
-    if tn.tensors.len() == 1 {
-        let Tensor {
-            legs, tensordata, ..
-        } = tn.tensors.pop().unwrap();
-
-        tn.set_legs(legs);
-        tn.set_tensor_data(tensordata);
-    }
+    assert!(tn.tensors().len() <= 1, "Not fully contracted");
+    tn.tensors.pop().unwrap_or(tn)
 }
 
 pub(crate) trait TensorContraction {
@@ -115,10 +109,7 @@ mod tests {
     use super::contract_tensor_network;
     use crate::{
         path,
-        tensornetwork::{
-            contraction::TensorContraction, create_tensor_network, tensor::Tensor,
-            tensordata::TensorData,
-        },
+        tensornetwork::{contraction::TensorContraction, tensor::Tensor, tensordata::TensorData},
     };
 
     use num_complex::Complex64;
@@ -439,65 +430,57 @@ mod tests {
 
     #[test]
     fn test_tensor_contraction() {
+        let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
         // t1 is of shape [3, 2, 7]
-        let mut t1 = Tensor::new(vec![0, 1, 2]);
+        let mut t1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims);
 
         // t2 is of shape [7, 8, 6]
-        let mut t2 = Tensor::new(vec![2, 3, 4]);
+        let mut t2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims);
         // t3 is of shape [3, 5, 8]
-        let mut t3 = Tensor::new(vec![0, 5, 3]);
+        let mut t3 = Tensor::new_from_map(vec![0, 5, 3], &bond_dims);
         // tout is of shape [8, 6, 3, 2]
-        let mut t12 = Tensor::new(vec![3, 4, 0, 1]);
+        let mut t12 = Tensor::new_from_map(vec![3, 4, 0, 1], &bond_dims);
         // tout is of shape [3, 5, 7, 6]
-        let mut t23 = Tensor::new(vec![0, 5, 2, 4]);
-
-        let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
-
-        t1.insert_bond_dims(&bond_dims);
-        t2.insert_bond_dims(&bond_dims);
-        t3.insert_bond_dims(&bond_dims);
-
-        t12.insert_bond_dims(&bond_dims);
-        t23.insert_bond_dims(&bond_dims);
+        let mut t23 = Tensor::new_from_map(vec![0, 5, 2, 4], &bond_dims);
 
         let (d1, d2, d3, _) = setup();
 
         t1.set_tensor_data(TensorData::new_from_data(
-            &t1.shape(),
+            &t1.shape().unwrap(),
             d1,
             Some(Layout::RowMajor),
         ));
 
         t2.set_tensor_data(TensorData::new_from_data(
-            &t2.shape(),
+            &t2.shape().unwrap(),
             d2,
             Some(Layout::RowMajor),
         ));
         t3.set_tensor_data(TensorData::new_from_data(
-            &t3.shape(),
+            &t3.shape().unwrap(),
             d3,
             Some(Layout::RowMajor),
         ));
 
         let (ref12, ref23) = intermediate_data();
         t12.set_tensor_data(TensorData::new_from_data(
-            &t12.shape(),
+            &t12.shape().unwrap(),
             ref12,
             Some(Layout::RowMajor),
         ));
 
         t23.set_tensor_data(TensorData::new_from_data(
-            &t23.shape(),
+            &t23.shape().unwrap(),
             ref23,
             Some(Layout::RowMajor),
         ));
 
-        let mut tn_12 = create_tensor_network(vec![t1.clone(), t2.clone(), t3.clone()], &bond_dims);
+        let mut tn_12 = Tensor::new_composite(vec![t1.clone(), t2.clone(), t3.clone()]);
 
         tn_12.contract_tensors(0, 1);
         assert!(t12.approx_eq(tn_12.tensor(0), 1e-8));
 
-        let mut tn_23 = create_tensor_network(vec![t1, t2, t3], &bond_dims);
+        let mut tn_23 = Tensor::new_composite(vec![t1, t2, t3]);
 
         tn_23.contract_tensors(1, 2);
         assert!(t23.approx_eq(tn_23.tensor(1), 1e-8));
@@ -505,58 +488,53 @@ mod tests {
 
     #[test]
     fn test_tn_contraction() {
+        let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
         // t1 is of shape [3, 2, 7]
-        let mut t1 = Tensor::new(vec![0, 1, 2]);
+        let mut t1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims);
 
         // t2 is of shape [7, 8, 6]
-        let mut t2 = Tensor::new(vec![2, 3, 4]);
+        let mut t2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims);
         // t3 is of shape [3, 5, 8]
-        let mut t3 = Tensor::new(vec![0, 5, 3]);
+        let mut t3 = Tensor::new_from_map(vec![0, 5, 3], &bond_dims);
         // tout is of shape [5, 6, 2]
-        let mut tout = Tensor::new(vec![5, 4, 1]);
-        let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2), (2, 7), (3, 8), (4, 6), (5, 5)]);
-
-        t1.insert_bond_dims(&bond_dims);
-        t2.insert_bond_dims(&bond_dims);
-        t3.insert_bond_dims(&bond_dims);
-
-        tout.insert_bond_dims(&bond_dims);
+        let mut tout = Tensor::new_from_map(vec![5, 4, 1], &bond_dims);
 
         let (d1, d2, d3, dout) = setup();
 
         t1.set_tensor_data(TensorData::new_from_data(
-            &t1.shape(),
+            &t1.shape().unwrap(),
             d1,
             Some(Layout::RowMajor),
         ));
 
         t2.set_tensor_data(TensorData::new_from_data(
-            &t2.shape(),
+            &t2.shape().unwrap(),
             d2,
             Some(Layout::RowMajor),
         ));
         t3.set_tensor_data(TensorData::new_from_data(
-            &t3.shape(),
+            &t3.shape().unwrap(),
             d3,
             Some(Layout::RowMajor),
         ));
         tout.set_tensor_data(TensorData::new_from_data(
-            &tout.shape(),
+            &tout.shape().unwrap(),
             dout,
             Some(Layout::RowMajor),
         ));
 
-        let mut tn = create_tensor_network(vec![t1, t2, t3], &bond_dims);
+        let tn = Tensor::new_composite(vec![t1, t2, t3]);
         let contract_path = path![(0, 1), (0, 2)];
 
-        contract_tensor_network(&mut tn, contract_path);
-        assert!(tout.approx_eq(&tn, 1e-8));
+        let result = contract_tensor_network(tn, contract_path);
+        assert!(tout.approx_eq(&result, 1e-8));
     }
 
     #[test]
     fn test_outer_product_contraction() {
-        let mut t1 = Tensor::new(vec![0]);
-        let mut t2 = Tensor::new(vec![1]);
+        let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2)]);
+        let mut t1 = Tensor::new_from_map(vec![0], &bond_dims);
+        let mut t2 = Tensor::new_from_map(vec![1], &bond_dims);
         t1.set_tensor_data(TensorData::new_from_data(
             &[3],
             vec![
@@ -571,13 +549,10 @@ mod tests {
             vec![Complex64::new(-4.0, 2.0), Complex64::new(0.0, -1.0)],
             None,
         ));
-        let mut t3 = Tensor::default();
-        let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2)]);
-        t3.push_tensors(vec![t1, t2], Some(&bond_dims));
+        let t3 = Tensor::new_composite(vec![t1, t2]);
         let contract_path = path![(0, 1)];
 
-        let mut tn_ref = Tensor::new(vec![1, 0]);
-        tn_ref.insert_bond_dims(&bond_dims);
+        let mut tn_ref = Tensor::new_from_map(vec![1, 0], &bond_dims);
         tn_ref.set_tensor_data(TensorData::new_from_data(
             &[2, 3],
             vec![
@@ -591,7 +566,7 @@ mod tests {
             None,
         ));
 
-        contract_tensor_network(&mut t3, contract_path);
-        assert!(t3.approx_eq(&tn_ref, 1e-8));
+        let result = contract_tensor_network(t3, contract_path);
+        assert!(result.approx_eq(&tn_ref, 1e-8));
     }
 }

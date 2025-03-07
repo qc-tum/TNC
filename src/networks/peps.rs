@@ -1,6 +1,4 @@
-use std::iter::repeat;
-
-use itertools::{chain, iproduct};
+use itertools::iproduct;
 
 use crate::tensornetwork::tensor::Tensor;
 
@@ -21,79 +19,107 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
     let virtual_vertical = (length - 1) * depth;
     let virtual_horizontal = (depth - 1) * length;
     let total_edges = physical_up + virtual_vertical + virtual_horizontal;
-    let bond_dims = chain(
-        (0..physical_up).zip(repeat(physical_dim)),
-        (physical_up..total_edges).zip(repeat(virtual_dim)),
-    )
-    .collect();
 
     let mut tensors = vec![Tensor::default(); length * depth];
 
     // Consider the corners
-    tensors[0] = Tensor::new(vec![0, physical_up, physical_up + virtual_vertical]);
-    tensors[length - 1] = Tensor::new(vec![
-        length - 1,
-        physical_up + length - 2,
-        physical_up + virtual_vertical + length - 1,
-    ]);
-    tensors[length * (depth - 1)] = Tensor::new(vec![
-        length * (depth - 1),
-        physical_up + (length - 1) * (depth - 1),
-        physical_up + virtual_vertical + length * (depth - 2),
-    ]);
-    tensors[length * depth - 1] = Tensor::new(vec![
-        length * depth - 1,
-        physical_up + (length - 1) * depth - 1,
-        physical_up + virtual_vertical + length * (depth - 1) - 1,
-    ]);
+    tensors[0] = Tensor::new(
+        vec![0, physical_up, physical_up + virtual_vertical],
+        vec![physical_dim, virtual_dim, virtual_dim],
+    );
+    tensors[length - 1] = Tensor::new(
+        vec![
+            length - 1,
+            physical_up + length - 2,
+            physical_up + virtual_vertical + length - 1,
+        ],
+        vec![physical_dim, virtual_dim, virtual_dim],
+    );
+    tensors[length * (depth - 1)] = Tensor::new(
+        vec![
+            length * (depth - 1),
+            physical_up + (length - 1) * (depth - 1),
+            physical_up + virtual_vertical + length * (depth - 2),
+        ],
+        vec![physical_dim, virtual_dim, virtual_dim],
+    );
+    tensors[length * depth - 1] = Tensor::new(
+        vec![
+            length * depth - 1,
+            physical_up + (length - 1) * depth - 1,
+            physical_up + virtual_vertical + length * (depth - 1) - 1,
+        ],
+        vec![physical_dim, virtual_dim, virtual_dim],
+    );
 
     // Consider the horizontal edges
     for j in 1..(length - 1) {
-        tensors[j] = Tensor::new(vec![
-            j,
-            physical_up + j - 1,
-            physical_up + j,
-            physical_up + virtual_vertical + j,
-        ]);
+        tensors[j] = Tensor::new(
+            vec![
+                j,
+                physical_up + j - 1,
+                physical_up + j,
+                physical_up + virtual_vertical + j,
+            ],
+            vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
+        );
 
-        tensors[physical_up - j - 1] = Tensor::new(vec![
-            physical_up - j - 1,
-            physical_up + virtual_vertical - j - 1,
-            physical_up + virtual_vertical - j,
-            total_edges - j - 1,
-        ]);
+        tensors[physical_up - j - 1] = Tensor::new(
+            vec![
+                physical_up - j - 1,
+                physical_up + virtual_vertical - j - 1,
+                physical_up + virtual_vertical - j,
+                total_edges - j - 1,
+            ],
+            vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
+        );
     }
 
     // Consider the vertical edges
     for i in 1..(depth - 1) {
-        tensors[i * length] = Tensor::new(vec![
-            i * length,
-            physical_up + i * (length - 1),
-            physical_up + virtual_vertical + (i - 1) * length,
-            physical_up + virtual_vertical + i * length,
-        ]);
+        tensors[i * length] = Tensor::new(
+            vec![
+                i * length,
+                physical_up + i * (length - 1),
+                physical_up + virtual_vertical + (i - 1) * length,
+                physical_up + virtual_vertical + i * length,
+            ],
+            vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
+        );
 
-        tensors[(i + 1) * length - 1] = Tensor::new(vec![
-            (i + 1) * length - 1,
-            physical_up + (i + 1) * (length - 1) - 1,
-            physical_up + virtual_vertical + i * length - 1,
-            physical_up + virtual_vertical + (i + 1) * length - 1,
-        ]);
+        tensors[(i + 1) * length - 1] = Tensor::new(
+            vec![
+                (i + 1) * length - 1,
+                physical_up + (i + 1) * (length - 1) - 1,
+                physical_up + virtual_vertical + i * length - 1,
+                physical_up + virtual_vertical + (i + 1) * length - 1,
+            ],
+            vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
+        );
     }
 
     // Consider the remaining bulk not on the edges
     for (i, j) in iproduct!(1..(depth - 1), 1..(length - 1)) {
         let index = i * length + j;
-        tensors[index] = Tensor::new(vec![
-            index,
-            physical_up + i * (length - 1) + j - 1,
-            physical_up + i * (length - 1) + j,
-            physical_up + virtual_vertical + (i - 1) * length + j,
-            physical_up + virtual_vertical + i * length + j,
-        ]);
+        tensors[index] = Tensor::new(
+            vec![
+                index,
+                physical_up + i * (length - 1) + j - 1,
+                physical_up + i * (length - 1) + j,
+                physical_up + virtual_vertical + (i - 1) * length + j,
+                physical_up + virtual_vertical + i * length + j,
+            ],
+            vec![
+                physical_dim,
+                virtual_dim,
+                virtual_dim,
+                virtual_dim,
+                virtual_dim,
+            ],
+        );
     }
 
-    pep.push_tensors(tensors, Some(&bond_dims));
+    pep.push_tensors(tensors);
     pep
 }
 
@@ -124,91 +150,143 @@ fn pepo(
     let last = total_edges * layer;
     let start = total_edges * (layer + 1);
 
-    let bond_dims = chain(
-        (start..(start + physical_up)).zip(repeat(physical_dim)),
-        ((start + physical_up)..(start + total_edges)).zip(repeat(virtual_dim)),
-    )
-    .collect();
-
     let mut tensors = vec![Tensor::default(); length * depth];
 
     // Consider the corners
-    tensors[0] = Tensor::new(vec![
-        last,
-        start,
-        start + physical_up,
-        start + physical_up + virtual_vertical,
-    ]);
-    tensors[length - 1] = Tensor::new(vec![
-        last + length - 1,
-        start + length - 1,
-        start + physical_up + length - 2,
-        start + physical_up + virtual_vertical + length - 1,
-    ]);
-    tensors[length * (depth - 1)] = Tensor::new(vec![
-        last + length * (depth - 1),
-        start + length * (depth - 1),
-        start + physical_up + (length - 1) * (depth - 1),
-        start + physical_up + virtual_vertical + length * (depth - 2),
-    ]);
-    tensors[length * depth - 1] = Tensor::new(vec![
-        last + length * depth - 1,
-        start + length * depth - 1,
-        start + physical_up + (length - 1) * depth - 1,
-        start + physical_up + virtual_vertical + length * (depth - 1) - 1,
-    ]);
+    tensors[0] = Tensor::new(
+        vec![
+            last,
+            start,
+            start + physical_up,
+            start + physical_up + virtual_vertical,
+        ],
+        vec![physical_dim, physical_dim, virtual_dim, virtual_dim],
+    );
+    tensors[length - 1] = Tensor::new(
+        vec![
+            last + length - 1,
+            start + length - 1,
+            start + physical_up + length - 2,
+            start + physical_up + virtual_vertical + length - 1,
+        ],
+        vec![physical_dim, physical_dim, virtual_dim, virtual_dim],
+    );
+    tensors[length * (depth - 1)] = Tensor::new(
+        vec![
+            last + length * (depth - 1),
+            start + length * (depth - 1),
+            start + physical_up + (length - 1) * (depth - 1),
+            start + physical_up + virtual_vertical + length * (depth - 2),
+        ],
+        vec![physical_dim, physical_dim, virtual_dim, virtual_dim],
+    );
+    tensors[length * depth - 1] = Tensor::new(
+        vec![
+            last + length * depth - 1,
+            start + length * depth - 1,
+            start + physical_up + (length - 1) * depth - 1,
+            start + physical_up + virtual_vertical + length * (depth - 1) - 1,
+        ],
+        vec![physical_dim, physical_dim, virtual_dim, virtual_dim],
+    );
 
     // Consider the horizontal edges
     for j in 1..(length - 1) {
-        tensors[j] = Tensor::new(vec![
-            last + j,
-            start + j,
-            start + physical_up + j - 1,
-            start + physical_up + j,
-            start + physical_up + virtual_vertical + j,
-        ]);
+        tensors[j] = Tensor::new(
+            vec![
+                last + j,
+                start + j,
+                start + physical_up + j - 1,
+                start + physical_up + j,
+                start + physical_up + virtual_vertical + j,
+            ],
+            vec![
+                physical_dim,
+                physical_dim,
+                virtual_dim,
+                virtual_dim,
+                virtual_dim,
+            ],
+        );
 
-        tensors[physical_up - j - 1] = Tensor::new(vec![
-            last + physical_up - j - 1,
-            start + physical_up - j - 1,
-            start + physical_up + virtual_vertical - j - 1,
-            start + physical_up + virtual_vertical - j,
-            start + total_edges - j - 1,
-        ]);
+        tensors[physical_up - j - 1] = Tensor::new(
+            vec![
+                last + physical_up - j - 1,
+                start + physical_up - j - 1,
+                start + physical_up + virtual_vertical - j - 1,
+                start + physical_up + virtual_vertical - j,
+                start + total_edges - j - 1,
+            ],
+            vec![
+                physical_dim,
+                physical_dim,
+                virtual_dim,
+                virtual_dim,
+                virtual_dim,
+            ],
+        );
     }
 
     // Consider the vertical edges
     for i in 1..(depth - 1) {
-        tensors[i * length] = Tensor::new(vec![
-            last + i * length,
-            start + i * length,
-            start + physical_up + i * (length - 1),
-            start + physical_up + virtual_vertical + (i - 1) * length,
-            start + physical_up + virtual_vertical + i * length,
-        ]);
+        tensors[i * length] = Tensor::new(
+            vec![
+                last + i * length,
+                start + i * length,
+                start + physical_up + i * (length - 1),
+                start + physical_up + virtual_vertical + (i - 1) * length,
+                start + physical_up + virtual_vertical + i * length,
+            ],
+            vec![
+                physical_dim,
+                physical_dim,
+                virtual_dim,
+                virtual_dim,
+                virtual_dim,
+            ],
+        );
 
-        tensors[(i + 1) * length - 1] = Tensor::new(vec![
-            last + (i + 1) * length - 1,
-            start + (i + 1) * length - 1,
-            start + physical_up + (i + 1) * (length - 1) - 1,
-            start + physical_up + virtual_vertical + i * length - 1,
-            start + physical_up + virtual_vertical + (i + 1) * length - 1,
-        ]);
+        tensors[(i + 1) * length - 1] = Tensor::new(
+            vec![
+                last + (i + 1) * length - 1,
+                start + (i + 1) * length - 1,
+                start + physical_up + (i + 1) * (length - 1) - 1,
+                start + physical_up + virtual_vertical + i * length - 1,
+                start + physical_up + virtual_vertical + (i + 1) * length - 1,
+            ],
+            vec![
+                physical_dim,
+                physical_dim,
+                virtual_dim,
+                virtual_dim,
+                virtual_dim,
+            ],
+        );
     }
 
     // Consider the remaining bulk not on the edges
     for (i, j) in iproduct!(1..(depth - 1), 1..(length - 1)) {
         let index = i * length + j;
-        tensors[index] = Tensor::new(vec![
-            last + index,
-            start + index,
-            start + physical_up + i * (length - 1) + j - 1,
-            start + physical_up + i * (length - 1) + j,
-            start + physical_up + virtual_vertical + (i - 1) * length + j,
-            start + physical_up + virtual_vertical + i * length + j,
-        ]);
+        tensors[index] = Tensor::new(
+            vec![
+                last + index,
+                start + index,
+                start + physical_up + i * (length - 1) + j - 1,
+                start + physical_up + i * (length - 1) + j,
+                start + physical_up + virtual_vertical + (i - 1) * length + j,
+                start + physical_up + virtual_vertical + i * length + j,
+            ],
+            vec![
+                physical_dim,
+                physical_dim,
+                virtual_dim,
+                virtual_dim,
+                virtual_dim,
+                virtual_dim,
+            ],
+        );
     }
-    peps.push_tensors(tensors, Some(&bond_dims));
+    peps.push_tensors(tensors);
     peps
 }
 
@@ -227,6 +305,7 @@ fn peps_final(
     mut peps: Tensor,
     length: usize,
     depth: usize,
+    physical_dim: u64,
     virtual_dim: u64,
     layers: usize,
 ) -> Tensor {
@@ -238,76 +317,105 @@ fn peps_final(
     let start = total_edges * (layers + 1);
     total_edges -= physical_up;
 
-    let bond_dims = (start..(start + total_edges))
-        .zip(repeat(virtual_dim))
-        .collect();
-
     let mut tensors = vec![Tensor::default(); length * depth];
 
     // Consider the corners
-    tensors[0] = Tensor::new(vec![last, start, start + virtual_vertical]);
-    tensors[length - 1] = Tensor::new(vec![
-        last + length - 1,
-        start + length - 2,
-        start + virtual_vertical + length - 1,
-    ]);
-    tensors[length * (depth - 1)] = Tensor::new(vec![
-        last + length * (depth - 1),
-        start + (length - 1) * (depth - 1),
-        start + virtual_vertical + length * (depth - 2),
-    ]);
-    tensors[length * depth - 1] = Tensor::new(vec![
-        last + length * depth - 1,
-        start + (length - 1) * depth - 1,
-        start + virtual_vertical + length * (depth - 1) - 1,
-    ]);
+    tensors[0] = Tensor::new(
+        vec![last, start, start + virtual_vertical],
+        vec![physical_dim, virtual_dim, virtual_dim],
+    );
+    tensors[length - 1] = Tensor::new(
+        vec![
+            last + length - 1,
+            start + length - 2,
+            start + virtual_vertical + length - 1,
+        ],
+        vec![physical_dim, virtual_dim, virtual_dim],
+    );
+    tensors[length * (depth - 1)] = Tensor::new(
+        vec![
+            last + length * (depth - 1),
+            start + (length - 1) * (depth - 1),
+            start + virtual_vertical + length * (depth - 2),
+        ],
+        vec![physical_dim, virtual_dim, virtual_dim],
+    );
+    tensors[length * depth - 1] = Tensor::new(
+        vec![
+            last + length * depth - 1,
+            start + (length - 1) * depth - 1,
+            start + virtual_vertical + length * (depth - 1) - 1,
+        ],
+        vec![physical_dim, virtual_dim, virtual_dim],
+    );
 
     // Consider the horizontal edges
     for j in 1..(length - 1) {
-        tensors[j] = Tensor::new(vec![
-            last + j,
-            start + j - 1,
-            start + j,
-            start + virtual_vertical + j,
-        ]);
+        tensors[j] = Tensor::new(
+            vec![
+                last + j,
+                start + j - 1,
+                start + j,
+                start + virtual_vertical + j,
+            ],
+            vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
+        );
 
-        tensors[physical_up - j - 1] = Tensor::new(vec![
-            last + physical_up - j - 1,
-            start + virtual_vertical - j - 1,
-            start + virtual_vertical - j,
-            start + total_edges - j - 1,
-        ]);
+        tensors[physical_up - j - 1] = Tensor::new(
+            vec![
+                last + physical_up - j - 1,
+                start + virtual_vertical - j - 1,
+                start + virtual_vertical - j,
+                start + total_edges - j - 1,
+            ],
+            vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
+        );
     }
 
     // Consider the vertical edges
     for i in 1..(depth - 1) {
-        tensors[i * length] = Tensor::new(vec![
-            last + i * length,
-            start + i * (length - 1),
-            start + virtual_vertical + (i - 1) * length,
-            start + virtual_vertical + i * length,
-        ]);
+        tensors[i * length] = Tensor::new(
+            vec![
+                last + i * length,
+                start + i * (length - 1),
+                start + virtual_vertical + (i - 1) * length,
+                start + virtual_vertical + i * length,
+            ],
+            vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
+        );
 
-        tensors[(i + 1) * length - 1] = Tensor::new(vec![
-            last + (i + 1) * length - 1,
-            start + (i + 1) * (length - 1) - 1,
-            start + virtual_vertical + i * length - 1,
-            start + virtual_vertical + (i + 1) * length - 1,
-        ]);
+        tensors[(i + 1) * length - 1] = Tensor::new(
+            vec![
+                last + (i + 1) * length - 1,
+                start + (i + 1) * (length - 1) - 1,
+                start + virtual_vertical + i * length - 1,
+                start + virtual_vertical + (i + 1) * length - 1,
+            ],
+            vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
+        );
     }
 
     // Consider the remaining bulk not on the edges
     for (i, j) in iproduct!(1..(depth - 1), 1..(length - 1)) {
         let index = i * length + j;
-        tensors[index] = Tensor::new(vec![
-            last + index,
-            start + i * (length - 1) + j - 1,
-            start + i * (length - 1) + j,
-            start + virtual_vertical + (i - 1) * length + j,
-            start + virtual_vertical + i * length + j,
-        ]);
+        tensors[index] = Tensor::new(
+            vec![
+                last + index,
+                start + i * (length - 1) + j - 1,
+                start + i * (length - 1) + j,
+                start + virtual_vertical + (i - 1) * length + j,
+                start + virtual_vertical + i * length + j,
+            ],
+            vec![
+                physical_dim,
+                virtual_dim,
+                virtual_dim,
+                virtual_dim,
+                virtual_dim,
+            ],
+        );
     }
-    peps.push_tensors(tensors, Some(&bond_dims));
+    peps.push_tensors(tensors);
     peps
 }
 
@@ -351,7 +459,7 @@ pub fn peps(
     for layer in 0..layers {
         new_peps = pepo(new_peps, length, depth, layer, physical_dim, virtual_dim);
     }
-    peps_final(new_peps, length, depth, virtual_dim, layers)
+    peps_final(new_peps, length, depth, physical_dim, virtual_dim, layers)
 }
 
 #[cfg(test)]
@@ -371,18 +479,6 @@ mod tests {
         let physical_dim = 4;
         let virtual_dim = 10;
 
-        let mut ref_tensor = Tensor::default();
-        let tensors = vec![
-            Tensor::new(vec![0, 9, 15]),
-            Tensor::new(vec![1, 9, 10, 16]),
-            Tensor::new(vec![2, 10, 17]),
-            Tensor::new(vec![3, 11, 15, 18]),
-            Tensor::new(vec![4, 11, 12, 16, 19]),
-            Tensor::new(vec![5, 12, 17, 20]),
-            Tensor::new(vec![6, 13, 18]),
-            Tensor::new(vec![7, 13, 14, 19]),
-            Tensor::new(vec![8, 14, 20]),
-        ];
         let bond_dims = FxHashMap::from_iter([
             (0, 4),
             (1, 4),
@@ -406,13 +502,24 @@ mod tests {
             (19, 10),
             (20, 10),
         ]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims));
+        let tensors = vec![
+            Tensor::new_from_map(vec![0, 9, 15], &bond_dims),
+            Tensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
+            Tensor::new_from_map(vec![2, 10, 17], &bond_dims),
+            Tensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
+            Tensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
+            Tensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
+            Tensor::new_from_map(vec![6, 13, 18], &bond_dims),
+            Tensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
+            Tensor::new_from_map(vec![8, 14, 20], &bond_dims),
+        ];
+        let ref_tensor = Tensor::new_composite(tensors);
 
         let new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
             assert_eq!(t1.legs(), t2.legs());
+            assert_eq!(t1.bond_dims(), t2.bond_dims());
         }
-        assert_eq!(*new_peps.bond_dims(), *ref_tensor.bond_dims());
     }
 
     #[test]
@@ -423,27 +530,6 @@ mod tests {
         let virtual_dim = 10;
         let layers = 1;
 
-        let mut ref_tensor = Tensor::default();
-        let tensors = vec![
-            Tensor::new(vec![0, 9, 15]),
-            Tensor::new(vec![1, 9, 10, 16]),
-            Tensor::new(vec![2, 10, 17]),
-            Tensor::new(vec![3, 11, 15, 18]),
-            Tensor::new(vec![4, 11, 12, 16, 19]),
-            Tensor::new(vec![5, 12, 17, 20]),
-            Tensor::new(vec![6, 13, 18]),
-            Tensor::new(vec![7, 13, 14, 19]),
-            Tensor::new(vec![8, 14, 20]),
-            Tensor::new(vec![0, 21, 30, 36]),
-            Tensor::new(vec![1, 22, 30, 31, 37]),
-            Tensor::new(vec![2, 23, 31, 38]),
-            Tensor::new(vec![3, 24, 32, 36, 39]),
-            Tensor::new(vec![4, 25, 32, 33, 37, 40]),
-            Tensor::new(vec![5, 26, 33, 38, 41]),
-            Tensor::new(vec![6, 27, 34, 39]),
-            Tensor::new(vec![7, 28, 34, 35, 40]),
-            Tensor::new(vec![8, 29, 35, 41]),
-        ];
         let bond_dims = FxHashMap::from_iter([
             (0, 4),
             (1, 4),
@@ -488,7 +574,27 @@ mod tests {
             (40, 10),
             (41, 10),
         ]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims));
+        let tensors = vec![
+            Tensor::new_from_map(vec![0, 9, 15], &bond_dims),
+            Tensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
+            Tensor::new_from_map(vec![2, 10, 17], &bond_dims),
+            Tensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
+            Tensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
+            Tensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
+            Tensor::new_from_map(vec![6, 13, 18], &bond_dims),
+            Tensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
+            Tensor::new_from_map(vec![8, 14, 20], &bond_dims),
+            Tensor::new_from_map(vec![0, 21, 30, 36], &bond_dims),
+            Tensor::new_from_map(vec![1, 22, 30, 31, 37], &bond_dims),
+            Tensor::new_from_map(vec![2, 23, 31, 38], &bond_dims),
+            Tensor::new_from_map(vec![3, 24, 32, 36, 39], &bond_dims),
+            Tensor::new_from_map(vec![4, 25, 32, 33, 37, 40], &bond_dims),
+            Tensor::new_from_map(vec![5, 26, 33, 38, 41], &bond_dims),
+            Tensor::new_from_map(vec![6, 27, 34, 39], &bond_dims),
+            Tensor::new_from_map(vec![7, 28, 34, 35, 40], &bond_dims),
+            Tensor::new_from_map(vec![8, 29, 35, 41], &bond_dims),
+        ];
+        let ref_tensor = Tensor::new_composite(tensors);
 
         let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for layer in 0..layers {
@@ -497,8 +603,8 @@ mod tests {
 
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
             assert_eq!(t1.legs(), t2.legs());
+            assert_eq!(t1.bond_dims(), t2.bond_dims());
         }
-        assert_eq!(*new_peps.bond_dims(), *ref_tensor.bond_dims());
     }
 
     #[test]
@@ -509,36 +615,6 @@ mod tests {
         let virtual_dim = 10;
         let layers = 1;
 
-        let mut ref_tensor = Tensor::default();
-        let tensors = vec![
-            Tensor::new(vec![0, 9, 15]),
-            Tensor::new(vec![1, 9, 10, 16]),
-            Tensor::new(vec![2, 10, 17]),
-            Tensor::new(vec![3, 11, 15, 18]),
-            Tensor::new(vec![4, 11, 12, 16, 19]),
-            Tensor::new(vec![5, 12, 17, 20]),
-            Tensor::new(vec![6, 13, 18]),
-            Tensor::new(vec![7, 13, 14, 19]),
-            Tensor::new(vec![8, 14, 20]),
-            Tensor::new(vec![0, 21, 30, 36]),
-            Tensor::new(vec![1, 22, 30, 31, 37]),
-            Tensor::new(vec![2, 23, 31, 38]),
-            Tensor::new(vec![3, 24, 32, 36, 39]),
-            Tensor::new(vec![4, 25, 32, 33, 37, 40]),
-            Tensor::new(vec![5, 26, 33, 38, 41]),
-            Tensor::new(vec![6, 27, 34, 39]),
-            Tensor::new(vec![7, 28, 34, 35, 40]),
-            Tensor::new(vec![8, 29, 35, 41]),
-            Tensor::new(vec![21, 42, 48]),
-            Tensor::new(vec![22, 42, 43, 49]),
-            Tensor::new(vec![23, 43, 50]),
-            Tensor::new(vec![24, 44, 48, 51]),
-            Tensor::new(vec![25, 44, 45, 49, 52]),
-            Tensor::new(vec![26, 45, 50, 53]),
-            Tensor::new(vec![27, 46, 51]),
-            Tensor::new(vec![28, 46, 47, 52]),
-            Tensor::new(vec![29, 47, 53]),
-        ];
         let bond_dims = FxHashMap::from_iter([
             (0, 4),
             (1, 4),
@@ -595,17 +671,46 @@ mod tests {
             (52, 10),
             (53, 10),
         ]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims));
+        let tensors = vec![
+            Tensor::new_from_map(vec![0, 9, 15], &bond_dims),
+            Tensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
+            Tensor::new_from_map(vec![2, 10, 17], &bond_dims),
+            Tensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
+            Tensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
+            Tensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
+            Tensor::new_from_map(vec![6, 13, 18], &bond_dims),
+            Tensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
+            Tensor::new_from_map(vec![8, 14, 20], &bond_dims),
+            Tensor::new_from_map(vec![0, 21, 30, 36], &bond_dims),
+            Tensor::new_from_map(vec![1, 22, 30, 31, 37], &bond_dims),
+            Tensor::new_from_map(vec![2, 23, 31, 38], &bond_dims),
+            Tensor::new_from_map(vec![3, 24, 32, 36, 39], &bond_dims),
+            Tensor::new_from_map(vec![4, 25, 32, 33, 37, 40], &bond_dims),
+            Tensor::new_from_map(vec![5, 26, 33, 38, 41], &bond_dims),
+            Tensor::new_from_map(vec![6, 27, 34, 39], &bond_dims),
+            Tensor::new_from_map(vec![7, 28, 34, 35, 40], &bond_dims),
+            Tensor::new_from_map(vec![8, 29, 35, 41], &bond_dims),
+            Tensor::new_from_map(vec![21, 42, 48], &bond_dims),
+            Tensor::new_from_map(vec![22, 42, 43, 49], &bond_dims),
+            Tensor::new_from_map(vec![23, 43, 50], &bond_dims),
+            Tensor::new_from_map(vec![24, 44, 48, 51], &bond_dims),
+            Tensor::new_from_map(vec![25, 44, 45, 49, 52], &bond_dims),
+            Tensor::new_from_map(vec![26, 45, 50, 53], &bond_dims),
+            Tensor::new_from_map(vec![27, 46, 51], &bond_dims),
+            Tensor::new_from_map(vec![28, 46, 47, 52], &bond_dims),
+            Tensor::new_from_map(vec![29, 47, 53], &bond_dims),
+        ];
+        let ref_tensor = Tensor::new_composite(tensors);
 
         let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for layer in 0..layers {
             new_peps = pepo(new_peps, length, depth, layer, physical_dim, virtual_dim);
         }
-        let new_peps = peps_final(new_peps, length, depth, virtual_dim, layers);
+        let new_peps = peps_final(new_peps, length, depth, physical_dim, virtual_dim, layers);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
             assert_eq!(t1.legs(), t2.legs());
+            assert_eq!(t1.bond_dims(), t2.bond_dims());
         }
-        assert_eq!(*new_peps.bond_dims(), *ref_tensor.bond_dims());
     }
 
     #[test]
@@ -616,36 +721,6 @@ mod tests {
         let virtual_dim = 10;
         let layers = 1;
 
-        let mut ref_tensor = Tensor::default();
-        let tensors = vec![
-            Tensor::new(vec![0, 9, 15]),
-            Tensor::new(vec![1, 9, 10, 16]),
-            Tensor::new(vec![2, 10, 17]),
-            Tensor::new(vec![3, 11, 15, 18]),
-            Tensor::new(vec![4, 11, 12, 16, 19]),
-            Tensor::new(vec![5, 12, 17, 20]),
-            Tensor::new(vec![6, 13, 18]),
-            Tensor::new(vec![7, 13, 14, 19]),
-            Tensor::new(vec![8, 14, 20]),
-            Tensor::new(vec![0, 21, 30, 36]),
-            Tensor::new(vec![1, 22, 30, 31, 37]),
-            Tensor::new(vec![2, 23, 31, 38]),
-            Tensor::new(vec![3, 24, 32, 36, 39]),
-            Tensor::new(vec![4, 25, 32, 33, 37, 40]),
-            Tensor::new(vec![5, 26, 33, 38, 41]),
-            Tensor::new(vec![6, 27, 34, 39]),
-            Tensor::new(vec![7, 28, 34, 35, 40]),
-            Tensor::new(vec![8, 29, 35, 41]),
-            Tensor::new(vec![21, 42, 48]),
-            Tensor::new(vec![22, 42, 43, 49]),
-            Tensor::new(vec![23, 43, 50]),
-            Tensor::new(vec![24, 44, 48, 51]),
-            Tensor::new(vec![25, 44, 45, 49, 52]),
-            Tensor::new(vec![26, 45, 50, 53]),
-            Tensor::new(vec![27, 46, 51]),
-            Tensor::new(vec![28, 46, 47, 52]),
-            Tensor::new(vec![29, 47, 53]),
-        ];
         let bond_dims = FxHashMap::from_iter([
             (0, 4),
             (1, 4),
@@ -702,13 +777,42 @@ mod tests {
             (52, 10),
             (53, 10),
         ]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims));
+        let tensors = vec![
+            Tensor::new_from_map(vec![0, 9, 15], &bond_dims),
+            Tensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
+            Tensor::new_from_map(vec![2, 10, 17], &bond_dims),
+            Tensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
+            Tensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
+            Tensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
+            Tensor::new_from_map(vec![6, 13, 18], &bond_dims),
+            Tensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
+            Tensor::new_from_map(vec![8, 14, 20], &bond_dims),
+            Tensor::new_from_map(vec![0, 21, 30, 36], &bond_dims),
+            Tensor::new_from_map(vec![1, 22, 30, 31, 37], &bond_dims),
+            Tensor::new_from_map(vec![2, 23, 31, 38], &bond_dims),
+            Tensor::new_from_map(vec![3, 24, 32, 36, 39], &bond_dims),
+            Tensor::new_from_map(vec![4, 25, 32, 33, 37, 40], &bond_dims),
+            Tensor::new_from_map(vec![5, 26, 33, 38, 41], &bond_dims),
+            Tensor::new_from_map(vec![6, 27, 34, 39], &bond_dims),
+            Tensor::new_from_map(vec![7, 28, 34, 35, 40], &bond_dims),
+            Tensor::new_from_map(vec![8, 29, 35, 41], &bond_dims),
+            Tensor::new_from_map(vec![21, 42, 48], &bond_dims),
+            Tensor::new_from_map(vec![22, 42, 43, 49], &bond_dims),
+            Tensor::new_from_map(vec![23, 43, 50], &bond_dims),
+            Tensor::new_from_map(vec![24, 44, 48, 51], &bond_dims),
+            Tensor::new_from_map(vec![25, 44, 45, 49, 52], &bond_dims),
+            Tensor::new_from_map(vec![26, 45, 50, 53], &bond_dims),
+            Tensor::new_from_map(vec![27, 46, 51], &bond_dims),
+            Tensor::new_from_map(vec![28, 46, 47, 52], &bond_dims),
+            Tensor::new_from_map(vec![29, 47, 53], &bond_dims),
+        ];
+        let ref_tensor = Tensor::new_composite(tensors);
 
         let new_peps = peps(length, depth, physical_dim, virtual_dim, layers);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
             assert_eq!(t1.legs(), t2.legs());
+            assert_eq!(t1.bond_dims(), t2.bond_dims());
         }
-        assert_eq!(*new_peps.bond_dims(), *ref_tensor.bond_dims());
     }
 
     #[test]
@@ -719,17 +823,6 @@ mod tests {
         let virtual_dim = 10;
         let layers = 0;
 
-        let mut ref_tensor = Tensor::default();
-        let tensors = vec![
-            Tensor::new(vec![0, 4, 6]),
-            Tensor::new(vec![1, 4, 7]),
-            Tensor::new(vec![2, 5, 6]),
-            Tensor::new(vec![3, 5, 7]),
-            Tensor::new(vec![0, 8, 10]),
-            Tensor::new(vec![1, 8, 11]),
-            Tensor::new(vec![2, 9, 10]),
-            Tensor::new(vec![3, 9, 11]),
-        ];
         let bond_dims = FxHashMap::from_iter([
             (0, 4),
             (1, 4),
@@ -744,17 +837,27 @@ mod tests {
             (10, 10),
             (11, 10),
         ]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims));
+        let tensors = vec![
+            Tensor::new_from_map(vec![0, 4, 6], &bond_dims),
+            Tensor::new_from_map(vec![1, 4, 7], &bond_dims),
+            Tensor::new_from_map(vec![2, 5, 6], &bond_dims),
+            Tensor::new_from_map(vec![3, 5, 7], &bond_dims),
+            Tensor::new_from_map(vec![0, 8, 10], &bond_dims),
+            Tensor::new_from_map(vec![1, 8, 11], &bond_dims),
+            Tensor::new_from_map(vec![2, 9, 10], &bond_dims),
+            Tensor::new_from_map(vec![3, 9, 11], &bond_dims),
+        ];
+        let ref_tensor = Tensor::new_composite(tensors);
 
         let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for layer in 0..layers {
             new_peps = pepo(new_peps, length, depth, layer, physical_dim, virtual_dim);
         }
-        let new_peps = peps_final(new_peps, length, depth, virtual_dim, layers);
+        let new_peps = peps_final(new_peps, length, depth, physical_dim, virtual_dim, layers);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
             assert_eq!(t1.legs(), t2.legs());
+            assert_eq!(t1.bond_dims(), t2.bond_dims());
         }
-        assert_eq!(*new_peps.bond_dims(), *ref_tensor.bond_dims());
     }
 
     #[test]
@@ -766,15 +869,17 @@ mod tests {
         let virtual_dim = 10;
         let layers = 0;
 
-        let mut ref_tensor = Tensor::default();
-        let tensors = vec![Tensor::new(vec![0, 2]), Tensor::new(vec![1, 2])];
         let bond_dims = FxHashMap::from_iter([(0, 4), (1, 4), (2, 10)]);
-        ref_tensor.push_tensors(tensors, Some(&bond_dims));
+        let tensors = vec![
+            Tensor::new_from_map(vec![0, 2], &bond_dims),
+            Tensor::new_from_map(vec![1, 2], &bond_dims),
+        ];
+        let ref_tensor = Tensor::new_composite(tensors);
 
         let new_peps = peps(length, depth, physical_dim, virtual_dim, layers);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
             assert_eq!(t1.legs(), t2.legs());
+            assert_eq!(t1.bond_dims(), t2.bond_dims());
         }
-        assert_eq!(*new_peps.bond_dims(), *ref_tensor.bond_dims());
     }
 }

@@ -4,7 +4,6 @@ use mpi::topology::{Color, Process, SimpleCommunicator};
 use mpi::traits::{BufferMut, Communicator, Destination, Equivalence, Root, Source};
 use mpi::Rank;
 use mpi_ext::RootExtension;
-use rustc_hash::FxHashMap;
 
 use super::mpi_types::RankTensorMapping;
 use super::serialization::{deserialize_tensor, serialize_tensor};
@@ -13,7 +12,7 @@ use crate::mpi::serialization::{deserialize, serialize};
 use crate::tensornetwork::contraction::contract_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
-use crate::types::{ContractionIndex, EdgeIndex, SlicingPlan, SlicingTask};
+use crate::types::{ContractionIndex, SlicingPlan, SlicingTask};
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
 /// receivers, `data` can just be an empty vector.
@@ -90,18 +89,14 @@ fn send_tensor(tensor: &Tensor, receiver: Rank, world: &SimpleCommunicator) {
 }
 
 /// Receives a tensor from `sender` via MPI.
-fn receive_tensor(
-    sender: Rank,
-    world: &SimpleCommunicator,
-    bond_dims: Option<&FxHashMap<EdgeIndex, u64>>,
-) -> Tensor {
+fn receive_tensor(sender: Rank, world: &SimpleCommunicator) -> Tensor {
     // Receive the buffer
     let (data, _status) = world
         .process_at_rank(sender)
         .receive_vec::<MessageBinaryBlob>();
 
     if !data.is_empty() {
-        deserialize_tensor(&data, bond_dims)
+        deserialize_tensor(&data)
     } else {
         Tensor::default()
     }
@@ -229,14 +224,6 @@ pub fn scatter_tensor_network(
     let slice_comm = world.split_by_color(color);
     debug!(tensor_mapping:serde, is_tensor_owner, slice_group; "Scattered organizational data");
 
-    // Send the bond dimensions
-    let bond_dims = if rank == 0 {
-        r_tn.bond_dims().clone()
-    } else {
-        Default::default()
-    };
-    let bond_dims = broadcast_serializing(bond_dims, &root);
-
     // Send the local paths
     let mut local_path_raw = if rank == 0 {
         debug!("Sending local paths");
@@ -311,7 +298,7 @@ pub fn scatter_tensor_network(
 
     // Deserialize the tensor
     let local_tn = if !local_tn_raw.is_empty() {
-        deserialize_tensor(&local_tn_raw, Some(&bond_dims))
+        deserialize_tensor(&local_tn_raw)
     } else {
         Default::default()
     };
@@ -390,16 +377,17 @@ pub fn intermediate_reduce_tensor_network(
                 if receiver == rank {
                     // Receive tensor
                     debug!(sender; "Start receiving tensor");
-                    let received_tensor = receive_tensor(sender, world, None);
+                    let received_tensor = receive_tensor(sender, world);
                     debug!(sender; "Finish receiving tensor");
 
                     // Add local tensor and received tensor into a new tensor network
-                    let local_tensor = std::mem::take(local_tn);
-                    local_tn.push_tensor(received_tensor, None);
-                    local_tn.push_tensor(local_tensor, None);
+                    let tensor_network =
+                        Tensor::new_composite(vec![std::mem::take(local_tn), received_tensor]);
 
                     // Contract tensors
-                    contract_tensor_network(local_tn, &[ContractionIndex::Pair(0, 1)]);
+                    let result =
+                        contract_tensor_network(tensor_network, &[ContractionIndex::Pair(0, 1)]);
+                    *local_tn = result;
                 }
                 if sender == rank {
                     debug!(receiver; "Start sending tensor");
@@ -416,7 +404,7 @@ pub fn intermediate_reduce_tensor_network(
         debug!(rank, final_rank; "Final rank is not 0");
         if rank == 0 {
             debug!(sender = final_rank; "Receiving final tensor");
-            let received_tensor = receive_tensor(final_rank, world, None);
+            let received_tensor = receive_tensor(final_rank, world);
             *local_tn = received_tensor;
         }
         if rank == final_rank {
@@ -429,10 +417,9 @@ pub fn intermediate_reduce_tensor_network(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, RwLock};
-
     use mpi::traits::Communicator;
     use mpi_test::mpi_test;
+    use rustc_hash::FxHashMap;
 
     use super::*;
     use crate::path;
@@ -537,25 +524,19 @@ mod tests {
             (8, 2),
             (9, 2),
         ]);
-        let bond_dims = Arc::new(RwLock::new(bond_dims));
-        let t1 = Tensor::new_with_bonddims(vec![0, 1, 2], bond_dims.clone());
-        let t2 = Tensor::new_with_bonddims(vec![2, 3], bond_dims.clone());
-        let t3 = Tensor::new_with_bonddims(vec![1, 3, 4], bond_dims.clone());
-        let mut tn1 = Tensor::new_with_bonddims(vec![], bond_dims.clone());
-        tn1.push_tensors(vec![t1, t2, t3], None);
-        let t4 = Tensor::new_with_bonddims(vec![5, 6], bond_dims.clone());
-        let t5 = Tensor::new_with_bonddims(vec![4, 6, 7], bond_dims.clone());
-        let t6 = Tensor::new_with_bonddims(vec![7], bond_dims.clone());
-        let mut tn2 = Tensor::new_with_bonddims(vec![], bond_dims.clone());
-        tn2.push_tensors(vec![t4, t5, t6], None);
-        let t7 = Tensor::new_with_bonddims(vec![8, 9], bond_dims.clone());
-        let t8 = Tensor::new_with_bonddims(vec![0, 9], bond_dims.clone());
-        let mut tn3 = Tensor::new_with_bonddims(vec![], bond_dims.clone());
-        tn3.push_tensors(vec![t7, t8], None);
+        let t1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims);
+        let t2 = Tensor::new_from_map(vec![2, 3], &bond_dims);
+        let t3 = Tensor::new_from_map(vec![1, 3, 4], &bond_dims);
+        let tn1 = Tensor::new_composite(vec![t1, t2, t3]);
+        let t4 = Tensor::new_from_map(vec![5, 6], &bond_dims);
+        let t5 = Tensor::new_from_map(vec![4, 6, 7], &bond_dims);
+        let t6 = Tensor::new_from_map(vec![7], &bond_dims);
+        let tn2 = Tensor::new_composite(vec![t4, t5, t6]);
+        let t7 = Tensor::new_from_map(vec![8, 9], &bond_dims);
+        let t8 = Tensor::new_from_map(vec![0, 9], &bond_dims);
+        let tn3 = Tensor::new_composite(vec![t7, t8]);
 
-        let mut tn = Tensor::new_with_bonddims(vec![], bond_dims);
-        tn.push_tensors(vec![tn1, tn2, tn3], None);
-        tn
+        Tensor::new_composite(vec![tn1, tn2, tn3])
     }
 
     #[test]

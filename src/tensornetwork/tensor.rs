@@ -1,10 +1,11 @@
 use core::ops::{BitAnd, BitOr, BitXor, Sub};
 use std::hash::{Hash, Hasher};
 use std::iter::zip;
+use std::num::TryFromIntError;
 use std::ops::BitXorAssign;
-use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 
 use crate::types::{EdgeIndex, SlicingTask, TensorIndex};
 use crate::utils::datastructures::UnionFind;
@@ -12,7 +13,7 @@ use crate::utils::datastructures::UnionFind;
 use super::tensordata::TensorData;
 
 /// Abstract representation of a tensor.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Tensor {
     /// The inner tensors that make up this tensor. If non-empty, this tensor is
     /// called a *composite* tensor.
@@ -21,8 +22,8 @@ pub struct Tensor {
     /// The legs of the tensor. Each leg is an index to an edge.
     pub(crate) legs: Vec<EdgeIndex>,
 
-    /// The shared bond dimensions. Maps an edge index to the bond dimension.
-    pub(crate) bond_dims: Arc<RwLock<FxHashMap<EdgeIndex, u64>>>,
+    /// The bond dimensions, same length as `legs`.
+    pub(crate) bond_dims: Vec<u64>,
 
     /// The data of the tensor.
     pub(crate) tensordata: TensorData,
@@ -35,46 +36,57 @@ impl Hash for Tensor {
 }
 
 impl Tensor {
-    /// Constructs a Tensor object without underlying data.
-    ///
-    /// # Arguments
-    ///
-    /// * `legs` - A vector of usize containing edge ids.
-    ///
-    /// # Examples
-    /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor = Tensor::new(vec![1, 2, 3]);
-    /// assert_eq!(tensor.legs(), &[1, 2, 3]);
-    /// ```
+    /// Constructs a Tensor object with the given `legs` (edge ids) and corresponding
+    /// `bond_dims`. The tensor doesn't have underlying data.
     #[inline]
-    pub fn new(legs: Vec<EdgeIndex>) -> Self {
+    pub(crate) fn new(legs: Vec<EdgeIndex>, bond_dims: Vec<u64>) -> Self {
+        assert_eq!(legs.len(), bond_dims.len());
         Self {
             legs,
+            bond_dims,
             ..Default::default()
         }
     }
 
-    /// Constructs a Tensor object with bond dimensions without underlying data.
+    /// Constructs a Tensor using with the given edge ids and a mapping of edge ids
+    /// to corresponding bond dimension.
     ///
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
-    /// # use std::sync::{Arc, RwLock};
-    /// let bond_dims = FxHashMap::from_iter([(0, 17), (1, 19), (2, 8)]);
-    /// let tensor = Tensor::new_with_bonddims(vec![1, 2, 3], Arc::new(RwLock::new(bond_dims.clone())));
+    /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6)]);
+    /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
     /// assert_eq!(tensor.legs(), &[1, 2, 3]);
-    /// assert_eq!(*tensor.bond_dims(), bond_dims);
+    /// assert_eq!(tensor.bond_dims(), &[2, 4, 6]);
     /// ```
     #[inline]
-    pub fn new_with_bonddims(
-        legs: Vec<EdgeIndex>,
-        bond_dims: Arc<RwLock<FxHashMap<EdgeIndex, u64>>>,
-    ) -> Self {
+    pub fn new_from_map(legs: Vec<EdgeIndex>, bond_dims_map: &FxHashMap<EdgeIndex, u64>) -> Self {
+        let bond_dims = legs.iter().map(|l| bond_dims_map[l]).collect();
+        Self::new(legs, bond_dims)
+    }
+
+    /// Constructs a Tensor with the given edge ids and the same bond dimension for
+    /// all edges.
+    ///
+    /// # Examples
+    /// ```
+    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// let tensor = Tensor::new_from_const(vec![1, 2, 3], 2);
+    /// assert_eq!(tensor.legs(), &[1, 2, 3]);
+    /// assert_eq!(tensor.bond_dims(), &[2, 2, 2]);
+    /// ```
+    #[inline]
+    pub fn new_from_const(legs: Vec<EdgeIndex>, bond_dim: u64) -> Self {
+        let bond_dims = vec![bond_dim; legs.len()];
+        Self::new(legs, bond_dims)
+    }
+
+    /// Creates a new composite tensor with the given nested tensors.
+    #[inline]
+    pub fn new_composite(tensors: Vec<Self>) -> Self {
         Self {
-            legs,
-            bond_dims,
+            tensors,
             ..Default::default()
         }
     }
@@ -84,9 +96,8 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let vec = vec![1, 2, 3];
-    /// let tensor = Tensor::new(vec.clone()) ;
-    /// assert_eq!(tensor.legs(), &vec);
+    /// let tensor = Tensor::new_from_const(vec![1, 2, 3], 3);
+    /// assert_eq!(tensor.legs(), &[1, 2, 3]);
     /// ```
     #[inline]
     pub fn legs(&self) -> &Vec<EdgeIndex> {
@@ -99,23 +110,23 @@ impl Tensor {
         self.legs = legs;
     }
 
-    /// Getter for list of Tensor objects.
+    /// Returns an iterator of tuples of leg ids and their corresponding bond size.
+    #[inline]
+    pub fn edges(&self) -> impl Iterator<Item = (&EdgeIndex, &u64)> + '_ {
+        std::iter::zip(&self.legs, &self.bond_dims)
+    }
+
+    /// Returns the nested tensors of a composite tensor.
     ///
     /// # Examples
     ///
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// # use rustc_hash::FxHashMap;
-    /// let mut v1 = Tensor::new(vec![0, 1]);
-    /// let mut v2 = Tensor::new(vec![1, 2]);
-    /// let bond_dims = FxHashMap::from_iter([
-    /// (0, 17), (1, 19), (2, 8)
-    /// ]);
-    /// let mut tn = Tensor::default();
-    /// tn.push_tensors(vec![v1.clone(), v2.clone()], Some(&bond_dims));
-    /// v1.insert_bond_dims(&bond_dims);
-    /// v2.insert_bond_dims(&bond_dims);
+    /// let bond_dims = FxHashMap::from_iter([(0, 17), (1, 19), (2, 8)]);
+    /// let v1 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+    /// let v2 = Tensor::new_from_map(vec![1, 2], &bond_dims);
+    /// let tn = Tensor::new_composite(vec![v1.clone(), v2.clone()]);
     /// for (tensor, ref_tensor) in std::iter::zip(tn.tensors(), vec![v1, v2]){
     ///    assert_eq!(tensor.legs(), ref_tensor.legs());
     /// }
@@ -131,25 +142,17 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// # use rustc_hash::FxHashMap;
-    /// let mut v1 = Tensor::new(vec![0, 1]);
-    /// let mut v2 = Tensor::new(vec![1, 2]);
-    /// let mut v3 = Tensor::new(vec![2, 3]);
-    /// let mut v4 = Tensor::new(vec![3, 4]);
-    /// let bond_dims = FxHashMap::from_iter([
-    /// (0, 17), (1, 19), (2, 8), (3, 2), (4, 1)
-    /// ]);
-    /// let mut tn1 = Tensor::default();
-    /// tn1.push_tensors(vec![v1, v2], Some(&bond_dims));
-    /// let mut tn2 = Tensor::default();
-    /// tn2.push_tensors(vec![v3.clone(), v4], Some(&bond_dims));
-    /// let mut nested_tn = Tensor::default();
-    /// nested_tn.push_tensors(vec![tn1, tn2], Some(&bond_dims));
-    /// v3.insert_bond_dims(&bond_dims);
+    /// let bond_dims = FxHashMap::from_iter([(0, 17), (1, 19), (2, 8), (3, 2), (4, 1)]);
+    /// let mut v1 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+    /// let mut v2 = Tensor::new_from_map(vec![1, 2], &bond_dims);
+    /// let mut v3 = Tensor::new_from_map(vec![2, 3], &bond_dims);
+    /// let mut v4 = Tensor::new_from_map(vec![3, 4], &bond_dims);
+    /// let tn1 = Tensor::new_composite(vec![v1, v2]);
+    /// let tn2 = Tensor::new_composite(vec![v3.clone(), v4]);
+    /// let nested_tn = Tensor::new_composite(vec![tn1, tn2]);
     ///
     /// assert_eq!(nested_tn.nested_tensor(&[1, 0]).legs(), v3.legs());
-    ///
     /// ```
     pub fn nested_tensor(&self, nested_indices: &[usize]) -> &Tensor {
         let mut tensor = self;
@@ -174,19 +177,12 @@ impl Tensor {
     ///
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// # use rustc_hash::FxHashMap;
-    /// let mut v1 = Tensor::new(vec![0, 1]);
-    /// let mut v2 = Tensor::new(vec![1, 2]);
-    /// let bond_dims = FxHashMap::from_iter([
-    /// (0, 17), (1, 19), (2, 8)
-    /// ]);
-    /// let mut tn = Tensor::default();
-    /// tn.push_tensors(vec![v1, v2], Some(&bond_dims));
-    /// tn.insert_bond_dims(&bond_dims);
-    /// let mut ref_tensor = Tensor::new(vec![0, 1]);
-    /// ref_tensor.insert_bond_dims(&bond_dims);
-    /// assert_eq!(tn.tensor(0).legs(), ref_tensor.legs());
+    /// let bond_dims = FxHashMap::from_iter([(0, 17), (1, 19), (2, 8)]);
+    /// let v1 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+    /// let v2 = Tensor::new_from_map(vec![1, 2], &bond_dims);
+    /// let tn = Tensor::new_composite(vec![v1.clone(), v2]);
+    /// assert_eq!(tn.tensor(0).legs(), v1.legs());
     /// ```
     #[inline]
     pub fn tensor(&self, i: TensorIndex) -> &Self {
@@ -194,67 +190,16 @@ impl Tensor {
     }
 
     /// Getter for bond dimensions.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::create_tensor_network;
-    /// # use rustc_hash::FxHashMap;
-    /// let v1 = Tensor::new(vec![0, 1]);
-    /// let v2 = Tensor::new(vec![1, 2]);
-    /// let bond_dims = FxHashMap::from_iter([
-    /// (0, 17), (1, 19), (2, 8)
-    /// ]);
-    /// let tn = create_tensor_network(vec![v1, v2], &bond_dims);
-    /// assert_eq!(*tn.bond_dims(), bond_dims);
-    /// ```
     #[inline]
-    pub fn bond_dims(&self) -> RwLockReadGuard<FxHashMap<EdgeIndex, u64>> {
-        self.bond_dims.read().unwrap()
+    pub fn bond_dims(&self) -> &Vec<u64> {
+        assert!(self.is_leaf());
+        &self.bond_dims
     }
 
-    /// Setter for multiple bond dimensions. Overwrites existing bond dimensions.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::create_tensor_network;
-    /// # use rustc_hash::FxHashMap;
-    /// let v1 = Tensor::new(vec![0, 1]);
-    /// let v2 = Tensor::new(vec![1, 2]);
-    /// let bond_dims = FxHashMap::from_iter([
-    /// (0, 17), (1, 19), (2, 8)
-    /// ]);
-    /// let mut tn = create_tensor_network(vec![v1, v2], &bond_dims);
-    /// tn.insert_bond_dims(&FxHashMap::from_iter([(1, 12), (0, 5)]));
-    /// assert_eq!(*tn.bond_dims(), FxHashMap::from_iter([(0, 5), (1, 12), (2, 8)]) );
-    /// ```
-    pub fn insert_bond_dims(&mut self, bond_dims: &FxHashMap<EdgeIndex, u64>) {
-        let mut own_bond_dims = self.bond_dims.write().unwrap();
-        own_bond_dims.extend(bond_dims);
-    }
-
-    /// Returns the shape.
-    ///
-    /// # Examples
-    /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use rustc_hash::FxHashMap;
-    /// let legs = vec![0, 1, 2];
-    /// let bond_dims = FxHashMap::from_iter([
-    /// (0, 17), (1, 19), (2, 8)
-    /// ]);
-    /// let mut tensor = Tensor::new(legs);
-    /// tensor.insert_bond_dims(&bond_dims);
-    ///
-    /// assert_eq!(tensor.shape(), vec![17, 19, 8]);
-    /// ```
-    #[inline]
-    pub fn shape(&self) -> Vec<usize> {
-        let bond_dims = self.bond_dims();
-        self.legs.iter().map(|e| bond_dims[e] as usize).collect()
+    /// Returns the shape of tensor. This is the same as the bond dimensions, but as
+    /// `usize`. The conversion can fail, hence a [`Result`] is returned.
+    pub fn shape(&self) -> Result<Vec<usize>, TryFromIntError> {
+        self.bond_dims.iter().map(|&dim| dim.try_into()).collect()
     }
 
     /// Returns the number of dimensions.
@@ -262,8 +207,9 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let legs = vec![1, 2, 3];
-    /// let tensor = Tensor::new(legs);
+    /// # use rustc_hash::FxHashMap;
+    /// let bond_dims = FxHashMap::from_iter([(1, 4), (2, 6), (3, 2)]);
+    /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
     /// assert_eq!(tensor.dims(), 3);
     /// ```
     #[inline]
@@ -277,17 +223,14 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// # use rustc_hash::FxHashMap;
-    /// let mut tensor = Tensor::new(vec![1, 2, 3]);
     /// let bond_dims = FxHashMap::from_iter([(1, 5), (2, 15), (3, 8)]);
-    /// tensor.insert_bond_dims(&bond_dims);
+    /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
     /// assert_eq!(tensor.size(), 600.0);
     /// ```
     #[inline]
     pub fn size(&self) -> f64 {
-        let bond_dims = self.bond_dims();
-        self.legs.iter().map(|e| bond_dims[e] as f64).product()
+        self.bond_dims.iter().map(|v| *v as f64).product()
     }
 
     /// Returns the number of elements ignoring sliced edges. This is a f64 to avoid overflow in large
@@ -296,40 +239,22 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
     /// # use rustc_hash::FxHashMap;
-    /// let mut tensor = Tensor::new(vec![1, 2, 3]);
     /// let bond_dims = FxHashMap::from_iter([(1, 5), (2, 15), (3, 8)]);
-    /// let sliced_edges = vec![2];
-    /// tensor.insert_bond_dims(&bond_dims);
-    /// assert_eq!(tensor.sliced_size(&sliced_edges), 40.0);
+    /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
+    /// assert_eq!(tensor.sliced_size(&[2]), 40.0);
     /// ```
     #[inline]
     pub fn sliced_size(&self, slicing: &[EdgeIndex]) -> f64 {
-        let bond_dims = self.bond_dims();
-        self.legs
-            .iter()
-            .filter(|e| !slicing.contains(e))
-            .map(|e| bond_dims[e] as f64)
+        self.edges()
+            .filter_map(|(leg, dim)| {
+                if !slicing.contains(leg) {
+                    Some(*dim as f64)
+                } else {
+                    None
+                }
+            })
             .product()
-    }
-
-    /// Returns true if Tensor contains `leg_id`.
-    ///
-    /// # Arguments
-    ///
-    /// * `leg_id` - `usize` referencing specific leg
-    ///
-    /// # Examples
-    /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor = Tensor::new(vec![1, 2, 3]);
-    /// assert_eq!(tensor.contains_leg(2), true);
-    /// assert_eq!(tensor.contains_leg(4), false);
-    /// ```
-    #[inline]
-    pub fn contains_leg(&self, leg_id: EdgeIndex) -> bool {
-        self.legs.contains(&leg_id)
     }
 
     /// Returns true if Tensor is a leaf tensor, without any nested tensors.
@@ -337,8 +262,12 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor = Tensor::new(vec![1, 2, 3]);
+    /// # use rustc_hash::FxHashMap;
+    /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6)]);
+    /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
     /// assert_eq!(tensor.is_leaf(), true);
+    /// let comp = Tensor::new_composite(vec![tensor]);
+    /// assert_eq!(comp.is_leaf(), false);
     /// ```
     #[inline]
     pub fn is_leaf(&self) -> bool {
@@ -350,8 +279,12 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let mut tensor = Tensor::new(vec![1, 2, 3]);
+    /// # use rustc_hash::FxHashMap;
+    /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6)]);
+    /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
     /// assert_eq!(tensor.is_composite(), false);
+    /// let comp = Tensor::new_composite(vec![tensor]);
+    /// assert_eq!(comp.is_composite(), true);
     /// ```
     #[inline]
     pub fn is_composite(&self) -> bool {
@@ -383,9 +316,7 @@ impl Tensor {
         if self.legs != other.legs {
             return false;
         }
-        if !Arc::ptr_eq(&self.bond_dims, &other.bond_dims)
-            && *self.bond_dims() != *other.bond_dims()
-        {
+        if self.bond_dims != other.bond_dims {
             return false;
         }
 
@@ -399,52 +330,23 @@ impl Tensor {
     }
 
     /// Pushes additional `tensor` into this tensor, which must be a composite tensor.
-    pub fn push_tensor(&mut self, mut tensor: Self, bond_dims: Option<&FxHashMap<EdgeIndex, u64>>) {
+    #[inline]
+    pub fn push_tensor(&mut self, tensor: Self) {
         assert!(
             self.legs.is_empty() && matches!(self.tensordata, TensorData::Uncontracted),
             "Cannot push tensors into a leaf tensor"
         );
-
-        if let Some(bond_dims) = bond_dims {
-            self.add_bond_dims(bond_dims);
-        }
-        self.add_bond_dims(&tensor.bond_dims());
-        tensor.bond_dims = Arc::clone(&self.bond_dims);
-
         self.tensors.push(tensor);
     }
 
     /// Pushes additional `tensors` into this tensor, which must be a composite tensor.
-    pub fn push_tensors(
-        &mut self,
-        mut tensors: Vec<Self>,
-        bond_dims: Option<&FxHashMap<EdgeIndex, u64>>,
-    ) {
+    #[inline]
+    pub fn push_tensors(&mut self, mut tensors: Vec<Self>) {
         assert!(
             self.legs.is_empty() && matches!(self.tensordata, TensorData::Uncontracted),
             "Cannot push tensors into a leaf tensor"
         );
-
-        if let Some(bond_dims) = bond_dims {
-            self.add_bond_dims(bond_dims);
-        };
-
-        for tensor in &mut tensors {
-            tensor.bond_dims = Arc::clone(&self.bond_dims);
-        }
         self.tensors.append(&mut tensors);
-    }
-
-    /// Internal method to update bond dimensions based on `bond_dims`. Only incorporates missing dimensions,
-    /// existing keys are not changed.
-    fn add_bond_dims(&mut self, bond_dims: &FxHashMap<EdgeIndex, u64>) {
-        let mut shared_bond_dims = self.bond_dims.write().unwrap();
-        for (key, value) in bond_dims {
-            shared_bond_dims
-                .entry(*key)
-                .and_modify(|e| assert_eq!(e, value, "Updating bond dims will overwrite entry at key {key} with value {e} with new value of {value}"))
-                .or_insert(*value);
-        }
     }
 
     /// Getter for tensor data.
@@ -460,7 +362,7 @@ impl Tensor {
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
     /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
-    /// let mut tensor = Tensor::new(vec![0, 1]);
+    /// let mut tensor = Tensor::new_from_const(vec![0, 1], 2);
     /// let tensordata = TensorData::Gate((String::from("x"), vec![], false));
     /// tensor.set_tensor_data(tensordata);
     /// ```
@@ -477,12 +379,12 @@ impl Tensor {
     /// or a single tensor if it is an unbound leg.
     fn get_edge(&self, leg_id: EdgeIndex) -> (TensorIndex, Option<TensorIndex>) {
         for (t1_id, t1) in self.tensors.iter().enumerate() {
-            if !t1.contains_leg(leg_id) {
+            if !t1.legs.contains(&leg_id) {
                 continue;
             }
 
             for (t2_id, t2) in self.tensors.iter().enumerate().skip(t1_id + 1) {
-                if t2.contains_leg(leg_id) {
+                if t2.legs.contains(&leg_id) {
                     return (t1_id, Some(t2_id));
                 }
             }
@@ -495,23 +397,19 @@ impl Tensor {
     /// This only checks the top-level, not recursing into composite tensors.
     ///
     /// # Examples
-    ///
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::create_tensor_network;
     /// # use rustc_hash::FxHashMap;
     /// // Create a tensor network with two connected tensors
-    /// let v1 = Tensor::new(vec![0, 1]);
-    /// let v2 = Tensor::new(vec![1, 2]);
-    /// let bond_dims = FxHashMap::from_iter([
-    /// (0, 17), (1, 19), (2, 8), (3, 5)
-    /// ]);
-    /// let mut tn = create_tensor_network(vec![v1, v2], &bond_dims);
+    /// let bond_dims = FxHashMap::from_iter([(0, 17), (1, 19), (2, 8), (3, 5)]);
+    /// let v1 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+    /// let v2 = Tensor::new_from_map(vec![1, 2], &bond_dims);
+    /// let mut tn = Tensor::new_composite(vec![v1, v2]);
     /// assert!(tn.is_connected());
     ///
     /// // Introduce a new tensor that is not connected
-    /// let v3 = Tensor::new(vec![3]);
-    /// tn.push_tensor(v3, None);
+    /// let v3 = Tensor::new_from_map(vec![3], &bond_dims);
+    /// tn.push_tensor(v3);
     /// assert!(!tn.is_connected());
     /// ```
     pub fn is_connected(&self) -> bool {
@@ -559,25 +457,25 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor1 = Tensor::new(vec![1, 2, 3]);
-    /// let tensor2 = Tensor::new(vec![4, 2, 5]);
+    /// # use rustc_hash::FxHashMap;
+    /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6), (4, 3), (5, 9)]);
+    /// let tensor1 = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
+    /// let tensor2 = Tensor::new_from_map(vec![4, 2, 5], &bond_dims);
     /// let diff_tensor = &tensor1 - &tensor2;
     /// assert_eq!(diff_tensor.legs(), &[1, 3]);
+    /// assert_eq!(diff_tensor.bond_dims(), &[2, 6]);
     /// ```
     #[must_use]
     pub fn difference(&self, other: &Self) -> Self {
         let mut new_legs = Vec::with_capacity(self.legs.len());
-        for &i in &self.legs {
-            if !other.contains_leg(i) {
-                new_legs.push(i);
+        let mut new_bond_dims = Vec::with_capacity(new_legs.len());
+        for (leg, dim) in self.edges() {
+            if !other.legs.contains(leg) {
+                new_legs.push(*leg);
+                new_bond_dims.push(*dim);
             }
         }
-        let bond_dims = if self.bond_dims().is_empty() {
-            other.bond_dims.clone()
-        } else {
-            self.bond_dims.clone()
-        };
-        Self::new_with_bonddims(new_legs, bond_dims)
+        Self::new(new_legs, new_bond_dims)
     }
 
     /// Returns `Tensor` with union of legs in both `self` and `other`.
@@ -585,26 +483,27 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor1 = Tensor::new(vec![1, 2, 3]);
-    /// let tensor2 = Tensor::new(vec![4, 2, 5]);
+    /// # use rustc_hash::FxHashMap;
+    /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6), (4, 3), (5, 9)]);
+    /// let tensor1 = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
+    /// let tensor2 = Tensor::new_from_map(vec![4, 2, 5], &bond_dims);
     /// let union_tensor = &tensor1 | &tensor2;
     /// assert_eq!(union_tensor.legs(), &[1, 2, 3, 4, 5]);
+    /// assert_eq!(union_tensor.bond_dims(), &[2, 4, 6, 3, 9]);
     /// ```
     #[must_use]
     pub fn union(&self, other: &Self) -> Self {
         let mut new_legs = Vec::with_capacity(self.legs.len() + other.legs.len());
+        let mut new_bond_dims = Vec::with_capacity(new_legs.len());
         new_legs.extend_from_slice(&self.legs);
-        for &i in &other.legs {
-            if !self.contains_leg(i) {
-                new_legs.push(i);
+        new_bond_dims.extend_from_slice(&self.bond_dims);
+        for (leg, dim) in other.edges() {
+            if !self.legs.contains(leg) {
+                new_legs.push(*leg);
+                new_bond_dims.push(*dim);
             }
         }
-        let bond_dims = if self.bond_dims().is_empty() {
-            other.bond_dims.clone()
-        } else {
-            self.bond_dims.clone()
-        };
-        Self::new_with_bonddims(new_legs, bond_dims)
+        Self::new(new_legs, new_bond_dims)
     }
 
     /// Returns `Tensor` with intersection of legs in `self` and `other`.
@@ -612,25 +511,25 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor1 = Tensor::new(vec![1, 2, 3]);
-    /// let tensor2 = Tensor::new(vec![4, 2, 5]);
+    /// # use rustc_hash::FxHashMap;
+    /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6), (4, 3), (5, 9)]);
+    /// let tensor1 = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
+    /// let tensor2 = Tensor::new_from_map(vec![4, 2, 5], &bond_dims);
     /// let intersection_tensor = &tensor1 & &tensor2;
     /// assert_eq!(intersection_tensor.legs(), &[2]);
+    /// assert_eq!(intersection_tensor.bond_dims(), &[4]);
     /// ```
     #[must_use]
     pub fn intersection(&self, other: &Self) -> Self {
         let mut new_legs = Vec::with_capacity(self.legs.len().min(other.legs.len()));
-        for &i in &self.legs {
-            if other.contains_leg(i) {
-                new_legs.push(i);
+        let mut new_bond_dims = Vec::with_capacity(new_legs.len());
+        for (leg, dim) in self.edges() {
+            if other.legs.contains(leg) {
+                new_legs.push(*leg);
+                new_bond_dims.push(*dim);
             }
         }
-        let bond_dims = if self.bond_dims().is_empty() {
-            other.bond_dims.clone()
-        } else {
-            self.bond_dims.clone()
-        };
-        Self::new_with_bonddims(new_legs, bond_dims)
+        Self::new(new_legs, new_bond_dims)
     }
 
     /// Returns `Tensor` with symmetrical difference of legs in `self` and `other`.
@@ -638,49 +537,50 @@ impl Tensor {
     /// # Examples
     /// ```
     /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// let tensor1 = Tensor::new(vec![1, 2, 3]);
-    /// let tensor2 = Tensor::new(vec![4, 2, 5]);
+    /// # use rustc_hash::FxHashMap;
+    /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6), (4, 3), (5, 9)]);
+    /// let tensor1 = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
+    /// let tensor2 = Tensor::new_from_map(vec![4, 2, 5], &bond_dims);
     /// let sym_dif_tensor = &tensor1 ^ &tensor2;
     /// assert_eq!(sym_dif_tensor.legs(), &[1, 3, 4, 5]);
+    /// assert_eq!(sym_dif_tensor.bond_dims(), &[2, 6, 3, 9]);
     /// ```
     #[must_use]
     pub fn symmetric_difference(&self, other: &Self) -> Self {
         let mut new_legs = Vec::with_capacity(self.legs.len() + other.legs.len());
-        for &i in &self.legs {
-            if !other.contains_leg(i) {
-                new_legs.push(i);
+        let mut new_bond_dims = Vec::with_capacity(new_legs.len());
+        for (leg, dim) in self.edges() {
+            if !other.legs.contains(leg) {
+                new_legs.push(*leg);
+                new_bond_dims.push(*dim);
             }
         }
-        for &i in &other.legs {
-            if !self.contains_leg(i) {
-                new_legs.push(i);
+        for (leg, dim) in other.edges() {
+            if !self.legs.contains(leg) {
+                new_legs.push(*leg);
+                new_bond_dims.push(*dim);
             }
         }
-        let bond_dims = if self.bond_dims().is_empty() {
-            other.bond_dims.clone()
-        } else {
-            self.bond_dims.clone()
-        };
-        Self::new_with_bonddims(new_legs, bond_dims)
+        Self::new(new_legs, new_bond_dims)
     }
 
     /// Get output legs after tensor contraction
-    pub fn external_edges(&self) -> Vec<EdgeIndex> {
+    pub fn external_tensor(&self) -> Tensor {
         if self.is_leaf() {
-            return self.legs.clone();
+            return self.clone();
         }
 
-        let mut ext_edges = Self::default();
+        let mut ext_tensor = Self::default();
         for tensor in &self.tensors {
             let new_tensor = if tensor.is_composite() {
-                &Tensor::new(tensor.external_edges())
+                &tensor.external_tensor()
             } else {
                 tensor
             };
-            ext_edges = &ext_edges ^ new_tensor;
+            ext_tensor = &ext_tensor ^ new_tensor;
         }
 
-        std::mem::take(&mut ext_edges.legs)
+        ext_tensor
     }
 }
 
@@ -738,29 +638,35 @@ mod tests {
     fn test_empty_tensor() {
         let tensor = Tensor::default();
         assert!(tensor.tensors.is_empty());
-        assert!(tensor.bond_dims().is_empty());
+        assert!(tensor.legs.is_empty());
+        assert!(tensor.bond_dims.is_empty());
+        assert!(tensor.is_empty());
     }
 
     #[test]
     fn test_new() {
-        let tensor = Tensor::new(vec![2, 4, 5]);
-        assert_eq!(tensor.legs(), &vec![2, 4, 5]);
+        let tensor = Tensor::new(vec![2, 4, 5], vec![4, 2, 6]);
+        assert_eq!(tensor.legs(), &[2, 4, 5]);
+        assert_eq!(tensor.bond_dims(), &[4, 2, 6]);
         assert_eq!(tensor.dims(), 3);
         assert_matches!(tensor.tensor_data(), TensorData::Uncontracted);
     }
 
     #[test]
-    #[should_panic(
-        expected = "assertion `left == right` failed: Updating bond dims will overwrite entry at key 2 with value 5 with new value of 17\n  left: 5\n right: 17"
-    )]
-    fn test_add_bond_dims() {
-        let mut tensor = Tensor::new(vec![2, 4, 5]);
+    fn test_new_from_map() {
+        let bond_dims = FxHashMap::from_iter([(1, 1), (2, 4), (3, 7), (4, 2), (5, 6)]);
+        let tensor = Tensor::new_from_map(vec![2, 4, 5], &bond_dims);
+        assert_eq!(tensor.legs(), &[2, 4, 5]);
+        assert_eq!(tensor.bond_dims(), &[4, 2, 6]);
+        assert_eq!(tensor.dims(), 3);
+    }
 
-        let bond_dims = FxHashMap::from_iter([(2, 5), (7, 24), (9, 2)]);
-        tensor.add_bond_dims(&bond_dims);
-
-        let bond_dims = FxHashMap::from_iter([(2, 17), (4, 11), (5, 14)]);
-        tensor.add_bond_dims(&bond_dims);
+    #[test]
+    fn test_new_from_const() {
+        let tensor = Tensor::new_from_const(vec![9, 2, 5, 1], 3);
+        assert_eq!(tensor.legs(), &[9, 2, 5, 1]);
+        assert_eq!(tensor.bond_dims(), &[3, 3, 3, 3]);
+        assert_eq!(tensor.dims(), 4);
     }
 
     #[test]
@@ -775,145 +681,106 @@ mod tests {
             (8, 14),
             (9, 16),
         ]);
-        let mut tensor_1234 = Tensor::default();
-        let mut tensor_12 = Tensor::default();
+        let tensor_1 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims);
+        let tensor_2 = Tensor::new_from_map(vec![2, 3, 5], &bond_dims);
+        let tensor_12 = Tensor::new_composite(vec![tensor_1, tensor_2]);
 
-        let tensor_1 = Tensor::new(vec![2, 3, 4]);
-        let tensor_2 = Tensor::new(vec![2, 3, 5]);
-        tensor_12.push_tensors(vec![tensor_1, tensor_2], Some(&bond_dims));
+        let tensor_3 = Tensor::new_from_map(vec![6, 7, 8], &bond_dims);
+        let tensor_4 = Tensor::new_from_map(vec![6, 8, 9], &bond_dims);
+        let tensor_34 = Tensor::new_composite(vec![tensor_3, tensor_4]);
 
-        let mut tensor_34 = Tensor::default();
-        let tensor_3 = Tensor::new(vec![6, 7, 8]);
-        let tensor_4 = Tensor::new(vec![6, 8, 9]);
-        tensor_34.push_tensors(vec![tensor_3, tensor_4], Some(&bond_dims));
+        let tensor_1234 = Tensor::new_composite(vec![tensor_12, tensor_34]);
 
-        tensor_1234.push_tensors(vec![tensor_12, tensor_34], Some(&bond_dims));
-
-        assert_eq!(tensor_1234.external_edges(), vec![4, 5, 7, 9]);
+        let external = tensor_1234.external_tensor();
+        assert_eq!(external.legs(), &[4, 5, 7, 9]);
+        assert_eq!(external.bond_dims(), &[6, 8, 12, 16]);
     }
 
     #[test]
     fn test_push_tensor() {
-        let reference_bond_dims_1 =
-            FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (8, 3), (9, 20)]);
-        let reference_bond_dims_2 =
+        let bond_dims =
             FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (8, 3), (9, 20), (7, 7), (10, 14)]);
-
-        let mut ref_tensor_1 = Tensor::new(vec![8, 4, 9]);
-        ref_tensor_1.insert_bond_dims(&reference_bond_dims_1);
-
-        let mut ref_tensor_2 = Tensor::new(vec![7, 10, 2]);
-        ref_tensor_2.insert_bond_dims(&reference_bond_dims_2);
+        let ref_tensor_1 = Tensor::new_from_map(vec![8, 4, 9], &bond_dims);
+        let ref_tensor_2 = Tensor::new_from_map(vec![7, 10, 2], &bond_dims);
 
         let mut tensor = Tensor::default();
 
         // Push tensor 1
-        let tensor_1 = Tensor::new(vec![8, 4, 9]);
-        let bond_dims_1 = FxHashMap::from_iter([(8, 3), (9, 20)]);
-        tensor.push_tensor(tensor_1, Some(&bond_dims_1));
+        let tensor_1 = Tensor::new_from_map(vec![8, 4, 9], &bond_dims);
+        tensor.push_tensor(tensor_1);
 
-        assert_matches!(tensor.tensor_data(), TensorData::Uncontracted);
-
-        for (key, value) in tensor.bond_dims().iter() {
-            assert_eq!(*value, reference_bond_dims_1[key]);
+        for (sub_tensor, ref_tensor) in zip(tensor.tensors(), [&ref_tensor_1]) {
+            assert_eq!(sub_tensor.legs(), ref_tensor.legs());
+            assert_eq!(sub_tensor.bond_dims(), ref_tensor.bond_dims());
         }
-
-        for (tensor_legs, ref_tensor_legs) in zip(tensor.tensors(), [&ref_tensor_1]) {
-            assert_eq!(tensor_legs.legs(), ref_tensor_legs.legs());
-        }
-
-        assert_eq!(tensor.legs(), &Vec::<usize>::new());
 
         // Push tensor 2
-        let mut tensor_2 = Tensor::new(vec![7, 10, 2]);
-        let bond_dims_2 = FxHashMap::from_iter([(7, 7), (10, 14)]);
-        tensor_2.insert_bond_dims(&bond_dims_2);
+        let tensor_2 = Tensor::new_from_map(vec![7, 10, 2], &bond_dims);
+        tensor.push_tensor(tensor_2);
 
-        tensor.push_tensor(tensor_2, None);
-        for (key, value) in tensor.bond_dims().iter() {
-            assert_eq!(*value, reference_bond_dims_2[key]);
+        for (sub_tensor, ref_tensor) in zip(tensor.tensors(), [&ref_tensor_1, &ref_tensor_2]) {
+            assert_eq!(sub_tensor.legs(), ref_tensor.legs());
+            assert_eq!(sub_tensor.bond_dims(), ref_tensor.bond_dims());
         }
 
-        for (tensor_legs, ref_tensor_legs) in zip(tensor.tensors(), [&ref_tensor_1, &ref_tensor_2])
-        {
-            assert_eq!(tensor_legs.legs(), ref_tensor_legs.legs());
-        }
+        // Test that other fields are unchanged
+        assert_matches!(tensor.tensor_data(), TensorData::Uncontracted);
+        assert!(tensor.legs().is_empty());
     }
 
     #[test]
     #[should_panic(expected = "Cannot push tensors into a leaf tensor")]
     fn test_push_tensor_to_leaf() {
-        let reference_bond_dims =
+        let bond_dims =
             FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (8, 3), (9, 20), (7, 7), (10, 14)]);
-        let mut leaf_tensor = Tensor::new(vec![4, 3, 2]);
-        leaf_tensor.insert_bond_dims(&reference_bond_dims);
-
-        let mut pushed_tensor = Tensor::new(vec![8, 4, 9]);
-        pushed_tensor.insert_bond_dims(&reference_bond_dims);
-
-        leaf_tensor.push_tensor(pushed_tensor, None);
+        let mut leaf_tensor = Tensor::new_from_map(vec![4, 3, 2], &bond_dims);
+        let pushed_tensor = Tensor::new_from_map(vec![8, 4, 9], &bond_dims);
+        leaf_tensor.push_tensor(pushed_tensor);
     }
 
     #[test]
     fn test_push_tensors() {
-        let reference_bond_dims_1 = FxHashMap::from_iter([(2, 17), (3, 1), (4, 11)]);
-        let reference_bond_dims_3 =
+        let bond_dims =
             FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (8, 3), (9, 20), (7, 7), (10, 14)]);
+        let ref_tensor_1 = Tensor::new_from_map(vec![4, 3, 2], &bond_dims);
+        let ref_tensor_2 = Tensor::new_from_map(vec![8, 4, 9], &bond_dims);
+        let ref_tensor_3 = Tensor::new_from_map(vec![7, 10, 2], &bond_dims);
 
-        let mut ref_tensor_1 = Tensor::new(vec![4, 3, 2]);
-        ref_tensor_1.insert_bond_dims(&reference_bond_dims_1);
-
-        let mut ref_tensor_2 = Tensor::new(vec![8, 4, 9]);
-        ref_tensor_2.insert_bond_dims(&reference_bond_dims_3);
-
-        let mut ref_tensor_3 = Tensor::new(vec![7, 10, 2]);
-        ref_tensor_3.insert_bond_dims(&reference_bond_dims_3);
-
+        let tensor_1 = Tensor::new_from_map(vec![4, 3, 2], &bond_dims);
+        let tensor_2 = Tensor::new_from_map(vec![8, 4, 9], &bond_dims);
+        let tensor_3 = Tensor::new_from_map(vec![7, 10, 2], &bond_dims);
         let mut tensor = Tensor::default();
-
-        let tensor_1 = Tensor::new(vec![4, 3, 2]);
-        let tensor_2 = Tensor::new(vec![8, 4, 9]);
-        let tensor_3 = Tensor::new(vec![7, 10, 2]);
-        tensor.push_tensors(
-            vec![tensor_1, tensor_2, tensor_3],
-            Some(&reference_bond_dims_3),
-        );
+        tensor.push_tensors(vec![tensor_1, tensor_2, tensor_3]);
 
         assert_matches!(tensor.tensor_data(), TensorData::Uncontracted);
 
-        for (tensor, other_tensor) in zip(
+        for (sub_tensor, ref_tensor) in zip(
             tensor.tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
         ) {
-            assert_eq!(tensor.legs(), other_tensor.legs());
+            assert_eq!(sub_tensor.legs(), ref_tensor.legs());
+            assert_eq!(sub_tensor.bond_dims(), ref_tensor.bond_dims());
         }
-
-        assert_eq!(*tensor.bond_dims(), reference_bond_dims_3);
     }
 
     #[test]
     #[should_panic(expected = "Cannot push tensors into a leaf tensor")]
     fn test_push_tensors_to_leaf() {
-        let reference_bond_dims =
+        let bond_dims =
             FxHashMap::from_iter([(2, 17), (3, 1), (4, 11), (8, 3), (9, 20), (7, 7), (10, 14)]);
-        let mut leaf_tensor = Tensor::new(vec![4, 3, 2]);
-        leaf_tensor.insert_bond_dims(&reference_bond_dims);
+        let mut leaf_tensor = Tensor::new_from_map(vec![4, 3, 2], &bond_dims);
+        let pushed_tensor_1 = Tensor::new_from_map(vec![8, 4, 9], &bond_dims);
+        let pushed_tensor_2 = Tensor::new_from_map(vec![7, 10, 2], &bond_dims);
 
-        let mut pushed_tensor_1 = Tensor::new(vec![8, 4, 9]);
-        pushed_tensor_1.insert_bond_dims(&reference_bond_dims);
-
-        let mut pushed_tensor_2 = Tensor::new(vec![7, 10, 2]);
-        pushed_tensor_2.insert_bond_dims(&reference_bond_dims);
-
-        leaf_tensor.push_tensors(vec![pushed_tensor_1, pushed_tensor_2], None);
+        leaf_tensor.push_tensors(vec![pushed_tensor_1, pushed_tensor_2]);
     }
 
     #[test]
     fn test_apply_slicing() {
         let bond_dims = FxHashMap::from_iter([(0, 2), (1, 2), (2, 2)]);
-        let mut t0 = Tensor::new(vec![0, 1]);
-        let mut t1 = Tensor::new(vec![1, 2]);
-        let mut t2 = Tensor::new(vec![0, 2]);
+        let mut t0 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+        let mut t1 = Tensor::new_from_map(vec![1, 2], &bond_dims);
+        let mut t2 = Tensor::new_from_map(vec![0, 2], &bond_dims);
         t0.set_tensor_data(TensorData::new_from_data(
             &[2, 2],
             vec![c64(0, 0), c64(1, 0), c64(2, 0), c64(3, 0)],
@@ -930,8 +797,7 @@ mod tests {
             None,
         ));
 
-        let mut tensor = Tensor::default();
-        tensor.push_tensors(vec![t0, t1, t2], Some(&bond_dims));
+        let mut tensor = Tensor::new_composite(vec![t0, t1, t2]);
 
         let slicing_task = SlicingTask {
             slices: vec![(0, 1), (2, 0)],

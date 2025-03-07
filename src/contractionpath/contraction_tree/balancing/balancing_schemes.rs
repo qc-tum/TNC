@@ -516,27 +516,40 @@ mod tests {
     };
 
     fn setup_simple_partition_data() -> Vec<PartitionData> {
+        let bond_dims = FxHashMap::from_iter([
+            (0, 2),
+            (1, 2),
+            (2, 2),
+            (3, 2),
+            (4, 2),
+            (5, 2),
+            (6, 2),
+            (7, 2),
+            (8, 2),
+            (9, 2),
+            (10, 2),
+        ]);
         vec![
             PartitionData {
                 id: 2,
                 flop_cost: 1.,
                 mem_cost: 0.,
                 contraction: Default::default(),
-                local_tensor: Tensor::new(vec![7, 9, 10]),
+                local_tensor: Tensor::new_from_map(vec![7, 9, 10], &bond_dims),
             },
             PartitionData {
                 id: 7,
                 flop_cost: 2.,
                 mem_cost: 0.,
                 contraction: Default::default(),
-                local_tensor: Tensor::new(vec![0, 1, 5, 7]),
+                local_tensor: Tensor::new_from_map(vec![0, 1, 5, 7], &bond_dims),
             },
             PartitionData {
                 id: 14,
                 flop_cost: 3.,
                 mem_cost: 0.,
                 contraction: Default::default(),
-                local_tensor: Tensor::new(vec![0, 1, 2, 5, 10]),
+                local_tensor: Tensor::new_from_map(vec![0, 1, 2, 5, 10], &bond_dims),
             },
         ]
     }
@@ -557,37 +570,30 @@ mod tests {
             (10, 2),
         ]);
 
-        let tensor0 = Tensor::new(vec![7, 8]);
-        let tensor1 = Tensor::new(vec![8, 9, 10]);
+        let tensor0 = Tensor::new_from_map(vec![7, 8], &bond_dims);
+        let tensor1 = Tensor::new_from_map(vec![8, 9, 10], &bond_dims);
 
-        let tensor3 = Tensor::new(vec![0, 6]);
-        let tensor4 = Tensor::new(vec![1, 6]);
-        let tensor5 = Tensor::new(vec![5, 7]);
+        let tensor3 = Tensor::new_from_map(vec![0, 6], &bond_dims);
+        let tensor4 = Tensor::new_from_map(vec![1, 6], &bond_dims);
+        let tensor5 = Tensor::new_from_map(vec![5, 7], &bond_dims);
 
-        let tensor8 = Tensor::new(vec![0, 1]);
-        let tensor9 = Tensor::new(vec![2, 3]);
-        let tensor10 = Tensor::new(vec![3, 4]);
-        let tensor11 = Tensor::new(vec![4, 5, 10]);
+        let tensor8 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+        let tensor9 = Tensor::new_from_map(vec![2, 3], &bond_dims);
+        let tensor10 = Tensor::new_from_map(vec![3, 4], &bond_dims);
+        let tensor11 = Tensor::new_from_map(vec![4, 5, 10], &bond_dims);
 
-        let mut intermediate_tensor2 = Tensor::default();
-        intermediate_tensor2.push_tensors(vec![tensor0, tensor1], Some(&bond_dims));
+        let intermediate_tensor2 = Tensor::new_composite(vec![tensor0, tensor1]);
 
-        let mut intermediate_tensor7 = Tensor::default();
-        intermediate_tensor7.push_tensors(vec![tensor3, tensor4, tensor5], Some(&bond_dims));
+        let intermediate_tensor7 = Tensor::new_composite(vec![tensor3, tensor4, tensor5]);
 
-        let mut intermediate_tensor14 = Tensor::default();
-        intermediate_tensor14
-            .push_tensors(vec![tensor8, tensor9, tensor10, tensor11], Some(&bond_dims));
+        let intermediate_tensor14 =
+            Tensor::new_composite(vec![tensor8, tensor9, tensor10, tensor11]);
 
-        let mut tensor15 = Tensor::default();
-        tensor15.push_tensors(
-            vec![
-                intermediate_tensor2,
-                intermediate_tensor7,
-                intermediate_tensor14,
-            ],
-            Some(&bond_dims),
-        );
+        let tensor15 = Tensor::new_composite(vec![
+            intermediate_tensor2,
+            intermediate_tensor7,
+            intermediate_tensor14,
+        ]);
 
         let contraction_path = path![
             (0, [(0, 1)]),

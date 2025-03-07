@@ -330,7 +330,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             }
         }
 
-        let mut shifted_tensor = Tensor::new(Vec::new());
+        let mut shifted_tensor = Tensor::default();
         let mut shifted_indices = Vec::with_capacity(tensor_leaves.len());
         for (partition_tensor_index, (i, _partition)) in partitioning
             .iter()
@@ -373,13 +373,13 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         partition_tensors[target_partition] ^= &shifted_tensor;
 
         // Recompute the contraction path for both partitions
-        let mut from_tensor = Tensor::new(Vec::new());
-        let mut to_tensor = Tensor::new(Vec::new());
+        let mut from_tensor = Tensor::default();
+        let mut to_tensor = Tensor::default();
         for (partition_index, tensor) in zip(&partitioning, self.tensor.tensors()) {
             if *partition_index == source_partition {
-                from_tensor.push_tensor(tensor.clone(), None);
+                from_tensor.push_tensor(tensor.clone());
             } else if *partition_index == target_partition {
-                to_tensor.push_tensor(tensor.clone(), None);
+                to_tensor.push_tensor(tensor.clone());
             }
         }
 

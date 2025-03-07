@@ -474,22 +474,22 @@ impl OptimizePath for Greedy<'_> {
         let mut rng = StdRng::seed_from_u64(24);
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.is_composite() {
-                let external_legs = input_tensor.external_edges();
+                let external_tensor = input_tensor.external_tensor();
                 let path = self.ssa_greedy_optimize(
                     input_tensor.tensors(),
-                    &Tensor::new(external_legs.clone()),
+                    &external_tensor,
                     &SimpleChooser,
                     Box::new(&Greedy::cost_memory_removed),
                     &mut rng,
                 );
                 self.best_path
                     .push(ContractionIndex::Path(index, None, path));
-                input_tensor.set_legs(external_legs);
+                *input_tensor = external_tensor;
             }
         }
 
         // Vector of output leg ids
-        let output_dims = Tensor::new(self.tn.external_edges());
+        let output_dims = self.tn.external_tensor();
         // Start considering communication here!
         self.best_path.append(&mut self.ssa_greedy_optimize(
             &inputs,
@@ -531,109 +531,98 @@ mod tests {
     use crate::contractionpath::paths::CostType;
     use crate::contractionpath::paths::OptimizePath;
     use crate::path;
-    use crate::tensornetwork::create_tensor_network;
     use crate::tensornetwork::tensor::Tensor;
 
     use super::populate_remaining_tensors;
 
     fn setup_simple() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-            ],
-            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-        )
+        let bond_dims =
+            FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        ])
     }
 
     fn setup_complex() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-                Tensor::new(vec![6, 8, 9]),
-                Tensor::new(vec![10, 8, 9]),
-                Tensor::new(vec![5, 1, 0]),
-            ],
-            &FxHashMap::from_iter([
-                (0, 27),
-                (1, 18),
-                (2, 12),
-                (3, 15),
-                (4, 5),
-                (5, 3),
-                (6, 18),
-                (7, 22),
-                (8, 45),
-                (9, 65),
-                (10, 5),
-                (11, 17),
-            ]),
-        )
+        let bond_dims = FxHashMap::from_iter([
+            (0, 27),
+            (1, 18),
+            (2, 12),
+            (3, 15),
+            (4, 5),
+            (5, 3),
+            (6, 18),
+            (7, 22),
+            (8, 45),
+            (9, 65),
+            (10, 5),
+            (11, 17),
+        ]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
+            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
+            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+        ])
     }
 
     fn setup_complex_simple() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 3, 2]),
-                Tensor::new(vec![4, 5, 6]),
-                Tensor::new(vec![6, 8, 9]),
-                Tensor::new(vec![10, 8, 9]),
-                Tensor::new(vec![5, 1, 0]),
-            ],
-            &FxHashMap::from_iter([
-                (0, 5),
-                (1, 2),
-                (2, 6),
-                (3, 8),
-                (4, 1),
-                (5, 3),
-                (6, 4),
-                (7, 22),
-                (8, 45),
-                (9, 65),
-                (10, 5),
-                (11, 17),
-            ]),
-        )
+        let bond_dims = FxHashMap::from_iter([
+            (0, 5),
+            (1, 2),
+            (2, 6),
+            (3, 8),
+            (4, 1),
+            (5, 3),
+            (6, 4),
+            (7, 22),
+            (8, 45),
+            (9, 65),
+            (10, 5),
+            (11, 17),
+        ]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
+            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
+            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+        ])
     }
 
     fn setup_simple_inner_product() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![4, 3, 2]),
-                Tensor::new(vec![0, 1, 5]),
-                Tensor::new(vec![1, 6]),
-            ],
-            &FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]),
-        )
+        let bond_dims =
+            FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            Tensor::new_from_map(vec![0, 1, 5], &bond_dims),
+            Tensor::new_from_map(vec![1, 6], &bond_dims),
+        ])
     }
 
     fn setup_simple_outer_product() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![0]),
-                Tensor::new(vec![1]),
-                Tensor::new(vec![2]),
-            ],
-            &FxHashMap::from_iter([(0, 3), (1, 2), (2, 2)]),
-        )
+        let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2), (2, 2)]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![0], &bond_dims),
+            Tensor::new_from_map(vec![1], &bond_dims),
+            Tensor::new_from_map(vec![2], &bond_dims),
+        ])
     }
 
     fn setup_complex_outer_product() -> Tensor {
-        create_tensor_network(
-            vec![
-                Tensor::new(vec![0]),
-                Tensor::new(vec![0]),
-                Tensor::new(vec![1]),
-                Tensor::new(vec![1]),
-            ],
-            &FxHashMap::from_iter([(0, 5), (1, 4)]),
-        )
+        let bond_dims = FxHashMap::from_iter([(0, 5), (1, 4)]);
+        Tensor::new_composite(vec![
+            Tensor::new_from_map(vec![0], &bond_dims),
+            Tensor::new_from_map(vec![0], &bond_dims),
+            Tensor::new_from_map(vec![1], &bond_dims),
+            Tensor::new_from_map(vec![1], &bond_dims),
+        ])
     }
 
     fn map_zip<'a, K, V, T>(
@@ -664,10 +653,8 @@ mod tests {
             FxHashMap::from_iter([(0, 5), (6, 4), (3, 8), (2, 6), (1, 2), (5, 3), (4, 1)]);
         let ref_remaining_tensors =
             FxHashMap::from_iter([(8653979201402620513, 3), (13850888498708788536, 2)]);
-        let mut t1 = Tensor::new(vec![0, 1, 5]);
-        let mut t2 = Tensor::new(vec![1, 6]);
-        t1.insert_bond_dims(&bond_dims);
-        t2.insert_bond_dims(&bond_dims);
+        let t1 = Tensor::new_from_map(vec![0, 1, 5], &bond_dims);
+        let t2 = Tensor::new_from_map(vec![1, 6], &bond_dims);
         let ref_ssa_id_to_tensor = FxHashMap::from_iter([(2, t1), (3, t2)]);
         let ref_edge_to_tensor =
             FxHashMap::from_iter([(0, vec![2]), (1, vec![2, 3]), (5, vec![2]), (6, vec![3])]);

@@ -32,13 +32,13 @@ pub fn multiplication_benchmark(c: &mut Criterion) {
 
     for k in [16, 32, 64] {
         let n = 64;
-        let t1 = Tensor::new(vec![0, 1]);
-        let t2 = Tensor::new(vec![2, 1, 3, 4]);
         let bond_dims = FxHashMap::from_iter([(0, n), (1, k), (2, n), (3, n), (4, n)]);
-        let r_tn = create_filled_tensor_network(vec![t1, t2], &bond_dims, &mut rng);
+        let t1 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+        let t2 = Tensor::new_from_map(vec![2, 1, 3, 4], &bond_dims);
+        let r_tn = create_filled_tensor_network(vec![t1, t2], &mut rng);
 
         mul_group.bench_function(BenchmarkId::from_parameter(k), |b| {
-            b.iter_batched_ref(
+            b.iter_batched(
                 || r_tn.clone(),
                 |tn| contract_tensor_network(tn, black_box(&[path![0, 1]])),
                 BatchSize::SmallInput,
@@ -64,7 +64,7 @@ pub fn partitioned_contraction_benchmark(c: &mut Criterion) {
         let path = opt.get_best_replace_path();
 
         part_group.bench_function(BenchmarkId::from_parameter(k), |b| {
-            b.iter_batched_ref(
+            b.iter_batched(
                 || partitioned_tn.clone(),
                 |tn| contract_tensor_network(tn, &path),
                 BatchSize::SmallInput,
@@ -88,7 +88,6 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
     let rank = world.rank();
     let root = world.process_at_rank(0);
 
-    // TODO: Do we need to know communication beforehand?
     for k in [30, 35, 45] {
         let (partitioned_tn, path) = if rank == 0 {
             let r_tn = random_circuit(k, 20, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
@@ -110,7 +109,7 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
                 let (mut local_tn, local_path, slicing_task, comm) =
                     scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
                 assert!(slicing_task.is_none());
-                contract_tensor_network(&mut local_tn, &local_path);
+                local_tn = contract_tensor_network(local_tn, &local_path);
 
                 let mut communication_path = if rank == 0 {
                     extract_communication_path(&path)
