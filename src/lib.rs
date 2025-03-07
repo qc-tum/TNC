@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 #![feature(map_try_insert)]
 #![feature(assert_matches)]
 
