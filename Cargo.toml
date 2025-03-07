@@ -31,7 +31,6 @@ serde_json = "1.0.133"
 regex = "1.11.1"
 ndarray = "0.15.6"
 genetic_algorithm = { git = "https://github.com/Ectras/genetic-algorithm.git", branch = "f64_score" }
-cast = "0.3.0"
 rayon = "1.10.0"
 ordered-float = "4.5.0"
 rustengra = { git = "ssh://gitlab.lrz.de/quantum-research/tensornetworksimulation/rustengra" }
