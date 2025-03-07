@@ -7,6 +7,7 @@
 #![feature(stmt_expr_attributes)]
 #![feature(vec_into_raw_parts)]
 #![feature(pointer_is_aligned_to)]
+#![feature(assert_matches)]
 
 pub mod contractionpath;
 pub mod gates;

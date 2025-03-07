@@ -49,9 +49,8 @@ pub fn contract_tensor_network(tn: &mut Tensor, contract_path: &[ContractionInde
     }
     debug!("Completed tensor network contraction");
 
-    tn.tensors.retain(|x| {
-        !x.tensor_data().approx_eq(&TensorData::Uncontracted, 1e-12) || x.is_composite()
-    });
+    tn.tensors
+        .retain(|x| !matches!(x.tensor_data(), TensorData::Uncontracted) || x.is_composite());
     if tn.tensors.len() == 1 {
         let Tensor {
             legs, tensordata, ..

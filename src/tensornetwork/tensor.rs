@@ -725,7 +725,7 @@ impl BitXorAssign<&Tensor> for Tensor {
 
 #[cfg(test)]
 mod tests {
-    use std::iter::zip;
+    use std::{assert_matches::assert_matches, iter::zip};
 
     use num_complex::c64;
     use rustc_hash::FxHashMap;
@@ -746,9 +746,7 @@ mod tests {
         let tensor = Tensor::new(vec![2, 4, 5]);
         assert_eq!(tensor.legs(), &vec![2, 4, 5]);
         assert_eq!(tensor.dims(), 3);
-        assert!(tensor
-            .tensor_data()
-            .approx_eq(&TensorData::Uncontracted, 1e-12));
+        assert_matches!(tensor.tensor_data(), TensorData::Uncontracted);
     }
 
     #[test]
@@ -814,9 +812,8 @@ mod tests {
         let bond_dims_1 = FxHashMap::from_iter([(8, 3), (9, 20)]);
         tensor.push_tensor(tensor_1, Some(&bond_dims_1));
 
-        assert!(tensor
-            .tensor_data()
-            .approx_eq(&TensorData::Uncontracted, 1e-12));
+        assert_matches!(tensor.tensor_data(), TensorData::Uncontracted);
+
         for (key, value) in tensor.bond_dims().iter() {
             assert_eq!(*value, reference_bond_dims_1[key]);
         }
@@ -882,9 +879,7 @@ mod tests {
             Some(&reference_bond_dims_3),
         );
 
-        assert!(tensor
-            .tensor_data()
-            .approx_eq(&TensorData::Uncontracted, 1e-12));
+        assert_matches!(tensor.tensor_data(), TensorData::Uncontracted);
 
         for (tensor, other_tensor) in zip(
             tensor.tensors(),
