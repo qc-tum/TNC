@@ -23,6 +23,9 @@ lazy_static! {
         gates.insert(Box::new(Sx) as _);
         gates.insert(Box::new(Sy) as _);
         gates.insert(Box::new(Sz) as _);
+        gates.insert(Box::new(Rx) as _);
+        gates.insert(Box::new(Ry) as _);
+        gates.insert(Box::new(Rz) as _);
         gates.insert(Box::new(Cx) as _);
         gates.insert(Box::new(Fsim) as _);
         RwLock::new(gates)
