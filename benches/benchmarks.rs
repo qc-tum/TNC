@@ -2,6 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, BatchSize, Benchmark
 use mpi::environment::Universe;
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::{rngs::StdRng, SeedableRng};
+use rustc_hash::FxHashMap;
 use static_init::dynamic;
 use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
@@ -31,8 +32,9 @@ pub fn multiplication_benchmark(c: &mut Criterion) {
 
     for k in [16, 32, 64] {
         let n = 64;
-        let t1 = Tensor::new(vec![0, 1], vec![n, k]);
-        let t2 = Tensor::new(vec![2, 1, 3, 4], vec![n, k, n, n]);
+        let bond_dims = FxHashMap::from_iter([(0, n), (1, k), (2, n), (3, n), (4, n)]);
+        let t1 = Tensor::new_from_map(vec![0, 1], &bond_dims);
+        let t2 = Tensor::new_from_map(vec![2, 1, 3, 4], &bond_dims);
         let r_tn = create_filled_tensor_network(vec![t1, t2], &mut rng);
 
         mul_group.bench_function(BenchmarkId::from_parameter(k), |b| {
