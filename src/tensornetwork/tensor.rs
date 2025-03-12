@@ -650,7 +650,6 @@ mod tests {
         let tensor = Tensor::new(vec![2, 4, 5], vec![4, 2, 6]);
         assert_eq!(tensor.legs(), &[2, 4, 5]);
         assert_eq!(tensor.bond_dims(), &[4, 2, 6]);
-        assert_eq!(tensor.dims(), 3);
         assert_matches!(tensor.tensor_data(), TensorData::Uncontracted);
     }
 
@@ -660,7 +659,7 @@ mod tests {
         let tensor = Tensor::new_from_map(vec![2, 4, 5], &bond_dims);
         assert_eq!(tensor.legs(), &[2, 4, 5]);
         assert_eq!(tensor.bond_dims(), &[4, 2, 6]);
-        assert_eq!(tensor.dims(), 3);
+        assert_matches!(tensor.tensor_data(), TensorData::Uncontracted);
     }
 
     #[test]
@@ -668,11 +667,11 @@ mod tests {
         let tensor = Tensor::new_from_const(vec![9, 2, 5, 1], 3);
         assert_eq!(tensor.legs(), &[9, 2, 5, 1]);
         assert_eq!(tensor.bond_dims(), &[3, 3, 3, 3]);
-        assert_eq!(tensor.dims(), 4);
+        assert_matches!(tensor.tensor_data(), TensorData::Uncontracted);
     }
 
     #[test]
-    fn test_external_legs() {
+    fn test_external_tensor() {
         let bond_dims = FxHashMap::from_iter([
             (2, 2),
             (3, 4),
