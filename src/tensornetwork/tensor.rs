@@ -442,12 +442,14 @@ impl Tensor {
             let t1_leg_index = t1.legs.iter().position(|l| l == leg).unwrap();
             let t1_data = std::mem::take(&mut t1.tensordata);
             t1.legs.remove(t1_leg_index);
+            t1.bond_dims.remove(t1_leg_index);
             t1.set_tensor_data(t1_data.into_sliced(t1_leg_index, *index));
 
             let t2 = &mut self.tensors[t2];
             let t2_leg_index = t2.legs.iter().position(|l| l == leg).unwrap();
             let t2_data = std::mem::take(&mut t2.tensordata);
             t2.legs.remove(t2_leg_index);
+            t2.bond_dims.remove(t2_leg_index);
             t2.set_tensor_data(t2_data.into_sliced(t2_leg_index, *index));
         }
     }
