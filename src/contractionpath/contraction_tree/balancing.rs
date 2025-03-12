@@ -780,8 +780,8 @@ mod tests {
             &smaller_hash,
             custom_weight_function,
         );
-        assert_eq!(2., cost);
-        assert_eq!(ref_balanced_node, node_id);
+        assert_eq!(cost, 2.);
+        assert_eq!(node_id, ref_balanced_node);
     }
 
     #[test]
@@ -804,7 +804,7 @@ mod tests {
             &smaller_hash,
             custom_weight_function,
         );
-        assert_eq!(1., cost);
-        assert_eq!(ref_balanced_node, node_id);
+        assert_eq!(cost, 1.);
+        assert_eq!(node_id, ref_balanced_node);
     }
 }
