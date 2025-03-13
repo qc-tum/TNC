@@ -18,7 +18,7 @@ use mpi::Rank;
 use ordered_float::NotNan;
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{Rng, RngCore, SeedableRng};
 use serde::{Deserialize, Serialize};
 use tensorcontraction::contractionpath::contraction_cost::{
     compute_memory_requirements, contract_size_tensors_exact,
@@ -398,7 +398,6 @@ fn do_sweep(
         num_partitions,
         &initial_partitioning,
         communication_scheme,
-        seed,
         &mut StdRng::seed_from_u64(seed),
     );
 
@@ -520,7 +519,6 @@ trait MethodRun {
         num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
-        seed: u64,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64);
 
@@ -533,7 +531,6 @@ trait MethodRun {
         num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
-        seed: u64,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64, Duration) {
         let t0 = Instant::now();
@@ -542,7 +539,6 @@ trait MethodRun {
             num_partitions,
             initial_partitioning,
             communication_scheme,
-            seed,
             rng,
         );
         let duration = t0.elapsed();
@@ -563,7 +559,6 @@ impl MethodRun for InitialProblem {
         _num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
-        _seed: u64,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
         let (initial_partitioned_tensor, initial_contraction_path, original_flops) =
@@ -594,7 +589,6 @@ impl MethodRun for Sa {
         num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
-        _seed: u64,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
         let (partitioning, _): (Vec<usize>, NotNan<f64>) =
@@ -626,7 +620,6 @@ impl MethodRun for Iad {
         num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
-        _seed: u64,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
         let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
@@ -682,7 +675,6 @@ impl MethodRun for Sad {
         num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
-        _seed: u64,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
         let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
@@ -725,7 +717,6 @@ impl MethodRun for GreedyBalance {
         _num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
-        _seed: u64,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
         let (initial_partitioned_tensor, initial_contraction_path, _) = compute_solution(
@@ -773,7 +764,6 @@ impl MethodRun for GreedyTreeBalance {
         _num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
-        _seed: u64,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
         let (initial_partitioned_tensor, initial_contraction_path, _) = compute_solution(
@@ -823,7 +813,6 @@ impl MethodRun for Cotengra {
         num_partitions: i32,
         _initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
-        _seed: u64,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
         let num_partitions = num_partitions as usize;
@@ -882,9 +871,9 @@ impl MethodRun for CotengraTempering {
         num_partitions: i32,
         _initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
-        seed: u64,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
+        let seed = rng.next_u64();
         let num_partitions = num_partitions as usize;
         let mut tree = TreeTempering::new(tensor, Some(seed), CostType::Flops);
         tree.optimize_path();
@@ -941,9 +930,9 @@ impl MethodRun for CotengraAnneal {
         num_partitions: i32,
         _initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
-        seed: u64,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
+        let seed = rng.next_u64();
         let num_partitions = num_partitions as usize;
         let mut tree = TreeAnnealing::new(tensor, Some(seed), CostType::Flops);
         tree.optimize_path();
