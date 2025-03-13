@@ -298,14 +298,24 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         rng: &mut R,
     ) -> Self::SolutionType {
         let (mut partitioning, mut partition_tensors, mut contraction_paths) = current_solution;
-
         // Select source partition (with more than one tensor)
-        let source_partition = loop {
-            let trial_partition = rng.gen_range(0..self.num_partitions);
-            if contraction_paths[trial_partition].len() > 3 {
-                break trial_partition;
-            }
-        };
+        let viable_partitions = contraction_paths
+            .iter()
+            .enumerate()
+            .filter_map(|(contraction_id, contraction)| {
+                if contraction.len() > 3 {
+                    Some(contraction_id)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            viable_partitions.len() < (self.num_partitions / 10),
+            "Too many partitions for IAD to be effective. Less than 10% of partitions have more than 1 Tensor"
+        );
+        let trial = rng.gen_range(0..viable_partitions.len());
+        let source_partition = viable_partitions[trial];
 
         // Select random tensor contraction in source partition
         let pair_index = rng.gen_range(0..contraction_paths[source_partition].len() - 1);
