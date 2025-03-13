@@ -19,7 +19,6 @@ pub struct TreeTempering<'a> {
     best_flops: f64,
     best_size: f64,
     best_path: Vec<ContractionIndex>,
-    best_progress: FxHashMap<usize, f64>,
     seed: Option<u64>,
 }
 
@@ -40,7 +39,6 @@ impl<'a> TreeTempering<'a> {
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
             best_path: vec![],
-            best_progress: FxHashMap::default(),
             seed,
         }
     }
