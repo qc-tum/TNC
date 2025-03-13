@@ -197,7 +197,6 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
 /// maximizes memory reduction.
 pub struct LeafPartitioningModel<'a> {
     tensor: &'a Tensor,
-    num_partitions: usize,
     communication_scheme: CommunicationScheme,
     memory_limit: Option<f64>,
 }
@@ -265,7 +264,7 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
 
     fn new(
         tensor: &'a Tensor,
-        num_partitions: usize,
+        _num_partitions: usize,
         communication_scheme: CommunicationScheme,
         memory_limit: Option<f64>,
     ) -> Self
@@ -274,7 +273,6 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
     {
         Self {
             tensor,
-            num_partitions,
             communication_scheme,
             memory_limit,
         }

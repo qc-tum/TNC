@@ -29,7 +29,6 @@ pub struct GreedySlice<'a> {
     pub(crate) best_path: Vec<ContractionIndex>,
     pub(crate) slicing: HashSet<EdgeIndex>,
     max_memory: f64,
-    best_progress: FxHashMap<usize, f64>,
 }
 
 impl<'a> GreedySlice<'a> {
@@ -42,7 +41,6 @@ impl<'a> GreedySlice<'a> {
             best_path: Vec::new(),
             slicing: HashSet::new(),
             max_memory,
-            best_progress: FxHashMap::default(),
         }
     }
 
@@ -57,19 +55,6 @@ impl<'a> GreedySlice<'a> {
         _k2: &Tensor,
     ) -> f64 {
         size12 - size1 - size2
-    }
-
-    /// Con cost, corresponding to the total reduction in
-    /// memory of performing a contraction.
-    pub(crate) fn cost_communication(
-        _size12: f64,
-        size1: f64,
-        _size2: f64,
-        _k12: &Tensor,
-        _k1: &Tensor,
-        _k2: &Tensor,
-    ) -> f64 {
-        size1
     }
 
     /// Greedily finds cheapest contractions based on input `choice_fn` and `cost_fn`.
@@ -395,10 +380,6 @@ impl<'a> GreedySlice<'a> {
 
         (ssa_path, slicing)
     }
-
-    fn get_slicing(&self) -> &HashSet<EdgeIndex> {
-        &self.slicing
-    }
 }
 
 // Assume one-level of parallelism
@@ -478,7 +459,6 @@ impl OptimizePath for GreedySlice<'_> {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
-    use std::hash::Hash;
 
     use rustc_hash::FxHashMap;
 
@@ -523,31 +503,6 @@ mod tests {
         ])
     }
 
-    fn setup_complex_simple() -> Tensor {
-        let bond_dims = FxHashMap::from_iter([
-            (0, 5),
-            (1, 2),
-            (2, 6),
-            (3, 8),
-            (4, 1),
-            (5, 3),
-            (6, 4),
-            (7, 22),
-            (8, 45),
-            (9, 65),
-            (10, 5),
-            (11, 17),
-        ]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
-        ])
-    }
-
     fn setup_simple_inner_product() -> Tensor {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
@@ -576,17 +531,6 @@ mod tests {
             Tensor::new_from_map(vec![1], &bond_dims),
             Tensor::new_from_map(vec![1], &bond_dims),
         ])
-    }
-
-    fn map_zip<'a, K, V, T>(
-        a: &'a FxHashMap<K, V>,
-        b: &'a FxHashMap<K, T>,
-    ) -> impl Iterator<Item = (&'a K, (&'a V, &'a T))>
-    where
-        K: Eq + Hash,
-    {
-        assert_eq!(a.len(), b.len());
-        a.iter().map(|(k, v)| (k, (v, &b[k])))
     }
 
     #[test]

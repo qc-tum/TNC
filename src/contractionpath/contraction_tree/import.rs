@@ -423,14 +423,6 @@ fn new_intermediate_node(
     parent_node(tensor_count, &left_child, &right_child)
 }
 
-fn contraction_timing(
-    json_value: &serde_json::Value,
-    contraction_start: DateTime<chrono::FixedOffset>,
-) -> f64 {
-    let timestamp = parse_timestamp(json_value);
-    (timestamp - contraction_start).num_microseconds().unwrap() as f64
-}
-
 /// Parses the timestamp of a log entry given as json.
 fn parse_timestamp(json_value: &serde_json::Value) -> DateTime<chrono::FixedOffset> {
     DateTime::parse_from_str(

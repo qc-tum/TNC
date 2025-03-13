@@ -132,19 +132,6 @@ mod tests {
 
     use rustc_hash::FxHashMap;
 
-    fn setup_simple() -> (Tensor, Vec<ContractionIndex>) {
-        let bond_dims =
-            FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
-        (
-            Tensor::new_composite(vec![
-                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-            ]),
-            path![(0, 1), (2, 0)].to_vec(),
-        )
-    }
-
     fn setup_complex() -> (Tensor, Vec<ContractionIndex>, FxHashMap<EdgeIndex, u64>) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),

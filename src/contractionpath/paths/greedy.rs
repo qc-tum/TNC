@@ -25,7 +25,6 @@ pub struct Greedy<'a> {
     pub(crate) best_flops: f64,
     pub(crate) best_size: f64,
     pub(crate) best_path: Vec<ContractionIndex>,
-    best_progress: FxHashMap<usize, f64>,
 }
 
 pub(super) struct SimpleChooser;
@@ -73,7 +72,6 @@ impl<'a> Greedy<'a> {
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
             best_path: Vec::new(),
-            best_progress: FxHashMap::default(),
         }
     }
 
@@ -88,19 +86,6 @@ impl<'a> Greedy<'a> {
         _k2: &Tensor,
     ) -> f64 {
         size12 - size1 - size2
-    }
-
-    /// Con cost, corresponding to the total reduction in
-    /// memory of performing a contraction.
-    pub(crate) fn cost_communication(
-        _size12: f64,
-        size1: f64,
-        _size2: f64,
-        _k12: &Tensor,
-        _k1: &Tensor,
-        _k2: &Tensor,
-    ) -> f64 {
-        size1
     }
 
     /// Greedily finds cheapest contractions based on input `choice_fn` and `cost_fn`.
@@ -554,31 +539,6 @@ mod tests {
             (4, 5),
             (5, 3),
             (6, 18),
-            (7, 22),
-            (8, 45),
-            (9, 65),
-            (10, 5),
-            (11, 17),
-        ]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
-        ])
-    }
-
-    fn setup_complex_simple() -> Tensor {
-        let bond_dims = FxHashMap::from_iter([
-            (0, 5),
-            (1, 2),
-            (2, 6),
-            (3, 8),
-            (4, 1),
-            (5, 3),
-            (6, 4),
             (7, 22),
             (8, 45),
             (9, 65),

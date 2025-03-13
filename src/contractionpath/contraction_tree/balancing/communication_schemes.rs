@@ -151,10 +151,6 @@ mod tests {
         vec![tensor0, tensor1, tensor2]
     }
 
-    fn custom_cost_function(a: &Tensor, b: &Tensor) -> f64 {
-        (a & b).legs().len() as f64
-    }
-
     #[test]
     fn test_greedy_communication() {
         let tensors = setup_simple();
