@@ -41,8 +41,6 @@ use tensorcontraction::mpi::communication::{
     broadcast_path, broadcast_serializing, extract_communication_path,
     intermediate_reduce_tensor_network, scatter_tensor_network,
 };
-use tensorcontraction::networks::connectivity::ConnectivityLayout;
-use tensorcontraction::networks::random_circuit::random_circuit;
 use tensorcontraction::networks::sycamore_circuit::sycamore_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::find_partitioning;
@@ -82,8 +80,6 @@ enum Mode {
 #[derive(Debug, Parser)]
 #[command(version, about, long_about=None)]
 struct Cli {
-    single_qubit_probability: f64,
-    two_qubit_probability: f64,
     #[arg(short, long, value_delimiter = ',', num_args = 1..)]
     qubits: Vec<usize>,
     #[arg(short, long, value_delimiter = ',', num_args = 1..)]
@@ -247,10 +243,6 @@ fn main() {
     };
 
     // Set the parameters
-    let single_qubit_probability = args.single_qubit_probability;
-    let two_qubit_probability = args.two_qubit_probability;
-    let connectivity = ConnectivityLayout::Sycamore;
-
     let qubit_range = args.qubits;
     let circuit_depth_range = args.depths;
     let partition_range = args.partitions;
@@ -318,12 +310,10 @@ fn main() {
         let (num_qubits, circuit_depth, seed_index, num_partitions, method) = scenario;
         let rng = get_main_rng(num_qubits as u64, circuit_depth as u64);
         let seed = rng.sample_iter(Standard).nth(seed_index).unwrap();
-        info!(num_qubits, circuit_depth, seed, num_partitions, single_qubit_probability, two_qubit_probability, connectivity:?, method=method.name(); "Doing run");
+        info!(num_qubits, circuit_depth, seed, num_partitions, method=method.name(); "Doing run");
 
         let key = format!(
-            "{connectivity:?}_{:.0}_{:.0}_{num_qubits}_{circuit_depth}_{seed}_{num_partitions}_{}",
-            single_qubit_probability * 100.0,
-            two_qubit_probability * 100.0,
+            "{communication_scheme:?}_{num_qubits}_{circuit_depth}_{seed}_{num_partitions}_{}",
             method.name(),
         );
 
@@ -337,13 +327,10 @@ fn main() {
                 Mode::Sweep => do_sweep(
                     &cache_dir,
                     &key,
-                    single_qubit_probability,
-                    two_qubit_probability,
                     num_qubits,
                     circuit_depth,
                     &method,
                     num_partitions,
-                    connectivity,
                     communication_scheme,
                     seed,
                     &mut writer,
@@ -390,26 +377,16 @@ fn read_from_cache(directory: &str, key: &str) -> (Tensor, Vec<ContractionIndex>
 fn do_sweep(
     cache_dir: &str,
     key: &str,
-    single_qubit_probability: f64,
-    two_qubit_probability: f64,
     num_qubits: usize,
     circuit_depth: usize,
     method: &Rc<dyn MethodRun>,
     num_partitions: i32,
-    connectivity: ConnectivityLayout,
     communication_scheme: CommunicationScheme,
     seed: u64,
     writer: &mut Writer,
 ) {
     // Generate circuit
-    let tensor = sycamore_circuit(
-        num_qubits,
-        circuit_depth,
-        // single_qubit_probability,
-        // two_qubit_probability,
-        &mut StdRng::seed_from_u64(seed),
-        // connectivity,
-    );
+    let tensor = sycamore_circuit(num_qubits, circuit_depth, &mut StdRng::seed_from_u64(seed));
 
     // Get initial partitioning
     let initial_partitioning =
