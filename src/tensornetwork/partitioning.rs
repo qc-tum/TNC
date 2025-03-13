@@ -230,8 +230,8 @@ mod tests {
         let partitioned_tn = partition_tensor_network(tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.tensors().len(), 3);
 
-        assert!(partitioned_tn.tensors()[0].approx_eq(&ref_tensor_1, 1e-12));
-        assert!(partitioned_tn.tensors()[1].approx_eq(&ref_tensor_2, 1e-12));
-        assert!(partitioned_tn.tensors()[2].approx_eq(&ref_tensor_3, 1e-12));
+        assert!(partitioned_tn.tensor(0).approx_eq(&ref_tensor_1, 1e-12));
+        assert!(partitioned_tn.tensor(1).approx_eq(&ref_tensor_2, 1e-12));
+        assert!(partitioned_tn.tensor(2).approx_eq(&ref_tensor_3, 1e-12));
     }
 }
