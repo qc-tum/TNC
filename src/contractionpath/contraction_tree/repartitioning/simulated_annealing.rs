@@ -284,7 +284,6 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
 /// memory reduction.
 pub struct IntermediatePartitioningModel<'a> {
     tensor: &'a Tensor,
-    num_partitions: usize,
     communication_scheme: CommunicationScheme,
     memory_limit: Option<f64>,
 }
@@ -303,16 +302,17 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             .iter()
             .enumerate()
             .filter_map(|(contraction_id, contraction)| {
-                if contraction.len() > 3 {
+                if contraction.len() >= 3 {
                     Some(contraction_id)
                 } else {
                     None
                 }
             })
-            .collect::<Vec<_>>();
+            .collect_vec();
+
         assert!(
-            viable_partitions.len() < (self.num_partitions / 10),
-            "Too many partitions for IAD to be effective. Less than 10% of partitions have more than 1 Tensor"
+            !viable_partitions.is_empty(),
+            "No viable source partition for IAD"
         );
         let trial = rng.gen_range(0..viable_partitions.len());
         let source_partition = viable_partitions[trial];
@@ -431,7 +431,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
 
     fn new(
         tensor: &'a Tensor,
-        num_partitions: usize,
+        _num_partitions: usize,
         communication_scheme: CommunicationScheme,
         memory_limit: Option<f64>,
     ) -> Self
@@ -440,7 +440,6 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
     {
         Self {
             tensor,
-            num_partitions,
             communication_scheme,
             memory_limit,
         }
