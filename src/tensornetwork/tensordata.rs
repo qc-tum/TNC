@@ -11,12 +11,18 @@ use crate::{
     io::load_data,
 };
 
+/// The data of a tensor.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub enum TensorData {
+    /// This is for composite tensors that have not been contracted yet, as well as
+    /// empty tensors in general.
     #[default]
     Uncontracted,
+    /// The data is loaded from a HDF5 file.
     File(PathBuf),
+    /// A quantum gate. The name must be registered in the gates module.
     Gate((String, Vec<f64>, bool)),
+    /// A raw vec of complex numbers.
     Matrix(DataTensor),
 }
 
@@ -32,7 +38,7 @@ impl TensorData {
     }
 
     /// Checks for equality of two tensor sources. Does not check between different
-    /// types (e.g. File and Matrix).
+    /// types (e.g. `File` and `Matrix`).
     pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
         match (self, other) {
             (Self::File(l0), Self::File(r0)) => l0 == r0,

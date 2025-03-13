@@ -82,10 +82,11 @@ impl UnionFind {
 
 #[cfg(test)]
 mod tests {
+    use super::UnionFind;
 
     #[test]
     fn test_union_find_individual() {
-        let uf = super::UnionFind::new(3);
+        let uf = UnionFind::new(3);
         assert_eq!(uf.find(0), 0);
         assert_eq!(uf.find(1), 1);
         assert_eq!(uf.find(2), 2);
@@ -93,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_union_find_union() {
-        let mut uf = super::UnionFind::new(3);
+        let mut uf = UnionFind::new(3);
         uf.union(0, 1);
         assert_eq!(uf.find(0), uf.find(1));
         assert_ne!(uf.find(0), uf.find(2));
@@ -102,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_union_find_union_skip() {
-        let mut uf = super::UnionFind::new(3);
+        let mut uf = UnionFind::new(3);
         uf.union(0, 2);
         assert_eq!(uf.find(0), uf.find(2));
         assert_ne!(uf.find(0), uf.find(1));
@@ -111,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_union_find_union_multiple() {
-        let mut uf = super::UnionFind::new(5);
+        let mut uf = UnionFind::new(5);
         uf.union(1, 2);
         uf.union(3, 4);
         uf.union(2, 3);
@@ -125,20 +126,20 @@ mod tests {
 
     #[test]
     fn test_union_find_len() {
-        let uf = super::UnionFind::new(5);
+        let uf = UnionFind::new(5);
         assert_eq!(uf.len(), 5);
     }
 
     #[test]
     fn test_union_find_len_doesnt_change() {
-        let mut uf = super::UnionFind::new(5);
+        let mut uf = UnionFind::new(5);
         uf.union(1, 2);
         assert_eq!(uf.len(), 5);
     }
 
     #[test]
     fn test_union_find_count_sets() {
-        let mut uf = super::UnionFind::new(5);
+        let mut uf = UnionFind::new(5);
         // (0), (1), (2), (3), (4)
         assert_eq!(uf.count_sets(), 5);
         uf.union(1, 2);

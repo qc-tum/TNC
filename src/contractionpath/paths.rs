@@ -12,22 +12,34 @@ pub mod tree_reconfiguration;
 pub mod weighted_branchbound;
 //pub mod parallel_greedy;
 
+/// An optimizer for finding a contraction path.
 pub trait OptimizePath {
+    /// Finds a contraction path.
     fn optimize_path(&mut self);
 
+    /// Returns the best found contraction path in SSA format.
     fn get_best_path(&self) -> &Vec<ContractionIndex>;
+
+    /// Returns the best found contraction path in ReplaceLeft format.
     fn get_best_replace_path(&self) -> Vec<ContractionIndex>;
+
+    /// Returns the total op count of the best path found.
     fn get_best_flops(&self) -> f64;
+
+    /// Returns the max memory (in number of elements) of the best path found.
     fn get_best_size(&self) -> f64;
 }
 
+/// The cost metric to optimize for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CostType {
+    /// Number of flops or operations.
     Flops,
+    /// Size of the biggest contraction.
     Size,
 }
 
-pub fn validate_path(path: &[ContractionIndex]) {
+pub(crate) fn validate_path(path: &[ContractionIndex]) {
     let mut contracted = Vec::<usize>::new();
     for index in path {
         match index {
@@ -47,7 +59,7 @@ pub fn validate_path(path: &[ContractionIndex]) {
 
 type CostFnType = dyn Fn(f64, f64, f64, &Tensor, &Tensor, &Tensor) -> f64;
 
-// Define a trait for functions that take an RNG as an argument
+/// Define a trait for functions that take an RNG as an argument.
 pub(crate) trait RNGChooser {
     fn choose<R>(
         &self,
@@ -64,7 +76,6 @@ pub(crate) trait RNGChooser {
 
 #[cfg(test)]
 mod tests {
-
     use crate::path;
 
     use super::validate_path;

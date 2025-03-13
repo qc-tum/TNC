@@ -5,10 +5,10 @@ use float_cmp::approx_eq;
 /// Struct to store contraction candidate information when searching for optimal contraction path.
 #[derive(Clone, Debug)]
 pub(crate) struct Candidate {
-    pub(crate) flop_cost: f64,
-    pub(crate) size_cost: f64,
-    pub(crate) parent_ids: (usize, usize),
-    pub(crate) child_id: usize,
+    pub flop_cost: f64,
+    pub size_cost: f64,
+    pub parent_ids: (usize, usize),
+    pub child_id: usize,
 }
 
 impl PartialEq for Candidate {

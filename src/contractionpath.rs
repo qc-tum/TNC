@@ -1,7 +1,7 @@
 use rustc_hash::FxHashMap;
 
 use crate::{pair, types::ContractionIndex, utils::traits::HashMapInsertNew};
-pub mod candidates;
+mod candidates;
 pub mod contraction_cost;
 pub mod contraction_tree;
 pub mod paths;

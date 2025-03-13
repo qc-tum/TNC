@@ -5,15 +5,10 @@ use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
 
 use super::tensordata::TensorData;
 
-/// Fully contracts a series of [`Tensor`] objects based on a given contraction path using repeated SSA format.
-///
-/// # Arguments
-///
-/// * `tn` - [`Tensor`] to be contracted
-/// * `contract_path` - slice of [`ContractionIndex`], indicating contraction path. See `BranchBound` for details on `contract_path` format.
+/// Fully contracts `tn` based on the given `contract_path` using ReplaceLeft format.
+/// Returns the resulting tensor.
 ///
 /// # Examples
-///
 /// ```
 /// # use tensorcontraction::{
 ///     contractionpath::paths::{branchbound::BranchBound, CostType, OptimizePath},

@@ -5,10 +5,11 @@ use kahypar_sys::KaHyParContext;
 static MIN_CUT_CONFIG: &str = include_str!("cut_kKaHyPar_sea20.ini");
 static COMMUNITY_FINDING_CONFIG: &str = include_str!("km1_kKaHyPar_sea20.ini");
 
+/// Different strategies for partitioning a tensor network.
 pub enum PartitioningStrategy {
     MinCut,
     CommunityFinding,
-    /// A custom `KaHyPar` configuration loaded from a INI file.
+    /// A custom `KaHyPar` configuration loaded from an INI file.
     Custom(PathBuf),
 }
 

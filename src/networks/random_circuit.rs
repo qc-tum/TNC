@@ -19,9 +19,12 @@ macro_rules! fsim {
     };
 }
 
+/// Creates a random circuit with `rounds` many rounds of single and two qubit gate
+/// layers. Places the gates with the given probabilities and only on qubit pairs
+/// specified by the `connectivity`.
 pub fn random_circuit<R>(
-    size: usize,
-    round: usize,
+    qubits: usize,
+    rounds: usize,
     single_qubit_probability: f64,
     two_qubit_probability: f64,
     rng: &mut R,
@@ -46,16 +49,16 @@ where
     let filtered_connectivity = connectivity_graph
         .connectivity
         .iter()
-        .filter(|&&(u, v)| u < size && v < size)
+        .filter(|&&(u, v)| u < qubits && v < qubits)
         .collect_vec();
 
-    let mut next_edge = size;
+    let mut next_edge = qubits;
     let single_qubit_die = Bernoulli::new(single_qubit_probability).unwrap();
     let two_qubit_die = Bernoulli::new(two_qubit_probability).unwrap();
 
     // set up initial state
-    let mut initial_state = Vec::with_capacity(size);
-    for i in 0..size {
+    let mut initial_state = Vec::with_capacity(qubits);
+    for i in 0..qubits {
         let mut new_state = Tensor::new_from_const(vec![i], 2);
         new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng));
         open_edges.insert(i, i);
@@ -64,8 +67,8 @@ where
     circuit_tn.push_tensors(initial_state);
 
     let mut intermediate_gates = Vec::new();
-    for _ in 1..round {
-        for i in 0..size {
+    for _ in 1..rounds {
+        for i in 0..qubits {
             // Placing of random single qubit gate
             if rng.sample(single_qubit_die) {
                 let mut new_tensor = Tensor::new_from_const(vec![open_edges[&i], next_edge], 2);
@@ -93,8 +96,8 @@ where
     circuit_tn.push_tensors(intermediate_gates);
 
     // set up final state
-    let mut final_state = Vec::with_capacity(size);
-    for i in 0..size {
+    let mut final_state = Vec::with_capacity(qubits);
+    for i in 0..qubits {
         let mut new_state = Tensor::new_from_const(vec![open_edges[&i]], 2);
         new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng));
         final_state.push(new_state);
