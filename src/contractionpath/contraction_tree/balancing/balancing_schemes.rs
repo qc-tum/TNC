@@ -535,25 +535,28 @@ pub(super) fn tree_tensors_odd(
                 local_tensor, id, ..
             } = smaller;
             let mut objective = 0.;
-            let mut rebalanced_node = 0;
+            let mut rebalanced_node = None;
             for (node_id, node) in &larger_subtree_nodes {
                 let new_obj = objective_function(node, local_tensor);
                 if new_obj > objective {
                     objective = new_obj;
-                    rebalanced_node = *node_id;
+                    rebalanced_node = Some(*node_id);
                 }
             }
             (*id, rebalanced_node, objective)
         })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
-
-    let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
-    vec![Shift {
-        from_subtree_id: larger_subtree_id,
-        to_subtree_id: smaller_subtree_id,
-        moved_leaf_ids: rebalanced_leaf_ids,
-    }]
+    if let Some(rebalanced_node) = rebalanced_node {
+        let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
+        vec![Shift {
+            from_subtree_id: larger_subtree_id,
+            to_subtree_id: smaller_subtree_id,
+            moved_leaf_ids: rebalanced_leaf_ids,
+        }]
+    } else {
+        Vec::new()
+    }
 }
 
 /// Balancing scheme that identifies the intermediate tensor with the largest memory reduction when passed to the fastest subtree.
@@ -588,32 +591,30 @@ pub(super) fn tree_tensors_even(
             }
             larger_subtree_nodes.remove(&larger.id);
             let mut objective = 0.;
-            let mut rebalanced_node = 0;
+            let mut rebalanced_node = None;
             for (node_id, node) in &larger_subtree_nodes {
                 let new_obj = objective_function(node, smaller_tensor);
                 if new_obj > objective {
                     objective = new_obj;
-                    rebalanced_node = *node_id;
+                    rebalanced_node = Some(*node_id);
                 }
             }
-            // let (rebalanced_node, objective) = find_rebalance_node(
-            //     random_balance,
-            //     &larger_subtree_nodes,
-            //     &smaller_subtree_nodes,
-            //     objective_function,
-            // );
 
             Some((larger.id, rebalanced_node, objective))
         })
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
 
-    let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
-    vec![Shift {
-        from_subtree_id: larger_subtree_id,
-        to_subtree_id: smaller_subtree_id,
-        moved_leaf_ids: rebalanced_leaf_ids,
-    }]
+    if let Some(rebalanced_node) = rebalanced_node {
+        let rebalanced_leaf_ids = contraction_tree.leaf_ids(rebalanced_node);
+        vec![Shift {
+            from_subtree_id: larger_subtree_id,
+            to_subtree_id: smaller_subtree_id,
+            moved_leaf_ids: rebalanced_leaf_ids,
+        }]
+    } else {
+        Vec::new()
+    }
 }
 
 #[cfg(test)]
