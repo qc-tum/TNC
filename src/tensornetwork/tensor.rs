@@ -470,7 +470,7 @@ impl Tensor {
     #[must_use]
     pub fn difference(&self, other: &Self) -> Self {
         let mut new_legs = Vec::with_capacity(self.legs.len());
-        let mut new_bond_dims = Vec::with_capacity(new_legs.len());
+        let mut new_bond_dims = Vec::with_capacity(new_legs.capacity());
         for (leg, dim) in self.edges() {
             if !other.legs.contains(leg) {
                 new_legs.push(*leg);
@@ -496,7 +496,7 @@ impl Tensor {
     #[must_use]
     pub fn union(&self, other: &Self) -> Self {
         let mut new_legs = Vec::with_capacity(self.legs.len() + other.legs.len());
-        let mut new_bond_dims = Vec::with_capacity(new_legs.len());
+        let mut new_bond_dims = Vec::with_capacity(new_legs.capacity());
         new_legs.extend_from_slice(&self.legs);
         new_bond_dims.extend_from_slice(&self.bond_dims);
         for (leg, dim) in other.edges() {
@@ -524,7 +524,7 @@ impl Tensor {
     #[must_use]
     pub fn intersection(&self, other: &Self) -> Self {
         let mut new_legs = Vec::with_capacity(self.legs.len().min(other.legs.len()));
-        let mut new_bond_dims = Vec::with_capacity(new_legs.len());
+        let mut new_bond_dims = Vec::with_capacity(new_legs.capacity());
         for (leg, dim) in self.edges() {
             if other.legs.contains(leg) {
                 new_legs.push(*leg);
@@ -550,7 +550,7 @@ impl Tensor {
     #[must_use]
     pub fn symmetric_difference(&self, other: &Self) -> Self {
         let mut new_legs = Vec::with_capacity(self.legs.len() + other.legs.len());
-        let mut new_bond_dims = Vec::with_capacity(new_legs.len());
+        let mut new_bond_dims = Vec::with_capacity(new_legs.capacity());
         for (leg, dim) in self.edges() {
             if !other.legs.contains(leg) {
                 new_legs.push(*leg);
