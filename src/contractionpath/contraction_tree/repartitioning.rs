@@ -118,19 +118,3 @@ where
 
     (partitioned_tn, final_path, communication_cost)
 }
-
-/// Computes the total cost of contraction the `tensor` when partitioning it using
-/// the `partitioning` list and the `communication_scheme` for finding the
-/// communication path.
-#[inline]
-fn compute_partitioning_cost<R>(
-    tensor: &Tensor,
-    partitioning: &[usize],
-    communication_scheme: CommunicationScheme,
-    rng: Option<&mut R>,
-) -> f64
-where
-    R: ?Sized + Rng,
-{
-    compute_solution(tensor, partitioning, communication_scheme, rng).2
-}
