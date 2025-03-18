@@ -35,14 +35,14 @@ pub trait OptModel<'a>: Sync + Send {
         Self: Sized;
 
     /// Generate a new trial solution from current solution
-    fn generate_trial_solution<R: Rng + Sized>(
+    fn generate_trial_solution<R: Rng>(
         &self,
         current_solution: Self::SolutionType,
         rng: &mut R,
     ) -> Self::SolutionType;
 
     /// Evaluate the score of the solution
-    fn evaluate<R: Rng + Sized>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType;
+    fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType;
 }
 
 /// Optimizer that implements the simulated annealing algorithm
@@ -88,7 +88,7 @@ impl<'a> SimulatedAnnealingOptimizer {
     ) -> (M::SolutionType, ScoreType)
     where
         M: OptModel<'a>,
-        R: Rng + Sized,
+        R: Rng,
     {
         let mut current_score = model.evaluate(&initial_solution, rng);
         let mut current_solution = initial_solution;
@@ -172,7 +172,7 @@ pub struct NaivePartitioningModel<'a> {
 impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
     type SolutionType = Vec<usize>;
 
-    fn generate_trial_solution<R: Rng + Sized>(
+    fn generate_trial_solution<R: Rng>(
         &self,
         mut current_solution: Self::SolutionType,
         rng: &mut R,
@@ -189,11 +189,7 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
         current_solution
     }
 
-    fn evaluate<R: Rng + Sized>(
-        &self,
-        partitioning: &Self::SolutionType,
-        rng: &mut R,
-    ) -> ScoreType {
+    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
         let (partitioned_tn, path, cost) = compute_solution(
             self.tensor,
@@ -247,7 +243,7 @@ pub struct LeafPartitioningModel<'a> {
 impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
     type SolutionType = (Vec<usize>, Vec<Tensor>);
 
-    fn generate_trial_solution<R: Rng + Sized>(
+    fn generate_trial_solution<R: Rng>(
         &self,
         current_solution: Self::SolutionType,
         rng: &mut R,
@@ -280,11 +276,7 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
         (partitioning, partition_tensors)
     }
 
-    fn evaluate<R: Rng + Sized>(
-        &self,
-        partitioning: &Self::SolutionType,
-        rng: &mut R,
-    ) -> ScoreType {
+    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
         let (partitioned_tn, path, cost) = compute_solution(
             self.tensor,
@@ -342,7 +334,7 @@ pub struct IntermediatePartitioningModel<'a> {
 impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
     type SolutionType = (Vec<usize>, Vec<Tensor>, Vec<Vec<ContractionIndex>>);
 
-    fn generate_trial_solution<R: Rng + Sized>(
+    fn generate_trial_solution<R: Rng>(
         &self,
         current_solution: Self::SolutionType,
         rng: &mut R,
@@ -456,11 +448,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         (partitioning, partition_tensors, contraction_paths)
     }
 
-    fn evaluate<R: Rng + Sized>(
-        &self,
-        partitioning: &Self::SolutionType,
-        rng: &mut R,
-    ) -> ScoreType {
+    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
         let (partitioned_tn, path, cost) = compute_solution(
             self.tensor,
@@ -516,7 +504,7 @@ pub fn balance_partitions<'a, R, M>(
     memory_limit: Option<f64>,
 ) -> (M::SolutionType, ScoreType)
 where
-    R: Rng + Sized,
+    R: Rng,
     M: OptModel<'a>,
 {
     let model = M::new(

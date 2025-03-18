@@ -31,7 +31,7 @@ pub use communication_schemes::CommunicationScheme;
 #[derive(Debug, Clone, Copy)]
 pub struct BalanceSettings<R>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     /// If not None, randomly chooses from top `usize` options. Random choice is
     /// weighted by objective outcome.
@@ -67,7 +67,7 @@ impl BalanceSettings<StdRng> {
 
 impl<R> BalanceSettings<R>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     pub fn new_random(
         random_balance: Option<(usize, R)>,
@@ -107,7 +107,7 @@ pub fn balance_partitions_iter<R>(
     rng: &mut R,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>)
 where
-    R: Sized + Rng + Clone,
+    R: Rng + Clone,
 {
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor_network, path);
 
@@ -248,7 +248,7 @@ fn communicate_partitions<R>(
     rng: Option<&mut R>,
 ) -> Vec<ContractionIndex>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     let communication_scheme = balance_settings.communication_scheme;
     let children_tensors = tensor_network
@@ -282,7 +282,7 @@ fn balance_partitions<R>(
     iteration: usize,
 ) -> (Vec<ContractionIndex>, Tensor)
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     let BalanceSettings {
         ref mut random_balance,
@@ -517,7 +517,7 @@ fn find_rebalance_node<R>(
     objective_function: fn(&Tensor, &Tensor) -> f64,
 ) -> (usize, f64)
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     let node_comparison = larger_subtree_nodes
         .iter()

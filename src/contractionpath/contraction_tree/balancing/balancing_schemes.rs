@@ -86,7 +86,7 @@ pub(super) fn best_worst<R>(
     tensor: &Tensor,
 ) -> Vec<Shift>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     // Obtain most expensive and cheapest partitions
     let larger_subtree_id = partition_data.last().unwrap().id;
@@ -122,7 +122,7 @@ pub(super) fn best_tensor<R>(
     tensor: &Tensor,
 ) -> Vec<Shift>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     // Obtain most expensive partitions
     let larger_subtree_id = partition_data.last().unwrap().id;
@@ -165,7 +165,7 @@ pub(super) fn best_tensors<R>(
     tensor: &Tensor,
 ) -> Vec<Shift>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     // Obtain most expensive and cheapest partitions
     let larger_subtree_id = partition_data.last().unwrap().id;
@@ -241,7 +241,7 @@ pub(super) fn tensors_odd<R>(
     tensor: &Tensor,
 ) -> Vec<Shift>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     // Obtain most expensive partition
     let larger_subtree_id = partition_data.last().unwrap().id;
@@ -283,7 +283,7 @@ pub(super) fn tensors_even<R>(
     tensor: &Tensor,
 ) -> Vec<Shift>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     let smaller_subtree_id = partition_data.first().unwrap().id;
 
@@ -327,7 +327,7 @@ pub(super) fn best_intermediate_tensors<R>(
     height_limit: usize,
 ) -> Vec<Shift>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     // Obtain most expensive partition
     let larger_subtree_id = partition_data.last().unwrap().id;
@@ -415,7 +415,7 @@ pub(super) fn intermediate_tensors_odd<R>(
     height_limit: usize,
 ) -> Vec<Shift>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     // Obtain most expensive partition
     let larger_subtree_id = partition_data.last().unwrap().id;
@@ -465,7 +465,7 @@ pub(super) fn intermediate_tensors_even<R>(
     height_limit: usize,
 ) -> Vec<Shift>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     let smaller_subtree_id = partition_data.first().unwrap().id;
 
