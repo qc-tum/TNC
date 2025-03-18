@@ -42,7 +42,7 @@ pub trait OptModel<'a>: Sync + Send {
     ) -> Self::SolutionType;
 
     /// Evaluate the score of the solution
-    fn evaluate(&self, solution: &Self::SolutionType) -> ScoreType;
+    fn evaluate<R: Rng + Sized>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType;
 }
 
 /// Optimizer that implements the simulated annealing algorithm
@@ -90,7 +90,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         M: OptModel<'a>,
         R: Rng + Sized,
     {
-        let mut current_score = model.evaluate(&initial_solution);
+        let mut current_score = model.evaluate(&initial_solution, rng);
         let mut current_solution = initial_solution;
         let mut best_solution = current_solution.clone();
         let mut best_score = current_score;
@@ -111,7 +111,7 @@ impl<'a> SimulatedAnnealingOptimizer {
                 .enumerate()
                 .map(|(index, rng)| {
                     let trial = model.generate_trial_solution(current_solution.clone(), rng);
-                    let score = model.evaluate(&trial);
+                    let score = model.evaluate(&trial, rng);
                     (index, trial, score)
                 })
                 .min_by_key(|(index, _, score)| (*score, *index))
@@ -189,10 +189,18 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
         current_solution
     }
 
-    fn evaluate(&self, partitioning: &Self::SolutionType) -> ScoreType {
+    fn evaluate<R: Rng + Sized>(
+        &self,
+        partitioning: &Self::SolutionType,
+        rng: &mut R,
+    ) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, cost) =
-            compute_solution::<StdRng>(self.tensor, partitioning, self.communication_scheme, None);
+        let (partitioned_tn, path, cost) = compute_solution(
+            self.tensor,
+            partitioning,
+            self.communication_scheme,
+            Some(rng),
+        );
 
         // Compute memory usage
         let mem = compute_memory_requirements(
@@ -272,13 +280,17 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
         (partitioning, partition_tensors)
     }
 
-    fn evaluate(&self, partitioning: &Self::SolutionType) -> ScoreType {
+    fn evaluate<R: Rng + Sized>(
+        &self,
+        partitioning: &Self::SolutionType,
+        rng: &mut R,
+    ) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, cost) = compute_solution::<StdRng>(
+        let (partitioned_tn, path, cost) = compute_solution(
             self.tensor,
             &partitioning.0,
             self.communication_scheme,
-            None,
+            Some(rng),
         );
 
         // Compute memory usage
@@ -444,13 +456,17 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         (partitioning, partition_tensors, contraction_paths)
     }
 
-    fn evaluate(&self, partitioning: &Self::SolutionType) -> ScoreType {
+    fn evaluate<R: Rng + Sized>(
+        &self,
+        partitioning: &Self::SolutionType,
+        rng: &mut R,
+    ) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, cost) = compute_solution::<StdRng>(
+        let (partitioned_tn, path, cost) = compute_solution(
             self.tensor,
             &partitioning.0,
             self.communication_scheme,
-            None,
+            Some(rng),
         );
 
         // Compute memory usage
