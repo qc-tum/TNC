@@ -7,7 +7,7 @@ use crate::{
     types::ContractionIndex,
 };
 use itertools::Itertools;
-use rand::{thread_rng, Rng};
+use rand::Rng;
 use rustc_hash::FxHashMap;
 
 use super::balancing::{communication_schemes, CommunicationScheme};
@@ -59,40 +59,25 @@ where
                 communication_schemes::greedy(&children_tensors, &latency_map)
             }
             CommunicationScheme::RandomGreedy => {
-                if let Some(rng) = rng {
-                    communication_schemes::random_greedy(&children_tensors, rng)
-                } else {
-                    communication_schemes::random_greedy(&children_tensors, &mut thread_rng())
-                }
+                let Some(rng) = rng else {
+                    panic!("RandomGreedy requires a random number generator")
+                };
+                communication_schemes::random_greedy(&children_tensors, rng)
             }
             CommunicationScheme::RandomGreedyLatency => {
-                if let Some(rng) = rng {
-                    communication_schemes::random_greedy_latency(
-                        &children_tensors,
-                        &latency_map,
-                        rng,
-                    )
-                } else {
-                    communication_schemes::random_greedy_latency(
-                        &children_tensors,
-                        &latency_map,
-                        &mut thread_rng(),
-                    )
-                }
+                let Some(rng) = rng else {
+                    panic!("RandomGreedyLatency requires a random number generator")
+                };
+                communication_schemes::random_greedy_latency(&children_tensors, &latency_map, rng)
             }
             CommunicationScheme::Bipartition => {
                 communication_schemes::bipartition(&children_tensors, &latency_map)
             }
             CommunicationScheme::BipartitionSweep => {
-                if let Some(rng) = rng {
-                    communication_schemes::bipartition_sweep(&children_tensors, &latency_map, rng)
-                } else {
-                    communication_schemes::bipartition_sweep(
-                        &children_tensors,
-                        &latency_map,
-                        &mut thread_rng(),
-                    )
-                }
+                let Some(rng) = rng else {
+                    panic!("BipartitionSweep requires a random number generator")
+                };
+                communication_schemes::bipartition_sweep(&children_tensors, &latency_map, rng)
             }
 
             CommunicationScheme::WeightedBranchBound => {
