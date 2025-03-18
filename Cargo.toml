@@ -34,14 +34,14 @@ rayon = "1.10.0"
 ordered-float = "4.5.0"
 rustengra = { git = "ssh://gitlab.lrz.de/quantum-research/tensornetworksimulation/rustengra" }
 cotengrust = { git = "https://github.com/Ectras/cotengrust.git", branch = "rust_extension" }
-clap = {version=  "4.5.28", features = ["derive"]}
-flate2 = "1.0.35"
 
 [dev-dependencies]
 criterion = "0.5.1"
 static_init = "1.0.3"
 mpi-test = { git = "https://github.com/Ectras/mpi-test.git" }
 flexi_logger = { version = "0.29.6", features = ["kv", "json", "async"] }
+clap = { version = "4.5.28", features = ["derive"] }
+flate2 = "1.0.35"
 
 [[bench]]
 name = "benchmarks"
