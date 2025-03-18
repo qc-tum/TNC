@@ -48,10 +48,28 @@ pub trait OptModel<'a>: Sync + Send {
 /// Optimizer that implements the simulated annealing algorithm
 #[derive(Clone, Copy)]
 pub struct SimulatedAnnealingOptimizer {
+    /// Number of candidate solutions to generate and evaluate in each iteration.
     n_trials: usize,
-    patience: usize,
+    /// Number of iterations without improvement after which the algorithm should
+    /// restart from the best solution found so far.
     restart_iter: usize,
     w: f64,
+}
+
+/// Termination condition for the [`SimulatedAnnealingOptimizer`].
+#[derive(Debug, Clone)]
+pub enum TerminationCondition {
+    Iterations {
+        /// Number of iterations.
+        n_iter: usize,
+        /// Number of iterations without improvement after which the algorithm should
+        /// terminate.
+        patience: usize,
+    },
+    Time {
+        /// Maximum time allowed for optimization.
+        max_time: std::time::Duration,
+    },
 }
 
 impl<'a> SimulatedAnnealingOptimizer {
@@ -65,7 +83,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         &self,
         model: &M,
         initial_solution: M::SolutionType,
-        n_iter: usize,
+        termination: &TerminationCondition,
         rng: &mut R,
     ) -> (M::SolutionType, ScoreType)
     where
@@ -81,7 +99,12 @@ impl<'a> SimulatedAnnealingOptimizer {
         let mut rngs = (0..self.n_trials)
             .map(|_| StdRng::seed_from_u64(rng.gen()))
             .collect_vec();
-        for _ in 0..n_iter {
+        let iterations = match termination {
+            TerminationCondition::Iterations { n_iter, .. } => *n_iter,
+            TerminationCondition::Time { .. } => usize::MAX,
+        };
+        let start_time = std::time::Instant::now();
+        for _ in 0..iterations {
             // Generate and evaluate candidate solutions to find the minimum objective
             let (_, trial_solution, trial_score) = rngs
                 .par_iter_mut()
@@ -98,11 +121,13 @@ impl<'a> SimulatedAnnealingOptimizer {
             let acceptance_probability = (-self.w * diff.into_inner()).exp();
             let random_value = rng.gen();
 
+            // Accept this solution with the given acceptance probability
             if acceptance_probability >= random_value {
                 current_solution = trial_solution;
                 current_score = trial_score;
             }
 
+            // Update the best solution if the current solution is better
             if current_score < best_score {
                 best_solution = current_solution.clone();
                 best_score = current_score;
@@ -111,13 +136,24 @@ impl<'a> SimulatedAnnealingOptimizer {
 
             last_improvement += 1;
 
+            // Check if we should terminate
+            match termination {
+                TerminationCondition::Iterations { patience, .. } => {
+                    if last_improvement >= *patience {
+                        break;
+                    }
+                }
+                TerminationCondition::Time { max_time } => {
+                    if start_time.elapsed() >= *max_time {
+                        break;
+                    }
+                }
+            }
+
+            // Check if we should restart from the best solution
             if last_improvement == self.restart_iter {
                 current_solution = best_solution.clone();
                 current_score = best_score;
-            }
-
-            if last_improvement == self.patience {
-                break;
             }
         }
 
@@ -475,10 +511,14 @@ where
     );
 
     let optimizer = SimulatedAnnealingOptimizer {
-        patience: 300,
         n_trials: 48,
         restart_iter: 100,
         w: 1.0,
     };
-    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, 300, rng)
+
+    let termination = TerminationCondition::Iterations {
+        n_iter: 300,
+        patience: 300,
+    };
+    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, &termination, rng)
 }
