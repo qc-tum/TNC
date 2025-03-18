@@ -10,7 +10,7 @@ use itertools::Itertools;
 use rand::Rng;
 use rustc_hash::FxHashMap;
 
-use super::balancing::{communication_schemes, CommunicationScheme};
+use super::balancing::CommunicationScheme;
 
 pub mod genetic;
 pub mod simulated_annealing;
@@ -53,41 +53,8 @@ where
         .iter()
         .map(Tensor::external_tensor)
         .collect_vec();
-    let mut communication_path = {
-        match communication_scheme {
-            CommunicationScheme::Greedy => {
-                communication_schemes::greedy(&children_tensors, &latency_map)
-            }
-            CommunicationScheme::RandomGreedy => {
-                let Some(rng) = rng else {
-                    panic!("RandomGreedy requires a random number generator")
-                };
-                communication_schemes::random_greedy(&children_tensors, rng)
-            }
-            CommunicationScheme::RandomGreedyLatency => {
-                let Some(rng) = rng else {
-                    panic!("RandomGreedyLatency requires a random number generator")
-                };
-                communication_schemes::random_greedy_latency(&children_tensors, &latency_map, rng)
-            }
-            CommunicationScheme::Bipartition => {
-                communication_schemes::bipartition(&children_tensors, &latency_map)
-            }
-            CommunicationScheme::BipartitionSweep => {
-                let Some(rng) = rng else {
-                    panic!("BipartitionSweep requires a random number generator")
-                };
-                communication_schemes::bipartition_sweep(&children_tensors, &latency_map, rng)
-            }
-
-            CommunicationScheme::WeightedBranchBound => {
-                communication_schemes::weighted_branchbound(&children_tensors, &latency_map)
-            }
-            CommunicationScheme::BranchBound => {
-                communication_schemes::branchbound(&children_tensors)
-            }
-        }
-    };
+    let mut communication_path =
+        communication_scheme.communication_path(&children_tensors, &latency_map, rng);
     let tensor_costs = (0..children_tensors.len())
         .map(|i| latency_map[&i])
         .collect_vec();

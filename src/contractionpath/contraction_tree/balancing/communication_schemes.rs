@@ -52,6 +52,46 @@ impl fmt::Display for CommunicationScheme {
     }
 }
 
+impl CommunicationScheme {
+    pub(crate) fn communication_path<R>(
+        &self,
+        children_tensors: &[Tensor],
+        latency_map: &FxHashMap<usize, f64>,
+        rng: Option<&mut R>,
+    ) -> Vec<ContractionIndex>
+    where
+        R: ?Sized + Rng,
+    {
+        match self {
+            CommunicationScheme::Greedy => greedy(children_tensors, latency_map),
+            CommunicationScheme::RandomGreedy => {
+                let Some(rng) = rng else {
+                    panic!("RandomGreedy requires a random number generator")
+                };
+                random_greedy(children_tensors, rng)
+            }
+            CommunicationScheme::RandomGreedyLatency => {
+                let Some(rng) = rng else {
+                    panic!("RandomGreedyLatency requires a random number generator")
+                };
+                random_greedy_latency(children_tensors, latency_map, rng)
+            }
+            CommunicationScheme::Bipartition => bipartition(children_tensors, latency_map),
+            CommunicationScheme::BipartitionSweep => {
+                let Some(rng) = rng else {
+                    panic!("BipartitionSweep requires a random number generator")
+                };
+                bipartition_sweep(children_tensors, latency_map, rng)
+            }
+
+            CommunicationScheme::WeightedBranchBound => {
+                weighted_branchbound(children_tensors, latency_map)
+            }
+            CommunicationScheme::BranchBound => branchbound(children_tensors),
+        }
+    }
+}
+
 pub(crate) fn greedy(
     children_tensors: &[Tensor],
     _latency_map: &FxHashMap<usize, f64>,

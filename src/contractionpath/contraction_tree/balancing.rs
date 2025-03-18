@@ -266,36 +266,8 @@ where
         .iter()
         .map(|partition| partition.id)
         .collect_vec();
-    let communication_path = match communication_scheme {
-        CommunicationScheme::Greedy => {
-            communication_schemes::greedy(&children_tensors, &latency_map)
-        }
-        CommunicationScheme::RandomGreedy => {
-            let Some(rng) = rng else {
-                panic!("RandomGreedy requires a random number generator")
-            };
-            communication_schemes::random_greedy(&children_tensors, rng)
-        }
-        CommunicationScheme::RandomGreedyLatency => {
-            let Some(rng) = rng else {
-                panic!("RandomGreedyLatency requires a random number generator")
-            };
-            communication_schemes::random_greedy_latency(&children_tensors, &latency_map, rng)
-        }
-        CommunicationScheme::Bipartition => {
-            communication_schemes::bipartition(&children_tensors, &latency_map)
-        }
-        CommunicationScheme::BipartitionSweep => {
-            let Some(rng) = rng else {
-                panic!("BipartitionSweep requires a random number generator")
-            };
-            communication_schemes::bipartition_sweep(&children_tensors, &latency_map, rng)
-        }
-        CommunicationScheme::WeightedBranchBound => {
-            communication_schemes::weighted_branchbound(&children_tensors, &latency_map)
-        }
-        CommunicationScheme::BranchBound => communication_schemes::branchbound(&children_tensors),
-    };
+    let communication_path =
+        communication_scheme.communication_path(&children_tensors, &latency_map, rng);
 
     contraction_tree.replace_communication_path(partition_ids, &communication_path);
 
