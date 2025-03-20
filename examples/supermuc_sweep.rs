@@ -501,7 +501,7 @@ fn perform_contraction(
 
 trait MethodRun {
     /// Returns the name of the method.
-    fn name(&self) -> &'static str;
+    fn name(&self) -> String;
 
     /// Returns the actual number of partitions used by the method. This is useful
     /// for methods that dynamically determine the number of partitions.
@@ -549,8 +549,8 @@ trait MethodRun {
 #[derive(Debug, Clone)]
 struct InitialProblem;
 impl MethodRun for InitialProblem {
-    fn name(&self) -> &'static str {
-        "Generic"
+    fn name(&self) -> String {
+        "Generic".into()
     }
 
     fn run(
@@ -579,8 +579,8 @@ impl MethodRun for InitialProblem {
 #[derive(Debug, Clone)]
 struct Sa;
 impl MethodRun for Sa {
-    fn name(&self) -> &'static str {
-        "SA"
+    fn name(&self) -> String {
+        "SA".into()
     }
 
     fn run(
@@ -610,8 +610,8 @@ impl MethodRun for Sa {
 #[derive(Debug, Clone)]
 struct Iad;
 impl MethodRun for Iad {
-    fn name(&self) -> &'static str {
-        "IAD"
+    fn name(&self) -> String {
+        "IAD".into()
     }
 
     fn run(
@@ -665,8 +665,8 @@ impl MethodRun for Iad {
 #[derive(Debug, Clone)]
 struct Sad;
 impl MethodRun for Sad {
-    fn name(&self) -> &'static str {
-        "SAD"
+    fn name(&self) -> String {
+        "SAD".into()
     }
 
     fn run(
@@ -707,8 +707,8 @@ fn objective_function(a: &Tensor, b: &Tensor) -> f64 {
     a.size() + b.size() - (a ^ b).size()
 }
 impl MethodRun for GreedyBalance {
-    fn name(&self) -> &'static str {
-        "GreedyBalance"
+    fn name(&self) -> String {
+        "GreedyBalance".into()
     }
 
     fn run(
@@ -754,8 +754,8 @@ struct GreedyTreeBalance {
 }
 
 impl MethodRun for GreedyTreeBalance {
-    fn name(&self) -> &'static str {
-        "GreedyTreeBalance"
+    fn name(&self) -> String {
+        "GreedyTreeBalance".into()
     }
 
     fn run(
@@ -799,8 +799,8 @@ struct Cotengra {
     last_used_num_partitions: RefCell<i32>,
 }
 impl MethodRun for Cotengra {
-    fn name(&self) -> &'static str {
-        "Cotengra"
+    fn name(&self) -> String {
+        "Cotengra".into()
     }
 
     fn actual_num_partitions(&self) -> Option<i32> {
@@ -857,8 +857,8 @@ struct CotengraTempering {
     last_used_num_partitions: RefCell<i32>,
 }
 impl MethodRun for CotengraTempering {
-    fn name(&self) -> &'static str {
-        "CotengraTempering"
+    fn name(&self) -> String {
+        "CotengraTempering".into()
     }
 
     fn actual_num_partitions(&self) -> Option<i32> {
@@ -916,8 +916,8 @@ struct CotengraAnneal {
     last_used_num_partitions: RefCell<i32>,
 }
 impl MethodRun for CotengraAnneal {
-    fn name(&self) -> &'static str {
-        "CotengraTempering"
+    fn name(&self) -> String {
+        "CotengraTempering".into()
     }
 
     fn actual_num_partitions(&self) -> Option<i32> {
