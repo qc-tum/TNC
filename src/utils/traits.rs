@@ -4,6 +4,8 @@ use std::{
     hash::{BuildHasher, Hash},
 };
 
+use rustc_hash::{FxBuildHasher, FxHashMap};
+
 /// Trait for inserting a new key-value pair into a map.
 pub trait HashMapInsertNew<K, V> {
     /// Inserts a new key-value pair into the map.
@@ -25,11 +27,24 @@ where
     }
 }
 
+/// Trait for objects that can be created with a given capacity.
+pub trait WithCapacity {
+    fn with_capacity(capacity: usize) -> Self;
+}
+
+impl<K, V> WithCapacity for FxHashMap<K, V> {
+    #[must_use]
+    #[inline]
+    fn with_capacity(capacity: usize) -> Self {
+        FxHashMap::with_capacity_and_hasher(capacity, FxBuildHasher)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rustc_hash::FxHashMap;
 
-    use super::HashMapInsertNew;
+    use super::*;
 
     #[test]
     fn test_insert_new() {
@@ -49,5 +64,11 @@ mod tests {
         hm.insert_new(1, 2);
         // try to udpate value:
         hm.insert_new(1, 4);
+    }
+
+    #[test]
+    fn test_with_capacity() {
+        let hm = FxHashMap::<char, usize>::with_capacity(10);
+        assert!(hm.capacity() >= 10);
     }
 }

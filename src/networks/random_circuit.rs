@@ -8,6 +8,7 @@ use rustc_hash::FxHashMap;
 use crate::random::tensorgeneration::random_sparse_tensor_data_with_rng;
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
+use crate::utils::traits::WithCapacity;
 
 macro_rules! fsim {
     ($a:expr, $b:expr, $c:expr) => {
@@ -39,7 +40,7 @@ where
         TensorData::Gate((String::from("sz"), Vec::new(), false)),
     ];
 
-    let mut open_edges = FxHashMap::default();
+    let mut open_edges = FxHashMap::with_capacity(qubits);
 
     // Initialize tensornetwork of size `usize`
     let mut circuit_tn = Tensor::default();
@@ -173,7 +174,7 @@ where
     // Initialize tensornetwork of size `usize`
     let mut random_tn = Tensor::default();
 
-    let mut open_edges = FxHashMap::default();
+    let mut open_edges = FxHashMap::with_capacity(size);
 
     let mut next_edge = 0;
 

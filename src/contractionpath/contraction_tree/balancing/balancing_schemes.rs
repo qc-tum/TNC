@@ -158,7 +158,6 @@ where
     // Obtain most expensive and cheapest partitions
     let larger_subtree_id = partition_data.last().unwrap().id;
 
-    // let mut larger_subtree_leaf_nodes = FxHashMap::default();
     let larger_subtree_leaf_nodes =
         populate_leaf_node_tensor_map(contraction_tree, larger_subtree_id, tensor);
 
