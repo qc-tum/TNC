@@ -279,7 +279,7 @@ fn main() {
             iterations: 40,
             balancing_scheme: BalancingScheme::AlternatingIntermediateTensors { height_limit: 8 },
         }),
-        Rc::new(GreedyTreeBalance {
+        Rc::new(GreedyBalance {
             iterations: 40,
             balancing_scheme: BalancingScheme::AlternatingTreeTensors { height_limit: 8 },
         }),
@@ -708,54 +708,15 @@ fn objective_function(a: &Tensor, b: &Tensor) -> f64 {
 }
 impl MethodRun for GreedyBalance {
     fn name(&self) -> String {
-        "GreedyBalance".into()
-    }
-
-    fn run(
-        &self,
-        tensor: &Tensor,
-        _num_partitions: i32,
-        initial_partitioning: &[usize],
-        communication_scheme: CommunicationScheme,
-        rng: &mut StdRng,
-    ) -> (Tensor, Vec<ContractionIndex>, f64) {
-        let (initial_partitioned_tensor, initial_contraction_path, _) = compute_solution(
-            tensor,
-            initial_partitioning,
-            communication_scheme,
-            Some(&mut rng.clone()),
-        );
-
-        let balance_settings = BalanceSettings::new(
-            1,
-            self.iterations,
-            objective_function,
-            communication_scheme,
-            self.balancing_scheme,
-            None,
-        );
-        let (best_iteration, partitioned_tensor, contraction_path, max_costs) =
-            balance_partitions_iter(
-                &initial_partitioned_tensor,
-                &initial_contraction_path,
-                balance_settings,
-                None,
-                rng,
-            );
-        let flops = max_costs[best_iteration];
-        (partitioned_tensor, contraction_path, flops)
-    }
-}
-
-#[derive(Debug, Clone)]
-struct GreedyTreeBalance {
-    iterations: usize,
-    balancing_scheme: BalancingScheme,
-}
-
-impl MethodRun for GreedyTreeBalance {
-    fn name(&self) -> String {
-        "GreedyTreeBalance".into()
+        match &self.balancing_scheme {
+            BalancingScheme::AlternatingIntermediateTensors { .. } => {
+                format!("GreedyIntermediate")
+            }
+            BalancingScheme::AlternatingTreeTensors { .. } => {
+                format!("GreedyTree")
+            }
+            _ => panic!(),
+        }
     }
 
     fn run(
