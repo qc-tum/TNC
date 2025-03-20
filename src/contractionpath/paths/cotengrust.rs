@@ -46,17 +46,7 @@ impl<'a> Cotengrust<'a> {
 
     fn optimize_single(&self, inputs: &[Tensor], output: &Tensor) -> Vec<ContractionIndex> {
         // Convert the inputs to the cotengra format
-        let size_dict =
-            inputs
-                .iter()
-                .map(|t| t.edges())
-                .fold(FxHashMap::default(), |mut acc, edges| {
-                    acc.extend(edges);
-                    acc
-                });
-        let inputs = inputs.iter().map(|tensor| tensor.legs() as _).collect_vec();
-
-        let (inputs, output, size_dict) = tensor_legs_to_digit(&inputs, output.legs(), &size_dict);
+        let (inputs, output, size_dict) = tensor_legs_to_digit(inputs, output);
 
         // Find the contraction path
         let path = match &self.opt_method {
@@ -96,29 +86,25 @@ impl<'a> Cotengrust<'a> {
 
 /// Converts tensor leg inputs to chars. Creates new inputs, outputs and size_dict that can be fed to Cotengra.
 fn tensor_legs_to_digit(
-    inputs: &[&[usize]],
-    outputs: &[usize],
-    size_dict: &FxHashMap<usize, u64>,
+    inputs: &[Tensor],
+    output: &Tensor,
 ) -> (Vec<Vec<char>>, Vec<char>, FxHashMap<char, f32>) {
     fn leg_to_char(leg: usize) -> char {
         char::from_u32(leg.try_into().unwrap()).unwrap()
     }
     let mut new_inputs = vec![Vec::new(); inputs.len()];
+    let new_output = output.legs().iter().copied().map(leg_to_char).collect();
     let mut new_size_dict = FxHashMap::default();
 
-    for (tensor, new_tensor) in zip(inputs, new_inputs.iter_mut()) {
-        new_tensor.reserve_exact(tensor.len());
-        for leg in *tensor {
+    for (tensor, labels) in zip(inputs, new_inputs.iter_mut()) {
+        labels.reserve_exact(tensor.legs().len());
+        for (leg, dim) in tensor.edges() {
             let character = leg_to_char(*leg);
-            new_tensor.push(character);
-            new_size_dict.insert(character, size_dict[leg] as f32);
+            labels.push(character);
+            new_size_dict.insert(character, *dim as f32);
         }
     }
-    (
-        new_inputs,
-        outputs.iter().copied().map(leg_to_char).collect(),
-        new_size_dict,
-    )
+    (new_inputs, new_output, new_size_dict)
 }
 
 impl OptimizePath for Cotengrust<'_> {
