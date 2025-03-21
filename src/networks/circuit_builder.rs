@@ -180,3 +180,47 @@ impl Circuit {
         self.tensor_network
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::f64::consts::FRAC_1_SQRT_2;
+
+    use num_complex::Complex64;
+    use rustc_hash::FxHashMap;
+
+    use crate::{
+        contractionpath::paths::{greedy::Greedy, CostType, OptimizePath},
+        tensornetwork::{
+            contraction::contract_tensor_network, tensor::Tensor, tensordata::TensorData,
+        },
+    };
+
+    use super::Circuit;
+
+    #[test]
+    fn test_circuit_builder() {
+        let qubits = 5;
+        let mut new_circuit = Circuit::initialize_ket0(qubits);
+        for i in 0..qubits {
+            new_circuit.append_gate(TensorData::Gate((String::from("h"), vec![], true)), &[i]);
+        }
+
+        let tensor_network = new_circuit.finalize_ket0();
+
+        let tensor = tensor_network.clone();
+        let mut contraction_order = Greedy::new(&tensor, CostType::Flops);
+        contraction_order.optimize_path();
+        let path = contraction_order.get_best_replace_path();
+
+        let result = contract_tensor_network(tensor_network, &path);
+
+        let mut tn_ref = Tensor::new_from_map(vec![], &FxHashMap::default());
+        tn_ref.set_tensor_data(TensorData::new_from_data(
+            &[],
+            vec![Complex64::new(FRAC_1_SQRT_2.powi(qubits as i32), 0.0)],
+            None,
+        ));
+
+        assert!(result.approx_eq(&tn_ref, 1e-8));
+    }
+}
