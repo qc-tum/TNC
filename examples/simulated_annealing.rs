@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use tensorcontraction::{
     contractionpath::contraction_tree::{
@@ -6,6 +8,7 @@ use tensorcontraction::{
             compute_solution,
             simulated_annealing::{
                 balance_partitions, LeafPartitioningModel, NaivePartitioningModel,
+                TerminationCondition,
             },
         },
     },
@@ -71,6 +74,9 @@ fn main() {
         communication_scheme,
         &mut rng,
         None,
+        &TerminationCondition::Time {
+            max_time: Duration::from_secs(900),
+        },
     );
     println!("Normal final score: {final_score:?}");
 
@@ -86,6 +92,9 @@ fn main() {
         communication_scheme,
         &mut rng,
         None,
+        &TerminationCondition::Time {
+            max_time: Duration::from_secs(900),
+        },
     );
     println!("Directed final score: {final_score:?}");
 

@@ -502,6 +502,7 @@ pub fn balance_partitions<'a, R, M>(
     communication_scheme: CommunicationScheme,
     rng: &mut R,
     memory_limit: Option<f64>,
+    termination_condition: &TerminationCondition,
 ) -> (M::SolutionType, ScoreType)
 where
     R: Rng,
@@ -519,10 +520,5 @@ where
         restart_iter: 100,
         w: 1.0,
     };
-
-    let termination = TerminationCondition::Iterations {
-        n_iter: 300,
-        patience: 300,
-    };
-    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, &termination, rng)
+    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, termination_condition, rng)
 }

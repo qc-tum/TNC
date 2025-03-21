@@ -26,6 +26,7 @@ use tensorcontraction::contractionpath::contraction_cost::{
 use tensorcontraction::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
 };
+use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::TerminationCondition;
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::{
     IntermediatePartitioningModel, LeafPartitioningModel, NaivePartitioningModel,
 };
@@ -96,6 +97,10 @@ struct Cli {
     mode: Mode,
     out_file: String,
 }
+
+const TERMINATION: TerminationCondition = TerminationCondition::Time {
+    max_time: Duration::from_secs(1800),
+};
 
 /// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
 fn setup_logging_mpi(rank: Rank) {
@@ -286,9 +291,9 @@ fn main() {
         Rc::new(Sa),
         Rc::new(Sad),
         Rc::new(Iad),
-        Rc::new(Cotengra::default()),
-        Rc::new(CotengraAnneal::default()),
-        Rc::new(CotengraTempering::default()),
+        //Rc::new(Cotengra::default()),
+        //Rc::new(CotengraAnneal::default()),
+        //Rc::new(CotengraTempering::default()),
     ];
 
     let scenarios = iproduct!(
@@ -599,6 +604,7 @@ impl MethodRun for Sa {
                 communication_scheme,
                 rng,
                 None,
+                &TERMINATION,
             );
 
         let (partitioned_tensor, contraction_path, flops) =
@@ -653,6 +659,7 @@ impl MethodRun for Iad {
                 communication_scheme,
                 rng,
                 None,
+                &TERMINATION,
             );
         let (partitioning, ..) = solution;
 
@@ -689,6 +696,7 @@ impl MethodRun for Sad {
             communication_scheme,
             rng,
             None,
+            &TERMINATION,
         );
         let (partitioning, ..) = solution;
 
@@ -878,7 +886,7 @@ struct CotengraAnneal {
 }
 impl MethodRun for CotengraAnneal {
     fn name(&self) -> String {
-        "CotengraTempering".into()
+        "CotengraAnneal".into()
     }
 
     fn actual_num_partitions(&self) -> Option<i32> {

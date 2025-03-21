@@ -1,4 +1,5 @@
 use std::io::{BufWriter, Write};
+use std::time::Duration;
 use std::{fs, panic};
 
 use log::info;
@@ -16,6 +17,7 @@ use tensorcontraction::contractionpath::contraction_tree::balancing::{
 };
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::{
     IntermediatePartitioningModel, LeafPartitioningModel, NaivePartitioningModel,
+    TerminationCondition,
 };
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
     compute_solution, simulated_annealing,
@@ -425,6 +427,9 @@ fn sa_run(
             communication_scheme,
             rng,
             None,
+            &TerminationCondition::Time {
+                max_time: Duration::from_secs(900),
+            },
         );
 
     let (partitioned_tensor, contraction_path, flops) =
@@ -458,6 +463,9 @@ fn iad_run(
         communication_scheme,
         rng,
         None,
+        &TerminationCondition::Time {
+            max_time: Duration::from_secs(900),
+        },
     );
     let (partitioning, ..) = solution;
 
@@ -486,6 +494,9 @@ fn sad_run(
         communication_scheme,
         rng,
         None,
+        &TerminationCondition::Time {
+            max_time: Duration::from_secs(900),
+        },
     );
     let (partitioning, ..) = solution;
 
