@@ -1,3 +1,4 @@
+use super::circuit_builder::Circuit;
 use super::connectivity::{Connectivity, ConnectivityLayout};
 use itertools::Itertools;
 use rand::distributions::Bernoulli;
@@ -40,10 +41,8 @@ where
         TensorData::Gate((String::from("sz"), Vec::new(), false)),
     ];
 
-    let mut open_edges = FxHashMap::with_capacity(qubits);
-
-    // Initialize tensornetwork of size `usize`
-    let mut circuit_tn = Tensor::default();
+    let single_qubit_die = Bernoulli::new(single_qubit_probability).unwrap();
+    let two_qubit_die = Bernoulli::new(two_qubit_probability).unwrap();
 
     // Get connectivity for given size
     let connectivity_graph = Connectivity::new(connectivity);
@@ -53,63 +52,36 @@ where
         .filter(|&&(u, v)| u < qubits && v < qubits)
         .collect_vec();
 
-    let mut next_edge = qubits;
-    let single_qubit_die = Bernoulli::new(single_qubit_probability).unwrap();
-    let two_qubit_die = Bernoulli::new(two_qubit_probability).unwrap();
+    // Initialize circuit with random qubit states
+    let mut circuit = Circuit::initialize_random(qubits, rng);
 
-    // set up initial state
-    let mut initial_state = Vec::with_capacity(qubits);
-    for i in 0..qubits {
-        let mut new_state = Tensor::new_from_const(vec![i], 2);
-        new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng));
-        open_edges.insert(i, i);
-        initial_state.push(new_state);
-    }
-    circuit_tn.push_tensors(initial_state);
-
-    let mut intermediate_gates = Vec::new();
     for _ in 1..rounds {
         for i in 0..qubits {
             // Placing of random single qubit gate
             if rng.sample(single_qubit_die) {
-                let mut new_tensor = Tensor::new_from_const(vec![open_edges[&i], next_edge], 2);
-                new_tensor.set_tensor_data(single_qubit_gates.choose(rng).unwrap().clone());
-                intermediate_gates.push(new_tensor);
-                open_edges.insert(i, next_edge);
-                next_edge += 1;
+                let gate = single_qubit_gates.choose(rng).unwrap().clone();
+                circuit.append_gate(gate, &[i]);
             }
         }
         for (i, j) in &filtered_connectivity {
             // Placing of random two qubit gate
             if rng.sample(two_qubit_die) {
-                let mut new_tensor = Tensor::new_from_const(
-                    vec![open_edges[i], open_edges[j], next_edge, next_edge + 1],
-                    2,
-                );
-                new_tensor.set_tensor_data(fsim!(0.3, 0.2, false));
-                intermediate_gates.push(new_tensor);
-                open_edges.insert(*i, next_edge);
-                open_edges.insert(*j, next_edge + 1);
-                next_edge += 2;
+                let gate = fsim!(0.3, 0.2, false);
+                circuit.append_gate(gate, &[*i, *j]);
             }
         }
     }
-    circuit_tn.push_tensors(intermediate_gates);
 
-    // set up final state
-    let mut final_state = Vec::with_capacity(qubits);
-    for i in 0..qubits {
-        let mut new_state = Tensor::new_from_const(vec![open_edges[&i]], 2);
-        new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng));
-        final_state.push(new_state);
-    }
-    circuit_tn.push_tensors(final_state);
-
-    circuit_tn
+    // Set up final state
+    circuit.finalize_random(rng)
 }
 
+/// Creates a random circuit with `rounds` many rounds of single and two qubit gate
+/// layers, then a layer of random observables followed by the same single and two
+/// qubit gate layers mirrored. The gates are placed with the given probabilities and
+/// only on qubit pairs specified by the `connectivity`.
 pub fn random_circuit_with_observable<R>(
-    size: usize,
+    qubits: usize,
     round: usize,
     single_qubit_probability: f64,
     two_qubit_probability: f64,
@@ -120,12 +92,12 @@ pub fn random_circuit_with_observable<R>(
 where
     R: Rng + ?Sized,
 {
-    let observable_locations = (0..size)
+    let observable_locations = (0..qubits)
         .filter(|_| rng.gen_bool(observable_probability))
         .collect();
 
     random_circuit_with_set_observable(
-        size,
+        qubits,
         round,
         single_qubit_probability,
         two_qubit_probability,
@@ -135,8 +107,13 @@ where
     )
 }
 
+/// Creates a random circuit with `rounds` many rounds of single and two qubit gate
+/// layers, then a layer of random observables followed by the same single and two
+/// qubit gate layers mirrored. The observables are placed on the given qubits. The
+/// gates are placed with the given probabilities and only on qubit pairs specified
+/// by the `connectivity`.
 pub fn random_circuit_with_set_observable<R>(
-    size: usize,
+    qubits: usize,
     round: usize,
     single_qubit_probability: f64,
     two_qubit_probability: f64,
@@ -174,12 +151,12 @@ where
     // Initialize tensornetwork of size `usize`
     let mut random_tn = Tensor::default();
 
-    let mut open_edges = FxHashMap::with_capacity(size);
+    let mut open_edges = FxHashMap::with_capacity(qubits);
 
     let mut next_edge = 0;
 
     let mut final_state = Vec::with_capacity(observable_location.len());
-    for i in 0..size {
+    for i in 0..qubits {
         // Placing of random observable
         if observable_location.contains(&i) {
             open_edges.insert(i, (next_edge, next_edge + 1));
@@ -202,7 +179,7 @@ where
     let filtered_connectivity = connectivity_graph
         .connectivity
         .iter()
-        .filter(|&&(u, v)| u < size && v < size)
+        .filter(|&&(u, v)| u < qubits && v < qubits)
         .collect_vec();
 
     let mut intermediate_gates = Vec::new();
@@ -248,7 +225,7 @@ where
             }
         }
 
-        for i in 0..size {
+        for i in 0..qubits {
             // Placing of random single qubit gate if affects outcome of observable
             let (left_index, right_index) = open_edges[&i];
             if rng.sample(single_qubit_die) && left_index != right_index {
@@ -272,8 +249,8 @@ where
     random_tn.push_tensors(intermediate_gates);
 
     // set up random initial state
-    let mut initial_state = Vec::with_capacity(size);
-    for i in 0..size {
+    let mut initial_state = Vec::with_capacity(qubits);
+    for i in 0..qubits {
         let (left_index, right_index) = open_edges[&i];
         if left_index != right_index {
             let random_sparse_tensor = random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng);
