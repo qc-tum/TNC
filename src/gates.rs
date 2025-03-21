@@ -19,6 +19,7 @@ lazy_static! {
         gates.insert(Box::new(Y) as _);
         gates.insert(Box::new(Z) as _);
         gates.insert(Box::new(H) as _);
+        gates.insert(Box::new(T) as _);
         gates.insert(Box::new(U) as _);
         gates.insert(Box::new(Sx) as _);
         gates.insert(Box::new(Sy) as _);
@@ -27,6 +28,8 @@ lazy_static! {
         gates.insert(Box::new(Ry) as _);
         gates.insert(Box::new(Rz) as _);
         gates.insert(Box::new(Cx) as _);
+        gates.insert(Box::new(Cz) as _);
+        gates.insert(Box::new(Iswap) as _);
         gates.insert(Box::new(Fsim) as _);
         RwLock::new(gates)
     };
@@ -228,6 +231,34 @@ impl Gate for H {
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
         // self-adjoint
         self.compute(angles)
+    }
+}
+
+/// The T gate.
+struct T;
+impl Gate for T {
+    fn name(&self) -> &str {
+        "t"
+    }
+
+    fn compute(&self, angles: &[f64]) -> DataTensor {
+        assert!(angles.is_empty());
+        let z = Complex64::ZERO;
+        let o = Complex64::ONE;
+        let t = Complex64::new(FRAC_1_SQRT_2, FRAC_1_SQRT_2);
+        #[rustfmt::skip]
+        let data = vec![
+            o, z,
+            z, t,
+        ];
+        DataTensor::new_from_flat(&[2, 2], data, None)
+    }
+
+    fn adjoint(&self, angles: &[f64]) -> DataTensor {
+        // symmetric
+        let mut matrix = self.compute(angles);
+        matrix.conjugate();
+        matrix
     }
 }
 
@@ -452,6 +483,63 @@ impl Gate for Cx {
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
         // self-adjoint
         self.compute(angles)
+    }
+}
+
+/// The controlled-Z gate.
+struct Cz;
+impl Gate for Cz {
+    fn name(&self) -> &str {
+        "cz"
+    }
+
+    fn compute(&self, angles: &[f64]) -> DataTensor {
+        assert!(angles.is_empty());
+        let z = Complex64::ZERO;
+        let o = Complex64::ONE;
+        #[rustfmt::skip]
+        let data = vec![
+            o, z, z, z,
+            z, o, z, z,
+            z, z, o, z,
+            z, z, z, -o,
+        ];
+        DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+    }
+
+    fn adjoint(&self, angles: &[f64]) -> DataTensor {
+        // self-adjoint
+        self.compute(angles)
+    }
+}
+
+/// The iSWAP gate.
+struct Iswap;
+impl Gate for Iswap {
+    fn name(&self) -> &str {
+        "iswap"
+    }
+
+    fn compute(&self, angles: &[f64]) -> DataTensor {
+        assert!(angles.is_empty());
+        let z = Complex64::ZERO;
+        let o = Complex64::ONE;
+        let i = Complex64::I;
+        #[rustfmt::skip]
+        let data = vec![
+            o, z, z, z,
+            z, z, i, z,
+            z, i, z, z,
+            z, z, z, o,
+        ];
+        DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+    }
+
+    fn adjoint(&self, angles: &[f64]) -> DataTensor {
+        // symmetric
+        let mut matrix = self.compute(angles);
+        matrix.conjugate();
+        matrix
     }
 }
 
