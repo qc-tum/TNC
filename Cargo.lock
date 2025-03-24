@@ -1414,7 +1414,7 @@ dependencies = [
 [[package]]
 name = "mpi_test"
 version = "0.1.0"
-source = "git+ssh://gitlab.lrz.de/quantum-research/mpi_test?branch=main#83db9c6484c666c5e6921ab82a67e419ab759c2c"
+source = "git+https://github.com/Ectras/mpi_test.git#9dddcdfca03cf7587c2de25416eb18822859a083"
 dependencies = [
  "quote",
  "syn 2.0.96",
