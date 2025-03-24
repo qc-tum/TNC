@@ -23,9 +23,9 @@ bibliography: paper.bib
 # Summary
 
 TBD is a library for the efficient contraction of large tensor networks, focusing on a distributed-memory (i.e., multi-node HPC) setting.
-To this end, we employ partitioning techniques to contract tensor networks in parallel with similar time-to-solution.
-The local contractions use MKL matrix-matrix multiplications and the HPTT library for efficient transposition of data.
-TBD is written in Rust, allowing for high-performance code while guaranteeing memory safety.
+To this end, we employ partitioning techniques to contract a tensor network in parallel with similar time-to-solution.
+TBD is written in Rust, allowing for high-performance while guaranteeing memory safety.
+The library can for instance be used to classically simulate quantum circuits.
 
 # Statement of need
 
@@ -33,10 +33,19 @@ With the rapid advancements in quantum computing, ever larger quantum circuits a
 Since real quantum hardware is often not yet available and has to fight problems such as high error rates, research on efficient classical simulation methods is crucial to bridge this gap.
 Tensor networks have shown to be a viable tool for the classical simulation, disproving even two major claims of quantum advantage (the realization of an algorithm on real quantum hardware which would be infeasable to simulate on classical hardware) [@Pan2022;@Patra2024].
 
-TBD allows the efficient contraction of large tensor networks and hence enables the classical simulation of large quantum circuits. The library development was guided by benchmarks run on an actual supercomputer. Dedicated features for the use of the library for quantum computing were developed: An import of circuits given in the OpenQASM 2 language allows for easy construction of tensor networks corresponding to quantum circuits. Furthermore, the library allows hyperedges between tensors. These can be used for a more efficient representation of CNOT gates [@Gray2021].
+However, existing libraries for tensor network contractions either only consider shared-memory parallelism (TODO: example), are not open-source (TODO: cuTensor), or are unmaintained (TODO: example).
+
+TBD allows the efficient contraction of large tensor networks and hence enables the classical simulation of large quantum circuits.
+The library can construct tensor networks from quantum circuits given in the common OpenQASM 2 language [@Cross2017].
+For contraction, tensor networks are partitioned based on the number of available MPI ranks.
+The partitioning is done using KaHyPar [@Andre2018].
+The library features different algorithms to improve this initial partitioning, for instance using a simulated annealing approach, for faster time-to-solution.
+Contraction paths for the partitions which dictate the order of contractions are found by methods from cotengra [@Gray2021].
+The contraction is done using MKL for matrix-matrix multiplications and hptt [@Springer2017] for data transposition.
+
 
 # Acknowledgements
 
-The research is part of the Munich Quantum Valley (MQV), which is supported by the Bavarian state government with funds from the Hightech Agenda Bayern Plus.
+The research is part of the Munich Quantum Valley (MQV), which is supported by the Bavarian state government with funds from the Hightech Agenda Bayern Plus. Moreover, this project is also supported by the German Federal Ministry of Education and Research(BMBF) through the MUNIQC-SC project.
 
 # References
