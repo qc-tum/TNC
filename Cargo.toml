@@ -38,7 +38,7 @@ rustengra = { git = "ssh://gitlab.lrz.de/quantum-research/tensornetworksimulatio
 [dev-dependencies]
 criterion = "0.5.1"
 static_init = "1.0.3"
-mpi_test = { git = "https://github.com/Ectras/mpi_test.git" }
+mpi-test = { git = "https://github.com/Ectras/mpi-test.git" }
 flexi_logger = { version = "0.29.6", features = ["kv", "json", "async"] }
 
 [[bench]]

@@ -1412,9 +1412,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "mpi_test"
+name = "mpi-test"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/mpi_test.git#9dddcdfca03cf7587c2de25416eb18822859a083"
+source = "git+https://github.com/Ectras/mpi-test.git#46ef33c75b990ddb252692d53bbc0a3740e408b0"
 dependencies = [
  "quote",
  "syn 2.0.96",
@@ -2471,7 +2471,7 @@ dependencies = [
  "log",
  "mpi",
  "mpi-ext",
- "mpi_test",
+ "mpi-test",
  "ndarray",
  "num-complex",
  "ordered-float",
