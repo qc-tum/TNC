@@ -102,6 +102,16 @@ const TERMINATION: TerminationCondition = TerminationCondition::Time {
     max_time: Duration::from_secs(1800),
 };
 
+const ANNEAL_ITERATIONS: TerminationCondition = TerminationCondition::Iterations {
+    n_iter: 300,
+    patience: 100,
+};
+
+const TEMPER_ITERATIONS: TerminationCondition = TerminationCondition::Iterations {
+    n_iter: 300,
+    patience: 100,
+};
+
 /// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
 fn setup_logging_mpi(rank: Rank) {
     let _logger = Logger::with(LevelFilter::Debug)
@@ -844,7 +854,7 @@ impl MethodRun for CotengraTempering {
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
         let seed = rng.next_u64();
         let num_partitions = num_partitions as usize;
-        let mut tree = TreeTempering::new(tensor, Some(seed), CostType::Flops);
+        let mut tree = TreeTempering::new(tensor, Some(seed), CostType::Flops, TEMPER_ITERATIONS);
         tree.optimize_path();
         let best_path = tree.get_best_replace_path();
 
@@ -903,7 +913,7 @@ impl MethodRun for CotengraAnneal {
     ) -> (Tensor, Vec<ContractionIndex>, f64) {
         let seed = rng.next_u64();
         let num_partitions = num_partitions as usize;
-        let mut tree = TreeAnnealing::new(tensor, Some(seed), CostType::Flops);
+        let mut tree = TreeAnnealing::new(tensor, Some(seed), CostType::Flops, ANNEAL_ITERATIONS);
         tree.optimize_path();
         let best_path = tree.get_best_replace_path();
 

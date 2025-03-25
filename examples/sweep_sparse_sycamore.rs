@@ -65,6 +65,20 @@ impl TensorResult {
     }
 }
 
+const TERMINATION: TerminationCondition = TerminationCondition::Time {
+    max_time: Duration::from_secs(1800),
+};
+
+const ANNEAL_ITERATIONS: TerminationCondition = TerminationCondition::Iterations {
+    n_iter: 300,
+    patience: 100,
+};
+
+const TEMPER_ITERATIONS: TerminationCondition = TerminationCondition::Iterations {
+    n_iter: 300,
+    patience: 100,
+};
+
 fn main() {
     let mut file = fs::OpenOptions::new()
         .create(true)
