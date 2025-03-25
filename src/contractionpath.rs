@@ -55,14 +55,14 @@ pub(super) fn ssa_replace_ordering(
                 replace_path.push(pair!(new_t0, new_t1));
                 n += 1;
             }
-            ContractionIndex::Path(index, slicing, path) => {
+            ContractionIndex::Path(index, path) => {
                 let k = path
                     .iter()
                     .filter(|n| matches!(n, ContractionIndex::Pair(_, _)))
                     .count()
                     + 1;
                 let ssa_path = ssa_replace_ordering(path, k);
-                replace_path.push(ContractionIndex::Path(*index, slicing.clone(), ssa_path));
+                replace_path.push(ContractionIndex::Path(*index, ssa_path));
             }
         }
     }

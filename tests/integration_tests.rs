@@ -1,9 +1,6 @@
-use float_cmp::assert_approx_eq;
 use mpi::traits::Communicator;
 use mpi_test::mpi_test;
-use num_complex::c64;
 use rand::{rngs::StdRng, SeedableRng};
-use rustc_hash::FxHashMap;
 use tensorcontraction::{
     contractionpath::{
         paths::{greedy::Greedy, CostType, OptimizePath},
@@ -14,17 +11,13 @@ use tensorcontraction::{
         scatter_tensor_network,
     },
     networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
-    path,
     tensornetwork::{
         contraction::contract_tensor_network,
         partitioning::{
             find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
         },
-        tensor::Tensor,
-        tensordata::TensorData,
     },
 };
-use tetra::Layout;
 
 #[test]
 fn test_partitioned_contraction_random() {
@@ -113,9 +106,8 @@ fn test_partitioned_contraction_need_mpi() {
         Default::default()
     };
 
-    let (mut local_tn, local_path, slicing_task, comm) =
+    let (mut local_tn, local_path, comm) =
         scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
-    assert!(slicing_task.is_none());
     local_tn = contract_tensor_network(local_tn, &local_path);
 
     let mut communication_path = if rank == 0 {
@@ -135,77 +127,5 @@ fn test_partitioned_contraction_need_mpi() {
         let ref_tn = contract_tensor_network(ref_tn, &ref_path);
 
         assert!(local_tn.tensor_data().approx_eq(ref_tn.tensor_data(), 1e-8));
-    }
-}
-
-#[mpi_test(5)]
-fn test_sliced_small_contraction_mpi() {
-    let universe = mpi::initialize().unwrap();
-    let world = universe.world();
-    let size = world.size();
-    let rank = world.rank();
-    let root = world.process_at_rank(0);
-
-    // Create test scenario (tensor network and path)
-    let (tensor, path) = if rank == 0 {
-        let bond_dims = FxHashMap::from_iter([(0, 2), (1, 4), (2, 3)]);
-        let mut t0 = Tensor::new_from_map(vec![0, 1], &bond_dims);
-        t0.set_tensor_data(TensorData::new_from_data(
-            &[2, 4],
-            (1..=8).map(|x| c64(x, 0)).collect(),
-            Some(Layout::RowMajor),
-        ));
-        let mut t1 = Tensor::new_from_map(vec![1, 2], &bond_dims);
-        t1.set_tensor_data(TensorData::new_from_data(
-            &[4, 3],
-            (1..=12).map(|x| c64(x, 0)).collect(),
-            Some(Layout::RowMajor),
-        ));
-        let tc = Tensor::new_composite(vec![t0, t1]);
-        let mut t3 = Tensor::new_from_map(vec![0, 2], &bond_dims);
-        t3.set_tensor_data(TensorData::new_from_data(
-            &[2, 3],
-            (1..=6).map(|x| c64(x, 0)).collect(),
-            Some(Layout::RowMajor),
-        ));
-        let tensor = Tensor::new_composite(vec![tc, t3]);
-        let sliced_path = path![(0, [1], [(0, 1)]), (1, []), (0, 1)].to_vec();
-
-        (tensor, sliced_path)
-    } else {
-        Default::default()
-    };
-
-    // Distribute tensor network
-    let (mut local_tn, local_path, slicing_task, comm) =
-        scatter_tensor_network(&tensor, &path, rank, size, &world);
-
-    // Slice the local tensor network if necessary
-    if let Some(slicing_task) = slicing_task {
-        local_tn.apply_slicing(&slicing_task);
-    }
-
-    // Contract the local tensor network
-    local_tn = contract_tensor_network(local_tn, &local_path);
-
-    // Broadcast the communication path
-    let mut communication_path = if rank == 0 {
-        extract_communication_path(&path)
-    } else {
-        Default::default()
-    };
-    broadcast_path(&mut communication_path, &root);
-
-    // Reduce the tensor network
-    intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world, &comm);
-
-    if rank == 0 {
-        let data = local_tn.tensor_data().clone().into_data();
-        let data = data.elements();
-        let [element] = &data[..] else {
-            panic!("Expected one element")
-        };
-        assert_approx_eq!(f64, element.re, 3312.0);
-        assert_approx_eq!(f64, element.im, 0.0);
     }
 }

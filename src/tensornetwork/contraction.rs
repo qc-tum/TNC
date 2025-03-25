@@ -34,8 +34,7 @@ pub fn contract_tensor_network(mut tn: Tensor, contract_path: &[ContractionIndex
                 tn.contract_tensors(*i, *j);
                 debug!(i, j; "Finished contracting tensors");
             }
-            ContractionIndex::Path(i, slicing, inner_contract_path) => {
-                assert!(slicing.is_none(), "Local slicing is not yet supported");
+            ContractionIndex::Path(i, inner_contract_path) => {
                 let composite = std::mem::take(&mut tn.tensors[*i]);
                 let contracted = contract_tensor_network(composite, inner_contract_path);
                 tn.tensors[*i] = contracted;

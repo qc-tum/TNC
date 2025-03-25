@@ -467,8 +467,7 @@ impl OptimizePath for Greedy<'_> {
                     Box::new(&Greedy::cost_memory_removed),
                     &mut rng,
                 );
-                self.best_path
-                    .push(ContractionIndex::Path(index, None, path));
+                self.best_path.push(ContractionIndex::Path(index, path));
                 *input_tensor = external_tensor;
             }
         }

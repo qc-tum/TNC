@@ -167,7 +167,7 @@ fn main() {
                 opt.optimize_path();
                 let mut initial_contractions = Vec::new();
                 for contraction_path in initial_contraction_path {
-                    if let ContractionIndex::Path(_, _, path) = contraction_path {
+                    if let ContractionIndex::Path(_, path) = contraction_path {
                         initial_contractions.push(path);
                     }
                 }

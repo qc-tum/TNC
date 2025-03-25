@@ -46,6 +46,19 @@ impl RankTensorMapping {
     pub fn tensor(&self, rank: Rank) -> Option<TensorIndex> {
         self.0.iter().find(|(r, _)| *r == rank).map(|(_, t)| *t)
     }
+
+    /// Gets the number of mappings. This is equivalent to the number of MPI ranks
+    /// needed and the number of composite tensors.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Checks if there are no mappings.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl<'a> IntoIterator for &'a RankTensorMapping {

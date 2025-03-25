@@ -69,10 +69,8 @@ impl<'a> WeightedBranchBound<'a> {
 
         let &mut (k12, flops_12, size_12) = self.result_cache.entry((i, j)).or_insert_with(|| {
             let k12 = self.tensor_cache.len();
-            let flops_12 =
-                contract_op_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
-            let size_12 =
-                contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
+            let flops_12 = contract_op_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
+            let size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
             let k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
             self.tensor_cache.insert_new(k12, k12_tensor);
             (k12, flops_12, size_12)
@@ -201,11 +199,8 @@ impl OptimizePath for WeightedBranchBound<'_> {
                     self.minimize,
                 );
                 bb.optimize_path();
-                sub_tensor_contraction.push(ContractionIndex::Path(
-                    index,
-                    None,
-                    bb.get_best_path().clone(),
-                ));
+                sub_tensor_contraction
+                    .push(ContractionIndex::Path(index, bb.get_best_path().clone()));
                 tensor = tensor.external_tensor();
             }
             self.tensor_cache.insert_new(index, tensor);
