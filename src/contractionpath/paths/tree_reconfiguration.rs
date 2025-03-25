@@ -5,7 +5,11 @@ use rustengra::{
 };
 
 use crate::{
-    contractionpath::{contraction_cost::contract_path_cost, ssa_replace_ordering},
+    contractionpath::{
+        contraction_cost::contract_path_cost,
+        contraction_tree::repartitioning::simulated_annealing::TerminationCondition,
+        ssa_replace_ordering,
+    },
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
 };

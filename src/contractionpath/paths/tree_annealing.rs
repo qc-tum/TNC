@@ -3,7 +3,11 @@ use rustc_hash::FxHashMap;
 use rustengra::{cotengra_check, cotengra_sa_tree, replace_to_ssa_path, tensor_legs_to_digit};
 
 use crate::{
-    contractionpath::{contraction_cost::contract_path_cost, ssa_replace_ordering},
+    contractionpath::{
+        contraction_cost::contract_path_cost,
+        contraction_tree::repartitioning::simulated_annealing::TerminationCondition,
+        ssa_replace_ordering,
+    },
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
 };
@@ -14,6 +18,7 @@ use super::{CostType, OptimizePath};
 /// Specifically exposes `subtree_reconfigure` method.
 pub struct TreeAnnealing<'a> {
     tensor: &'a Tensor,
+    termination_condition: TerminationCondition,
     best_flops: f64,
     best_size: f64,
     best_path: Vec<ContractionIndex>,
@@ -25,7 +30,12 @@ impl<'a> TreeAnnealing<'a> {
     /// contraction path in SSA format that is to be optimized. `subtree_size` is the
     /// size of subtrees that is considered (increases the optimization cost
     /// exponentially!).
-    pub fn new(tensor: &'a Tensor, seed: Option<u64>, minimize: CostType) -> Self {
+    pub fn new(
+        tensor: &'a Tensor,
+        seed: Option<u64>,
+        minimize: CostType,
+        termination_condition: TerminationCondition,
+    ) -> Self {
         assert!(cotengra_check().is_ok());
         assert_eq!(
             minimize,
@@ -34,6 +44,7 @@ impl<'a> TreeAnnealing<'a> {
         );
         Self {
             tensor,
+            termination_condition,
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
             best_path: vec![],
@@ -63,7 +74,16 @@ impl OptimizePath for TreeAnnealing<'_> {
         let (inputs, outputs, size_dict) =
             tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
 
-        let replace_path = cotengra_sa_tree(&inputs, outputs, size_dict, self.seed).unwrap();
+        let (steps, iter) = if let TerminationCondition::Iterations { n_iter, patience } =
+            self.termination_condition
+        {
+            (Some(patience), Some(n_iter))
+        } else {
+            (None, None)
+        };
+
+        let replace_path =
+            cotengra_sa_tree(&inputs, outputs, steps, iter, size_dict, self.seed).unwrap();
 
         let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
 
@@ -102,8 +122,9 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::paths::{
-            greedy::Greedy, tree_annealing::TreeAnnealing, CostType, OptimizePath,
+        contractionpath::{
+            contraction_tree::repartitioning::simulated_annealing::TerminationCondition,
+            paths::{greedy::Greedy, tree_annealing::TreeAnnealing, CostType, OptimizePath},
         },
         networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
         path,
@@ -168,7 +189,15 @@ mod tests {
         let tn = setup_simple();
         let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
         greedy_opt.optimize_path();
-        let mut opt = TreeAnnealing::new(&tn, Some(8), CostType::Flops);
+        let mut opt = TreeAnnealing::new(
+            &tn,
+            Some(8),
+            CostType::Flops,
+            TerminationCondition::Iterations {
+                n_iter: 100,
+                patience: 50,
+            },
+        );
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 600.);
@@ -183,7 +212,15 @@ mod tests {
         let tn = setup_complex();
         let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
         greedy_opt.optimize_path();
-        let mut opt = TreeAnnealing::new(&tn, Some(8), CostType::Flops);
+        let mut opt = TreeAnnealing::new(
+            &tn,
+            Some(8),
+            CostType::Flops,
+            TerminationCondition::Iterations {
+                n_iter: 100,
+                patience: 50,
+            },
+        );
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 332685.);
@@ -201,7 +238,15 @@ mod tests {
         let tn = setup_large();
         let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
         greedy_opt.optimize_path();
-        let mut opt = TreeAnnealing::new(&tn, Some(8), CostType::Flops);
+        let mut opt = TreeAnnealing::new(
+            &tn,
+            Some(8),
+            CostType::Flops,
+            TerminationCondition::Iterations {
+                n_iter: 100,
+                patience: 50,
+            },
+        );
         opt.optimize_path();
     }
 }
