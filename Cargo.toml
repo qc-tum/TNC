@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 mpi = { version = "0.8.0", features = ["complex", "derive"] }
-mpi-ext = { git = "ssh://gitlab.lrz.de/quantum-research/tensornetworksimulation/mpi-ext" }
 hdf5 = { git = "https://github.com/aldanor/hdf5-rust.git", features = [
     "complex",
 ] }
