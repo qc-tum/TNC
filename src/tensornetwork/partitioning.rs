@@ -122,7 +122,10 @@ pub fn communication_partitioning(
                     hyperedges.push(*entry as u32);
                     hyperedges.push(*tensor_id as u32);
                     hyperedge_indices.push(hyperedge_indices.last().unwrap() + 2);
-                    hyperedge_weights.push(x * *dim as i32);
+                    // Use log weights, because KaHyPar minimizes the sum of weights while we need the product
+                    // Since it accepts only integer weights, we scale the log values before rounding
+                    let weight = 100000.0 * (*dim as f64).log2();
+                    hyperedge_weights.push(x * weight as i32);
                     *entry = *tensor_id;
                 })
                 .or_insert(*tensor_id);
