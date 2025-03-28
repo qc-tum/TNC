@@ -80,8 +80,8 @@ impl<'a> BranchBound<'a> {
             size_12 = self.size_cache[&k12];
         } else {
             k12 = self.tensor_cache.len();
-            flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
-            size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j], None);
+            flops_12 = contract_cost_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
+            size_12 = contract_size_tensors(&self.tensor_cache[&i], &self.tensor_cache[&j]);
             k12_tensor = &self.tensor_cache[&i] ^ &self.tensor_cache[&j];
 
             self.result_cache.entry((i, j)).or_insert_with(|| k12);
@@ -198,11 +198,8 @@ impl OptimizePath for BranchBound<'_> {
                     self.minimize,
                 );
                 bb.optimize_path();
-                sub_tensor_contraction.push(ContractionIndex::Path(
-                    index,
-                    None,
-                    bb.get_best_path().clone(),
-                ));
+                sub_tensor_contraction
+                    .push(ContractionIndex::Path(index, bb.get_best_path().clone()));
                 tensor = tensor.external_tensor();
             }
             self.size_cache

@@ -7,7 +7,6 @@ use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 pub mod branchbound;
 pub mod greedy;
-pub mod greedy_slice;
 pub mod tree_reconfiguration;
 pub mod weighted_branchbound;
 //pub mod parallel_greedy;
@@ -50,7 +49,7 @@ pub(crate) fn validate_path(path: &[ContractionIndex]) {
                 );
                 contracted.push(*v);
             }
-            ContractionIndex::Path(_, _, path) => {
+            ContractionIndex::Path(_, path) => {
                 validate_path(path);
             }
         }

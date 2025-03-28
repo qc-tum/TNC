@@ -1390,17 +1390,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mpi-ext"
-version = "0.1.0"
-source = "git+ssh://gitlab.lrz.de/quantum-research/tensornetworksimulation/mpi-ext#27a6b2bc7f4dab94aed2586d21afae92552a7c9e"
-dependencies = [
- "bindgen 0.71.1",
- "build-probe-mpi",
- "cc",
- "mpi",
-]
-
-[[package]]
 name = "mpi-sys"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2470,7 +2459,6 @@ dependencies = [
  "lazy_static",
  "log",
  "mpi",
- "mpi-ext",
  "mpi-test",
  "ndarray",
  "num-complex",
