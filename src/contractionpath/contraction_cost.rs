@@ -268,7 +268,7 @@ fn communication_path_custom_cost(
 /// two tensors.
 ///
 /// Candidates for `memory_estimator` are e.g.:
-/// - [`contract_size_tensors_slicing`]
+/// - [`contract_size_tensors`]
 /// - [`contract_size_tensors_exact`]
 #[inline]
 pub fn compute_memory_requirements(
