@@ -233,30 +233,6 @@ impl Tensor {
         self.bond_dims.iter().map(|v| *v as f64).product()
     }
 
-    /// Returns the number of elements ignoring sliced edges. This is a f64 to avoid overflow in large
-    /// tensors.
-    ///
-    /// # Examples
-    /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use rustc_hash::FxHashMap;
-    /// let bond_dims = FxHashMap::from_iter([(1, 5), (2, 15), (3, 8)]);
-    /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
-    /// assert_eq!(tensor.sliced_size(&[2]), 40.0);
-    /// ```
-    #[inline]
-    pub fn sliced_size(&self, slicing: &[EdgeIndex]) -> f64 {
-        self.edges()
-            .filter_map(|(leg, dim)| {
-                if !slicing.contains(leg) {
-                    Some(*dim as f64)
-                } else {
-                    None
-                }
-            })
-            .product()
-    }
-
     /// Returns true if Tensor is a leaf tensor, without any nested tensors.
     ///
     /// # Examples
