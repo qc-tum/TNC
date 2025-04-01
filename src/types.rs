@@ -17,7 +17,7 @@ macro_rules! path {
     ($(($index:expr $(,$tokens:tt)*)),*) => {
         &[$(path![$index $(,$tokens)*]),*]
     };
-    ($index:tt, []) => {
+    ($index:expr, []) => {
         $crate::types::ContractionIndex::Path($index, vec![])
     };
     ($index:expr, [$($tokens:tt),+]) => {
@@ -25,9 +25,6 @@ macro_rules! path {
     };
     ($e:expr, $p:expr) => {
         $crate::types::ContractionIndex::Pair($e, $p)
-    };
-    ($index:tt) => {
-        $crate::types::ContractionIndex::Path($index, vec![])
     };
 }
 
