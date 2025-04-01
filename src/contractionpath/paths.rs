@@ -6,6 +6,7 @@ use crate::contractionpath::candidates::Candidate;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 pub mod branchbound;
+pub mod cotengrust;
 pub mod greedy;
 pub mod tree_reconfiguration;
 pub mod weighted_branchbound;
