@@ -1,6 +1,6 @@
 include:
 - project: 'quantum-research/tensornetworksimulation/rust-ci'
-  ref: a0be555a70806225648e79edfb5ba7a5ee2deccb
+  ref: 856ae6a78a3e1dda9a07929c6c5e21545ebae3f6
   file: 'template.yml'
 
 variables:
