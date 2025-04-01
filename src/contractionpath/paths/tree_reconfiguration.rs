@@ -16,12 +16,10 @@ use super::{CostType, OptimizePath};
 /// Specifically exposes `subtree_reconfigure` method.
 pub struct TreeReconfigure<'a> {
     tensor: &'a Tensor,
-    minimize: CostType,
     subtree_size: usize,
     best_flops: f64,
     best_size: f64,
     best_path: Vec<ContractionIndex>,
-    best_progress: FxHashMap<usize, f64>,
 }
 
 impl<'a> TreeReconfigure<'a> {
@@ -36,6 +34,11 @@ impl<'a> TreeReconfigure<'a> {
         minimize: CostType,
     ) -> Self {
         assert!(cotengra_check().is_ok());
+        assert_eq!(
+            minimize,
+            CostType::Flops,
+            "Currently, only Flops is supported"
+        );
         assert!(
             initial_path
                 .iter()
@@ -44,12 +47,10 @@ impl<'a> TreeReconfigure<'a> {
         );
         Self {
             tensor,
-            minimize,
             subtree_size,
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
             best_path: initial_path,
-            best_progress: FxHashMap::default(),
         }
     }
 }
