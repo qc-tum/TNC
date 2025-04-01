@@ -15,7 +15,7 @@ num-complex = "0.4.6"
 rand = "0.8.5"
 antlr-rust = "0.3.0-beta"
 float-cmp = "0.10.0"
-tetra = { git = "ssh://gitlab.lrz.de/quantum-research/tetra", branch = "main", features = [
+tetra = { git = "https://github.com/Ectras/tetra.git", features = [
     "serde",
 ] }
 kahypar-sys = { git = "ssh://gitlab.lrz.de/quantum-research/kahypar-sys", branch = "main" }
