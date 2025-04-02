@@ -8,6 +8,13 @@ use kahypar_sys::{partition, KaHyParContext};
 
 pub mod partition_config;
 
+/// The scale factor for the log weights used in the partitioning.
+/// This is used to convert the log weights to integer weights for KaHyPar.
+/// The current value allows for bond dimensions up to 144497 before two consecutive
+/// bond dimensions are rounded to the same weight. At the same time, it allows for
+/// the sum of ~150000 such bond dims before an i32 overflow occurs.
+const LOG_SCALE_FACTOR: f64 = 1e5;
+
 /// Partitions input tensor network using `KaHyPar` library.
 ///
 /// Returns a `Vec<usize>` of length equal to the number of input tensors storing final partitioning results.
@@ -36,7 +43,7 @@ pub fn find_partitioning(
 
     let x = if min { 1 } else { -1 };
 
-    let imbalance: f64 = 0.03;
+    let imbalance = 0.03;
     let mut objective = 0;
     let mut hyperedge_weights = vec![];
     let mut hyperedge_indices = vec![0];
@@ -51,9 +58,9 @@ pub fn find_partitioning(
                     hyperedges.push(*entry as u32);
                     hyperedges.push(tensor_id as u32);
                     hyperedge_indices.push(hyperedge_indices.last().unwrap() + 2);
-                    // Use log weights, because KaHyPar minimizes the sum of weights while we need the product
-                    // Since it accepts only integer weights, we scale the log values before rounding
-                    let weight = 100000.0 * (*dim as f64).log2();
+                    // Use log weights, because KaHyPar minimizes the sum of weights while we need the product.
+                    // Since it accepts only integer weights, we scale the log values before rounding.
+                    let weight = LOG_SCALE_FACTOR * (*dim as f64).log2();
                     hyperedge_weights.push(x * weight as i32);
                     *entry = tensor_id;
                 })
@@ -102,7 +109,7 @@ pub fn communication_partitioning(
 
     let x = if min { 1 } else { -1 };
 
-    let imbalance: f64 = 0.03;
+    let imbalance = 0.03;
     let mut objective = 0;
     let mut hyperedge_weights = vec![];
 
@@ -122,9 +129,9 @@ pub fn communication_partitioning(
                     hyperedges.push(*entry as u32);
                     hyperedges.push(*tensor_id as u32);
                     hyperedge_indices.push(hyperedge_indices.last().unwrap() + 2);
-                    // Use log weights, because KaHyPar minimizes the sum of weights while we need the product
-                    // Since it accepts only integer weights, we scale the log values before rounding
-                    let weight = 100000.0 * (*dim as f64).log2();
+                    // Use log weights, because KaHyPar minimizes the sum of weights while we need the product.
+                    // Since it accepts only integer weights, we scale the log values before rounding.
+                    let weight = LOG_SCALE_FACTOR * (*dim as f64).log2();
                     hyperedge_weights.push(x * weight as i32);
                     *entry = *tensor_id;
                 })
