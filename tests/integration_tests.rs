@@ -2,9 +2,9 @@ use mpi::traits::Communicator;
 use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
-    contractionpath::{
-        paths::{greedy::Greedy, CostType, OptimizePath},
-        random_paths::RandomOptimizePath,
+    contractionpath::paths::{
+        cotengrust::{Cotengrust, OptMethod},
+        OptimizePath,
     },
     mpi::communication::{
         broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
@@ -26,15 +26,15 @@ fn test_partitioned_contraction_random() {
 
     let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Eagle);
     let ref_tn = r_tn.clone();
-    let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
-    ref_opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42), None);
+    let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::RandomGreedy(10));
+    ref_opt.optimize_path();
     let ref_path = ref_opt.get_best_replace_path();
     let ref_result = contract_tensor_network(ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
     let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
-    let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
-    opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42), None);
+    let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::RandomGreedy(10));
+    opt.optimize_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
     assert!(&ref_result.approx_eq(&result, 1e-12));
@@ -47,14 +47,14 @@ fn test_partitioned_contraction() {
 
     let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Osprey);
     let ref_tn = r_tn.clone();
-    let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
+    let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::Greedy);
     ref_opt.optimize_path();
     let ref_path = ref_opt.get_best_replace_path();
     let ref_result = contract_tensor_network(ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
     let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
-    let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+    let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
     opt.optimize_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
@@ -68,15 +68,15 @@ fn test_partitioned_contraction_mixed() {
 
     let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Condor);
     let ref_tn = r_tn.clone();
-    let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
+    let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::Greedy);
     ref_opt.optimize_path();
     let ref_path = ref_opt.get_best_replace_path();
     let ref_result = contract_tensor_network(ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
     let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
-    let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
-    opt.random_optimize_path(15, &mut StdRng::seed_from_u64(42), None);
+    let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::RandomGreedy(15));
+    opt.optimize_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
     assert!(&ref_result.approx_eq(&result, 1e-12));
@@ -98,7 +98,7 @@ fn test_partitioned_contraction_need_mpi() {
         let ref_tn = r_tn.clone();
         let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
         let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
-        let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+        let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
         opt.optimize_path();
         let path = opt.get_best_replace_path();
         (ref_tn, partitioned_tn, path)
@@ -120,8 +120,8 @@ fn test_partitioned_contraction_need_mpi() {
     intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world, &comm);
 
     if rank == 0 {
-        let mut ref_opt = Greedy::new(&ref_tn, CostType::Flops);
-        ref_opt.random_optimize_path(10, &mut StdRng::seed_from_u64(42), None);
+        let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::RandomGreedy(10));
+        ref_opt.optimize_path();
         let ref_path = ref_opt.get_best_replace_path();
 
         let ref_tn = contract_tensor_network(ref_tn, &ref_path);

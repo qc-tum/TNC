@@ -5,11 +5,7 @@ use rustengra::{
 };
 
 use crate::{
-    contractionpath::{
-        contraction_cost::contract_path_cost,
-        contraction_tree::repartitioning::simulated_annealing::TerminationCondition,
-        ssa_replace_ordering,
-    },
+    contractionpath::{contraction_cost::contract_path_cost, ssa_replace_ordering},
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
 };
@@ -109,9 +105,7 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::paths::{
-            greedy::Greedy, tree_reconfiguration::TreeReconfigure, CostType, OptimizePath,
-        },
+        contractionpath::paths::{tree_reconfiguration::TreeReconfigure, CostType, OptimizePath},
         networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
         path,
         tensornetwork::tensor::Tensor,
@@ -173,8 +167,6 @@ mod tests {
     #[ignore]
     fn test_tree_contract_order_simple() {
         let tn = setup_simple();
-        let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
-        greedy_opt.optimize_path();
         let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
         opt.optimize_path();
 
@@ -188,8 +180,6 @@ mod tests {
     #[ignore]
     fn test_tree_contract_order_complex() {
         let tn = setup_complex();
-        let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
-        greedy_opt.optimize_path();
         let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
         opt.optimize_path();
 
@@ -206,8 +196,6 @@ mod tests {
     #[ignore]
     fn test_tree_large() {
         let tn = setup_large();
-        let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
-        greedy_opt.optimize_path();
         let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
         opt.optimize_path();
     }

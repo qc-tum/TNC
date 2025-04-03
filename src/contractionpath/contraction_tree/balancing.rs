@@ -718,9 +718,9 @@ mod tests {
         let node5 = child_node(5, vec![5]);
 
         let node6 = parent_node(6, &node1, &node5);
-        let node7 = parent_node(7, &node0, &node6);
+        let node7 = parent_node(7, &node6, &node0);
         let node8 = parent_node(8, &node2, &node4);
-        let node9 = parent_node(9, &node3, &node7);
+        let node9 = parent_node(9, &node7, &node3);
         let node10 = parent_node(10, &node9, &node8);
 
         let ref_root = Rc::clone(&node10);
@@ -751,9 +751,9 @@ mod tests {
         let node5 = child_node(5, vec![5]);
 
         let node6 = parent_node(6, &node1, &node5);
-        let node7 = parent_node(7, &node3, &node2);
-        let node8 = parent_node(8, &node0, &node6);
-        let node9 = parent_node(9, &node7, &node8);
+        let node7 = parent_node(7, &node2, &node3);
+        let node8 = parent_node(8, &node6, &node0);
+        let node9 = parent_node(9, &node8, &node7);
         let node10 = parent_node(10, &node9, &node4);
 
         let ref_root = Rc::clone(&node10);

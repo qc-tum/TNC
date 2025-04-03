@@ -124,7 +124,7 @@ mod tests {
     use crate::{
         contractionpath::{
             contraction_tree::repartitioning::simulated_annealing::TerminationCondition,
-            paths::{greedy::Greedy, tree_annealing::TreeAnnealing, CostType, OptimizePath},
+            paths::{tree_annealing::TreeAnnealing, CostType, OptimizePath},
         },
         networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
         path,
@@ -187,8 +187,6 @@ mod tests {
     #[ignore]
     fn test_anneal_tree_contract_order_simple() {
         let tn = setup_simple();
-        let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
-        greedy_opt.optimize_path();
         let mut opt = TreeAnnealing::new(
             &tn,
             Some(8),
@@ -210,8 +208,6 @@ mod tests {
     #[ignore]
     fn test_anneal_tree_contract_order_complex() {
         let tn = setup_complex();
-        let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
-        greedy_opt.optimize_path();
         let mut opt = TreeAnnealing::new(
             &tn,
             Some(8),
@@ -236,8 +232,6 @@ mod tests {
     #[ignore]
     fn test_anneal_tree_large() {
         let tn = setup_large();
-        let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
-        greedy_opt.optimize_path();
         let mut opt = TreeAnnealing::new(
             &tn,
             Some(8),

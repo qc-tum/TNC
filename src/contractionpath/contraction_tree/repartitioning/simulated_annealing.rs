@@ -12,7 +12,10 @@ use crate::{
         contraction_tree::{
             balancing::communication_schemes::CommunicationScheme, repartitioning::compute_solution,
         },
-        paths::{greedy::Greedy, CostType, OptimizePath},
+        paths::{
+            cotengrust::{Cotengrust, OptMethod},
+            OptimizePath,
+        },
     },
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
@@ -435,12 +438,12 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             }
         }
 
-        let mut from_opt = Greedy::new(&from_tensor, CostType::Flops);
+        let mut from_opt = Cotengrust::new(&from_tensor, OptMethod::Greedy);
         from_opt.optimize_path();
         let from_path = from_opt.get_best_replace_path();
         contraction_paths[source_partition] = from_path;
 
-        let mut to_opt = Greedy::new(&to_tensor, CostType::Flops);
+        let mut to_opt = Cotengrust::new(&to_tensor, OptMethod::Greedy);
         to_opt.optimize_path();
         let to_path = to_opt.get_best_replace_path();
         contraction_paths[target_partition] = to_path;
@@ -520,5 +523,10 @@ where
         restart_iter: 100,
         w: 1.0,
     };
-    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, termination_condition, rng)
+    optimizer.optimize_with_temperature::<M, _>(
+        &model,
+        initial_solution,
+        termination_condition,
+        rng,
+    )
 }

@@ -4,10 +4,9 @@ use rand::Rng;
 use rustc_hash::FxHashMap;
 
 use crate::contractionpath::contraction_cost::communication_path_cost;
-use crate::contractionpath::paths::greedy::Greedy;
+use crate::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
 use crate::contractionpath::paths::{CostType, OptimizePath};
-use crate::contractionpath::random_paths::RandomOptimizePath;
 use crate::pair;
 use crate::tensornetwork::partitioning::communication_partitioning;
 use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
@@ -25,8 +24,6 @@ pub enum CommunicationScheme {
     Greedy,
     /// Uses a randomized greedy approach
     RandomGreedy,
-    /// Uses a randomized greedy approach
-    RandomGreedyLatency,
     /// Uses repeated bipartitioning to identify communication path
     Bipartition,
     /// Uses repeated bipartitioning to identify communication path
@@ -42,7 +39,6 @@ impl fmt::Display for CommunicationScheme {
         let comm_str = match self {
             CommunicationScheme::Greedy => "greedy",
             CommunicationScheme::RandomGreedy => "random_greedy",
-            CommunicationScheme::RandomGreedyLatency => "random_greedy_latency",
             CommunicationScheme::Bipartition => "bipartition",
             CommunicationScheme::BipartitionSweep => "bipartition_sweep",
             CommunicationScheme::WeightedBranchBound => "weightedbranchbound",
@@ -64,18 +60,7 @@ impl CommunicationScheme {
     {
         match self {
             CommunicationScheme::Greedy => greedy(children_tensors, latency_map),
-            CommunicationScheme::RandomGreedy => {
-                let Some(rng) = rng else {
-                    panic!("RandomGreedy requires a random number generator")
-                };
-                random_greedy(children_tensors, rng)
-            }
-            CommunicationScheme::RandomGreedyLatency => {
-                let Some(rng) = rng else {
-                    panic!("RandomGreedyLatency requires a random number generator")
-                };
-                random_greedy_latency(children_tensors, latency_map, rng)
-            }
+            CommunicationScheme::RandomGreedy => random_greedy(children_tensors),
             CommunicationScheme::Bipartition => bipartition(children_tensors, latency_map),
             CommunicationScheme::BipartitionSweep => {
                 let Some(rng) = rng else {
@@ -97,7 +82,7 @@ pub(crate) fn greedy(
     _latency_map: &FxHashMap<usize, f64>,
 ) -> Vec<ContractionIndex> {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
-    let mut opt = Greedy::new(&communication_tensors, CostType::Flops);
+    let mut opt = Cotengrust::new(&communication_tensors, OptMethod::Greedy);
     opt.optimize_path();
     opt.get_best_replace_path()
 }
@@ -258,32 +243,11 @@ pub fn tensor_bipartition(
     contraction_path
 }
 
-pub(crate) fn random_greedy<R>(children_tensors: &[Tensor], rng: &mut R) -> Vec<ContractionIndex>
-where
-    R: ?Sized + Rng,
-{
+pub(crate) fn random_greedy(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
-    let mut opt = Greedy::new(&communication_tensors, CostType::Size);
-    opt.random_optimize_path(500, rng, None);
-    opt.get_best_replace_path()
-}
-
-pub(crate) fn random_greedy_latency<R>(
-    children_tensors: &[Tensor],
-    latency_map: &FxHashMap<usize, f64>,
-    rng: &mut R,
-) -> Vec<ContractionIndex>
-where
-    R: ?Sized + Rng,
-{
-    let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
-    let partition_latencies = (0..children_tensors.len())
-        .map(|i| latency_map[&i])
-        .collect_vec();
-
-    let mut opt = Greedy::new(&communication_tensors, CostType::Size);
-    opt.random_optimize_path(500, rng, Some(&partition_latencies));
+    let mut opt = Cotengrust::new(&communication_tensors, OptMethod::RandomGreedy(500));
+    opt.optimize_path();
     opt.get_best_replace_path()
 }
 
@@ -324,16 +288,12 @@ mod tests {
         let latency_map = setup_simple_partition_data();
         let communication_scheme = communication_schemes::greedy(&tensors, &latency_map);
 
-        assert_eq!(&communication_scheme, path![(2, 1), (2, 0)]);
-        // Flop Cost: (2, 1) = 128, Tensor cost = 50, Total = 178
-        // Flop Cost: (0, 2) = 32, Tensor cost = 40
-        // max(40, 178) + 32 = 210
-        // Mem Cost: (2, 1) = 2^4 + 2^5 + 2^5 = 80
+        assert_eq!(&communication_scheme, path![(0, 1), (0, 2)]);
         let tensor_costs = (0..tensors.len()).map(|i| latency_map[&i]).collect_vec();
         let (flop_cost, mem_cost) =
             communication_path_cost(&tensors, &communication_scheme, true, Some(&tensor_costs));
-        assert_eq!(flop_cost, 210.);
-        assert_eq!(mem_cost, 80.);
+        assert_eq!(flop_cost, 104.);
+        assert_eq!(mem_cost, 44.);
     }
 
     #[test]

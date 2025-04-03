@@ -101,7 +101,7 @@ fn main() {
     );
     let includes = parse_range_list(&args.include);
     let excludes = parse_range_list(&args.exclude);
-    let communication_scheme = CommunicationScheme::RandomGreedyLatency;
+    let communication_scheme = CommunicationScheme::RandomGreedy;
     let mode = args.mode;
     let cache_dir = args.cache_dir;
 

@@ -1,7 +1,10 @@
 use crate::{
     contractionpath::{
         contraction_cost::{communication_path_cost, contract_path_cost},
-        paths::{greedy::Greedy, CostType, OptimizePath},
+        paths::{
+            cotengrust::{Cotengrust, OptMethod},
+            OptimizePath,
+        },
     },
     tensornetwork::{partitioning::partition_tensor_network, tensor::Tensor},
     types::ContractionIndex,
@@ -30,7 +33,7 @@ where
     let partitioned_tn = partition_tensor_network(tensor.clone(), partitioning);
 
     // Find contraction path
-    let mut greedy = Greedy::new(&partitioned_tn, CostType::Flops);
+    let mut greedy = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
     greedy.optimize_path();
     let path = greedy.get_best_replace_path();
 
