@@ -1,25 +1,23 @@
 use std::cell::RefCell;
-use std::collections::HashSet;
 use std::fs;
-use std::io::Write;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use clap::{command, Parser};
+use clap::Parser;
+use cli::{Cli, Mode};
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
-use flexi_logger::{json_format, Duplicate, FileSpec, Logger};
-use itertools::{iproduct, Itertools};
-use log::{info, LevelFilter};
+use itertools::iproduct;
+use log::info;
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::{Communicator, CommunicatorCollectives};
-use mpi::Rank;
 use ordered_float::NotNan;
+use protocol::Protocol;
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
 use rand::{Rng, RngCore, SeedableRng};
-use serde::{Deserialize, Serialize};
+use results::{OptimizationResult, RunResult, Writer};
 use tensorcontraction::contractionpath::contraction_cost::{
     compute_memory_requirements, contract_size_tensors_exact,
 };
@@ -48,55 +46,12 @@ use tensorcontraction::tensornetwork::partitioning::find_partitioning;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::tensor::Tensor;
 use tensorcontraction::types::ContractionIndex;
+use utils::{parse_range_list, setup_logging_mpi};
 
-#[derive(Debug, Serialize, Deserialize)]
-struct OptimizationResult {
-    num_qubits: usize,
-    circuit_depth: usize,
-    seed: u64,
-    partitions: i32,
-    actual_partitions: i32,
-    method: String,
-    optimization_time: Duration,
-    flops: f64,
-    memory: f64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct RunResult {
-    num_qubits: usize,
-    circuit_depth: usize,
-    seed: u64,
-    partitions: i32,
-    method: String,
-    time_to_solution: Duration,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-enum Mode {
-    Sweep,
-    Run,
-}
-
-#[derive(Debug, Parser)]
-#[command(version, about, long_about=None)]
-struct Cli {
-    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
-    qubits: Vec<usize>,
-    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
-    depths: Vec<usize>,
-    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
-    partitions: Vec<i32>,
-    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
-    include: Vec<String>,
-    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
-    exclude: Vec<String>,
-    #[arg(short, long, default_value_t = 10)]
-    num_seeds: usize,
-    cache_dir: String,
-    mode: Mode,
-    out_file: String,
-}
+mod cli;
+mod protocol;
+mod results;
+mod utils;
 
 const TERMINATION: TerminationCondition = TerminationCondition::Time {
     max_time: Duration::from_secs(1800),
@@ -111,128 +66,6 @@ const TEMPER_ITERATIONS: TerminationCondition = TerminationCondition::Iterations
     n_iter: 300,
     patience: 100,
 };
-
-/// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
-fn setup_logging_mpi(rank: Rank) {
-    let _logger = Logger::with(LevelFilter::Debug)
-        .format(json_format)
-        .log_to_file(
-            FileSpec::default()
-                .discriminant(format!("rank{rank}"))
-                .suppress_timestamp()
-                .suffix("log.json"),
-        )
-        .duplicate_to_stdout(Duplicate::Info)
-        .start()
-        .unwrap();
-}
-
-#[derive(Default)]
-struct Writer(Option<fs::File>);
-
-impl Writer {
-    fn new(filename: &str) -> Self {
-        let file = fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(filename)
-            .unwrap();
-        Self(Some(file))
-    }
-
-    fn write<R>(&mut self, result: R)
-    where
-        R: Serialize,
-    {
-        if let Some(file) = &mut self.0 {
-            serde_json::to_writer(file, &[result]).unwrap();
-        }
-    }
-}
-
-/// A log entry documents the progress of a single run.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-enum LogEntry {
-    /// The run with the given ID is currently attempted.
-    Trying(usize),
-    /// The run with the given ID has been completed.
-    Done(usize),
-    /// The run with the given ID has failed.
-    Error(usize),
-}
-
-/// A protocol is a list of [`LogEntry`]s, describing all runs that have been attempted.
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-struct Protocol(Vec<LogEntry>);
-
-impl Protocol {
-    /// Reads a protocol from a file. Converts all `Trying` entries to `Error`, because
-    /// they failed to finish.
-    fn from_file(file: fs::File) -> Self {
-        let mut protocol: Protocol = serde_json::from_reader(file).unwrap();
-        protocol.0.iter_mut().for_each(|entry| {
-            if let LogEntry::Trying(id) = entry {
-                *entry = LogEntry::Error(*id);
-            }
-        });
-        protocol
-    }
-
-    /// Writes the protocol to a file.
-    fn write(&self, filename: &str) {
-        let mut file = fs::File::create(filename).unwrap();
-        serde_json::to_writer(&mut file, &self).unwrap();
-        file.flush().unwrap();
-    }
-
-    /// Checks if the protocol contains a run with the given ID (Done or Error).
-    fn contains(&self, id: &usize) -> bool {
-        self.0.iter().any(|entry| match entry {
-            LogEntry::Done(x) => x == id,
-            LogEntry::Error(x) => x == id,
-            LogEntry::Trying(_) => panic!("Trying entry should not be in the protocol"),
-        })
-    }
-
-    /// Writes a `Trying` entry to the protocol and saves it to file.
-    fn write_trying(&mut self, id: usize) {
-        self.0.push(LogEntry::Trying(id));
-        self.write("protocol.json");
-    }
-
-    /// Writes a `Done` entry to the protocol and saves it to file.
-    fn write_done(&mut self, id: usize) {
-        let LogEntry::Trying(x) = self.0.pop().unwrap() else {
-            panic!("Expected a trying entry when writing a done entry")
-        };
-        assert_eq!(id, x);
-        self.0.push(LogEntry::Done(id));
-        self.write("protocol.json");
-    }
-}
-
-/// Parses a list of numbers and ranges into a set of numbers.
-/// E.g. `1,3-4,7-9` -> `{1, 3, 4, 7, 8, 9}`.
-fn parse_range_list(entries: &[String]) -> HashSet<usize> {
-    let mut out = HashSet::new();
-    for entry in entries {
-        if entry.contains("-") {
-            // An inclusive range
-            let parts = entry.split("-").collect_vec();
-            assert_eq!(parts.len(), 2);
-            let start = parts[0].parse().unwrap();
-            let end = parts[1].parse().unwrap();
-            for i in start..=end {
-                out.insert(i);
-            }
-        } else {
-            // A single number
-            let number = entry.parse().unwrap();
-            out.insert(number);
-        }
-    }
-    out
-}
 
 /// Gets the main RNG used to generate the list of seeds.
 fn get_main_rng(qubits: u64, depth: u64) -> StdRng {
