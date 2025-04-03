@@ -22,20 +22,12 @@ use crate::{
 };
 
 type ScoreType = NotNan<f64>;
+type EvalScoreType = (NotNan<f64>, NotNan<f64>);
 
 /// OptModel is a trait that defines requirements to be used with optimization algorithm
 pub trait OptModel<'a>: Sync + Send {
     /// Type of the Solution
     type SolutionType: Clone + Sync + Send;
-
-    fn new(
-        tensor: &'a Tensor,
-        num_partitions: usize,
-        communication_scheme: CommunicationScheme,
-        memory_limit: Option<f64>,
-    ) -> Self
-    where
-        Self: Sized;
 
     /// Generate a new trial solution from current solution
     fn generate_trial_solution<R: Rng>(
@@ -45,7 +37,7 @@ pub trait OptModel<'a>: Sync + Send {
     ) -> Self::SolutionType;
 
     /// Evaluate the score of the solution
-    fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType;
+    fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> EvalScoreType;
 }
 
 /// Optimizer that implements the simulated annealing algorithm
@@ -93,7 +85,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         M: OptModel<'a>,
         R: Rng,
     {
-        let mut current_score = model.evaluate(&initial_solution, rng);
+        let mut current_score = model.evaluate(&initial_solution, rng).0;
         let mut current_solution = initial_solution;
         let mut best_solution = current_solution.clone();
         let mut best_score = current_score;
@@ -109,7 +101,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         let start_time = std::time::Instant::now();
         for _ in 0..iterations {
             // Generate and evaluate candidate solutions to find the minimum objective
-            let (_, trial_solution, trial_score) = rngs
+            let (_, trial_solution, (trial_score, _)) = rngs
                 .par_iter_mut()
                 .enumerate()
                 .map(|(index, rng)| {
@@ -166,10 +158,10 @@ impl<'a> SimulatedAnnealingOptimizer {
 
 /// A simulated annealing model that moves a random tensor between random partitions.
 pub struct NaivePartitioningModel<'a> {
-    tensor: &'a Tensor,
-    num_partitions: usize,
-    communication_scheme: CommunicationScheme,
-    memory_limit: Option<f64>,
+    pub tensor: &'a Tensor,
+    pub num_partitions: usize,
+    pub communication_scheme: CommunicationScheme,
+    pub memory_limit: Option<f64>,
 }
 
 impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
@@ -192,9 +184,9 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
         current_solution
     }
 
-    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
+    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> EvalScoreType {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, cost) = compute_solution(
+        let (partitioned_tn, path, parallel_cost, sum_cost) = compute_solution(
             self.tensor,
             partitioning,
             self.communication_scheme,
@@ -209,28 +201,18 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
         );
 
         // If the memory limit is exceeded, return infinity
-        let score = if self.memory_limit.is_some_and(|limit| mem > limit) {
-            f64::INFINITY
+        if self.memory_limit.is_some_and(|limit| mem > limit) {
+            unsafe {
+                (
+                    NotNan::new_unchecked(f64::INFINITY),
+                    NotNan::new_unchecked(f64::INFINITY),
+                )
+            }
         } else {
-            cost
-        };
-        NotNan::new(score).unwrap()
-    }
-
-    fn new(
-        tensor: &'a Tensor,
-        num_partitions: usize,
-        communication_scheme: CommunicationScheme,
-        memory_limit: Option<f64>,
-    ) -> Self
-    where
-        Self: Sized,
-    {
-        Self {
-            tensor,
-            num_partitions,
-            communication_scheme,
-            memory_limit,
+            (
+                NotNan::new(parallel_cost).unwrap(),
+                NotNan::new(sum_cost).unwrap(),
+            )
         }
     }
 }
@@ -238,9 +220,9 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
 /// A simulated annealing model that moves a random tensor to the partition that
 /// maximizes memory reduction.
 pub struct LeafPartitioningModel<'a> {
-    tensor: &'a Tensor,
-    communication_scheme: CommunicationScheme,
-    memory_limit: Option<f64>,
+    pub tensor: &'a Tensor,
+    pub communication_scheme: CommunicationScheme,
+    pub memory_limit: Option<f64>,
 }
 
 impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
@@ -279,9 +261,9 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
         (partitioning, partition_tensors)
     }
 
-    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
+    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> EvalScoreType {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, cost) = compute_solution(
+        let (partitioned_tn, path, parallel_cost, sum_cost) = compute_solution(
             self.tensor,
             &partitioning.0,
             self.communication_scheme,
@@ -296,31 +278,18 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
         );
 
         // If the memory limit is exceeded, return infinity
-        let score = if self
-            .memory_limit
-            .map(|limit| mem > limit)
-            .unwrap_or_default()
-        {
-            f64::INFINITY
+        if self.memory_limit.is_some_and(|limit| mem > limit) {
+            unsafe {
+                (
+                    NotNan::new_unchecked(f64::INFINITY),
+                    NotNan::new_unchecked(f64::INFINITY),
+                )
+            }
         } else {
-            cost
-        };
-        NotNan::new(score).unwrap()
-    }
-
-    fn new(
-        tensor: &'a Tensor,
-        _num_partitions: usize,
-        communication_scheme: CommunicationScheme,
-        memory_limit: Option<f64>,
-    ) -> Self
-    where
-        Self: Sized,
-    {
-        Self {
-            tensor,
-            communication_scheme,
-            memory_limit,
+            (
+                NotNan::new(parallel_cost).unwrap(),
+                NotNan::new(sum_cost).unwrap(),
+            )
         }
     }
 }
@@ -329,9 +298,9 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
 /// random number of tensors from one partition to the partition that maximizes
 /// memory reduction.
 pub struct IntermediatePartitioningModel<'a> {
-    tensor: &'a Tensor,
-    communication_scheme: CommunicationScheme,
-    memory_limit: Option<f64>,
+    pub tensor: &'a Tensor,
+    pub communication_scheme: CommunicationScheme,
+    pub memory_limit: Option<f64>,
 }
 
 impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
@@ -451,9 +420,9 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         (partitioning, partition_tensors, contraction_paths)
     }
 
-    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
+    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> EvalScoreType {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, cost) = compute_solution(
+        let (partitioned_tn, path, parallel_cost, sum_cost) = compute_solution(
             self.tensor,
             &partitioning.0,
             self.communication_scheme,
@@ -468,56 +437,33 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         );
 
         // If the memory limit is exceeded, return infinity
-        let score = if self
-            .memory_limit
-            .map(|limit| mem > limit)
-            .unwrap_or_default()
-        {
-            f64::INFINITY
+        if self.memory_limit.is_some_and(|limit| mem > limit) {
+            unsafe {
+                (
+                    NotNan::new_unchecked(f64::INFINITY),
+                    NotNan::new_unchecked(f64::INFINITY),
+                )
+            }
         } else {
-            cost
-        };
-        NotNan::new(score).unwrap()
-    }
-
-    fn new(
-        tensor: &'a Tensor,
-        _num_partitions: usize,
-        communication_scheme: CommunicationScheme,
-        memory_limit: Option<f64>,
-    ) -> Self
-    where
-        Self: Sized,
-    {
-        Self {
-            tensor,
-            communication_scheme,
-            memory_limit,
+            (
+                NotNan::new(parallel_cost).unwrap(),
+                NotNan::new(sum_cost).unwrap(),
+            )
         }
     }
 }
 
 /// Runs simulated annealing to find a better partitioning.
 pub fn balance_partitions<'a, R, M>(
-    tensor_network: &'a Tensor,
-    num_partitions: usize,
+    model: M,
     initial_solution: M::SolutionType,
-    communication_scheme: CommunicationScheme,
     rng: &mut R,
-    memory_limit: Option<f64>,
     termination_condition: &TerminationCondition,
 ) -> (M::SolutionType, ScoreType)
 where
     R: Rng,
     M: OptModel<'a>,
 {
-    let model = M::new(
-        tensor_network,
-        num_partitions,
-        communication_scheme,
-        memory_limit,
-    );
-
     let optimizer = SimulatedAnnealingOptimizer {
         n_trials: 48,
         restart_iter: 100,

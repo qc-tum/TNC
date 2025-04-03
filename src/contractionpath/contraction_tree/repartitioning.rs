@@ -25,7 +25,7 @@ pub fn compute_solution<R>(
     partitioning: &[usize],
     communication_scheme: CommunicationScheme,
     rng: Option<&mut R>,
-) -> (Tensor, Vec<ContractionIndex>, f64)
+) -> (Tensor, Vec<ContractionIndex>, f64, f64)
 where
     R: ?Sized + Rng,
 {
@@ -65,11 +65,19 @@ where
         &children_tensors,
         &communication_path,
         true,
+        true,
+        Some(&tensor_costs),
+    );
+    let (sum_cost, _) = communication_path_cost(
+        &children_tensors,
+        &communication_path,
+        true,
+        false,
         Some(&tensor_costs),
     );
 
     // Add the communication path to the local paths
     final_path.append(&mut communication_path);
 
-    (partitioned_tn, final_path, communication_cost)
+    (partitioned_tn, final_path, communication_cost, sum_cost)
 }

@@ -115,8 +115,13 @@ where
     for _ in 0..20 {
         let imbalance = rng.sample(Uniform::new(0.01, 0.5));
         let path = tensor_bipartition(&tensors, imbalance);
-        let (flops, _) =
-            communication_path_cost(children_tensors, &path, true, Some(&partition_latencies));
+        let (flops, _) = communication_path_cost(
+            children_tensors,
+            &path,
+            true,
+            true,
+            Some(&partition_latencies),
+        );
         if flops < best_flops {
             best_flops = flops;
             best_path = path;
@@ -290,8 +295,13 @@ mod tests {
 
         assert_eq!(&communication_scheme, path![(0, 1), (0, 2)]);
         let tensor_costs = (0..tensors.len()).map(|i| latency_map[&i]).collect_vec();
-        let (flop_cost, mem_cost) =
-            communication_path_cost(&tensors, &communication_scheme, true, Some(&tensor_costs));
+        let (flop_cost, mem_cost) = communication_path_cost(
+            &tensors,
+            &communication_scheme,
+            true,
+            true,
+            Some(&tensor_costs),
+        );
         assert_eq!(flop_cost, 104.);
         assert_eq!(mem_cost, 44.);
     }
@@ -310,8 +320,13 @@ mod tests {
         // max(72, 50) + 32 = 104
         // Mem Cost: (2, 1) = 2^3 + 2^5 + 2^2 = 44
         let tensor_costs = (0..tensors.len()).map(|i| latency_map[&i]).collect_vec();
-        let (flop_cost, mem_cost) =
-            communication_path_cost(&tensors, &communication_scheme, true, Some(&tensor_costs));
+        let (flop_cost, mem_cost) = communication_path_cost(
+            &tensors,
+            &communication_scheme,
+            true,
+            true,
+            Some(&tensor_costs),
+        );
 
         assert_eq!(flop_cost, 104.);
         assert_eq!(mem_cost, 44.);
@@ -331,8 +346,13 @@ mod tests {
         // max(178, 40) + 32 = 210
         // Mem Cost: (2, 1) = 2^4 + 2^5 + 2^5 = 80
         let tensor_costs = (0..tensors.len()).map(|i| latency_map[&i]).collect_vec();
-        let (flop_cost, mem_cost) =
-            communication_path_cost(&tensors, &communication_scheme, true, Some(&tensor_costs));
+        let (flop_cost, mem_cost) = communication_path_cost(
+            &tensors,
+            &communication_scheme,
+            true,
+            true,
+            Some(&tensor_costs),
+        );
 
         assert_eq!(flop_cost, 210.);
         assert_eq!(mem_cost, 80.);

@@ -142,6 +142,7 @@ where
         &partition_tensors,
         &communication_path,
         true,
+        true,
         Some(&partition_costs),
     );
 
@@ -193,6 +194,7 @@ where
         let (flop_cost, mem_cost) = communication_path_cost(
             &partition_tensors,
             &communication_path,
+            true,
             true,
             Some(&partition_costs),
         );

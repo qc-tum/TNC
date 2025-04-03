@@ -29,7 +29,7 @@ struct PartitioningFitness<'a> {
 impl PartitioningFitness<'_> {
     fn calculate_fitness(&self, partitioning: &[usize]) -> NotNan<f64> {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, cost) =
+        let (partitioned_tn, path, cost, _) =
             compute_solution::<StdRng>(self.tensor, partitioning, self.communication_scheme, None);
 
         // Compute memory usage
