@@ -266,7 +266,7 @@ fn do_sweep(
         circuit_depth,
         partitions: num_partitions,
         actual_partitions: method.actual_num_partitions().unwrap_or(num_partitions),
-        method: method.name().into(),
+        method: method.name(),
         flops,
         memory,
         optimization_time,
@@ -298,7 +298,7 @@ fn do_run(
         circuit_depth,
         seed,
         partitions: num_partitions,
-        method: method.name().into(),
+        method: method.name(),
         time_to_solution,
     });
 
@@ -560,12 +560,8 @@ fn objective_function(a: &Tensor, b: &Tensor) -> f64 {
 impl MethodRun for GreedyBalance {
     fn name(&self) -> String {
         match &self.balancing_scheme {
-            BalancingScheme::AlternatingIntermediateTensors { .. } => {
-                format!("GreedyIntermediate")
-            }
-            BalancingScheme::AlternatingTreeTensors { .. } => {
-                format!("GreedyTree")
-            }
+            BalancingScheme::AlternatingIntermediateTensors { .. } => "GreedyIntermediate".into(),
+            BalancingScheme::AlternatingTreeTensors { .. } => "GreedyTree".into(),
             _ => panic!(),
         }
     }
