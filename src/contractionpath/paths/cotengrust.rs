@@ -45,6 +45,11 @@ impl<'a> Cotengrust<'a> {
     }
 
     fn optimize_single(&self, inputs: &[Tensor], output: &Tensor) -> Vec<ContractionIndex> {
+        // Check if the inputs are empty (cotengrust does not handle this gracefully)
+        if inputs.is_empty() {
+            return Vec::new();
+        }
+
         // Convert the inputs to the cotengra format
         let (inputs, output, size_dict) = tensor_legs_to_digit(inputs, output);
 
