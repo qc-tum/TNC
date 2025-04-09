@@ -264,6 +264,10 @@ pub(super) fn sycamore_d() -> Vec<(usize, usize)> {
     ]
 }
 
+#[allow(
+    dead_code,
+    reason = "Might be needed for more advanced Sycamore test cases"
+)]
 pub(super) fn sycamore_e() -> Vec<(usize, usize)> {
     vec![
         (52, 32),
@@ -291,6 +295,10 @@ pub(super) fn sycamore_e() -> Vec<(usize, usize)> {
     ]
 }
 
+#[allow(
+    dead_code,
+    reason = "Might be needed for more advanced Sycamore test cases"
+)]
 pub(super) fn sycamore_f() -> Vec<(usize, usize)> {
     vec![
         (31, 24),
@@ -317,6 +325,10 @@ pub(super) fn sycamore_f() -> Vec<(usize, usize)> {
     ]
 }
 
+#[allow(
+    dead_code,
+    reason = "Might be needed for more advanced Sycamore test cases"
+)]
 pub(super) fn sycamore_g() -> Vec<(usize, usize)> {
     vec![
         (27, 38),
@@ -343,6 +355,10 @@ pub(super) fn sycamore_g() -> Vec<(usize, usize)> {
     ]
 }
 
+#[allow(
+    dead_code,
+    reason = "Might be needed for more advanced Sycamore test cases"
+)]
 pub(super) fn sycamore_h() -> Vec<(usize, usize)> {
     vec![
         (14, 36),
