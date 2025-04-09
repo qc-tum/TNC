@@ -9,6 +9,12 @@ use crate::{
     tensornetwork::{tensor::Tensor, tensordata::TensorData},
 };
 
+/// Creates a new tensor network based on the Sycamore circuit. The `depth` is the
+/// number of rounds, where one round consists of a layer of single-qubit gates
+/// followed by a layer of two-qubit gates. The start and end states are random
+/// product states.
+///
+/// For more details on the circuit, see <https://arxiv.org/abs/1910.11333>.
 pub fn sycamore_circuit<R>(qubits: usize, depth: usize, rng: &mut R) -> Tensor
 where
     R: ?Sized + Rng,
