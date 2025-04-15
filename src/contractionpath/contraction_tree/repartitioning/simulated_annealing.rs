@@ -297,6 +297,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         rng: &mut R,
     ) -> Self::SolutionType {
         let (mut partitioning, mut partition_tensors, mut contraction_paths) = current_solution;
+
         // Select source partition (with more than one tensor)
         let viable_partitions = contraction_paths
             .iter()
@@ -310,10 +311,10 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             })
             .collect_vec();
 
-        assert!(
-            !viable_partitions.is_empty(),
-            "No viable source partition for IAD"
-        );
+        if viable_partitions.is_empty() {
+            // No viable partitions, return the current solution
+            return (partitioning, partition_tensors, contraction_paths);
+        }
         let trial = rng.gen_range(0..viable_partitions.len());
         let source_partition = viable_partitions[trial];
 
