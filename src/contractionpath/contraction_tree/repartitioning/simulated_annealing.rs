@@ -284,7 +284,6 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
 /// memory reduction.
 pub struct IntermediatePartitioningModel<'a> {
     tensor: &'a Tensor,
-    num_partitions: usize,
     communication_scheme: CommunicationScheme,
     memory_limit: Option<f64>,
 }
@@ -300,12 +299,24 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         let (mut partitioning, mut partition_tensors, mut contraction_paths) = current_solution;
 
         // Select source partition (with more than one tensor)
-        let source_partition = loop {
-            let trial_partition = rng.gen_range(0..self.num_partitions);
-            if contraction_paths[trial_partition].len() > 3 {
-                break trial_partition;
-            }
-        };
+        let viable_partitions = contraction_paths
+            .iter()
+            .enumerate()
+            .filter_map(|(contraction_id, contraction)| {
+                if contraction.len() >= 3 {
+                    Some(contraction_id)
+                } else {
+                    None
+                }
+            })
+            .collect_vec();
+
+        if viable_partitions.is_empty() {
+            // No viable partitions, return the current solution
+            return (partitioning, partition_tensors, contraction_paths);
+        }
+        let trial = rng.gen_range(0..viable_partitions.len());
+        let source_partition = viable_partitions[trial];
 
         // Select random tensor contraction in source partition
         let pair_index = rng.gen_range(0..contraction_paths[source_partition].len() - 1);
@@ -421,7 +432,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
 
     fn new(
         tensor: &'a Tensor,
-        num_partitions: usize,
+        _num_partitions: usize,
         communication_scheme: CommunicationScheme,
         memory_limit: Option<f64>,
     ) -> Self
@@ -430,7 +441,6 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
     {
         Self {
             tensor,
-            num_partitions,
             communication_scheme,
             memory_limit,
         }
@@ -458,12 +468,12 @@ where
     );
 
     let optimizer = SimulatedAnnealingOptimizer {
-        patience: 1000,
-        n_trials: 50,
+        patience: 300,
+        n_trials: 48,
         restart_iter: 100,
         w: 1.0,
     };
-    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, 1000, rng)
+    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, 300, rng)
 }
 
 /// Computes the score of a partitioning.
