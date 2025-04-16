@@ -35,6 +35,7 @@ use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
     compute_solution, simulated_annealing,
 };
 use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
+use tensorcontraction::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use tensorcontraction::contractionpath::paths::tree_annealing::TreeAnnealing;
 use tensorcontraction::contractionpath::paths::tree_reconfiguration::TreeReconfigure;
 use tensorcontraction::contractionpath::paths::tree_tempering::TreeTempering;
@@ -253,6 +254,28 @@ fn read_from_cache(directory: &str, key: &str) -> (Tensor, Vec<ContractionIndex>
     (deserializable, path)
 }
 
+/// Computes the flops and memory when using Greedy without partitioning.
+/// Uses the file as a cache key.
+fn serial_cost(tensor: &Tensor, file: &str) -> (f64, f64) {
+    static LAST_RETURN: Mutex<Option<(String, (f64, f64))>> = Mutex::new(None);
+    let mut last_values = LAST_RETURN.lock().unwrap();
+    if let Some((arg, out)) = &*last_values {
+        if arg == file {
+            return out.clone();
+        }
+    }
+    let mut opt = Cotengrust::new(tensor, OptMethod::Greedy);
+    opt.optimize_path();
+    let cost = opt.get_best_flops();
+    let memory = compute_memory_requirements(
+        tensor.tensors(),
+        &opt.get_best_replace_path(),
+        contract_size_tensors_exact,
+    );
+    last_values.replace((file.into(), (cost, memory)));
+    (cost, memory)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn do_sweep(
     file: &str,
@@ -266,6 +289,9 @@ fn do_sweep(
 ) {
     // Generate circuit
     let tensor = read_circuit(file);
+
+    // Compute the serial cost
+    let (serial_flops, serial_memory) = serial_cost(&tensor, file);
 
     // Get initial partitioning
     let initial_partitioning =
@@ -300,6 +326,8 @@ fn do_sweep(
         partitions: num_partitions,
         actual_partitions: method.actual_num_partitions().unwrap_or(num_partitions),
         method: method.name(),
+        serial_flops,
+        serial_memory,
         flops_sum: sum_cost,
         flops,
         memory,

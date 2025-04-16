@@ -10,6 +10,8 @@ pub struct OptimizationResult {
     pub actual_partitions: i32,
     pub method: String,
     pub optimization_time: Duration,
+    pub serial_flops: f64,
+    pub serial_memory: f64,
     pub flops_sum: f64,
     pub flops: f64,
     pub memory: f64,
