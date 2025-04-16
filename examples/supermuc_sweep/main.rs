@@ -22,7 +22,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, RngCore, SeedableRng};
 use results::{OptimizationResult, RunResult, Writer};
 use tensorcontraction::contractionpath::contraction_cost::{
-    compute_memory_requirements, contract_size_tensors_exact,
+    compute_memory_requirements, contract_path_cost, contract_size_tensors_exact,
 };
 use tensorcontraction::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
@@ -280,6 +280,9 @@ fn do_sweep(
         &mut StdRng::seed_from_u64(seed),
     );
 
+    // Compute the sum cost as alternative score
+    let (sum_cost, _) = contract_path_cost(partitioned_tensor.tensors(), &contraction_path, true);
+
     // Compute the memory
     let memory = compute_memory_requirements(
         partitioned_tensor.tensors(),
@@ -297,6 +300,7 @@ fn do_sweep(
         partitions: num_partitions,
         actual_partitions: method.actual_num_partitions().unwrap_or(num_partitions),
         method: method.name(),
+        flops_sum: sum_cost,
         flops,
         memory,
         optimization_time,
