@@ -15,7 +15,7 @@ pub struct Cli {
     pub include: Vec<String>,
     #[arg(short, long, value_delimiter = ',', num_args = 1..)]
     pub exclude: Vec<String>,
-    #[arg(short, long, default_value_t = 10)]
+    #[arg(short, long, default_value_t = 1)]
     pub num_seeds: usize,
     pub cache_dir: String,
     pub mode: Mode,
