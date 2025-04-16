@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use num_complex::Complex64;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::tensornetwork::tensor::Tensor;
 
@@ -77,7 +77,7 @@ impl TensorNetworkCreator {
 
     /// Creates a tensor network from the AST. Assumes that all gate calls
     /// have been inlined and all expressions have been simplified to literals.
-    pub fn create_tensornetwork(&mut self, program: &Program) -> Tensor {
+    pub fn create_tensornetwork(&mut self, program: &Program) -> (Tensor, FxHashSet<usize>) {
         // Map qubits to the last open edge on the corresponding wire
         let mut wires = FxHashMap::default();
         let mut register_sizes = FxHashMap::default();
@@ -142,7 +142,10 @@ impl TensorNetworkCreator {
             }
         }
 
-        Tensor::new_composite(tensors)
+        (
+            Tensor::new_composite(tensors),
+            wires.into_values().collect(),
+        )
     }
 }
 
