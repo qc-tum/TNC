@@ -466,7 +466,7 @@ where
 {
     let optimizer = SimulatedAnnealingOptimizer {
         n_trials: 48,
-        restart_iter: 100,
+        restart_iter: 200,
         w: 1.0,
     };
     optimizer.optimize_with_temperature::<M, _>(

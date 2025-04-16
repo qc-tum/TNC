@@ -58,8 +58,9 @@ mod protocol;
 mod results;
 mod utils;
 
-const TERMINATION: TerminationCondition = TerminationCondition::Time {
-    max_time: Duration::from_secs(1800),
+const TERMINATION: TerminationCondition = TerminationCondition::Iterations {
+    n_iter: 1000,
+    patience: 500,
 };
 
 const ANNEAL_ITERATIONS: TerminationCondition = TerminationCondition::Iterations {
