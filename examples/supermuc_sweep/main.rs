@@ -1,5 +1,6 @@
 use std::cell::RefCell;
-use std::fs;
+use std::fs::{self};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -8,10 +9,11 @@ use cli::{Cli, Mode};
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
-use itertools::iproduct;
+use itertools::{iproduct, Itertools};
 use log::info;
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::{Communicator, CommunicatorCollectives};
+use num_complex::Complex64;
 use ordered_float::NotNan;
 use protocol::Protocol;
 use rand::distributions::Standard;
@@ -40,13 +42,14 @@ use tensorcontraction::mpi::communication::{
     broadcast_path, broadcast_serializing, extract_communication_path,
     intermediate_reduce_tensor_network, scatter_tensor_network,
 };
-use tensorcontraction::networks::sycamore_circuit::sycamore_circuit;
+use tensorcontraction::qasm::qasm_to_tensornetwork::create_tensornetwork;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::find_partitioning;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::tensor::Tensor;
+use tensorcontraction::tensornetwork::tensordata::TensorData;
 use tensorcontraction::types::ContractionIndex;
-use utils::{parse_range_list, setup_logging_mpi};
+use utils::{hash_str, parse_range_list, setup_logging_mpi};
 
 mod cli;
 mod protocol;
@@ -67,10 +70,26 @@ const TEMPER_ITERATIONS: TerminationCondition = TerminationCondition::Iterations
     patience: 100,
 };
 
-/// Gets the main RNG used to generate the list of seeds.
-fn get_main_rng(qubits: u64, depth: u64) -> StdRng {
-    let seed = (qubits << 32) | depth;
-    StdRng::seed_from_u64(seed)
+/// Reads a circuit from the given qasm file.
+fn read_circuit<P>(file: P) -> Tensor
+where
+    P: AsRef<Path>,
+{
+    let source = fs::read_to_string(file).unwrap();
+    let (mut tensor, open_legs) = create_tensornetwork(source);
+
+    // Add bras to each open leg
+    for leg in open_legs {
+        let mut bra = Tensor::new_from_const(vec![leg], 2);
+        bra.set_tensor_data(TensorData::new_from_data(
+            &[2],
+            vec![Complex64::ONE, Complex64::ONE],
+            None,
+        ));
+        tensor.push_tensor(bra);
+    }
+
+    tensor
 }
 
 fn main() {
@@ -91,8 +110,6 @@ fn main() {
     };
 
     // Set the parameters
-    let qubit_range = args.qubits;
-    let circuit_depth_range = args.depths;
     let partition_range = args.partitions;
     let seed_index_range = 0..args.num_seeds;
     assert!(
@@ -123,29 +140,38 @@ fn main() {
     // Define the methods to run
     let methods: Vec<Rc<dyn MethodRun>> = vec![
         Rc::new(InitialProblem),
-        Rc::new(GreedyBalance {
-            iterations: 40,
-            balancing_scheme: BalancingScheme::AlternatingIntermediateTensors { height_limit: 8 },
-        }),
-        Rc::new(GreedyBalance {
-            iterations: 40,
-            balancing_scheme: BalancingScheme::AlternatingTreeTensors { height_limit: 8 },
-        }),
+        // Rc::new(GreedyBalance {
+        //     iterations: 40,
+        //     balancing_scheme: BalancingScheme::AlternatingIntermediateTensors { height_limit: 8 },
+        // }),
+        // Rc::new(GreedyBalance {
+        //     iterations: 40,
+        //     balancing_scheme: BalancingScheme::AlternatingTreeTensors { height_limit: 8 },
+        // }),
         Rc::new(Sa),
-        Rc::new(Sad),
+        // Rc::new(Sad),
         Rc::new(Iad),
         //Rc::new(Cotengra::default()),
         //Rc::new(CotengraAnneal::default()),
         //Rc::new(CotengraTempering::default()),
     ];
 
-    let scenarios = iproduct!(
-        qubit_range,
-        circuit_depth_range,
-        seed_index_range,
-        partition_range,
-        methods,
-    );
+    // Read the circuit directory
+    let folder = PathBuf::from("circuits/");
+    let files = fs::read_dir(&folder).unwrap();
+    let files = files
+        .map(|entry| {
+            entry
+                .unwrap()
+                .path()
+                .into_os_string()
+                .into_string()
+                .unwrap()
+        })
+        .collect_vec();
+    let file_range = 0..files.len();
+
+    let scenarios = iproduct!(file_range, seed_index_range, partition_range, methods);
 
     // Run the scenarios
     let past_protocol = protocol.clone();
@@ -155,13 +181,15 @@ fn main() {
         .filter(|(i, _)| !excludes.contains(i))
         .filter(|(i, _)| !past_protocol.contains(i))
     {
-        let (num_qubits, circuit_depth, seed_index, num_partitions, method) = scenario;
-        let rng = get_main_rng(num_qubits as u64, circuit_depth as u64);
+        let (file_index, seed_index, num_partitions, method) = scenario;
+        let file = &files[file_index];
+        let file_hash = hash_str(file);
+        let rng = StdRng::seed_from_u64(file_hash);
         let seed = rng.sample_iter(Standard).nth(seed_index).unwrap();
-        info!(num_qubits, circuit_depth, seed, num_partitions, method=method.name(); "Doing run");
+        info!(file=file, seed, num_partitions, method=method.name(); "Doing run");
 
         let key = format!(
-            "{communication_scheme:?}_{num_qubits}_{circuit_depth}_{seed}_{num_partitions}_{}",
+            "{communication_scheme:?}_{file_hash}_{seed}_{num_partitions}_{}",
             method.name(),
         );
 
@@ -173,10 +201,9 @@ fn main() {
 
             match mode {
                 Mode::Sweep => do_sweep(
+                    file,
                     &cache_dir,
                     &key,
-                    num_qubits,
-                    circuit_depth,
                     &method,
                     num_partitions,
                     communication_scheme,
@@ -184,10 +211,9 @@ fn main() {
                     &mut writer,
                 ),
                 Mode::Run => do_run(
+                    file,
                     &cache_dir,
                     &key,
-                    num_qubits,
-                    circuit_depth,
                     &method,
                     num_partitions,
                     seed,
@@ -223,10 +249,9 @@ fn read_from_cache(directory: &str, key: &str) -> (Tensor, Vec<ContractionIndex>
 
 #[allow(clippy::too_many_arguments)]
 fn do_sweep(
+    file: &str,
     cache_dir: &str,
     key: &str,
-    num_qubits: usize,
-    circuit_depth: usize,
     method: &Rc<dyn MethodRun>,
     num_partitions: i32,
     communication_scheme: CommunicationScheme,
@@ -234,7 +259,7 @@ fn do_sweep(
     writer: &mut Writer,
 ) {
     // Generate circuit
-    let tensor = sycamore_circuit(num_qubits, circuit_depth, &mut StdRng::seed_from_u64(seed));
+    let tensor = read_circuit(file);
 
     // Get initial partitioning
     let initial_partitioning =
@@ -261,9 +286,8 @@ fn do_sweep(
 
     // Write the results
     writer.write(OptimizationResult {
+        file: file.into(),
         seed,
-        num_qubits,
-        circuit_depth,
         partitions: num_partitions,
         actual_partitions: method.actual_num_partitions().unwrap_or(num_partitions),
         method: method.name(),
@@ -275,10 +299,9 @@ fn do_sweep(
 
 #[allow(clippy::too_many_arguments)]
 fn do_run(
+    file: &str,
     cache_dir: &str,
     key: &str,
-    num_qubits: usize,
-    circuit_depth: usize,
     method: &Rc<dyn MethodRun>,
     num_partitions: i32,
     seed: u64,
@@ -294,8 +317,7 @@ fn do_run(
 
     // Write the results
     writer.write(RunResult {
-        num_qubits,
-        circuit_depth,
+        file: file.into(),
         seed,
         partitions: num_partitions,
         method: method.name(),

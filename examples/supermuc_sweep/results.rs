@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OptimizationResult {
-    pub num_qubits: usize,
-    pub circuit_depth: usize,
+    pub file: String,
     pub seed: u64,
     pub partitions: i32,
     pub actual_partitions: i32,
@@ -17,8 +16,7 @@ pub struct OptimizationResult {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RunResult {
-    pub num_qubits: usize,
-    pub circuit_depth: usize,
+    pub file: String,
     pub seed: u64,
     pub partitions: i32,
     pub method: String,

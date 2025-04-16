@@ -10,10 +10,6 @@ pub enum Mode {
 #[command(version, about, long_about=None)]
 pub struct Cli {
     #[arg(short, long, value_delimiter = ',', num_args = 1..)]
-    pub qubits: Vec<usize>,
-    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
-    pub depths: Vec<usize>,
-    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
     pub partitions: Vec<i32>,
     #[arg(short, long, value_delimiter = ',', num_args = 1..)]
     pub include: Vec<String>,

@@ -1,4 +1,7 @@
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    hash::{DefaultHasher, Hash, Hasher},
+};
 
 use flexi_logger::{json_format, Duplicate, FileSpec, Logger};
 use itertools::Itertools;
@@ -41,4 +44,11 @@ pub fn parse_range_list(entries: &[String]) -> HashSet<usize> {
         }
     }
     out
+}
+
+/// Computes the hash of a string.
+pub fn hash_str(s: &String) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    s.hash(&mut hasher);
+    hasher.finish()
 }
