@@ -294,6 +294,13 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Metric {
+    ParallelFlops,
+    ParallelWithTieBreaking,
+    SumFlops,
+}
+
 /// A simulated annealing model that moves a random intermediate tensor, i.e., a
 /// random number of tensors from one partition to the partition that maximizes
 /// memory reduction.
@@ -301,6 +308,7 @@ pub struct IntermediatePartitioningModel<'a> {
     pub tensor: &'a Tensor,
     pub communication_scheme: CommunicationScheme,
     pub memory_limit: Option<f64>,
+    pub metric: Metric,
 }
 
 impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
@@ -436,6 +444,12 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             contract_size_tensors_exact,
         );
 
+        let cost = match self.metric {
+            Metric::ParallelFlops => (parallel_cost, parallel_cost),
+            Metric::ParallelWithTieBreaking => (parallel_cost, sum_cost),
+            Metric::SumFlops => (sum_cost, sum_cost),
+        };
+
         // If the memory limit is exceeded, return infinity
         if self.memory_limit.is_some_and(|limit| mem > limit) {
             unsafe {
@@ -445,10 +459,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
                 )
             }
         } else {
-            (
-                NotNan::new(parallel_cost).unwrap(),
-                NotNan::new(sum_cost).unwrap(),
-            )
+            (NotNan::new(cost.0).unwrap(), NotNan::new(cost.1).unwrap())
         }
     }
 }

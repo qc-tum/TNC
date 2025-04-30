@@ -27,9 +27,11 @@ use tensorcontraction::contractionpath::contraction_cost::{
 use tensorcontraction::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
 };
-use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::TerminationCondition;
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::{
     IntermediatePartitioningModel, LeafPartitioningModel, NaivePartitioningModel,
+};
+use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::{
+    Metric, TerminationCondition,
 };
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
     compute_solution, simulated_annealing,
@@ -156,9 +158,17 @@ fn main() {
         //     iterations: 40,
         //     balancing_scheme: BalancingScheme::AlternatingTreeTensors { height_limit: 8 },
         // }),
-        Rc::new(Sa),
+        // Rc::new(Sa),
         // Rc::new(Sad),
-        Rc::new(Iad),
+        Rc::new(Iad {
+            metric: Metric::ParallelFlops,
+        }),
+        Rc::new(Iad {
+            metric: Metric::ParallelWithTieBreaking,
+        }),
+        Rc::new(Iad {
+            metric: Metric::SumFlops,
+        }),
         //Rc::new(Cotengra::default()),
         //Rc::new(CotengraAnneal::default()),
         //Rc::new(CotengraTempering::default()),
@@ -527,10 +537,17 @@ impl MethodRun for Sa {
 }
 
 #[derive(Debug, Clone)]
-struct Iad;
+struct Iad {
+    metric: Metric,
+}
 impl MethodRun for Iad {
     fn name(&self) -> String {
-        "IAD".into()
+        match self.metric {
+            Metric::ParallelFlops => "IADpar",
+            Metric::ParallelWithTieBreaking => "IADtie",
+            Metric::SumFlops => "IADsum",
+        }
+        .into()
     }
 
     fn run(
@@ -565,6 +582,7 @@ impl MethodRun for Iad {
                 tensor,
                 communication_scheme,
                 memory_limit: None,
+                metric: self.metric,
             },
             (
                 initial_partitioning.to_vec(),
