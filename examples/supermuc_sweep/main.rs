@@ -169,16 +169,7 @@ fn main() {
     // Read the circuit directory
     let folder = PathBuf::from("circuits/");
     let files = fs::read_dir(&folder).unwrap();
-    let files = files
-        .map(|entry| {
-            entry
-                .unwrap()
-                .path()
-                .into_os_string()
-                .into_string()
-                .unwrap()
-        })
-        .collect_vec();
+    let files = files.map(|entry| entry.unwrap().path()).collect_vec();
     let file_range = 0..files.len();
 
     let scenarios = iproduct!(file_range, seed_index_range, partition_range, methods);
@@ -193,9 +184,10 @@ fn main() {
     {
         let (file_index, seed_index, num_partitions, method) = scenario;
         let file = &files[file_index];
-        let file_hash = hash_str(file);
+        let file_hash = hash_str(file.file_name().unwrap().to_str().unwrap());
         let rng = StdRng::seed_from_u64(file_hash);
         let seed = rng.sample_iter(Standard).nth(seed_index).unwrap();
+        let file = file.to_str().unwrap();
         info!(file=file, seed, num_partitions, method=method.name(); "Doing run");
 
         let key = format!(

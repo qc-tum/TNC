@@ -47,7 +47,7 @@ pub fn parse_range_list(entries: &[String]) -> HashSet<usize> {
 }
 
 /// Computes the hash of a string.
-pub fn hash_str(s: &String) -> u64 {
+pub fn hash_str(s: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     s.hash(&mut hasher);
     hasher.finish()
