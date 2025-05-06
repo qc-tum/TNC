@@ -160,15 +160,7 @@ fn main() {
         // }),
         // Rc::new(Sa),
         // Rc::new(Sad),
-        Rc::new(Iad {
-            metric: Metric::ParallelFlops,
-        }),
-        Rc::new(Iad {
-            metric: Metric::ParallelWithTieBreaking,
-        }),
-        Rc::new(Iad {
-            metric: Metric::SumFlops,
-        }),
+        Rc::new(Iad),
         //Rc::new(Cotengra::default()),
         //Rc::new(CotengraAnneal::default()),
         //Rc::new(CotengraTempering::default()),
@@ -537,17 +529,10 @@ impl MethodRun for Sa {
 }
 
 #[derive(Debug, Clone)]
-struct Iad {
-    metric: Metric,
-}
+struct Iad;
 impl MethodRun for Iad {
     fn name(&self) -> String {
-        match self.metric {
-            Metric::ParallelFlops => "IADpar",
-            Metric::ParallelWithTieBreaking => "IADtie",
-            Metric::SumFlops => "IADsum",
-        }
-        .into()
+        "IAD".into()
     }
 
     fn run(
@@ -582,7 +567,7 @@ impl MethodRun for Iad {
                 tensor,
                 communication_scheme,
                 memory_limit: None,
-                metric: self.metric,
+                metric: Metric::ParallelWithTieBreaking,
             },
             (
                 initial_partitioning.to_vec(),
