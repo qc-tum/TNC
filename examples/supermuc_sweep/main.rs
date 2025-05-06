@@ -22,7 +22,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, RngCore, SeedableRng};
 use results::{OptimizationResult, RunResult, Writer};
 use tensorcontraction::contractionpath::contraction_cost::{
-    compute_memory_requirements, contract_path_cost, contract_size_tensors_exact,
+    compute_memory_requirements, contract_size_tensors_exact,
 };
 use tensorcontraction::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
@@ -264,7 +264,7 @@ fn serial_cost(tensor: &Tensor, file: &str) -> (f64, f64) {
     let mut last_values = LAST_RETURN.lock().unwrap();
     if let Some((arg, out)) = &*last_values {
         if arg == file {
-            return out.clone();
+            return *out;
         }
     }
     let mut opt = Cotengrust::new(tensor, OptMethod::Greedy);
