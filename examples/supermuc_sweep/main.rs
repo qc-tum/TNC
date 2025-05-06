@@ -158,7 +158,7 @@ fn main() {
         //     iterations: 40,
         //     balancing_scheme: BalancingScheme::AlternatingTreeTensors { height_limit: 8 },
         // }),
-        // Rc::new(Sa),
+        Rc::new(Sa),
         // Rc::new(Sad),
         Rc::new(Iad),
         //Rc::new(Cotengra::default()),
@@ -511,6 +511,7 @@ impl MethodRun for Sa {
                 num_partitions: num_partitions as _,
                 communication_scheme,
                 memory_limit: None,
+                metric: Metric::ParallelWithTieBreaking,
             },
             initial_partitioning.to_vec(),
             rng,
@@ -590,42 +591,49 @@ impl MethodRun for Iad {
     }
 }
 
-// #[derive(Debug, Clone)]
-// struct Sad;
-// impl MethodRun for Sad {
-//     fn name(&self) -> String {
-//         "SAD".into()
-//     }
+#[derive(Debug, Clone)]
+struct Sad;
+impl MethodRun for Sad {
+    fn name(&self) -> String {
+        "SAD".into()
+    }
 
-//     fn run(
-//         &self,
-//         tensor: &Tensor,
-//         num_partitions: i32,
-//         initial_partitioning: &[usize],
-//         communication_scheme: CommunicationScheme,
-//         rng: &mut StdRng,
-//     ) -> (Tensor, Vec<ContractionIndex>, f64) {
-//         let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
-//         for (index, partition) in initial_partitioning.iter().enumerate() {
-//             intermediate_tensors[*partition] ^= tensor.tensor(index);
-//         }
+    fn run(
+        &self,
+        tensor: &Tensor,
+        num_partitions: i32,
+        initial_partitioning: &[usize],
+        communication_scheme: CommunicationScheme,
+        rng: &mut StdRng,
+    ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
+        let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
+        for (index, partition) in initial_partitioning.iter().enumerate() {
+            intermediate_tensors[*partition] ^= tensor.tensor(index);
+        }
 
-//         let (solution, _) = simulated_annealing::balance_partitions::<_, LeafPartitioningModel>(
-//             tensor,
-//             num_partitions as usize,
-//             (initial_partitioning.to_vec(), intermediate_tensors),
-//             communication_scheme,
-//             rng,
-//             None,
-//             &TERMINATION,
-//         );
-//         let (partitioning, ..) = solution;
+        let (solution, _) = simulated_annealing::balance_partitions(
+            LeafPartitioningModel {
+                tensor,
+                communication_scheme,
+                memory_limit: None,
+                metric: Metric::ParallelWithTieBreaking,
+            },
+            (initial_partitioning.to_vec(), intermediate_tensors),
+            rng,
+            &TERMINATION,
+        );
+        let (partitioning, ..) = solution;
 
-//         let (partitioned_tensor, contraction_path, flops) =
-//             compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
-//         (partitioned_tensor, contraction_path, flops)
-//     }
-// }
+        let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
+            compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
+        (
+            partitioned_tensor,
+            contraction_path,
+            parallel_flops,
+            sum_flops,
+        )
+    }
+}
 
 // #[derive(Debug, Clone)]
 // struct GreedyBalance {
