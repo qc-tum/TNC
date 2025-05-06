@@ -18,6 +18,7 @@ pub struct Cli {
     #[arg(short, long, default_value_t = 1)]
     pub num_seeds: usize,
     pub cache_dir: String,
+    pub circuits_dir: String,
     pub mode: Mode,
     pub out_file: String,
 }

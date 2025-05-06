@@ -131,6 +131,7 @@ fn main() {
     let communication_scheme = CommunicationScheme::RandomGreedy;
     let mode = args.mode;
     let cache_dir = args.cache_dir;
+    let circuits_dir = args.circuits_dir;
 
     // Create the cache dir
     fs::create_dir_all(&cache_dir).unwrap();
@@ -167,7 +168,7 @@ fn main() {
     ];
 
     // Read the circuit directory
-    let folder = PathBuf::from("circuits/");
+    let folder = PathBuf::from(circuits_dir);
     let files = fs::read_dir(&folder).unwrap();
     let files = files.map(|entry| entry.unwrap().path()).collect_vec();
     let file_range = 0..files.len();
