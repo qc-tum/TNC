@@ -194,6 +194,22 @@ fn contract_path_custom_cost(
     (op_cost, mem_cost)
 }
 
+/// Returns Schroedinger contraction time complexity using the critical path metric
+/// and using the sum metric. Additionally returns the space complexity.
+#[inline]
+pub fn communication_path_op_costs(
+    inputs: &[Tensor],
+    contract_path: &[ContractionIndex],
+    only_count_ops: bool,
+    tensor_cost: Option<&[f64]>,
+) -> ((f64, f64), f64) {
+    let (parallel_cost, _) =
+        communication_path_cost(inputs, contract_path, only_count_ops, true, tensor_cost);
+    let (serial_cost, mem_cost) =
+        communication_path_cost(inputs, contract_path, only_count_ops, false, tensor_cost);
+    ((parallel_cost, serial_cost), mem_cost)
+}
+
 /// Returns Schroedinger contraction time and space complexity of fully contracting
 /// the input tensors assuming all operations occur in parallel.
 ///
@@ -201,6 +217,7 @@ fn contract_path_custom_cost(
 /// * `inputs` - Tensors to contract
 /// * `contract_path`  - Contraction order (replace path)
 /// * `only_count_ops` - If `true`, ignores cost of complex multiplication and addition and only counts number of operations
+/// * `only_circital_path` - If `true`, only counts the cost along the critical path, otherwise the sum of all costs
 /// * `tensor_costs` - Initial cost for each tensor
 pub fn communication_path_cost(
     inputs: &[Tensor],

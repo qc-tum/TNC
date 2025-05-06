@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
-        contraction_cost::communication_path_cost,
+        contraction_cost::communication_path_op_costs,
         contraction_tree::{
             export::{to_dendogram_format, to_pdf},
             utils::{characterize_partition, subtree_contraction_path},
@@ -105,7 +105,7 @@ pub fn balance_partitions_iter<R>(
     mut balance_settings: BalanceSettings<R>,
     dendogram_settings: Option<&DendogramSettings>,
     rng: &mut R,
-) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>)
+) -> (usize, Tensor, Vec<ContractionIndex>, Vec<(f64, f64)>)
 where
     R: Rng + Clone,
 {
@@ -138,16 +138,15 @@ where
         )
         .collect();
 
-    let (mut best_cost, _) = communication_path_cost(
+    let ((mut best_cost, sum_cost), _) = communication_path_op_costs(
         &partition_tensors,
         &communication_path,
-        true,
         true,
         Some(&partition_costs),
     );
 
     let mut max_costs = Vec::with_capacity(iterations + 1);
-    max_costs.push(best_cost);
+    max_costs.push((best_cost, sum_cost));
 
     print_dendogram(dendogram_settings, &contraction_tree, tensor_network, 0);
 
@@ -191,17 +190,16 @@ where
             )
             .collect();
 
-        let (flop_cost, mem_cost) = communication_path_cost(
+        let ((flop_cost, sum_cost), mem_cost) = communication_path_op_costs(
             &partition_tensors,
             &communication_path,
-            true,
             true,
             Some(&partition_costs),
         );
 
         intermediate_path.extend(communication_path);
 
-        max_costs.push(flop_cost);
+        max_costs.push((flop_cost, sum_cost));
         if memory_limit.is_some_and(|limit| mem_cost > limit) {
             break;
         }

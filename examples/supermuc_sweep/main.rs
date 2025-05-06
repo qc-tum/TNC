@@ -635,58 +635,63 @@ impl MethodRun for Sad {
     }
 }
 
-// #[derive(Debug, Clone)]
-// struct GreedyBalance {
-//     iterations: usize,
-//     balancing_scheme: BalancingScheme,
-// }
-// fn objective_function(a: &Tensor, b: &Tensor) -> f64 {
-//     a.size() + b.size() - (a ^ b).size()
-// }
-// impl MethodRun for GreedyBalance {
-//     fn name(&self) -> String {
-//         match &self.balancing_scheme {
-//             BalancingScheme::AlternatingIntermediateTensors { .. } => "GreedyIntermediate".into(),
-//             BalancingScheme::AlternatingTreeTensors { .. } => "GreedyTree".into(),
-//             _ => panic!(),
-//         }
-//     }
+#[derive(Debug, Clone)]
+struct GreedyBalance {
+    iterations: usize,
+    balancing_scheme: BalancingScheme,
+}
+fn objective_function(a: &Tensor, b: &Tensor) -> f64 {
+    a.size() + b.size() - (a ^ b).size()
+}
+impl MethodRun for GreedyBalance {
+    fn name(&self) -> String {
+        match &self.balancing_scheme {
+            BalancingScheme::AlternatingIntermediateTensors { .. } => "GreedyIntermediate".into(),
+            BalancingScheme::AlternatingTreeTensors { .. } => "GreedyTree".into(),
+            _ => panic!(),
+        }
+    }
 
-//     fn run(
-//         &self,
-//         tensor: &Tensor,
-//         _num_partitions: i32,
-//         initial_partitioning: &[usize],
-//         communication_scheme: CommunicationScheme,
-//         rng: &mut StdRng,
-//     ) -> (Tensor, Vec<ContractionIndex>, f64) {
-//         let (initial_partitioned_tensor, initial_contraction_path, _) = compute_solution(
-//             tensor,
-//             initial_partitioning,
-//             communication_scheme,
-//             Some(&mut rng.clone()),
-//         );
+    fn run(
+        &self,
+        tensor: &Tensor,
+        _num_partitions: i32,
+        initial_partitioning: &[usize],
+        communication_scheme: CommunicationScheme,
+        rng: &mut StdRng,
+    ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
+        let (initial_partitioned_tensor, initial_contraction_path, _, _) = compute_solution(
+            tensor,
+            initial_partitioning,
+            communication_scheme,
+            Some(&mut rng.clone()),
+        );
 
-//         let balance_settings = BalanceSettings::new(
-//             1,
-//             self.iterations,
-//             objective_function,
-//             communication_scheme,
-//             self.balancing_scheme,
-//             None,
-//         );
-//         let (best_iteration, partitioned_tensor, contraction_path, max_costs) =
-//             balance_partitions_iter(
-//                 &initial_partitioned_tensor,
-//                 &initial_contraction_path,
-//                 balance_settings,
-//                 None,
-//                 rng,
-//             );
-//         let flops = max_costs[best_iteration];
-//         (partitioned_tensor, contraction_path, flops)
-//     }
-// }
+        let balance_settings = BalanceSettings::new(
+            1,
+            self.iterations,
+            objective_function,
+            communication_scheme,
+            self.balancing_scheme,
+            None,
+        );
+        let (best_iteration, partitioned_tensor, contraction_path, max_costs) =
+            balance_partitions_iter(
+                &initial_partitioned_tensor,
+                &initial_contraction_path,
+                balance_settings,
+                None,
+                rng,
+            );
+        let (parallel_flops, sum_flops) = max_costs[best_iteration];
+        (
+            partitioned_tensor,
+            contraction_path,
+            parallel_flops,
+            sum_flops,
+        )
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 struct Cotengra {

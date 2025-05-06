@@ -1,6 +1,6 @@
 use crate::{
     contractionpath::{
-        contraction_cost::{communication_path_cost, contract_path_cost},
+        contraction_cost::{communication_path_op_costs, contract_path_cost},
         paths::{
             cotengrust::{Cotengrust, OptMethod},
             OptimizePath,
@@ -61,23 +61,15 @@ where
     let tensor_costs = (0..children_tensors.len())
         .map(|i| latency_map[&i])
         .collect_vec();
-    let (communication_cost, _) = communication_path_cost(
+    let ((parallel_cost, sum_cost), _) = communication_path_op_costs(
         &children_tensors,
         &communication_path,
         true,
-        true,
-        Some(&tensor_costs),
-    );
-    let (sum_cost, _) = communication_path_cost(
-        &children_tensors,
-        &communication_path,
-        true,
-        false,
         Some(&tensor_costs),
     );
 
     // Add the communication path to the local paths
     final_path.append(&mut communication_path);
 
-    (partitioned_tn, final_path, communication_cost, sum_cost)
+    (partitioned_tn, final_path, parallel_cost, sum_cost)
 }
