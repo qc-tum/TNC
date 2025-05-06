@@ -688,178 +688,193 @@ impl MethodRun for Sad {
 //     }
 // }
 
-// #[derive(Debug, Clone, Default)]
-// struct Cotengra {
-//     last_used_num_partitions: RefCell<i32>,
-// }
-// impl MethodRun for Cotengra {
-//     fn name(&self) -> String {
-//         "Cotengra".into()
-//     }
+#[derive(Debug, Clone, Default)]
+struct Cotengra {
+    last_used_num_partitions: RefCell<i32>,
+}
+impl MethodRun for Cotengra {
+    fn name(&self) -> String {
+        "Cotengra".into()
+    }
 
-//     fn actual_num_partitions(&self) -> Option<i32> {
-//         Some(*self.last_used_num_partitions.borrow())
-//     }
+    fn actual_num_partitions(&self) -> Option<i32> {
+        Some(*self.last_used_num_partitions.borrow())
+    }
 
-//     fn run(
-//         &self,
-//         tensor: &Tensor,
-//         num_partitions: i32,
-//         _initial_partitioning: &[usize],
-//         communication_scheme: CommunicationScheme,
-//         rng: &mut StdRng,
-//     ) -> (Tensor, Vec<ContractionIndex>, f64) {
-//         let num_partitions = num_partitions as usize;
-//         let mut tree = TreeReconfigure::new(tensor, 8, CostType::Flops);
-//         tree.optimize_path();
-//         let best_path = tree.get_best_replace_path();
+    fn run(
+        &self,
+        tensor: &Tensor,
+        num_partitions: i32,
+        _initial_partitioning: &[usize],
+        communication_scheme: CommunicationScheme,
+        rng: &mut StdRng,
+    ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
+        let num_partitions = num_partitions as usize;
+        let mut tree = TreeReconfigure::new(tensor, 8, CostType::Flops);
+        tree.optimize_path();
+        let best_path = tree.get_best_replace_path();
 
-//         let contraction_tree = ContractionTree::from_contraction_path(tensor, &best_path);
+        let contraction_tree = ContractionTree::from_contraction_path(tensor, &best_path);
 
-//         let tree_root = contraction_tree.root_id().unwrap();
-//         let mut leaves = vec![];
-//         let mut traversal = vec![tree_root];
-//         while (leaves.len() + traversal.len()) < num_partitions && !traversal.is_empty() {
-//             let node_id = traversal.pop().unwrap();
-//             let node = contraction_tree.node(node_id);
-//             if node.is_leaf() {
-//                 leaves.push(node_id);
-//             } else {
-//                 traversal.push(node.left_child_id().unwrap());
-//                 traversal.push(node.right_child_id().unwrap());
-//             }
-//         }
-//         traversal.append(&mut leaves);
-//         let num_partitions = traversal.len();
-//         let mut partitioning = vec![0; tensor.tensors().len()];
-//         for (i, partition_root) in traversal.iter().enumerate() {
-//             let leaf_tensors = contraction_tree.leaf_ids(*partition_root);
-//             for leaf in leaf_tensors {
-//                 partitioning[leaf] = i;
-//             }
-//         }
+        let tree_root = contraction_tree.root_id().unwrap();
+        let mut leaves = vec![];
+        let mut traversal = vec![tree_root];
+        while (leaves.len() + traversal.len()) < num_partitions && !traversal.is_empty() {
+            let node_id = traversal.pop().unwrap();
+            let node = contraction_tree.node(node_id);
+            if node.is_leaf() {
+                leaves.push(node_id);
+            } else {
+                traversal.push(node.left_child_id().unwrap());
+                traversal.push(node.right_child_id().unwrap());
+            }
+        }
+        traversal.append(&mut leaves);
+        let num_partitions = traversal.len();
+        let mut partitioning = vec![0; tensor.tensors().len()];
+        for (i, partition_root) in traversal.iter().enumerate() {
+            let leaf_tensors = contraction_tree.leaf_ids(*partition_root);
+            for leaf in leaf_tensors {
+                partitioning[leaf] = i;
+            }
+        }
 
-//         let (partitioned_tensor, contraction_path, flops) =
-//             compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
-//         self.last_used_num_partitions.replace(num_partitions as i32);
-//         (partitioned_tensor, contraction_path, flops)
-//     }
-// }
+        let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
+            compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
+        self.last_used_num_partitions.replace(num_partitions as i32);
+        (
+            partitioned_tensor,
+            contraction_path,
+            parallel_flops,
+            sum_flops,
+        )
+    }
+}
 
-// #[derive(Debug, Clone, Default)]
-// struct CotengraTempering {
-//     last_used_num_partitions: RefCell<i32>,
-// }
-// impl MethodRun for CotengraTempering {
-//     fn name(&self) -> String {
-//         "CotengraTempering".into()
-//     }
+#[derive(Debug, Clone, Default)]
+struct CotengraTempering {
+    last_used_num_partitions: RefCell<i32>,
+}
+impl MethodRun for CotengraTempering {
+    fn name(&self) -> String {
+        "CotengraTempering".into()
+    }
 
-//     fn actual_num_partitions(&self) -> Option<i32> {
-//         Some(*self.last_used_num_partitions.borrow())
-//     }
+    fn actual_num_partitions(&self) -> Option<i32> {
+        Some(*self.last_used_num_partitions.borrow())
+    }
 
-//     fn run(
-//         &self,
-//         tensor: &Tensor,
-//         num_partitions: i32,
-//         _initial_partitioning: &[usize],
-//         communication_scheme: CommunicationScheme,
-//         rng: &mut StdRng,
-//     ) -> (Tensor, Vec<ContractionIndex>, f64) {
-//         let seed = rng.next_u64();
-//         let num_partitions = num_partitions as usize;
-//         let mut tree = TreeTempering::new(tensor, Some(seed), CostType::Flops, TEMPER_ITERATIONS);
-//         tree.optimize_path();
-//         let best_path = tree.get_best_replace_path();
+    fn run(
+        &self,
+        tensor: &Tensor,
+        num_partitions: i32,
+        _initial_partitioning: &[usize],
+        communication_scheme: CommunicationScheme,
+        rng: &mut StdRng,
+    ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
+        let seed = rng.next_u64();
+        let num_partitions = num_partitions as usize;
+        let mut tree = TreeTempering::new(tensor, Some(seed), CostType::Flops, TEMPER_ITERATIONS);
+        tree.optimize_path();
+        let best_path = tree.get_best_replace_path();
 
-//         let contraction_tree = ContractionTree::from_contraction_path(tensor, &best_path);
+        let contraction_tree = ContractionTree::from_contraction_path(tensor, &best_path);
 
-//         let tree_root = contraction_tree.root_id().unwrap();
-//         let mut leaves = vec![];
-//         let mut traversal = vec![tree_root];
-//         while (leaves.len() + traversal.len()) < num_partitions && !traversal.is_empty() {
-//             let node_id = traversal.pop().unwrap();
-//             let node = contraction_tree.node(node_id);
-//             if node.is_leaf() {
-//                 leaves.push(node_id);
-//             } else {
-//                 traversal.push(node.left_child_id().unwrap());
-//                 traversal.push(node.right_child_id().unwrap());
-//             }
-//         }
-//         traversal.append(&mut leaves);
-//         let num_partitions = traversal.len();
-//         let mut partitioning = vec![0; tensor.tensors().len()];
-//         for (i, partition_root) in traversal.iter().enumerate() {
-//             let leaf_tensors = contraction_tree.leaf_ids(*partition_root);
-//             for leaf in leaf_tensors {
-//                 partitioning[leaf] = i;
-//             }
-//         }
+        let tree_root = contraction_tree.root_id().unwrap();
+        let mut leaves = vec![];
+        let mut traversal = vec![tree_root];
+        while (leaves.len() + traversal.len()) < num_partitions && !traversal.is_empty() {
+            let node_id = traversal.pop().unwrap();
+            let node = contraction_tree.node(node_id);
+            if node.is_leaf() {
+                leaves.push(node_id);
+            } else {
+                traversal.push(node.left_child_id().unwrap());
+                traversal.push(node.right_child_id().unwrap());
+            }
+        }
+        traversal.append(&mut leaves);
+        let num_partitions = traversal.len();
+        let mut partitioning = vec![0; tensor.tensors().len()];
+        for (i, partition_root) in traversal.iter().enumerate() {
+            let leaf_tensors = contraction_tree.leaf_ids(*partition_root);
+            for leaf in leaf_tensors {
+                partitioning[leaf] = i;
+            }
+        }
 
-//         let (partitioned_tensor, contraction_path, flops) =
-//             compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
-//         self.last_used_num_partitions.replace(num_partitions as i32);
-//         (partitioned_tensor, contraction_path, flops)
-//     }
-// }
+        let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
+            compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
+        self.last_used_num_partitions.replace(num_partitions as i32);
+        (
+            partitioned_tensor,
+            contraction_path,
+            parallel_flops,
+            sum_flops,
+        )
+    }
+}
 
-// #[derive(Debug, Clone, Default)]
-// struct CotengraAnneal {
-//     last_used_num_partitions: RefCell<i32>,
-// }
-// impl MethodRun for CotengraAnneal {
-//     fn name(&self) -> String {
-//         "CotengraAnneal".into()
-//     }
+#[derive(Debug, Clone, Default)]
+struct CotengraAnneal {
+    last_used_num_partitions: RefCell<i32>,
+}
+impl MethodRun for CotengraAnneal {
+    fn name(&self) -> String {
+        "CotengraAnneal".into()
+    }
 
-//     fn actual_num_partitions(&self) -> Option<i32> {
-//         Some(*self.last_used_num_partitions.borrow())
-//     }
+    fn actual_num_partitions(&self) -> Option<i32> {
+        Some(*self.last_used_num_partitions.borrow())
+    }
 
-//     fn run(
-//         &self,
-//         tensor: &Tensor,
-//         num_partitions: i32,
-//         _initial_partitioning: &[usize],
-//         communication_scheme: CommunicationScheme,
-//         rng: &mut StdRng,
-//     ) -> (Tensor, Vec<ContractionIndex>, f64) {
-//         let seed = rng.next_u64();
-//         let num_partitions = num_partitions as usize;
-//         let mut tree = TreeAnnealing::new(tensor, Some(seed), CostType::Flops, ANNEAL_ITERATIONS);
-//         tree.optimize_path();
-//         let best_path = tree.get_best_replace_path();
+    fn run(
+        &self,
+        tensor: &Tensor,
+        num_partitions: i32,
+        _initial_partitioning: &[usize],
+        communication_scheme: CommunicationScheme,
+        rng: &mut StdRng,
+    ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
+        let seed = rng.next_u64();
+        let num_partitions = num_partitions as usize;
+        let mut tree = TreeAnnealing::new(tensor, Some(seed), CostType::Flops, ANNEAL_ITERATIONS);
+        tree.optimize_path();
+        let best_path = tree.get_best_replace_path();
 
-//         let contraction_tree = ContractionTree::from_contraction_path(tensor, &best_path);
+        let contraction_tree = ContractionTree::from_contraction_path(tensor, &best_path);
 
-//         let tree_root = contraction_tree.root_id().unwrap();
-//         let mut leaves = vec![];
-//         let mut traversal = vec![tree_root];
-//         while (leaves.len() + traversal.len()) < num_partitions && !traversal.is_empty() {
-//             let node_id = traversal.pop().unwrap();
-//             let node = contraction_tree.node(node_id);
-//             if node.is_leaf() {
-//                 leaves.push(node_id);
-//             } else {
-//                 traversal.push(node.left_child_id().unwrap());
-//                 traversal.push(node.right_child_id().unwrap());
-//             }
-//         }
-//         traversal.append(&mut leaves);
-//         let num_partitions = traversal.len();
-//         let mut partitioning = vec![0; tensor.tensors().len()];
-//         for (i, partition_root) in traversal.iter().enumerate() {
-//             let leaf_tensors = contraction_tree.leaf_ids(*partition_root);
-//             for leaf in leaf_tensors {
-//                 partitioning[leaf] = i;
-//             }
-//         }
+        let tree_root = contraction_tree.root_id().unwrap();
+        let mut leaves = vec![];
+        let mut traversal = vec![tree_root];
+        while (leaves.len() + traversal.len()) < num_partitions && !traversal.is_empty() {
+            let node_id = traversal.pop().unwrap();
+            let node = contraction_tree.node(node_id);
+            if node.is_leaf() {
+                leaves.push(node_id);
+            } else {
+                traversal.push(node.left_child_id().unwrap());
+                traversal.push(node.right_child_id().unwrap());
+            }
+        }
+        traversal.append(&mut leaves);
+        let num_partitions = traversal.len();
+        let mut partitioning = vec![0; tensor.tensors().len()];
+        for (i, partition_root) in traversal.iter().enumerate() {
+            let leaf_tensors = contraction_tree.leaf_ids(*partition_root);
+            for leaf in leaf_tensors {
+                partitioning[leaf] = i;
+            }
+        }
 
-//         let (partitioned_tensor, contraction_path, flops) =
-//             compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
-//         self.last_used_num_partitions.replace(num_partitions as i32);
-//         (partitioned_tensor, contraction_path, flops)
-//     }
-// }
+        let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
+            compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
+        self.last_used_num_partitions.replace(num_partitions as i32);
+        (
+            partitioned_tensor,
+            contraction_path,
+            parallel_flops,
+            sum_flops,
+        )
+    }
+}
