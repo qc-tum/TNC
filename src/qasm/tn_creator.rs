@@ -25,15 +25,12 @@ impl TensorNetworkCreator {
 
     /// Given the quantum arguments to a gate call, applies the broadcast rules and
     /// returns the list of quantum arguments for each single call.
-    fn broadcast(
-        qargs: &[Argument],
-        register_sizes: &FxHashMap<String, u32>,
-    ) -> Vec<Vec<Argument>> {
+    fn broadcast(qargs: &[Argument], register_sizes: &FxHashMap<&str, u32>) -> Vec<Vec<Argument>> {
         // Get the size of all register arguments (i.e. those without qubit index specified)
         let sizes = qargs
             .iter()
             .filter(|arg| arg.1.is_none())
-            .map(|arg| register_sizes.get(&arg.0).unwrap())
+            .map(|arg| register_sizes[arg.0.as_str()])
             .minmax();
 
         if sizes == itertools::MinMaxResult::NoElements {
@@ -43,8 +40,8 @@ impl TensorNetworkCreator {
             vec![qargs.to_vec()]
         } else {
             let common_size = match sizes {
-                itertools::MinMaxResult::OneElement(&x) => x,
-                itertools::MinMaxResult::MinMax(&min, &max) => {
+                itertools::MinMaxResult::OneElement(x) => x,
+                itertools::MinMaxResult::MinMax(min, max) => {
                     assert_eq!(
                         min, max,
                         "Broadcast of registers with different sizes is not possible"
@@ -102,7 +99,7 @@ impl TensorNetworkCreator {
                             tensors.push(tensor);
                             wires.insert(Argument(name.clone(), Some(i)), edge);
                         }
-                        register_sizes.insert(name.clone(), *count);
+                        register_sizes.insert(name.as_str(), *count);
                     }
                 }
                 Statement::GateCall(call) => {
@@ -157,8 +154,8 @@ mod tests {
     #[test]
     fn broadcasting_2qargs() {
         let mut register_sizes = FxHashMap::default();
-        register_sizes.insert(String::from("a"), 3);
-        register_sizes.insert(String::from("b"), 3);
+        register_sizes.insert("a", 3);
+        register_sizes.insert("b", 3);
 
         let a = Argument(String::from("a"), None);
         let a0 = Argument(String::from("a"), Some(0));
@@ -202,7 +199,7 @@ mod tests {
     #[test]
     fn broadcasting_1qarg() {
         let mut register_sizes = FxHashMap::default();
-        register_sizes.insert(String::from("a"), 2);
+        register_sizes.insert("a", 2);
 
         let a = Argument(String::from("a"), None);
         let a0 = Argument(String::from("a"), Some(0));
