@@ -40,19 +40,9 @@ pub trait OptModel<'a>: Sync + Send {
     fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> EvalScoreType;
 }
 
-/// Optimizer that implements the simulated annealing algorithm
-#[derive(Clone, Copy)]
-pub struct SimulatedAnnealingOptimizer {
-    /// Number of candidate solutions to generate and evaluate in each iteration.
-    n_trials: usize,
-    /// Number of iterations without improvement after which the algorithm should
-    /// restart from the best solution found so far.
-    restart_iter: usize,
-    w: f64,
-}
-
 /// Termination condition for the [`SimulatedAnnealingOptimizer`].
 #[derive(Debug, Clone)]
+#[deprecated = "Simulated annealing doesn't support time-based termination anymore."]
 pub enum TerminationCondition {
     Iterations {
         /// Number of iterations.
@@ -67,6 +57,49 @@ pub enum TerminationCondition {
     },
 }
 
+/// Optimizer that implements the simulated annealing algorithm
+#[derive(Clone, Copy)]
+pub struct SimulatedAnnealingOptimizer {
+    /// Number of candidate solutions to generate and evaluate in each iteration.
+    n_trials: usize,
+    /// Number of iterations.
+    n_iter: usize,
+    /// Number of iterations without improvement after which the algorithm should
+    /// restart from the best solution found so far.
+    restart_iter: usize,
+    /// Number of iterations without improvement after which the algorithm should
+    /// terminate.
+    patience: usize,
+    /// The initial temperature to start the annealing process with.
+    initial_temperature: f64,
+    /// The final temperature to reach at the end of the annealing process.
+    final_temperature: f64,
+}
+
+/// Computes the temperatures for simulated annealing with the given number of
+/// iterations. Optionally uses a log scaling for the points.
+fn temperatures(mut start: f64, mut stop: f64, iters: usize, log: bool) -> Vec<f64> {
+    // Take log of inputs
+    if log {
+        start = start.log2();
+        stop = stop.log2();
+    }
+
+    // Get the temperatures
+    let mut temps = if iters == 1 {
+        vec![(start + stop) / 2.0]
+    } else {
+        let step = (stop - start) / (iters - 1) as f64;
+        (0..iters).map(|i| start + i as f64 * step).collect()
+    };
+
+    // Take power of outputs
+    if log {
+        temps.iter_mut().for_each(|t| *t = 2_f64.powf(*t));
+    }
+    temps
+}
+
 impl<'a> SimulatedAnnealingOptimizer {
     /// Start optimization with given temperature range
     ///
@@ -78,9 +111,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         &self,
         model: &M,
         initial_solution: M::SolutionType,
-        termination: &TerminationCondition,
         rng: &mut R,
-        function: ProbabilityFunction,
     ) -> (M::SolutionType, ScoreType)
     where
         M: OptModel<'a>,
@@ -95,24 +126,12 @@ impl<'a> SimulatedAnnealingOptimizer {
         let mut rngs = (0..self.n_trials)
             .map(|_| StdRng::seed_from_u64(rng.gen()))
             .collect_vec();
-        let iterations = match termination {
-            TerminationCondition::Iterations { n_iter, .. } => *n_iter,
-            TerminationCondition::Time { .. } => usize::MAX,
-        };
-        let (min_temp, max_temp) = if let ProbabilityFunction::LogStandard {
-            tstart: max_temp,
-            tfinal: min_temp,
-        } = function
-        {
-            (min_temp, max_temp)
-        } else {
-            Default::default()
-        };
-        let temp_step = (min_temp / max_temp).log2() / (iterations as f64 - 1.0);
-        let mut temperature = max_temp;
-
-        let start_time = std::time::Instant::now();
-        for it in 0..iterations {
+        for temperature in temperatures(
+            self.initial_temperature,
+            self.final_temperature,
+            self.n_iter,
+            true,
+        ) {
             // Generate and evaluate candidate solutions to find the minimum objective
             let (_, trial_solution, (trial_score, _)) = rngs
                 .par_iter_mut()
@@ -125,18 +144,8 @@ impl<'a> SimulatedAnnealingOptimizer {
                 .min_by_key(|(index, _, score)| (*score, *index))
                 .unwrap();
 
-            let acceptance_probability = match function {
-                ProbabilityFunction::Relative => {
-                    let diff = (trial_score - current_score) / current_score;
-                    let acceptance_probability = (-self.w * diff.into_inner()).exp();
-                    acceptance_probability
-                }
-                ProbabilityFunction::LogStandard { .. } => {
-                    let diff = (trial_score / current_score).log2();
-                    let acceptance_probability = (-diff / temperature).exp();
-                    acceptance_probability
-                }
-            };
+            let diff = (trial_score / current_score).log2();
+            let acceptance_probability = (-diff / temperature).exp();
             let random_value = rng.gen();
 
             // Accept this solution with the given acceptance probability
@@ -152,20 +161,11 @@ impl<'a> SimulatedAnnealingOptimizer {
                 last_improvement = 0;
             }
 
-            temperature = (max_temp.log2() + it as f64 * temp_step).exp2();
+            last_improvement += 1;
 
             // Check if we should terminate
-            match termination {
-                TerminationCondition::Iterations { patience, .. } => {
-                    if last_improvement >= *patience {
-                        break;
-                    }
-                }
-                TerminationCondition::Time { max_time } => {
-                    if start_time.elapsed() >= *max_time {
-                        break;
-                    }
-                }
+            if last_improvement >= self.patience {
+                break;
             }
 
             // Check if we should restart from the best solution
@@ -495,19 +495,11 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum ProbabilityFunction {
-    Relative,
-    LogStandard { tstart: f64, tfinal: f64 },
-}
-
 /// Runs simulated annealing to find a better partitioning.
 pub fn balance_partitions<'a, R, M>(
     model: M,
     initial_solution: M::SolutionType,
     rng: &mut R,
-    termination_condition: &TerminationCondition,
-    function: ProbabilityFunction,
 ) -> (M::SolutionType, ScoreType)
 where
     R: Rng,
@@ -515,14 +507,11 @@ where
 {
     let optimizer = SimulatedAnnealingOptimizer {
         n_trials: 48,
+        n_iter: 1000,
         restart_iter: 200,
-        w: 1.0,
+        patience: 500,
+        initial_temperature: 2.0,
+        final_temperature: 0.05,
     };
-    optimizer.optimize_with_temperature::<M, _>(
-        &model,
-        initial_solution,
-        termination_condition,
-        rng,
-        function,
-    )
+    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, rng)
 }
