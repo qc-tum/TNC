@@ -502,13 +502,14 @@ pub fn balance_partitions<'a, R, M>(
     initial_solution: M::SolutionType,
     rng: &mut R,
     log: bool,
+    n_trials: usize,
 ) -> (M::SolutionType, ScoreType)
 where
     R: Rng,
     M: OptModel<'a>,
 {
     let optimizer = SimulatedAnnealingOptimizer {
-        n_trials: 48,
+        n_trials,
         n_iter: 1000,
         restart_iter: 200,
         patience: 500,

@@ -20,6 +20,7 @@ use protocol::Protocol;
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
 use rand::{Rng, RngCore, SeedableRng};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use results::{OptimizationResult, RunResult, Writer};
 use tensorcontraction::contractionpath::contraction_cost::{
     communication_path_cost, compute_memory_requirements, contract_size_tensors_exact,
@@ -155,15 +156,9 @@ fn main() {
         //     iterations: 40,
         //     balancing_scheme: BalancingScheme::AlternatingTreeTensors { height_limit: 8 },
         // }),
-        Rc::new(Sa {
-            use_log_temp: false,
-        }),
-        Rc::new(Sa { use_log_temp: true }),
+        Rc::new(Sa { best_of_n: true }),
         // Rc::new(Sad),
-        Rc::new(Iad {
-            use_log_temp: false,
-        }),
-        Rc::new(Iad { use_log_temp: true }),
+        Rc::new(Iad { best_of_n: true }),
         //Rc::new(Cotengra::default()),
         //Rc::new(CotengraAnneal::default()),
         //Rc::new(CotengraTempering::default()),
@@ -487,14 +482,15 @@ impl MethodRun for InitialProblem {
 
 #[derive(Debug, Clone)]
 struct Sa {
-    use_log_temp: bool,
+    best_of_n: bool,
 }
 impl MethodRun for Sa {
     fn name(&self) -> String {
-        match self.use_log_temp {
-            true => "SAlog".into(),
-            false => "SA".into(),
+        match self.best_of_n {
+            true => "SA_48x1",
+            false => "SA_1x48",
         }
+        .into()
     }
 
     fn run(
@@ -505,18 +501,33 @@ impl MethodRun for Sa {
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
-        let (partitioning, _): (Vec<usize>, NotNan<f64>) = simulated_annealing::balance_partitions(
-            NaivePartitioningModel {
-                tensor,
-                num_partitions: num_partitions as _,
-                communication_scheme,
-                memory_limit: None,
-                metric: Metric::ParallelWithTieBreaking,
-            },
-            initial_partitioning.to_vec(),
-            rng,
-            self.use_log_temp,
-        );
+        let (outer_trials, inner_trials) = if self.best_of_n { (48, 1) } else { (1, 48) };
+
+        let rngs = (0..outer_trials)
+            .map(|_| StdRng::seed_from_u64(rng.next_u64()))
+            .collect_vec();
+
+        let (_, partitioning, _) = rngs
+            .into_par_iter()
+            .enumerate()
+            .map(|(i, mut rng)| {
+                let (partitioning, score) = simulated_annealing::balance_partitions(
+                    NaivePartitioningModel {
+                        tensor,
+                        num_partitions: num_partitions as _,
+                        communication_scheme,
+                        memory_limit: None,
+                        metric: Metric::ParallelWithTieBreaking,
+                    },
+                    initial_partitioning.to_vec(),
+                    &mut rng,
+                    true,
+                    inner_trials,
+                );
+                (i, partitioning, score)
+            })
+            .min_by_key(|(i, _, score)| (*score, *i))
+            .unwrap();
 
         let (partitioned_tensor, contraction_path, parallel_flops, serial_flops) =
             compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
@@ -531,14 +542,15 @@ impl MethodRun for Sa {
 
 #[derive(Debug, Clone)]
 struct Iad {
-    use_log_temp: bool,
+    best_of_n: bool,
 }
 impl MethodRun for Iad {
     fn name(&self) -> String {
-        match self.use_log_temp {
-            true => "IADlog".into(),
-            false => "IAD".into(),
+        match self.best_of_n {
+            true => "IAD_48x1",
+            false => "IAD_1x48",
         }
+        .into()
     }
 
     fn run(
@@ -568,21 +580,36 @@ impl MethodRun for Iad {
             }
         }
 
-        let (solution, _) = simulated_annealing::balance_partitions(
-            IntermediatePartitioningModel {
-                tensor,
-                communication_scheme,
-                memory_limit: None,
-                metric: Metric::ParallelWithTieBreaking,
-            },
-            (
-                initial_partitioning.to_vec(),
-                intermediate_tensors.to_vec(),
-                initial_contractions,
-            ),
-            rng,
-            self.use_log_temp,
-        );
+        let (outer_trials, inner_trials) = if self.best_of_n { (48, 1) } else { (1, 48) };
+
+        let rngs = (0..outer_trials)
+            .map(|_| StdRng::seed_from_u64(rng.next_u64()))
+            .collect_vec();
+
+        let (_, solution, _) = rngs
+            .into_par_iter()
+            .enumerate()
+            .map(|(i, mut rng)| {
+                let (solution, score) = simulated_annealing::balance_partitions(
+                    IntermediatePartitioningModel {
+                        tensor,
+                        communication_scheme,
+                        memory_limit: None,
+                        metric: Metric::ParallelWithTieBreaking,
+                    },
+                    (
+                        initial_partitioning.to_vec(),
+                        intermediate_tensors.to_vec(),
+                        initial_contractions.to_vec(),
+                    ),
+                    &mut rng,
+                    true,
+                    inner_trials,
+                );
+                (i, solution, score)
+            })
+            .min_by_key(|(i, _, score)| (*score, *i))
+            .unwrap();
         let (partitioning, ..) = solution;
 
         let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
