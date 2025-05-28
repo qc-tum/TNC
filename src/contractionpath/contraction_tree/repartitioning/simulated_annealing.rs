@@ -112,6 +112,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         model: &M,
         initial_solution: M::SolutionType,
         rng: &mut R,
+        log: bool,
     ) -> (M::SolutionType, ScoreType)
     where
         M: OptModel<'a>,
@@ -130,7 +131,7 @@ impl<'a> SimulatedAnnealingOptimizer {
             self.initial_temperature,
             self.final_temperature,
             self.n_iter,
-            true,
+            log,
         ) {
             // Generate and evaluate candidate solutions to find the minimum objective
             let (_, trial_solution, (trial_score, _)) = rngs
@@ -500,6 +501,7 @@ pub fn balance_partitions<'a, R, M>(
     model: M,
     initial_solution: M::SolutionType,
     rng: &mut R,
+    log: bool,
 ) -> (M::SolutionType, ScoreType)
 where
     R: Rng,
@@ -513,5 +515,5 @@ where
         initial_temperature: 2.0,
         final_temperature: 0.05,
     };
-    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, rng)
+    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, rng, log)
 }

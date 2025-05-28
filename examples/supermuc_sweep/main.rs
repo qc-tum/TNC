@@ -155,9 +155,15 @@ fn main() {
         //     iterations: 40,
         //     balancing_scheme: BalancingScheme::AlternatingTreeTensors { height_limit: 8 },
         // }),
-        Rc::new(Sa),
+        Rc::new(Sa {
+            use_log_temp: false,
+        }),
+        Rc::new(Sa { use_log_temp: true }),
         // Rc::new(Sad),
-        Rc::new(Iad),
+        Rc::new(Iad {
+            use_log_temp: false,
+        }),
+        Rc::new(Iad { use_log_temp: true }),
         //Rc::new(Cotengra::default()),
         //Rc::new(CotengraAnneal::default()),
         //Rc::new(CotengraTempering::default()),
@@ -480,10 +486,15 @@ impl MethodRun for InitialProblem {
 }
 
 #[derive(Debug, Clone)]
-struct Sa;
+struct Sa {
+    use_log_temp: bool,
+}
 impl MethodRun for Sa {
     fn name(&self) -> String {
-        "SA".into()
+        match self.use_log_temp {
+            true => "SAlog".into(),
+            false => "SA".into(),
+        }
     }
 
     fn run(
@@ -504,6 +515,7 @@ impl MethodRun for Sa {
             },
             initial_partitioning.to_vec(),
             rng,
+            self.use_log_temp,
         );
 
         let (partitioned_tensor, contraction_path, parallel_flops, serial_flops) =
@@ -518,10 +530,15 @@ impl MethodRun for Sa {
 }
 
 #[derive(Debug, Clone)]
-struct Iad;
+struct Iad {
+    use_log_temp: bool,
+}
 impl MethodRun for Iad {
     fn name(&self) -> String {
-        "IAD".into()
+        match self.use_log_temp {
+            true => "IADlog".into(),
+            false => "IAD".into(),
+        }
     }
 
     fn run(
@@ -564,6 +581,7 @@ impl MethodRun for Iad {
                 initial_contractions,
             ),
             rng,
+            self.use_log_temp,
         );
         let (partitioning, ..) = solution;
 
@@ -578,48 +596,49 @@ impl MethodRun for Iad {
     }
 }
 
-#[derive(Debug, Clone)]
-struct Sad;
-impl MethodRun for Sad {
-    fn name(&self) -> String {
-        "SAD".into()
-    }
+// #[derive(Debug, Clone)]
+// struct Sad;
+// impl MethodRun for Sad {
+//     fn name(&self) -> String {
+//         "SAD".into()
+//     }
 
-    fn run(
-        &self,
-        tensor: &Tensor,
-        num_partitions: i32,
-        initial_partitioning: &[usize],
-        communication_scheme: CommunicationScheme,
-        rng: &mut StdRng,
-    ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
-        let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
-        for (index, partition) in initial_partitioning.iter().enumerate() {
-            intermediate_tensors[*partition] ^= tensor.tensor(index);
-        }
+//     fn run(
+//         &self,
+//         tensor: &Tensor,
+//         num_partitions: i32,
+//         initial_partitioning: &[usize],
+//         communication_scheme: CommunicationScheme,
+//         rng: &mut StdRng,
+//     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
+//         let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
+//         for (index, partition) in initial_partitioning.iter().enumerate() {
+//             intermediate_tensors[*partition] ^= tensor.tensor(index);
+//         }
 
-        let (solution, _) = simulated_annealing::balance_partitions(
-            LeafPartitioningModel {
-                tensor,
-                communication_scheme,
-                memory_limit: None,
-                metric: Metric::ParallelWithTieBreaking,
-            },
-            (initial_partitioning.to_vec(), intermediate_tensors),
-            rng,
-        );
-        let (partitioning, ..) = solution;
+//         let (solution, _) = simulated_annealing::balance_partitions(
+//             LeafPartitioningModel {
+//                 tensor,
+//                 communication_scheme,
+//                 memory_limit: None,
+//                 metric: Metric::ParallelWithTieBreaking,
+//             },
+//             (initial_partitioning.to_vec(), intermediate_tensors),
+//             rng,
+//             true,
+//         );
+//         let (partitioning, ..) = solution;
 
-        let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
-            compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
-        (
-            partitioned_tensor,
-            contraction_path,
-            parallel_flops,
-            sum_flops,
-        )
-    }
-}
+//         let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
+//             compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
+//         (
+//             partitioned_tensor,
+//             contraction_path,
+//             parallel_flops,
+//             sum_flops,
+//         )
+//     }
+// }
 
 #[derive(Debug, Clone)]
 struct GreedyBalance {
