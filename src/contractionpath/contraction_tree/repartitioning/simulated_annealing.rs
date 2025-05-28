@@ -80,6 +80,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         initial_solution: M::SolutionType,
         termination: &TerminationCondition,
         rng: &mut R,
+        function: ProbabilityFunction,
     ) -> (M::SolutionType, ScoreType)
     where
         M: OptModel<'a>,
@@ -98,8 +99,20 @@ impl<'a> SimulatedAnnealingOptimizer {
             TerminationCondition::Iterations { n_iter, .. } => *n_iter,
             TerminationCondition::Time { .. } => usize::MAX,
         };
+        let (min_temp, max_temp) = if let ProbabilityFunction::LogStandard {
+            tstart: max_temp,
+            tfinal: min_temp,
+        } = function
+        {
+            (min_temp, max_temp)
+        } else {
+            Default::default()
+        };
+        let temp_step = (min_temp / max_temp).log2() / (iterations as f64 - 1.0);
+        let mut temperature = max_temp;
+
         let start_time = std::time::Instant::now();
-        for _ in 0..iterations {
+        for it in 0..iterations {
             // Generate and evaluate candidate solutions to find the minimum objective
             let (_, trial_solution, (trial_score, _)) = rngs
                 .par_iter_mut()
@@ -112,8 +125,18 @@ impl<'a> SimulatedAnnealingOptimizer {
                 .min_by_key(|(index, _, score)| (*score, *index))
                 .unwrap();
 
-            let diff = (trial_score - current_score) / current_score;
-            let acceptance_probability = (-self.w * diff.into_inner()).exp();
+            let acceptance_probability = match function {
+                ProbabilityFunction::Relative => {
+                    let diff = (trial_score - current_score) / current_score;
+                    let acceptance_probability = (-self.w * diff.into_inner()).exp();
+                    acceptance_probability
+                }
+                ProbabilityFunction::LogStandard { .. } => {
+                    let diff = (trial_score / current_score).log2();
+                    let acceptance_probability = (-diff / temperature).exp();
+                    acceptance_probability
+                }
+            };
             let random_value = rng.gen();
 
             // Accept this solution with the given acceptance probability
@@ -129,7 +152,7 @@ impl<'a> SimulatedAnnealingOptimizer {
                 last_improvement = 0;
             }
 
-            last_improvement += 1;
+            temperature = (max_temp.log2() + it as f64 * temp_step).exp2();
 
             // Check if we should terminate
             match termination {
@@ -472,12 +495,19 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum ProbabilityFunction {
+    Relative,
+    LogStandard { tstart: f64, tfinal: f64 },
+}
+
 /// Runs simulated annealing to find a better partitioning.
 pub fn balance_partitions<'a, R, M>(
     model: M,
     initial_solution: M::SolutionType,
     rng: &mut R,
     termination_condition: &TerminationCondition,
+    function: ProbabilityFunction,
 ) -> (M::SolutionType, ScoreType)
 where
     R: Rng,
@@ -493,5 +523,6 @@ where
         initial_solution,
         termination_condition,
         rng,
+        function,
     )
 }
