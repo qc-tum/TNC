@@ -112,7 +112,6 @@ impl<'a> SimulatedAnnealingOptimizer {
         model: &M,
         initial_solution: M::SolutionType,
         rng: &mut R,
-        log: bool,
     ) -> (M::SolutionType, ScoreType)
     where
         M: OptModel<'a>,
@@ -131,29 +130,35 @@ impl<'a> SimulatedAnnealingOptimizer {
             self.initial_temperature,
             self.final_temperature,
             self.n_iter,
-            log,
+            true,
         ) {
             // Generate and evaluate candidate solutions to find the minimum objective
-            let (_, trial_solution, (trial_score, _)) = rngs
+            let (_, trial_solution, trial_score) = rngs
                 .par_iter_mut()
                 .enumerate()
                 .map(|(index, rng)| {
-                    let trial = model.generate_trial_solution(current_solution.clone(), rng);
-                    let score = model.evaluate(&trial, rng);
-                    (index, trial, score)
+                    let mut trial_score = current_score;
+                    let mut trial_solution = current_solution.clone();
+                    for _ in 0..10 {
+                        let solution = model.generate_trial_solution(trial_solution.clone(), rng);
+                        let (score, _) = model.evaluate(&solution, rng);
+
+                        let diff = (score / trial_score).log2();
+                        let acceptance_probability = (-diff / temperature).exp();
+                        let random_value = rng.gen();
+
+                        if acceptance_probability >= random_value {
+                            trial_solution = solution;
+                            trial_score = score;
+                        }
+                    }
+                    (index, trial_solution, trial_score)
                 })
                 .min_by_key(|(index, _, score)| (*score, *index))
                 .unwrap();
 
-            let diff = (trial_score / current_score).log2();
-            let acceptance_probability = (-diff / temperature).exp();
-            let random_value = rng.gen();
-
-            // Accept this solution with the given acceptance probability
-            if acceptance_probability >= random_value {
-                current_solution = trial_solution;
-                current_score = trial_score;
-            }
+            current_score = trial_score;
+            current_solution = trial_solution;
 
             // Update the best solution if the current solution is better
             if current_score < best_score {
@@ -501,20 +506,18 @@ pub fn balance_partitions<'a, R, M>(
     model: M,
     initial_solution: M::SolutionType,
     rng: &mut R,
-    log: bool,
-    n_trials: usize,
 ) -> (M::SolutionType, ScoreType)
 where
     R: Rng,
     M: OptModel<'a>,
 {
     let optimizer = SimulatedAnnealingOptimizer {
-        n_trials,
-        n_iter: 1000,
+        n_trials: 48,
+        n_iter: 100,
         restart_iter: 200,
         patience: 500,
         initial_temperature: 2.0,
         final_temperature: 0.05,
     };
-    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, rng, log)
+    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, rng)
 }

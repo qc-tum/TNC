@@ -20,7 +20,6 @@ use protocol::Protocol;
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
 use rand::{Rng, RngCore, SeedableRng};
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use results::{OptimizationResult, RunResult, Writer};
 use tensorcontraction::contractionpath::contraction_cost::{
     communication_path_cost, compute_memory_requirements, contract_size_tensors_exact,
@@ -156,9 +155,9 @@ fn main() {
         //     iterations: 40,
         //     balancing_scheme: BalancingScheme::AlternatingTreeTensors { height_limit: 8 },
         // }),
-        Rc::new(Sa { best_of_n: true }),
+        Rc::new(Sa),
         // Rc::new(Sad),
-        Rc::new(Iad { best_of_n: true }),
+        Rc::new(Iad),
         //Rc::new(Cotengra::default()),
         //Rc::new(CotengraAnneal::default()),
         //Rc::new(CotengraTempering::default()),
@@ -481,16 +480,10 @@ impl MethodRun for InitialProblem {
 }
 
 #[derive(Debug, Clone)]
-struct Sa {
-    best_of_n: bool,
-}
+struct Sa;
 impl MethodRun for Sa {
     fn name(&self) -> String {
-        match self.best_of_n {
-            true => "SA_48x1",
-            false => "SA_1x48",
-        }
-        .into()
+        "SAchains".into()
     }
 
     fn run(
@@ -501,33 +494,17 @@ impl MethodRun for Sa {
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
-        let (outer_trials, inner_trials) = if self.best_of_n { (48, 1) } else { (1, 48) };
-
-        let rngs = (0..outer_trials)
-            .map(|_| StdRng::seed_from_u64(rng.next_u64()))
-            .collect_vec();
-
-        let (_, partitioning, _) = rngs
-            .into_par_iter()
-            .enumerate()
-            .map(|(i, mut rng)| {
-                let (partitioning, score) = simulated_annealing::balance_partitions(
-                    NaivePartitioningModel {
-                        tensor,
-                        num_partitions: num_partitions as _,
-                        communication_scheme,
-                        memory_limit: None,
-                        metric: Metric::ParallelWithTieBreaking,
-                    },
-                    initial_partitioning.to_vec(),
-                    &mut rng,
-                    true,
-                    inner_trials,
-                );
-                (i, partitioning, score)
-            })
-            .min_by_key(|(i, _, score)| (*score, *i))
-            .unwrap();
+        let (partitioning, _): (Vec<usize>, NotNan<f64>) = simulated_annealing::balance_partitions(
+            NaivePartitioningModel {
+                tensor,
+                num_partitions: num_partitions as _,
+                communication_scheme,
+                memory_limit: None,
+                metric: Metric::ParallelWithTieBreaking,
+            },
+            initial_partitioning.to_vec(),
+            rng,
+        );
 
         let (partitioned_tensor, contraction_path, parallel_flops, serial_flops) =
             compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
@@ -541,16 +518,10 @@ impl MethodRun for Sa {
 }
 
 #[derive(Debug, Clone)]
-struct Iad {
-    best_of_n: bool,
-}
+struct Iad;
 impl MethodRun for Iad {
     fn name(&self) -> String {
-        match self.best_of_n {
-            true => "IAD_48x1",
-            false => "IAD_1x48",
-        }
-        .into()
+        "IADchains".into()
     }
 
     fn run(
@@ -580,36 +551,20 @@ impl MethodRun for Iad {
             }
         }
 
-        let (outer_trials, inner_trials) = if self.best_of_n { (48, 1) } else { (1, 48) };
-
-        let rngs = (0..outer_trials)
-            .map(|_| StdRng::seed_from_u64(rng.next_u64()))
-            .collect_vec();
-
-        let (_, solution, _) = rngs
-            .into_par_iter()
-            .enumerate()
-            .map(|(i, mut rng)| {
-                let (solution, score) = simulated_annealing::balance_partitions(
-                    IntermediatePartitioningModel {
-                        tensor,
-                        communication_scheme,
-                        memory_limit: None,
-                        metric: Metric::ParallelWithTieBreaking,
-                    },
-                    (
-                        initial_partitioning.to_vec(),
-                        intermediate_tensors.to_vec(),
-                        initial_contractions.to_vec(),
-                    ),
-                    &mut rng,
-                    true,
-                    inner_trials,
-                );
-                (i, solution, score)
-            })
-            .min_by_key(|(i, _, score)| (*score, *i))
-            .unwrap();
+        let (solution, _) = simulated_annealing::balance_partitions(
+            IntermediatePartitioningModel {
+                tensor,
+                communication_scheme,
+                memory_limit: None,
+                metric: Metric::ParallelWithTieBreaking,
+            },
+            (
+                initial_partitioning.to_vec(),
+                intermediate_tensors.to_vec(),
+                initial_contractions,
+            ),
+            rng,
+        );
         let (partitioning, ..) = solution;
 
         let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
@@ -623,49 +578,48 @@ impl MethodRun for Iad {
     }
 }
 
-// #[derive(Debug, Clone)]
-// struct Sad;
-// impl MethodRun for Sad {
-//     fn name(&self) -> String {
-//         "SAD".into()
-//     }
+#[derive(Debug, Clone)]
+struct Sad;
+impl MethodRun for Sad {
+    fn name(&self) -> String {
+        "SAD".into()
+    }
 
-//     fn run(
-//         &self,
-//         tensor: &Tensor,
-//         num_partitions: i32,
-//         initial_partitioning: &[usize],
-//         communication_scheme: CommunicationScheme,
-//         rng: &mut StdRng,
-//     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
-//         let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
-//         for (index, partition) in initial_partitioning.iter().enumerate() {
-//             intermediate_tensors[*partition] ^= tensor.tensor(index);
-//         }
+    fn run(
+        &self,
+        tensor: &Tensor,
+        num_partitions: i32,
+        initial_partitioning: &[usize],
+        communication_scheme: CommunicationScheme,
+        rng: &mut StdRng,
+    ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
+        let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
+        for (index, partition) in initial_partitioning.iter().enumerate() {
+            intermediate_tensors[*partition] ^= tensor.tensor(index);
+        }
 
-//         let (solution, _) = simulated_annealing::balance_partitions(
-//             LeafPartitioningModel {
-//                 tensor,
-//                 communication_scheme,
-//                 memory_limit: None,
-//                 metric: Metric::ParallelWithTieBreaking,
-//             },
-//             (initial_partitioning.to_vec(), intermediate_tensors),
-//             rng,
-//             true,
-//         );
-//         let (partitioning, ..) = solution;
+        let (solution, _) = simulated_annealing::balance_partitions(
+            LeafPartitioningModel {
+                tensor,
+                communication_scheme,
+                memory_limit: None,
+                metric: Metric::ParallelWithTieBreaking,
+            },
+            (initial_partitioning.to_vec(), intermediate_tensors),
+            rng,
+        );
+        let (partitioning, ..) = solution;
 
-//         let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
-//             compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
-//         (
-//             partitioned_tensor,
-//             contraction_path,
-//             parallel_flops,
-//             sum_flops,
-//         )
-//     }
-// }
+        let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
+            compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
+        (
+            partitioned_tensor,
+            contraction_path,
+            parallel_flops,
+            sum_flops,
+        )
+    }
+}
 
 #[derive(Debug, Clone)]
 struct GreedyBalance {
