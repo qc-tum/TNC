@@ -223,7 +223,7 @@ pub fn communication_path_cost(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
     only_count_ops: bool,
-    only_circital_path: bool,
+    only_critical_path: bool,
     tensor_cost: Option<&[f64]>,
 ) -> (f64, f64) {
     let cost_function = if only_count_ops {
@@ -242,7 +242,7 @@ pub fn communication_path_cost(
         inputs,
         contract_path,
         cost_function,
-        only_circital_path,
+        only_critical_path,
         tensor_cost,
     )
 }
