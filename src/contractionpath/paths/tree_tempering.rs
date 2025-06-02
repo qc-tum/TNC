@@ -5,11 +5,7 @@ use rustengra::{
 };
 
 use crate::{
-    contractionpath::{
-        contraction_cost::contract_path_cost,
-        contraction_tree::repartitioning::simulated_annealing::TerminationCondition,
-        ssa_replace_ordering,
-    },
+    contractionpath::{contraction_cost::contract_path_cost, ssa_replace_ordering},
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
 };
@@ -20,7 +16,7 @@ use super::{CostType, OptimizePath};
 /// Specifically exposes `subtree_reconfigure` method.
 pub struct TreeTempering<'a> {
     tensor: &'a Tensor,
-    termination_condition: TerminationCondition,
+    numiter: Option<usize>,
     best_flops: f64,
     best_size: f64,
     best_path: Vec<ContractionIndex>,
@@ -36,7 +32,7 @@ impl<'a> TreeTempering<'a> {
         tensor: &'a Tensor,
         seed: Option<u64>,
         minimize: CostType,
-        termination_condition: TerminationCondition,
+        numiter: Option<usize>,
     ) -> Self {
         assert!(cotengra_check().is_ok());
         assert_eq!(
@@ -46,7 +42,7 @@ impl<'a> TreeTempering<'a> {
         );
         Self {
             tensor,
-            termination_condition,
+            numiter,
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
             best_path: vec![],
@@ -76,15 +72,8 @@ impl OptimizePath for TreeTempering<'_> {
         let (inputs, outputs, size_dict) =
             tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
 
-        let iter =
-            if let TerminationCondition::Iterations { n_iter, .. } = self.termination_condition {
-                Some(n_iter)
-            } else {
-                None
-            };
-
         let replace_path =
-            cotengra_tree_tempering(&inputs, outputs, iter, size_dict, self.seed).unwrap();
+            cotengra_tree_tempering(&inputs, outputs, self.numiter, size_dict, self.seed).unwrap();
 
         let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
 
@@ -123,10 +112,7 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::{
-            contraction_tree::repartitioning::simulated_annealing::TerminationCondition,
-            paths::{tree_tempering::TreeTempering, CostType, OptimizePath},
-        },
+        contractionpath::paths::{tree_tempering::TreeTempering, CostType, OptimizePath},
         networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
         path,
         tensornetwork::tensor::Tensor,
@@ -188,15 +174,7 @@ mod tests {
     #[ignore]
     fn test_temper_tree_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = TreeTempering::new(
-            &tn,
-            Some(8),
-            CostType::Flops,
-            TerminationCondition::Iterations {
-                n_iter: 100,
-                patience: 50,
-            },
-        );
+        let mut opt = TreeTempering::new(&tn, Some(8), CostType::Flops, Some(100));
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 600.);
@@ -209,15 +187,7 @@ mod tests {
     #[ignore]
     fn test_temper_tree_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = TreeTempering::new(
-            &tn,
-            Some(8),
-            CostType::Flops,
-            TerminationCondition::Iterations {
-                n_iter: 100,
-                patience: 50,
-            },
-        );
+        let mut opt = TreeTempering::new(&tn, Some(8), CostType::Flops, Some(100));
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 332685.);
@@ -233,15 +203,7 @@ mod tests {
     #[ignore]
     fn test_temper_tree_large() {
         let tn = setup_large();
-        let mut opt = TreeTempering::new(
-            &tn,
-            Some(8),
-            CostType::Flops,
-            TerminationCondition::Iterations {
-                n_iter: 100,
-                patience: 50,
-            },
-        );
+        let mut opt = TreeTempering::new(&tn, Some(8), CostType::Flops, Some(100));
         opt.optimize_path();
     }
 }

@@ -27,18 +27,16 @@ use tensorcontraction::contractionpath::contraction_cost::{
 use tensorcontraction::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
 };
+use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::Metric;
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::{
     IntermediatePartitioningModel, LeafPartitioningModel, NaivePartitioningModel,
-};
-use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::{
-    Metric, TerminationCondition,
 };
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
     compute_solution, simulated_annealing,
 };
 use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
 use tensorcontraction::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
-use tensorcontraction::contractionpath::paths::hyperoptimization::Hyperoptimizer;
+use tensorcontraction::contractionpath::paths::hyperoptimization::{HyperOptions, Hyperoptimizer};
 use tensorcontraction::contractionpath::paths::tree_annealing::TreeAnnealing;
 use tensorcontraction::contractionpath::paths::tree_reconfiguration::TreeReconfigure;
 use tensorcontraction::contractionpath::paths::tree_tempering::TreeTempering;
@@ -60,16 +58,6 @@ mod cli;
 mod protocol;
 mod results;
 mod utils;
-
-const ANNEAL_ITERATIONS: TerminationCondition = TerminationCondition::Iterations {
-    n_iter: 300,
-    patience: 100,
-};
-
-const TEMPER_ITERATIONS: TerminationCondition = TerminationCondition::Iterations {
-    n_iter: 300,
-    patience: 100,
-};
 
 /// Reads a circuit from the given qasm file.
 fn read_circuit(file: &str) -> Tensor {
@@ -699,7 +687,7 @@ impl MethodRun for CotengraTempering {
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
         let seed = rng.next_u64();
-        let mut tree = TreeTempering::new(tensor, Some(seed), CostType::Flops, TEMPER_ITERATIONS);
+        let mut tree = TreeTempering::new(tensor, Some(seed), CostType::Flops, Some(300));
         tree.optimize_path();
         let best_path = tree.get_best_replace_path();
 
@@ -732,7 +720,8 @@ impl MethodRun for CotengraAnneal {
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
         let seed = rng.next_u64();
-        let mut tree = TreeAnnealing::new(tensor, Some(seed), CostType::Flops, ANNEAL_ITERATIONS);
+        let mut tree =
+            TreeAnnealing::new(tensor, Some(seed), CostType::Flops, Some(300), Some(100));
         tree.optimize_path();
         let best_path = tree.get_best_replace_path();
 
@@ -764,7 +753,11 @@ impl MethodRun for CotengraHyper {
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
         let seed = rng.next_u64();
-        let mut tree = Hyperoptimizer::new(tensor, CostType::Flops, ANNEAL_ITERATIONS);
+        let mut tree = Hyperoptimizer::new(
+            tensor,
+            CostType::Flops,
+            HyperOptions::new().with_max_repeats(300),
+        );
         tree.optimize_path();
         let best_path = tree.get_best_replace_path();
 

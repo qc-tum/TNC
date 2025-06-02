@@ -44,23 +44,6 @@ pub trait OptModel<'a>: Sync + Send {
     fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> EvalScoreType;
 }
 
-/// Termination condition for the [`SimulatedAnnealingOptimizer`].
-#[derive(Debug, Clone)]
-#[deprecated = "Simulated annealing doesn't support time-based termination anymore."]
-pub enum TerminationCondition {
-    Iterations {
-        /// Number of iterations.
-        n_iter: usize,
-        /// Number of iterations without improvement after which the algorithm should
-        /// terminate.
-        patience: usize,
-    },
-    Time {
-        /// Maximum time allowed for optimization.
-        max_time: std::time::Duration,
-    },
-}
-
 /// Optimizer that implements the simulated annealing algorithm
 #[derive(Clone, Copy)]
 pub struct SimulatedAnnealingOptimizer {

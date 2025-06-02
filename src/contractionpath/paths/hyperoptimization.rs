@@ -1,6 +1,7 @@
 use std::{
     iter::zip,
     process::{Command, Stdio},
+    time::Duration,
 };
 
 use itertools::Itertools;
@@ -9,11 +10,7 @@ use serde::Serialize;
 use serde_pickle::{DeOptions, SerOptions};
 
 use crate::{
-    contractionpath::{
-        contraction_cost::contract_path_cost,
-        contraction_tree::repartitioning::simulated_annealing::TerminationCondition,
-        ssa_replace_ordering,
-    },
+    contractionpath::{contraction_cost::contract_path_cost, ssa_replace_ordering},
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
 };
@@ -24,7 +21,7 @@ use super::{CostType, OptimizePath};
 /// Specifically exposes `subtree_reconfigure` method.
 pub struct Hyperoptimizer<'a> {
     tensor: &'a Tensor,
-    termination_condition: TerminationCondition,
+    hyper_options: HyperOptions,
     best_flops: f64,
     best_size: f64,
     best_path: Vec<ContractionIndex>,
@@ -35,11 +32,7 @@ impl<'a> Hyperoptimizer<'a> {
     /// contraction path in SSA format that is to be optimized. `subtree_size` is the
     /// size of subtrees that is considered (increases the optimization cost
     /// exponentially!).
-    pub fn new(
-        tensor: &'a Tensor,
-        minimize: CostType,
-        termination_condition: TerminationCondition,
-    ) -> Self {
+    pub fn new(tensor: &'a Tensor, minimize: CostType, hyper_options: HyperOptions) -> Self {
         assert_eq!(
             minimize,
             CostType::Flops,
@@ -47,7 +40,7 @@ impl<'a> Hyperoptimizer<'a> {
         );
         Self {
             tensor,
-            termination_condition,
+            hyper_options,
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
             best_path: vec![],
@@ -57,14 +50,31 @@ impl<'a> Hyperoptimizer<'a> {
 
 /// The keyword options for the cotengra Hyperoptimizer. Unassigned options will not
 /// be passed to the function and hence the Python default values will be used.
+/// Please see the cotengra documentation for details on the parameters.
 #[derive(Serialize, Default)]
-struct HyperOptions {
+pub struct HyperOptions {
     max_time: Option<u64>,
     max_repeats: Option<usize>,
 }
 
-/// Runs the Hyperoptimizer of cotengra on the given inputs. An optional time limit
-/// can be given with `max_time`. Returns an SSA contraction path.
+impl HyperOptions {
+    pub fn new() -> Self {
+        HyperOptions::default()
+    }
+
+    pub fn with_max_time(mut self, time: &Duration) -> Self {
+        self.max_time = Some(time.as_secs());
+        self
+    }
+
+    pub fn with_max_repeats(mut self, repeats: usize) -> Self {
+        self.max_repeats = Some(repeats);
+        self
+    }
+}
+
+/// Runs the Hyperoptimizer of cotengra on the given inputs. Additional inputs to the
+/// Hyperoptimizer can be passed with the [`HyperOptions`] struct.
 ///
 /// # Python Dependency
 /// Python 3 must be installed with `cotengra` and `kahypar` packages installed.
@@ -74,18 +84,8 @@ fn python_hyperoptimizer(
     inputs: &[Vec<char>],
     outputs: &[char],
     size_dict: &FxHashMap<char, f32>,
-    termination_condition: &TerminationCondition,
+    hyper_options: &HyperOptions,
 ) -> Vec<(usize, usize)> {
-    let mut options = HyperOptions::default();
-    match termination_condition {
-        TerminationCondition::Iterations { n_iter, .. } => {
-            options.max_repeats = Some(*n_iter);
-        }
-        TerminationCondition::Time { max_time } => {
-            options.max_time = Some(max_time.as_secs());
-        }
-    }
-
     // Spawn python process
     let mut child = Command::new("python3")
         .arg("hyperoptimization.py")
@@ -98,7 +98,7 @@ fn python_hyperoptimizer(
     // Send serialized data
     serde_pickle::to_writer(
         &mut stdin,
-        &(inputs, outputs, size_dict, &options),
+        &(inputs, outputs, size_dict, hyper_options),
         SerOptions::default(),
     )
     .unwrap();
@@ -139,8 +139,7 @@ impl OptimizePath for Hyperoptimizer<'_> {
         let (inputs, outputs, size_dict) =
             tensor_legs_to_digit(&self.tensor.tensors(), &self.tensor.external_tensor());
 
-        let ssa_path =
-            python_hyperoptimizer(&inputs, &outputs, &size_dict, &self.termination_condition);
+        let ssa_path = python_hyperoptimizer(&inputs, &outputs, &size_dict, &self.hyper_options);
 
         self.best_path = ssa_path
             .iter()
@@ -175,10 +174,7 @@ impl OptimizePath for Hyperoptimizer<'_> {
 mod tests {
     use super::*;
     use crate::{
-        contractionpath::{
-            contraction_tree::repartitioning::simulated_annealing::TerminationCondition,
-            paths::{CostType, OptimizePath},
-        },
+        contractionpath::paths::{CostType, OptimizePath},
         path,
         tensornetwork::tensor::Tensor,
     };
@@ -226,9 +222,7 @@ mod tests {
         let mut opt = Hyperoptimizer::new(
             &tn,
             CostType::Flops,
-            TerminationCondition::Time {
-                max_time: Duration::from_secs(25),
-            },
+            HyperOptions::new().with_max_time(&Duration::from_secs(25)),
         );
         opt.optimize_path();
 
@@ -244,9 +238,7 @@ mod tests {
         let mut opt = Hyperoptimizer::new(
             &tn,
             CostType::Flops,
-            TerminationCondition::Time {
-                max_time: Duration::from_secs(45),
-            },
+            HyperOptions::new().with_max_time(&Duration::from_secs(45)),
         );
         opt.optimize_path();
 
