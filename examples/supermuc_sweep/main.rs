@@ -130,7 +130,7 @@ fn main() {
 
     // Define the methods to run
     let methods: Vec<Rc<dyn MethodRun>> = vec![
-        Rc::new(InitialProblem),
+        Rc::new(Generic),
         // Rc::new(GreedyBalance {
         //     iterations: 40,
         //     balancing_scheme: BalancingScheme::AlternatingIntermediateTensors { height_limit: 8 },
@@ -429,8 +429,8 @@ trait MethodRun {
 }
 
 #[derive(Debug, Clone)]
-struct InitialProblem;
-impl MethodRun for InitialProblem {
+struct Generic;
+impl MethodRun for Generic {
     fn name(&self) -> String {
         "Generic".into()
     }
