@@ -24,6 +24,10 @@ use crate::{
 type ScoreType = NotNan<f64>;
 type EvalScoreType = (NotNan<f64>, NotNan<f64>);
 
+/// Number of threads to use for processing candidate solutions in parallel. This is
+/// a constant (and not hardware-aware) for reproducibility.
+const PROCESSING_THREADS: usize = 48;
+
 /// OptModel is a trait that defines requirements to be used with optimization algorithm
 pub trait OptModel<'a>: Sync + Send {
     /// Type of the Solution
@@ -62,8 +66,10 @@ pub enum TerminationCondition {
 pub struct SimulatedAnnealingOptimizer {
     /// Number of candidate solutions to generate and evaluate in each iteration.
     n_trials: usize,
-    /// Number of iterations.
+    /// Number of temperature iterations.
     n_iter: usize,
+    /// Number of steps to take in each temperature iteration.
+    n_steps: usize,
     /// Number of iterations without improvement after which the algorithm should
     /// restart from the best solution found so far.
     restart_iter: usize,
@@ -122,6 +128,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         let mut best_solution = current_solution.clone();
         let mut best_score = current_score;
         let mut last_improvement = 0;
+        let steps_per_thread = self.n_steps.div_ceil(self.n_trials);
 
         let mut rngs = (0..self.n_trials)
             .map(|_| StdRng::seed_from_u64(rng.gen()))
@@ -139,7 +146,7 @@ impl<'a> SimulatedAnnealingOptimizer {
                 .map(|(index, rng)| {
                     let mut trial_score = current_score;
                     let mut trial_solution = current_solution.clone();
-                    for _ in 0..10 {
+                    for _ in 0..steps_per_thread {
                         let solution = model.generate_trial_solution(trial_solution.clone(), rng);
                         let (score, _) = model.evaluate(&solution, rng);
 
@@ -512,10 +519,11 @@ where
     M: OptModel<'a>,
 {
     let optimizer = SimulatedAnnealingOptimizer {
-        n_trials: 48,
+        n_trials: PROCESSING_THREADS,
         n_iter: 100,
-        restart_iter: 200,
-        patience: 500,
+        n_steps: PROCESSING_THREADS * 10,
+        restart_iter: 50,
+        patience: 100,
         initial_temperature: 2.0,
         final_temperature: 0.05,
     };
