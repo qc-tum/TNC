@@ -27,7 +27,6 @@ use tensorcontraction::contractionpath::contraction_cost::{
 use tensorcontraction::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
 };
-use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::Metric;
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::{
     IntermediatePartitioningModel, LeafPartitioningModel, NaivePartitioningModel,
 };
@@ -143,7 +142,7 @@ fn main() {
         //     iterations: 40,
         //     balancing_scheme: BalancingScheme::AlternatingTreeTensors { height_limit: 8 },
         // }),
-        Rc::new(Sa),
+        // Rc::new(Sa),
         // Rc::new(Sad),
         Rc::new(Iad),
         //Rc::new(Cotengra::default()),
@@ -488,7 +487,6 @@ impl MethodRun for Sa {
                 num_partitions: num_partitions as _,
                 communication_scheme,
                 memory_limit: None,
-                metric: Metric::ParallelWithTieBreaking,
             },
             initial_partitioning.to_vec(),
             rng,
@@ -544,7 +542,6 @@ impl MethodRun for Iad {
                 tensor,
                 communication_scheme,
                 memory_limit: None,
-                metric: Metric::ParallelWithTieBreaking,
             },
             (
                 initial_partitioning.to_vec(),
@@ -591,7 +588,6 @@ impl MethodRun for Sad {
                 tensor,
                 communication_scheme,
                 memory_limit: None,
-                metric: Metric::ParallelWithTieBreaking,
             },
             (initial_partitioning.to_vec(), intermediate_tensors),
             rng,

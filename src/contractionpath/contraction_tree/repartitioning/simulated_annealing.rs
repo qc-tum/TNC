@@ -22,7 +22,6 @@ use crate::{
 };
 
 type ScoreType = NotNan<f64>;
-type EvalScoreType = (NotNan<f64>, NotNan<f64>);
 
 /// Number of threads to use for processing candidate solutions in parallel. This is
 /// a constant (and not hardware-aware) for reproducibility.
@@ -41,7 +40,7 @@ pub trait OptModel<'a>: Sync + Send {
     ) -> Self::SolutionType;
 
     /// Evaluate the score of the solution
-    fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> EvalScoreType;
+    fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType;
 }
 
 /// Optimizer that implements the simulated annealing algorithm
@@ -106,7 +105,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         M: OptModel<'a>,
         R: Rng,
     {
-        let mut current_score = model.evaluate(&initial_solution, rng).0;
+        let mut current_score = model.evaluate(&initial_solution, rng);
         let mut current_solution = initial_solution;
         let mut best_solution = current_solution.clone();
         let mut best_score = current_score;
@@ -131,7 +130,7 @@ impl<'a> SimulatedAnnealingOptimizer {
                     let mut trial_solution = current_solution.clone();
                     for _ in 0..steps_per_thread {
                         let solution = model.generate_trial_solution(trial_solution.clone(), rng);
-                        let (score, _) = model.evaluate(&solution, rng);
+                        let score = model.evaluate(&solution, rng);
 
                         let diff = (score / trial_score).log2();
                         let acceptance_probability = (-diff / temperature).exp();
@@ -181,7 +180,6 @@ pub struct NaivePartitioningModel<'a> {
     pub num_partitions: usize,
     pub communication_scheme: CommunicationScheme,
     pub memory_limit: Option<f64>,
-    pub metric: Metric,
 }
 
 impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
@@ -204,9 +202,9 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
         current_solution
     }
 
-    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> EvalScoreType {
+    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, parallel_cost, sum_cost) = compute_solution(
+        let (partitioned_tn, path, parallel_cost, _) = compute_solution(
             self.tensor,
             partitioning,
             self.communication_scheme,
@@ -220,22 +218,11 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
             contract_size_tensors_exact,
         );
 
-        let cost = match self.metric {
-            Metric::ParallelFlops => (parallel_cost, parallel_cost),
-            Metric::ParallelWithTieBreaking => (parallel_cost, sum_cost),
-            Metric::SumFlops => (sum_cost, sum_cost),
-        };
-
         // If the memory limit is exceeded, return infinity
         if self.memory_limit.is_some_and(|limit| mem > limit) {
-            unsafe {
-                (
-                    NotNan::new_unchecked(f64::INFINITY),
-                    NotNan::new_unchecked(f64::INFINITY),
-                )
-            }
+            unsafe { NotNan::new_unchecked(f64::INFINITY) }
         } else {
-            (NotNan::new(cost.0).unwrap(), NotNan::new(cost.1).unwrap())
+            NotNan::new(parallel_cost).unwrap()
         }
     }
 }
@@ -246,7 +233,6 @@ pub struct LeafPartitioningModel<'a> {
     pub tensor: &'a Tensor,
     pub communication_scheme: CommunicationScheme,
     pub memory_limit: Option<f64>,
-    pub metric: Metric,
 }
 
 impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
@@ -285,9 +271,9 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
         (partitioning, partition_tensors)
     }
 
-    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> EvalScoreType {
+    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, parallel_cost, sum_cost) = compute_solution(
+        let (partitioned_tn, path, parallel_cost, _) = compute_solution(
             self.tensor,
             &partitioning.0,
             self.communication_scheme,
@@ -301,31 +287,13 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
             contract_size_tensors_exact,
         );
 
-        let cost = match self.metric {
-            Metric::ParallelFlops => (parallel_cost, parallel_cost),
-            Metric::ParallelWithTieBreaking => (parallel_cost, sum_cost),
-            Metric::SumFlops => (sum_cost, sum_cost),
-        };
-
         // If the memory limit is exceeded, return infinity
         if self.memory_limit.is_some_and(|limit| mem > limit) {
-            unsafe {
-                (
-                    NotNan::new_unchecked(f64::INFINITY),
-                    NotNan::new_unchecked(f64::INFINITY),
-                )
-            }
+            unsafe { NotNan::new_unchecked(f64::INFINITY) }
         } else {
-            (NotNan::new(cost.0).unwrap(), NotNan::new(cost.1).unwrap())
+            NotNan::new(parallel_cost).unwrap()
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Metric {
-    ParallelFlops,
-    ParallelWithTieBreaking,
-    SumFlops,
 }
 
 /// A simulated annealing model that moves a random intermediate tensor, i.e., a
@@ -335,7 +303,6 @@ pub struct IntermediatePartitioningModel<'a> {
     pub tensor: &'a Tensor,
     pub communication_scheme: CommunicationScheme,
     pub memory_limit: Option<f64>,
-    pub metric: Metric,
 }
 
 impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
@@ -455,9 +422,9 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         (partitioning, partition_tensors, contraction_paths)
     }
 
-    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> EvalScoreType {
+    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, parallel_cost, sum_cost) = compute_solution(
+        let (partitioned_tn, path, parallel_cost, _) = compute_solution(
             self.tensor,
             &partitioning.0,
             self.communication_scheme,
@@ -471,22 +438,11 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             contract_size_tensors_exact,
         );
 
-        let cost = match self.metric {
-            Metric::ParallelFlops => (parallel_cost, parallel_cost),
-            Metric::ParallelWithTieBreaking => (parallel_cost, sum_cost),
-            Metric::SumFlops => (sum_cost, sum_cost),
-        };
-
         // If the memory limit is exceeded, return infinity
         if self.memory_limit.is_some_and(|limit| mem > limit) {
-            unsafe {
-                (
-                    NotNan::new_unchecked(f64::INFINITY),
-                    NotNan::new_unchecked(f64::INFINITY),
-                )
-            }
+            unsafe { NotNan::new_unchecked(f64::INFINITY) }
         } else {
-            (NotNan::new(cost.0).unwrap(), NotNan::new(cost.1).unwrap())
+            NotNan::new(parallel_cost).unwrap()
         }
     }
 }
