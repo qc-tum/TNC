@@ -1,6 +1,7 @@
 use crate::types::ContractionIndex;
 pub mod branchbound;
 pub mod cotengrust;
+pub mod hyperoptimization;
 pub mod tree_annealing;
 pub mod tree_reconfiguration;
 pub mod tree_tempering;

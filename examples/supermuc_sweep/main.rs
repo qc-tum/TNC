@@ -38,6 +38,7 @@ use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
 };
 use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
 use tensorcontraction::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
+use tensorcontraction::contractionpath::paths::hyperoptimization::Hyperoptimizer;
 use tensorcontraction::contractionpath::paths::tree_annealing::TreeAnnealing;
 use tensorcontraction::contractionpath::paths::tree_reconfiguration::TreeReconfigure;
 use tensorcontraction::contractionpath::paths::tree_tempering::TreeTempering;
@@ -814,6 +815,37 @@ impl MethodRun for CotengraAnneal {
             communication_path_cost(tensor.tensors(), &best_path, true, true, None);
         let (sum_flops, _) =
             communication_path_cost(tensor.tensors(), &best_path, true, false, None);
+        (tensor.clone(), best_path, parallel_flops, sum_flops)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct CotengraHyper {
+    last_used_num_partitions: RefCell<i32>,
+}
+impl MethodRun for CotengraHyper {
+    fn name(&self) -> String {
+        "CotengraHyper".into()
+    }
+
+    fn run(
+        &self,
+        tensor: &Tensor,
+        _num_partitions: i32,
+        _initial_partitioning: &[usize],
+        _communication_scheme: CommunicationScheme,
+        rng: &mut StdRng,
+    ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
+        let seed = rng.next_u64();
+        let mut tree = Hyperoptimizer::new(tensor, Some(seed), CostType::Flops, ANNEAL_ITERATIONS);
+        tree.optimize_path();
+        let best_path = tree.get_best_replace_path();
+
+        let (parallel_flops, _) =
+            communication_path_cost(tensor.tensors(), &best_path, true, true, None);
+        let (sum_flops, _) =
+            communication_path_cost(tensor.tensors(), &best_path, true, false, None);
+
         (tensor.clone(), best_path, parallel_flops, sum_flops)
     }
 }
