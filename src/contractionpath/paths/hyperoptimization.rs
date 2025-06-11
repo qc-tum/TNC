@@ -174,41 +174,16 @@ impl OptimizePath for Hyperoptimizer<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Duration;
-
-    use num_complex::Complex64;
-    use rand::{rngs::StdRng, SeedableRng};
-    use rustc_hash::FxHashMap;
-
     use crate::{
         contractionpath::{
             contraction_tree::repartitioning::simulated_annealing::TerminationCondition,
             paths::{CostType, OptimizePath},
         },
-        networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
         path,
-        qasm::qasm_to_tensornetwork::create_tensornetwork,
-        tensornetwork::{tensor::Tensor, tensordata::TensorData},
+        tensornetwork::tensor::Tensor,
     };
-
-    /// Reads a circuit from the given qasm file.
-    fn read_circuit(source: &str) -> Tensor {
-        let (mut tensor, open_legs) = create_tensornetwork(source);
-
-        // Add bras to each open leg
-        for leg in open_legs {
-            let mut bra = Tensor::new_from_const(vec![leg], 2);
-            bra.set_tensor_data(TensorData::new_from_data(
-                &[2],
-                vec![Complex64::ONE, Complex64::ONE],
-                None,
-            ));
-            tensor.push_tensor(bra);
-        }
-
-        // last_values.replace((file.into(), tensor.clone()));
-        tensor
-    }
+    use rustc_hash::FxHashMap;
+    use std::time::Duration;
 
     fn setup_simple() -> Tensor {
         let bond_dims =
@@ -245,80 +220,6 @@ mod tests {
         ])
     }
 
-    fn setup_circuit() -> Tensor {
-        let bond_dims = FxHashMap::from_iter([
-            (0, 2),
-            (1, 2),
-            (2, 2),
-            (3, 2),
-            (4, 2),
-            (5, 2),
-            (6, 2),
-            (7, 2),
-            (8, 2),
-            (9, 2),
-            (10, 2),
-            (11, 2),
-            (12, 2),
-            (13, 2),
-            (14, 2),
-            (15, 2),
-            (16, 2),
-            (17, 2),
-            (18, 2),
-            (19, 2),
-        ]);
-
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![0], &bond_dims),
-            Tensor::new_from_map(vec![1], &bond_dims),
-            Tensor::new_from_map(vec![2], &bond_dims),
-            Tensor::new_from_map(vec![3], &bond_dims),
-            // Tensor::new_from_map(vec![4], &bond_dims),
-            // Tensor::new_from_map(vec![5], &bond_dims),
-            // Tensor::new_from_map(vec![6], &bond_dims),
-            // Tensor::new_from_map(vec![7], &bond_dims),
-            // Tensor::new_from_map(vec![8], &bond_dims),
-            // Tensor::new_from_map(vec![9], &bond_dims),
-            Tensor::new_from_map(vec![10, 0], &bond_dims),
-            Tensor::new_from_map(vec![11, 1], &bond_dims),
-            Tensor::new_from_map(vec![12, 2], &bond_dims),
-            Tensor::new_from_map(vec![13, 3], &bond_dims),
-            // Tensor::new_from_map(vec![14, 4], &bond_dims),
-            // Tensor::new_from_map(vec![15, 5], &bond_dims),
-            // Tensor::new_from_map(vec![16, 6], &bond_dims),
-            // Tensor::new_from_map(vec![17, 7], &bond_dims),
-            // Tensor::new_from_map(vec![18, 8], &bond_dims),
-            // Tensor::new_from_map(vec![19, 9], &bond_dims),
-            Tensor::new_from_map(vec![11], &bond_dims),
-            // Tensor::new_from_map(vec![18], &bond_dims),
-            // Tensor::new_from_map(vec![14], &bond_dims),
-            // Tensor::new_from_map(vec![10], &bond_dims),
-            // Tensor::new_from_map(vec![17], &bond_dims),
-            Tensor::new_from_map(vec![13], &bond_dims),
-            // Tensor::new_from_map(vec![16], &bond_dims),
-            Tensor::new_from_map(vec![12], &bond_dims),
-            // Tensor::new_from_map(vec![15], &bond_dims),
-        ])
-    }
-
-    fn setup_large() -> Tensor {
-        let mut rng = StdRng::seed_from_u64(23);
-        let qubits = 15;
-        let depth = 40;
-        let single_qubit_probability = 0.4;
-        let two_qubit_probability = 0.4;
-        let connectivity = ConnectivityLayout::Osprey;
-        random_circuit(
-            qubits,
-            depth,
-            single_qubit_probability,
-            two_qubit_probability,
-            &mut rng,
-            connectivity,
-        )
-    }
-
     #[test]
     fn test_hyper_tree_contract_order_simple() {
         let tn = setup_simple();
@@ -338,46 +239,8 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "HyperOptimizer is not deterministic"]
     fn test_hyper_tree_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = Hyperoptimizer::new(
-            &tn,
-            CostType::Flops,
-            TerminationCondition::Time {
-                max_time: Duration::from_secs(45),
-            },
-        );
-        opt.optimize_path();
-
-        assert_eq!(opt.best_flops, 529815.);
-        assert_eq!(opt.best_size, 89478.);
-        assert_eq!(opt.best_path, path![(1, 5), (0, 6), (2, 7), (3, 4), (8, 9)]);
-        assert_eq!(
-            opt.get_best_replace_path(),
-            path![(1, 5), (0, 1), (2, 0), (3, 4), (2, 3)]
-        );
-    }
-
-    #[test]
-    #[ignore = "HyperOptimizer is not deterministic"]
-    fn test_hyper_tree_contract_order_circuit() {
-        let circuit = r###"OPENQASM 2.0;
-include "qelib1.inc";
-qreg eval[9];
-qreg q[1];
-creg meas[10];
-u2(0,-pi) eval[0];
-u2(0,-pi) eval[1];
-u2(0,-pi) eval[2];
-u2(0,-pi) eval[3];
-u2(0,-pi) eval[4];
-u2(0,-pi) eval[5];
-u2(0,-pi) eval[6];
-u2(0,-pi) eval[7];
-u2(0,-pi) eval[8];
-u(237.38757580841272,0,0) q[0];"###;
-        let tn = read_circuit(circuit);
         let mut opt = Hyperoptimizer::new(
             &tn,
             CostType::Flops,
