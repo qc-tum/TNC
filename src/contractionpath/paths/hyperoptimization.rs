@@ -1,8 +1,10 @@
-use std::process::{Command, Stdio};
+use std::{
+    iter::zip,
+    process::{Command, Stdio},
+};
 
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
-use rustengra::tensor_legs_to_digit;
 use serde::Serialize;
 use serde_pickle::{DeOptions, SerOptions};
 
@@ -69,9 +71,9 @@ struct HyperOptions {
 /// Can also work with virtual environments if the binary is run from a terminal with
 /// actived virtual environment.
 fn python_hyperoptimizer(
-    inputs: &[Vec<String>],
-    outputs: &[String],
-    size_dict: &FxHashMap<String, u64>,
+    inputs: &[Vec<char>],
+    outputs: &[char],
+    size_dict: &FxHashMap<char, f32>,
     termination_condition: &TerminationCondition,
 ) -> Vec<(usize, usize)> {
     let mut options = HyperOptions::default();
@@ -109,28 +111,33 @@ fn python_hyperoptimizer(
     ssa_path
 }
 
+/// Converts tensor leg inputs to chars. Creates new inputs, outputs and size_dict that can be fed to Cotengra.
+fn tensor_legs_to_digit(
+    inputs: &[Tensor],
+    output: &Tensor,
+) -> (Vec<Vec<char>>, Vec<char>, FxHashMap<char, f32>) {
+    fn leg_to_char(leg: usize) -> char {
+        char::from_u32(leg.try_into().unwrap()).unwrap()
+    }
+    let mut new_inputs = vec![Vec::new(); inputs.len()];
+    let new_output = output.legs().iter().copied().map(leg_to_char).collect();
+    let mut new_size_dict = FxHashMap::default();
+
+    for (tensor, labels) in zip(inputs, new_inputs.iter_mut()) {
+        labels.reserve_exact(tensor.legs().len());
+        for (leg, dim) in tensor.edges() {
+            let character = leg_to_char(*leg);
+            labels.push(character);
+            new_size_dict.insert(character, *dim as f32);
+        }
+    }
+    (new_inputs, new_output, new_size_dict)
+}
+
 impl OptimizePath for Hyperoptimizer<'_> {
     fn optimize_path(&mut self) {
-        // Map tensors to legs
-        let inputs = self
-            .tensor
-            .tensors()
-            .iter()
-            .map(|tensor| tensor.legs().clone())
-            .collect_vec();
-
-        let outputs = self.tensor.external_tensor();
-
-        let size_dict = self.tensor.tensors().iter().map(|t| t.edges()).fold(
-            FxHashMap::default(),
-            |mut acc, edges| {
-                acc.extend(edges);
-                acc
-            },
-        );
-
         let (inputs, outputs, size_dict) =
-            tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
+            tensor_legs_to_digit(&self.tensor.tensors(), &self.tensor.external_tensor());
 
         let ssa_path =
             python_hyperoptimizer(&inputs, &outputs, &size_dict, &self.termination_condition);
@@ -350,111 +357,6 @@ mod tests {
             opt.get_best_replace_path(),
             path![(1, 5), (0, 1), (2, 0), (3, 4), (2, 3)]
         );
-    }
-
-    #[test]
-    #[ignore = "HyperOptimizer is not deterministic"]
-    fn test_hyper_tree_custom_circuit() {
-        let inputs = [
-            vec![String::from("0")],
-            vec![String::from("1")],
-            vec![String::from("2")],
-            vec![String::from("3")],
-            vec![String::from("4")],
-            vec![String::from("5")],
-            vec![String::from("6")],
-            vec![String::from("7")],
-            vec![String::from("8")],
-            vec![String::from("9")],
-            vec![String::from("10"), String::from("0")],
-            vec![String::from("11"), String::from("1")],
-            vec![String::from("12"), String::from("2")],
-            vec![String::from("13"), String::from("3")],
-            vec![String::from("14"), String::from("4")],
-            vec![String::from("15"), String::from("5")],
-            vec![String::from("16"), String::from("6")],
-            vec![String::from("17"), String::from("7")],
-            vec![String::from("18"), String::from("8")],
-            vec![String::from("19"), String::from("9")],
-            vec![String::from("11")],
-            vec![String::from("18")],
-            vec![String::from("14")],
-            vec![String::from("10")],
-            vec![String::from("17")],
-            vec![String::from("13")],
-            vec![String::from("16")],
-            vec![String::from("12")],
-            vec![String::from("19")],
-            vec![String::from("15")],
-        ];
-        let outputs = vec![];
-
-        let size_dict = FxHashMap::from_iter([
-            (String::from("0"), 2),
-            (String::from("1"), 2),
-            (String::from("2"), 2),
-            (String::from("3"), 2),
-            (String::from("4"), 2),
-            (String::from("5"), 2),
-            (String::from("6"), 2),
-            (String::from("7"), 2),
-            (String::from("8"), 2),
-            (String::from("9"), 2),
-            (String::from("10"), 2),
-            (String::from("11"), 2),
-            (String::from("12"), 2),
-            (String::from("13"), 2),
-            (String::from("14"), 2),
-            (String::from("15"), 2),
-            (String::from("16"), 2),
-            (String::from("17"), 2),
-            (String::from("18"), 2),
-            (String::from("19"), 2),
-        ]);
-        let ssa_path = python_hyperoptimizer(
-            &inputs,
-            &outputs,
-            &size_dict,
-            &TerminationCondition::Iterations {
-                n_iter: 10,
-                patience: 0,
-            },
-        );
-
-        assert_eq!(
-            ssa_path,
-            vec![
-                (0, 10),
-                (23, 0),
-                (2, 12),
-                (27, 2),
-                (23, 27),
-                (8, 18),
-                (21, 8),
-                (23, 21),
-                (3, 13),
-                (25, 3),
-                (6, 16),
-                (26, 6),
-                (25, 26),
-                (23, 25),
-                (1, 11),
-                (20, 1),
-                (4, 14),
-                (22, 4),
-                (20, 22),
-                (9, 19),
-                (28, 9),
-                (20, 28),
-                (5, 15),
-                (29, 5),
-                (7, 17),
-                (24, 7),
-                (29, 24),
-                (20, 29),
-                (23, 20)
-            ]
-        )
     }
 
     #[test]
