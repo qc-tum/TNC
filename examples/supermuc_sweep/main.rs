@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::fs::{self};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -33,11 +32,9 @@ use tensorcontraction::contractionpath::contraction_tree::repartitioning::simula
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
     compute_solution, simulated_annealing,
 };
-use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
 use tensorcontraction::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use tensorcontraction::contractionpath::paths::hyperoptimization::{HyperOptions, Hyperoptimizer};
 use tensorcontraction::contractionpath::paths::tree_annealing::TreeAnnealing;
-use tensorcontraction::contractionpath::paths::tree_reconfiguration::TreeReconfigure;
 use tensorcontraction::contractionpath::paths::tree_tempering::TreeTempering;
 use tensorcontraction::contractionpath::paths::{CostType, OptimizePath};
 use tensorcontraction::mpi::communication::{

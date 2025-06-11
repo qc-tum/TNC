@@ -17,8 +17,8 @@ use crate::{
 
 use super::{CostType, OptimizePath};
 
-/// Creates an interface to `rustengra` an interface to access `Cotengra` methods in rust.
-/// Specifically exposes `subtree_reconfigure` method.
+/// Creates an interface to access `Cotengra` methods in Rust. Specifically exposes
+/// `search` method of `HyperOptimizer`.
 pub struct Hyperoptimizer<'a> {
     tensor: &'a Tensor,
     hyper_options: HyperOptions,
@@ -28,10 +28,6 @@ pub struct Hyperoptimizer<'a> {
 }
 
 impl<'a> Hyperoptimizer<'a> {
-    /// Creates a new [`TreeReconfigure`] instance. The `initial_path` is an initial
-    /// contraction path in SSA format that is to be optimized. `subtree_size` is the
-    /// size of subtrees that is considered (increases the optimization cost
-    /// exponentially!).
     pub fn new(tensor: &'a Tensor, minimize: CostType, hyper_options: HyperOptions) -> Self {
         assert_eq!(
             minimize,
@@ -106,9 +102,8 @@ fn python_hyperoptimizer(
     // Wait for completion
     let out = child.wait_with_output().unwrap();
 
-    // Get output
-    let ssa_path = serde_pickle::from_slice(&out.stdout, DeOptions::default()).unwrap();
-    ssa_path
+    // Deserialize SSA path
+    serde_pickle::from_slice(&out.stdout, DeOptions::default()).unwrap()
 }
 
 /// Converts tensor leg inputs to chars. Creates new inputs, outputs and size_dict that can be fed to Cotengra.
@@ -137,7 +132,7 @@ fn tensor_legs_to_digit(
 impl OptimizePath for Hyperoptimizer<'_> {
     fn optimize_path(&mut self) {
         let (inputs, outputs, size_dict) =
-            tensor_legs_to_digit(&self.tensor.tensors(), &self.tensor.external_tensor());
+            tensor_legs_to_digit(self.tensor.tensors(), &self.tensor.external_tensor());
 
         let ssa_path = python_hyperoptimizer(&inputs, &outputs, &size_dict, &self.hyper_options);
 

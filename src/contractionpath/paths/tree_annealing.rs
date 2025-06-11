@@ -10,8 +10,8 @@ use crate::{
 
 use super::{CostType, OptimizePath};
 
-/// Creates an interface to `rustengra` an interface to access `Cotengra` methods in rust.
-/// Specifically exposes `subtree_reconfigure` method.
+/// Creates an interface to `rustengra` an interface to access `Cotengra` methods in
+/// Rust. Specifically exposes `simulated_anneal_tree` method.
 pub struct TreeAnnealing<'a> {
     tensor: &'a Tensor,
     temperature_steps: Option<usize>,
@@ -23,10 +23,6 @@ pub struct TreeAnnealing<'a> {
 }
 
 impl<'a> TreeAnnealing<'a> {
-    /// Creates a new [`TreeReconfigure`] instance. The `initial_path` is an initial
-    /// contraction path in SSA format that is to be optimized. `subtree_size` is the
-    /// size of subtrees that is considered (increases the optimization cost
-    /// exponentially!).
     pub fn new(
         tensor: &'a Tensor,
         seed: Option<u64>,

@@ -12,8 +12,8 @@ use crate::{
 
 use super::{CostType, OptimizePath};
 
-/// Creates an interface to `rustengra` an interface to access `Cotengra` methods in rust.
-/// Specifically exposes `subtree_reconfigure` method.
+/// Creates an interface to `rustengra` an interface to access `Cotengra` methods in
+/// Rust. Specifically exposes `parallel_temper_tree` method.
 pub struct TreeTempering<'a> {
     tensor: &'a Tensor,
     numiter: Option<usize>,
@@ -24,10 +24,6 @@ pub struct TreeTempering<'a> {
 }
 
 impl<'a> TreeTempering<'a> {
-    /// Creates a new [`TreeReconfigure`] instance. The `initial_path` is an initial
-    /// contraction path in SSA format that is to be optimized. `subtree_size` is the
-    /// size of subtrees that is considered (increases the optimization cost
-    /// exponentially!).
     pub fn new(
         tensor: &'a Tensor,
         seed: Option<u64>,
