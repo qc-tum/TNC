@@ -837,7 +837,7 @@ impl MethodRun for CotengraHyper {
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
         let seed = rng.next_u64();
-        let mut tree = Hyperoptimizer::new(tensor, Some(seed), CostType::Flops, ANNEAL_ITERATIONS);
+        let mut tree = Hyperoptimizer::new(tensor, CostType::Flops, ANNEAL_ITERATIONS);
         tree.optimize_path();
         let best_path = tree.get_best_replace_path();
 

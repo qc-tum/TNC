@@ -32,6 +32,7 @@ rayon = "1.10.0"
 ordered-float = "4.5.0"
 rustengra = { git = "ssh://gitlab.lrz.de/quantum-research/tensornetworksimulation/rustengra" }
 cotengrust = { git = "https://github.com/Ectras/cotengrust.git", branch = "rust_extension" }
+serde-pickle = "1.2.0"
 
 [dev-dependencies]
 criterion = "0.5.1"
