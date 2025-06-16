@@ -14,7 +14,6 @@ use log::info;
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use num_complex::Complex64;
-use ordered_float::NotNan;
 use protocol::Protocol;
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
@@ -27,7 +26,8 @@ use tensorcontraction::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
 };
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::{
-    IntermediatePartitioningModel, LeafPartitioningModel, NaivePartitioningModel,
+    IntermediatePartitioningModel, LeafPartitioningModel, NaiveIntermediatePartitioningModel,
+    NaivePartitioningModel,
 };
 use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
     compute_solution, simulated_annealing,
@@ -139,8 +139,9 @@ fn main() {
         //     iterations: 40,
         //     balancing_scheme: BalancingScheme::AlternatingTreeTensors { height_limit: 8 },
         // }),
-        // Rc::new(Sa),
-        // Rc::new(Sad),
+        Rc::new(Sa),
+        Rc::new(Ia),
+        Rc::new(Sad),
         Rc::new(Iad),
         //Rc::new(Cotengra::default()),
         //Rc::new(CotengraAnneal::default()),
@@ -467,7 +468,7 @@ impl MethodRun for Generic {
 struct Sa;
 impl MethodRun for Sa {
     fn name(&self) -> String {
-        "SAchains".into()
+        "SA".into()
     }
 
     fn run(
@@ -478,7 +479,7 @@ impl MethodRun for Sa {
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
-        let (partitioning, _): (Vec<usize>, NotNan<f64>) = simulated_annealing::balance_partitions(
+        let (partitioning, _) = simulated_annealing::balance_partitions(
             NaivePartitioningModel {
                 tensor,
                 num_partitions: num_partitions as _,
@@ -501,10 +502,10 @@ impl MethodRun for Sa {
 }
 
 #[derive(Debug, Clone)]
-struct Iad;
-impl MethodRun for Iad {
+struct Ia;
+impl MethodRun for Ia {
     fn name(&self) -> String {
-        "IADchains".into()
+        "IA".into()
     }
 
     fn run(
@@ -515,16 +516,11 @@ impl MethodRun for Iad {
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
-        let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
-        for (index, partition) in initial_partitioning.iter().enumerate() {
-            intermediate_tensors[*partition] ^= tensor.tensor(index);
-        }
-
         let (_, initial_contraction_path, _, _) = compute_solution(
             tensor,
             initial_partitioning,
             communication_scheme,
-            Some(&mut rng.clone()),
+            Some(rng),
         );
 
         let mut initial_contractions = Vec::new();
@@ -535,16 +531,13 @@ impl MethodRun for Iad {
         }
 
         let (solution, _) = simulated_annealing::balance_partitions(
-            IntermediatePartitioningModel {
+            NaiveIntermediatePartitioningModel {
                 tensor,
+                num_partitions: num_partitions as _,
                 communication_scheme,
                 memory_limit: None,
             },
-            (
-                initial_partitioning.to_vec(),
-                intermediate_tensors.to_vec(),
-                initial_contractions,
-            ),
+            (initial_partitioning.to_vec(), initial_contractions),
             rng,
         );
         let (partitioning, ..) = solution;
@@ -603,6 +596,66 @@ impl MethodRun for Sad {
 }
 
 #[derive(Debug, Clone)]
+struct Iad;
+impl MethodRun for Iad {
+    fn name(&self) -> String {
+        "IAD".into()
+    }
+
+    fn run(
+        &self,
+        tensor: &Tensor,
+        num_partitions: i32,
+        initial_partitioning: &[usize],
+        communication_scheme: CommunicationScheme,
+        rng: &mut StdRng,
+    ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
+        let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
+        for (index, partition) in initial_partitioning.iter().enumerate() {
+            intermediate_tensors[*partition] ^= tensor.tensor(index);
+        }
+
+        let (_, initial_contraction_path, _, _) = compute_solution(
+            tensor,
+            initial_partitioning,
+            communication_scheme,
+            Some(rng),
+        );
+
+        let mut initial_contractions = Vec::new();
+        for contraction_path in initial_contraction_path {
+            if let ContractionIndex::Path(_, path) = contraction_path {
+                initial_contractions.push(path);
+            }
+        }
+
+        let (solution, _) = simulated_annealing::balance_partitions(
+            IntermediatePartitioningModel {
+                tensor,
+                communication_scheme,
+                memory_limit: None,
+            },
+            (
+                initial_partitioning.to_vec(),
+                intermediate_tensors.to_vec(),
+                initial_contractions,
+            ),
+            rng,
+        );
+        let (partitioning, ..) = solution;
+
+        let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
+            compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
+        (
+            partitioned_tensor,
+            contraction_path,
+            parallel_flops,
+            sum_flops,
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
 struct GreedyBalance {
     iterations: usize,
     balancing_scheme: BalancingScheme,
@@ -631,7 +684,7 @@ impl MethodRun for GreedyBalance {
             tensor,
             initial_partitioning,
             communication_scheme,
-            Some(&mut rng.clone()),
+            Some(rng),
         );
 
         let balance_settings = BalanceSettings::new(

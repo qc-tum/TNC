@@ -202,11 +202,140 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
         current_solution
     }
 
-    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
+    fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
+        // Construct the tensor network and contraction path from the partitioning
+        let (partitioned_tn, path, parallel_cost, _) =
+            compute_solution(self.tensor, solution, self.communication_scheme, Some(rng));
+
+        // Compute memory usage
+        let mem = compute_memory_requirements(
+            partitioned_tn.tensors(),
+            &path,
+            contract_size_tensors_exact,
+        );
+
+        // If the memory limit is exceeded, return infinity
+        if self.memory_limit.is_some_and(|limit| mem > limit) {
+            unsafe { NotNan::new_unchecked(f64::INFINITY) }
+        } else {
+            NotNan::new(parallel_cost).unwrap()
+        }
+    }
+}
+
+/// A simulated annealing model that moves a random subtree between random partitions.
+pub struct NaiveIntermediatePartitioningModel<'a> {
+    pub tensor: &'a Tensor,
+    pub num_partitions: usize,
+    pub communication_scheme: CommunicationScheme,
+    pub memory_limit: Option<f64>,
+}
+
+impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
+    type SolutionType = (Vec<usize>, Vec<Vec<ContractionIndex>>);
+
+    fn generate_trial_solution<R: Rng>(
+        &self,
+        current_solution: Self::SolutionType,
+        rng: &mut R,
+    ) -> Self::SolutionType {
+        let (mut partitioning, mut contraction_paths) = current_solution;
+
+        // Select source partition (with more than one tensor)
+        let viable_partitions = contraction_paths
+            .iter()
+            .enumerate()
+            .filter_map(|(contraction_id, contraction)| {
+                if contraction.len() >= 3 {
+                    Some(contraction_id)
+                } else {
+                    None
+                }
+            })
+            .collect_vec();
+
+        if viable_partitions.is_empty() {
+            // No viable partitions, return the current solution
+            return (partitioning, contraction_paths);
+        }
+        let trial = rng.gen_range(0..viable_partitions.len());
+        let source_partition = viable_partitions[trial];
+
+        // Select random tensor contraction in source partition
+        let pair_index = rng.gen_range(0..contraction_paths[source_partition].len() - 1);
+        let ContractionIndex::Pair(i, j) = contraction_paths[source_partition][pair_index] else {
+            panic!("Partitioned contractions should not contain Path elements")
+        };
+        let mut tensor_leaves = FxHashSet::from_iter([i, j]);
+
+        // Gather all tensors that contribute to the selected contraction
+        for contraction in contraction_paths[source_partition]
+            .iter()
+            .take(pair_index)
+            .rev()
+        {
+            let ContractionIndex::Pair(i, j) = contraction else {
+                panic!("Expected pair")
+            };
+            if tensor_leaves.contains(i) {
+                tensor_leaves.insert(*j);
+            }
+        }
+
+        let mut shifted_indices = Vec::with_capacity(tensor_leaves.len());
+        for (partition_tensor_index, (i, _partition)) in partitioning
+            .iter()
+            .enumerate()
+            .filter(|(_, partition)| *partition == &source_partition)
+            .enumerate()
+        {
+            if tensor_leaves.contains(&partition_tensor_index) {
+                shifted_indices.push(i);
+            }
+        }
+
+        // Select random target partition
+        let target_partition = loop {
+            let b = rng.gen_range(0..self.num_partitions);
+            if b != source_partition {
+                break b;
+            }
+        };
+
+        // Change partition
+        for index in shifted_indices {
+            partitioning[index] = target_partition;
+        }
+
+        // Recompute the contraction path for both partitions
+        let mut from_tensor = Tensor::default();
+        let mut to_tensor = Tensor::default();
+        for (partition_index, tensor) in zip(&partitioning, self.tensor.tensors()) {
+            if *partition_index == source_partition {
+                from_tensor.push_tensor(tensor.clone());
+            } else if *partition_index == target_partition {
+                to_tensor.push_tensor(tensor.clone());
+            }
+        }
+
+        let mut from_opt = Cotengrust::new(&from_tensor, OptMethod::Greedy);
+        from_opt.optimize_path();
+        let from_path = from_opt.get_best_replace_path();
+        contraction_paths[source_partition] = from_path;
+
+        let mut to_opt = Cotengrust::new(&to_tensor, OptMethod::Greedy);
+        to_opt.optimize_path();
+        let to_path = to_opt.get_best_replace_path();
+        contraction_paths[target_partition] = to_path;
+
+        (partitioning, contraction_paths)
+    }
+
+    fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
         let (partitioned_tn, path, parallel_cost, _) = compute_solution(
             self.tensor,
-            partitioning,
+            &solution.0,
             self.communication_scheme,
             Some(rng),
         );
@@ -271,11 +400,11 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
         (partitioning, partition_tensors)
     }
 
-    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
+    fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
         let (partitioned_tn, path, parallel_cost, _) = compute_solution(
             self.tensor,
-            &partitioning.0,
+            &solution.0,
             self.communication_scheme,
             Some(rng),
         );
@@ -296,9 +425,8 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
     }
 }
 
-/// A simulated annealing model that moves a random intermediate tensor, i.e., a
-/// random number of tensors from one partition to the partition that maximizes
-/// memory reduction.
+/// A simulated annealing model that moves a random subtree to the partition that
+/// maximizes memory reduction.
 pub struct IntermediatePartitioningModel<'a> {
     pub tensor: &'a Tensor,
     pub communication_scheme: CommunicationScheme,
@@ -422,11 +550,11 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         (partitioning, partition_tensors, contraction_paths)
     }
 
-    fn evaluate<R: Rng>(&self, partitioning: &Self::SolutionType, rng: &mut R) -> ScoreType {
+    fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
         // Construct the tensor network and contraction path from the partitioning
         let (partitioned_tn, path, parallel_cost, _) = compute_solution(
             self.tensor,
-            &partitioning.0,
+            &solution.0,
             self.communication_scheme,
             Some(rng),
         );

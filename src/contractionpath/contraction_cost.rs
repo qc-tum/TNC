@@ -237,6 +237,9 @@ pub fn communication_path_cost(
     } else {
         &vec![0f64; inputs.len()]
     };
+    if inputs.len() == 1 {
+        return (tensor_cost[0], tensor_cost[0]);
+    }
 
     communication_path_custom_cost(
         inputs,
@@ -259,7 +262,7 @@ fn communication_path_custom_cost(
     inputs: &[Tensor],
     contract_path: &[ContractionIndex],
     cost_function: fn(&Tensor, &Tensor) -> f64,
-    only_circital_path: bool,
+    only_critical_path: bool,
     tensor_cost: &[f64],
 ) -> (f64, f64) {
     let mut op_cost = 0f64;
@@ -274,7 +277,7 @@ fn communication_path_custom_cost(
                 let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
                 mem_cost = mem_cost.max(new_mem_cost);
 
-                op_cost = if only_circital_path {
+                op_cost = if only_critical_path {
                     cost_function(&inputs[i], &inputs[j]) + tensor_cost[i].max(tensor_cost[j])
                 } else {
                     cost_function(&inputs[i], &inputs[j]) + tensor_cost[i] + tensor_cost[j]
