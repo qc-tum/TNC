@@ -469,7 +469,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 [[package]]
 name = "cotengrust"
 version = "0.1.4"
-source = "git+https://github.com/Ectras/cotengrust.git?branch=rust_extension#c692485f1b333fa79d58bbe4b8263062b1a7300b"
+source = "git+https://github.com/Ectras/cotengrust.git?branch=rust_extension#a801e673bec2e505729ab3979741491b7e8b9f63"
 dependencies = [
  "bit-set 0.8.0",
  "ordered-float 5.0.0",
