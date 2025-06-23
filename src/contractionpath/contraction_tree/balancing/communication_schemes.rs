@@ -251,7 +251,7 @@ pub fn tensor_bipartition(
 pub(crate) fn random_greedy(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
-    let mut opt = Cotengrust::new(&communication_tensors, OptMethod::RandomGreedy(500));
+    let mut opt = Cotengrust::new(&communication_tensors, OptMethod::RandomGreedy(100));
     opt.optimize_path();
     opt.get_best_replace_path()
 }
