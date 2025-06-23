@@ -1,4 +1,7 @@
-use std::iter::zip;
+use std::{
+    iter::zip,
+    time::{Duration, Instant},
+};
 
 use itertools::Itertools;
 use ordered_float::NotNan;
@@ -48,44 +51,31 @@ pub trait OptModel<'a>: Sync + Send {
 pub struct SimulatedAnnealingOptimizer {
     /// Number of candidate solutions to generate and evaluate in each iteration.
     n_trials: usize,
-    /// Number of temperature iterations.
-    n_iter: usize,
+    /// Total duration to take for the optimization
+    max_time: Duration,
     /// Number of steps to take in each temperature iteration.
     n_steps: usize,
     /// Number of iterations without improvement after which the algorithm should
     /// restart from the best solution found so far.
     restart_iter: usize,
-    /// Number of iterations without improvement after which the algorithm should
-    /// terminate.
-    patience: usize,
     /// The initial temperature to start the annealing process with.
     initial_temperature: f64,
     /// The final temperature to reach at the end of the annealing process.
     final_temperature: f64,
 }
 
-/// Computes the temperatures for simulated annealing with the given number of
-/// iterations. Optionally uses a log scaling for the points.
-fn temperatures(mut start: f64, mut stop: f64, iters: usize, log: bool) -> Vec<f64> {
-    // Take log of inputs
-    if log {
-        start = start.log2();
-        stop = stop.log2();
-    }
-
-    // Get the temperatures
-    let mut temps = if iters == 1 {
-        vec![(start + stop) / 2.0]
+/// Given the `current` log temperature, the final `stop` log temperature and the
+/// number of iterations that are still to be performed, returns the next log
+/// temperature.
+///
+/// This method allows for dynamically adapting to changing number of remaining
+/// iterations during the optimization.
+fn next_temperature(current: f64, stop: f64, iters: u64) -> f64 {
+    if iters == 0 {
+        stop
     } else {
-        let step = (stop - start) / (iters - 1) as f64;
-        (0..iters).map(|i| start + i as f64 * step).collect()
-    };
-
-    // Take power of outputs
-    if log {
-        temps.iter_mut().for_each(|t| *t = 2_f64.powf(*t));
+        current * (stop / current).powf(1.0 / iters as f64)
     }
-    temps
 }
 
 impl<'a> SimulatedAnnealingOptimizer {
@@ -111,16 +101,16 @@ impl<'a> SimulatedAnnealingOptimizer {
         let mut best_score = current_score;
         let mut last_improvement = 0;
         let steps_per_thread = self.n_steps.div_ceil(self.n_trials);
+        let end_time = Instant::now() + self.max_time;
 
+        let mut temperature = self.initial_temperature;
         let mut rngs = (0..self.n_trials)
             .map(|_| StdRng::seed_from_u64(rng.gen()))
             .collect_vec();
-        for temperature in temperatures(
-            self.initial_temperature,
-            self.final_temperature,
-            self.n_iter,
-            true,
-        ) {
+        loop {
+            // Time the iteration
+            let iteration_start = Instant::now();
+
             // Generate and evaluate candidate solutions to find the minimum objective
             let (_, trial_solution, trial_score) = rngs
                 .par_iter_mut()
@@ -158,16 +148,25 @@ impl<'a> SimulatedAnnealingOptimizer {
 
             last_improvement += 1;
 
-            // Check if we should terminate
-            if last_improvement >= self.patience {
-                break;
-            }
-
             // Check if we should restart from the best solution
             if last_improvement == self.restart_iter {
                 current_solution = best_solution.clone();
                 current_score = best_score;
             }
+
+            // Estimate the number of remaining iterations and adapt the temperature
+            let now = Instant::now();
+            if now > end_time {
+                // We've reached the time limit
+                break;
+            }
+            let remaining_time = end_time - now;
+            let iteration_time = iteration_start.elapsed();
+            let remaining_iterations =
+                remaining_time.as_millis_f64() / iteration_time.as_millis_f64();
+            let remaining_iterations = remaining_iterations.ceil() as u64;
+            temperature =
+                next_temperature(temperature, self.final_temperature, remaining_iterations);
         }
 
         (best_solution, best_score)
@@ -580,6 +579,7 @@ pub fn balance_partitions<'a, R, M>(
     model: M,
     initial_solution: M::SolutionType,
     rng: &mut R,
+    max_time: Duration,
 ) -> (M::SolutionType, ScoreType)
 where
     R: Rng,
@@ -587,12 +587,47 @@ where
 {
     let optimizer = SimulatedAnnealingOptimizer {
         n_trials: PROCESSING_THREADS,
-        n_iter: 100,
+        max_time,
         n_steps: PROCESSING_THREADS * 10,
         restart_iter: 50,
-        patience: 100,
         initial_temperature: 2.0,
         final_temperature: 0.05,
     };
     optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, rng)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use float_cmp::assert_approx_eq;
+    use itertools::Itertools;
+
+    #[test]
+    fn test_next_temperature_without_adapting() {
+        let start = 2.0f64;
+        let stop = 0.05f64;
+        let iters = 10;
+
+        // Compute all values at once
+        let log_start = start.log2();
+        let log_stop = stop.log2();
+        let step = (log_stop - log_start) / (iters - 1) as f64;
+        let expected_logvals = (0..iters)
+            .map(|i| 2.0f64.powf(log_start + i as f64 * step))
+            .collect_vec();
+
+        // Compute them step-wise using next_temperature
+        let mut temperature = start;
+        let mut logvals = Vec::new();
+        for remaining in (0..iters).rev() {
+            logvals.push(temperature);
+            temperature = next_temperature(temperature, stop, remaining);
+        }
+
+        // Compare
+        assert_eq!(logvals.len(), expected_logvals.len());
+        for (actual, expected) in std::iter::zip(logvals, expected_logvals) {
+            assert_approx_eq!(f64, actual, expected);
+        }
+    }
 }

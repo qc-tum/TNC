@@ -1,6 +1,7 @@
 #![feature(map_try_insert)]
 #![feature(assert_matches)]
 #![feature(binary_heap_into_iter_sorted)]
+#![feature(duration_millis_float)]
 
 pub mod contractionpath;
 pub mod gates;

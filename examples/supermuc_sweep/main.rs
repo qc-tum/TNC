@@ -55,6 +55,8 @@ mod protocol;
 mod results;
 mod utils;
 
+const TIME_LIMIT: Duration = Duration::from_secs(10 * 60);
+
 /// Reads a circuit from the given qasm file.
 fn read_circuit(file: &str) -> Tensor {
     static LAST_RETURN: Mutex<Option<(String, Tensor)>> = Mutex::new(None);
@@ -490,6 +492,7 @@ impl MethodRun for Sa {
             },
             initial_partitioning.to_vec(),
             rng,
+            TIME_LIMIT,
         );
 
         let (partitioned_tensor, contraction_path, parallel_flops, serial_flops) =
@@ -541,6 +544,7 @@ impl MethodRun for Ia {
             },
             (initial_partitioning.to_vec(), initial_contractions),
             rng,
+            TIME_LIMIT,
         );
         let (partitioning, ..) = solution;
 
@@ -583,6 +587,7 @@ impl MethodRun for Sad {
             },
             (initial_partitioning.to_vec(), intermediate_tensors),
             rng,
+            TIME_LIMIT,
         );
         let (partitioning, ..) = solution;
 
@@ -643,6 +648,7 @@ impl MethodRun for Iad {
                 initial_contractions,
             ),
             rng,
+            TIME_LIMIT,
         );
         let (partitioning, ..) = solution;
 
