@@ -85,7 +85,7 @@ fn python_hyperoptimizer(
     // Python code to be executed (WARNING: command line length limits might silently
     // truncate the code! These are usually around >100,000 characters. Make sure the
     // code is not too long.)
-    const PYTHON_CODE: &'static str =
+    const PYTHON_CODE: &str =
         include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/hyperoptimization.py"));
 
     // Spawn python process
