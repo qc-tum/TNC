@@ -45,3 +45,7 @@ flate2 = "1.1.1"
 [[bench]]
 name = "benchmarks"
 harness = false
+
+[profile.release]
+codegen-units = 1
+lto = true
