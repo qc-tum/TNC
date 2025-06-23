@@ -809,7 +809,9 @@ impl MethodRun for CotengraHyper {
         let mut tree = Hyperoptimizer::new(
             tensor,
             CostType::Flops,
-            HyperOptions::new().with_max_repeats(300),
+            HyperOptions::new()
+                .with_max_time(&TIME_LIMIT)
+                .with_max_repeats(100_000),
         );
         tree.optimize_path();
         let best_path = tree.get_best_replace_path();
