@@ -7,7 +7,6 @@ pub struct OptimizationResult {
     pub file: String,
     pub seed: u64,
     pub partitions: i32,
-    pub actual_partitions: i32,
     pub method: String,
     pub optimization_time: Duration,
     pub serial_flops: f64,

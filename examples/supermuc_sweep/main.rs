@@ -101,6 +101,7 @@ fn main() {
 
     // Set the parameters
     let partition_range = args.partitions;
+    let first_partition_num = partition_range.first().copied().unwrap_or_default();
     let seed_index_range = 0..args.num_seeds;
     assert!(
         args.include.is_empty() || args.exclude.is_empty(),
@@ -159,6 +160,7 @@ fn main() {
     // Run the scenarios
     let past_protocol = protocol.clone();
     for (id, scenario) in scenarios
+        .filter(|scenario| scenario.3.uses_partitions() || scenario.2 == first_partition_num)
         .enumerate()
         .filter(|(i, _)| includes.is_empty() || includes.contains(i))
         .filter(|(i, _)| !excludes.contains(i))
@@ -171,6 +173,10 @@ fn main() {
         let seed = rng.sample_iter(Standard).nth(seed_index).unwrap();
         let file = file.to_str().unwrap();
         info!(file=file, seed, num_partitions, method=method.name(); "Doing run");
+        let num_partitions = method
+            .uses_partitions()
+            .then_some(num_partitions)
+            .unwrap_or(1);
 
         let key = format!(
             "{communication_scheme:?}_{file_hash}_{seed}_{num_partitions}_{}",
@@ -299,7 +305,6 @@ fn do_sweep(
         file: file.into(),
         seed,
         partitions: num_partitions,
-        actual_partitions: method.actual_num_partitions().unwrap_or(num_partitions),
         method: method.name(),
         serial_flops: greedy_flops,
         serial_memory: greedy_memory,
@@ -386,12 +391,9 @@ trait MethodRun {
     /// Returns the name of the method.
     fn name(&self) -> String;
 
-    /// Returns the actual number of partitions used by the method. This is useful
-    /// for methods that dynamically determine the number of partitions.
-    ///
-    /// If the method did not use a different number of partitions, return `None`.
-    fn actual_num_partitions(&self) -> Option<i32> {
-        None
+    /// Returns whether this method works on partitions or not.
+    fn uses_partitions(&self) -> bool {
+        true
     }
 
     /// Runs the method on the given tensor, returning the partitioned tensor, the
@@ -720,8 +722,8 @@ impl MethodRun for CotengraTempering {
         "CotengraTempering".into()
     }
 
-    fn actual_num_partitions(&self) -> Option<i32> {
-        Some(1)
+    fn uses_partitions(&self) -> bool {
+        false
     }
 
     fn run(
@@ -753,8 +755,8 @@ impl MethodRun for CotengraAnneal {
         "CotengraAnneal".into()
     }
 
-    fn actual_num_partitions(&self) -> Option<i32> {
-        Some(1)
+    fn uses_partitions(&self) -> bool {
+        false
     }
 
     fn run(
@@ -786,8 +788,8 @@ impl MethodRun for CotengraHyper {
         "CotengraHyper".into()
     }
 
-    fn actual_num_partitions(&self) -> Option<i32> {
-        Some(1)
+    fn uses_partitions(&self) -> bool {
+        false
     }
 
     fn run(
@@ -796,9 +798,8 @@ impl MethodRun for CotengraHyper {
         _num_partitions: i32,
         _initial_partitioning: &[usize],
         _communication_scheme: CommunicationScheme,
-        rng: &mut StdRng,
+        _rng: &mut StdRng,
     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
-        let seed = rng.next_u64();
         let mut tree = Hyperoptimizer::new(
             tensor,
             CostType::Flops,
