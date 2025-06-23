@@ -3,6 +3,11 @@
 #![feature(binary_heap_into_iter_sorted)]
 #![feature(duration_millis_float)]
 
+extern crate jemallocator;
+
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 pub mod contractionpath;
 pub mod gates;
 pub mod io;
