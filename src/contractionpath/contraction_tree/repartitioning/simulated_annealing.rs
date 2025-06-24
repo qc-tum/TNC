@@ -64,18 +64,12 @@ pub struct SimulatedAnnealingOptimizer {
     final_temperature: f64,
 }
 
-/// Given the `current` log temperature, the final `stop` log temperature and the
-/// number of iterations that are still to be performed, returns the next log
-/// temperature.
+/// Linearly interpolates between two numbers based on parameter `t`.
 ///
-/// This method allows for dynamically adapting to changing number of remaining
-/// iterations during the optimization.
-fn next_temperature(current: f64, stop: f64, iters: u64) -> f64 {
-    if iters == 0 {
-        stop
-    } else {
-        current * (stop / current).powf(1.0 / iters as f64)
-    }
+/// Computes `start + (end - start) * t`.
+#[inline]
+fn linear_interpolation(start: f64, end: f64, t: f64) -> f64 {
+    (end - start).mul_add(t, start)
 }
 
 impl<'a> SimulatedAnnealingOptimizer {
@@ -101,16 +95,16 @@ impl<'a> SimulatedAnnealingOptimizer {
         let mut best_score = current_score;
         let mut last_improvement = 0;
         let steps_per_thread = self.n_steps.div_ceil(self.n_trials);
-        let end_time = Instant::now() + self.max_time;
 
+        let log_start = self.initial_temperature.log2();
+        let log_end = self.final_temperature.log2();
+        let total_seconds = self.max_time.as_secs_f64();
         let mut temperature = self.initial_temperature;
         let mut rngs = (0..self.n_trials)
             .map(|_| StdRng::seed_from_u64(rng.gen()))
             .collect_vec();
+        let end_time = Instant::now() + self.max_time;
         loop {
-            // Time the iteration
-            let iteration_start = Instant::now();
-
             // Generate and evaluate candidate solutions to find the minimum objective
             let (_, trial_solution, trial_score) = rngs
                 .par_iter_mut()
@@ -160,13 +154,9 @@ impl<'a> SimulatedAnnealingOptimizer {
                 // We've reached the time limit
                 break;
             }
-            let remaining_time = end_time - now;
-            let iteration_time = iteration_start.elapsed();
-            let remaining_iterations =
-                remaining_time.as_millis_f64() / iteration_time.as_millis_f64();
-            let remaining_iterations = remaining_iterations.ceil() as u64;
-            temperature =
-                next_temperature(temperature, self.final_temperature, remaining_iterations);
+            let remaining_time = (end_time - now).as_secs_f64();
+            let progress = 1.0 - remaining_time / total_seconds;
+            temperature = 2.0f64.powf(linear_interpolation(log_start, log_end, progress));
         }
 
         (best_solution, best_score)
@@ -594,40 +584,4 @@ where
         final_temperature: 0.05,
     };
     optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, rng)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use float_cmp::assert_approx_eq;
-    use itertools::Itertools;
-
-    #[test]
-    fn test_next_temperature_without_adapting() {
-        let start = 2.0f64;
-        let stop = 0.05f64;
-        let iters = 10;
-
-        // Compute all values at once
-        let log_start = start.log2();
-        let log_stop = stop.log2();
-        let step = (log_stop - log_start) / (iters - 1) as f64;
-        let expected_logvals = (0..iters)
-            .map(|i| 2.0f64.powf(log_start + i as f64 * step))
-            .collect_vec();
-
-        // Compute them step-wise using next_temperature
-        let mut temperature = start;
-        let mut logvals = Vec::new();
-        for remaining in (0..iters).rev() {
-            logvals.push(temperature);
-            temperature = next_temperature(temperature, stop, remaining);
-        }
-
-        // Compare
-        assert_eq!(logvals.len(), expected_logvals.len());
-        for (actual, expected) in std::iter::zip(logvals, expected_logvals) {
-            assert_approx_eq!(f64, actual, expected);
-        }
-    }
 }
