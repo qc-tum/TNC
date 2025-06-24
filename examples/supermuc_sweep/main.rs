@@ -142,13 +142,14 @@ fn main() {
         //     iterations: 40,
         //     balancing_scheme: BalancingScheme::AlternatingTreeTensors { height_limit: 8 },
         // }),
-        Rc::new(Sa),
+        // Rc::new(Sa),
         Rc::new(Ia),
-        Rc::new(Sad),
+        // Rc::new(Sad),
         Rc::new(Iad),
-        //Rc::new(Cotengra::default()),
-        //Rc::new(CotengraAnneal::default()),
-        //Rc::new(CotengraTempering::default()),
+        // Rc::new(Cotengra::default()),
+        // Rc::new(CotengraAnneal::default()),
+        // Rc::new(CotengraTempering::default()),
+        Rc::new(CotengraHyper),
     ];
 
     // Read the circuit directory
