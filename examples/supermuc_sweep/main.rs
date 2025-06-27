@@ -178,11 +178,11 @@ fn main() {
         let rng = StdRng::seed_from_u64(file_hash);
         let seed = rng.sample_iter(Standard).nth(seed_index).unwrap();
         let file = file.to_str().unwrap();
-        info!(file=file, seed, num_partitions, method=method.name(); "Doing run");
         let num_partitions = method
             .uses_partitions()
             .then_some(num_partitions)
             .unwrap_or(1);
+        info!(file=file, seed, num_partitions, method=method.name(); "Doing run");
 
         let key = format!(
             "{communication_scheme:?}_{file_hash}_{seed}_{num_partitions}_{}",
