@@ -155,7 +155,10 @@ fn main() {
     // Read the circuit directory
     let folder = PathBuf::from(circuits_dir);
     let files = fs::read_dir(&folder).unwrap();
-    let files = files.map(|entry| entry.unwrap().path()).collect_vec();
+    let files = files
+        .map(|entry| entry.unwrap().path())
+        .sorted_unstable()
+        .collect_vec();
     let file_range = 0..files.len();
 
     let scenarios = iproduct!(file_range, seed_index_range, partition_range, methods);
