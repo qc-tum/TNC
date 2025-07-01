@@ -336,8 +336,11 @@ fn do_run(
     let (partitioned_tensor, contraction_path) = read_from_cache(cache_dir, key);
 
     // Perform the actual contraction
-    let (final_tensor, time_to_solution) =
-        perform_contraction(&partitioned_tensor, &contraction_path, world);
+    let (final_tensor, time_to_solution) = if num_partitions == 1 {
+        local_contraction(partitioned_tensor, &contraction_path)
+    } else {
+        perform_contraction(&partitioned_tensor, &contraction_path, world)
+    };
 
     // Write the results
     writer.write(RunResult {
@@ -349,6 +352,13 @@ fn do_run(
     });
 
     std::hint::black_box(final_tensor);
+}
+
+fn local_contraction(tensor: Tensor, contraction_path: &[ContractionIndex]) -> (Tensor, Duration) {
+    let t0 = Instant::now();
+    let result = contract_tensor_network(tensor, contraction_path);
+    let duration = t0.elapsed();
+    (result, duration)
 }
 
 fn perform_contraction(
