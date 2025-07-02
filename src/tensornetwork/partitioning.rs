@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 use std::iter::zip;
 
 use super::tensor::Tensor;
-use kahypar_sys::{partition, KaHyParContext};
+use kahypar::{partition, KaHyParContext};
 
 pub mod partition_config;
 

@@ -1,6 +1,6 @@
 use std::{ffi::CString, path::PathBuf};
 
-use kahypar_sys::KaHyParContext;
+use kahypar::KaHyParContext;
 
 static MIN_CUT_CONFIG: &str = include_str!("cut_kKaHyPar_sea20.ini");
 static COMMUNITY_FINDING_CONFIG: &str = include_str!("km1_kKaHyPar_sea20.ini");
