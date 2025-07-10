@@ -113,7 +113,7 @@ fn python_hyperoptimizer(
 }
 
 /// Converts tensor leg inputs to chars. Creates new inputs, outputs and size_dict that can be fed to Cotengra.
-fn tensor_legs_to_digit(
+fn tensor_legs_to_chars(
     inputs: &[Tensor],
     output: &Tensor,
 ) -> (Vec<Vec<char>>, Vec<char>, FxHashMap<char, f32>) {
@@ -138,7 +138,7 @@ fn tensor_legs_to_digit(
 impl OptimizePath for Hyperoptimizer<'_> {
     fn optimize_path(&mut self) {
         let (inputs, outputs, size_dict) =
-            tensor_legs_to_digit(self.tensor.tensors(), &self.tensor.external_tensor());
+            tensor_legs_to_chars(self.tensor.tensors(), &self.tensor.external_tensor());
 
         let ssa_path = python_hyperoptimizer(&inputs, &outputs, &size_dict, &self.hyper_options);
 
