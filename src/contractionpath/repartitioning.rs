@@ -1,6 +1,7 @@
 use crate::{
     contractionpath::{
         contraction_cost::{communication_path_op_costs, contract_path_cost},
+        contraction_tree::balancing::CommunicationScheme,
         paths::{
             cotengrust::{Cotengrust, OptMethod},
             OptimizePath,
@@ -12,8 +13,6 @@ use crate::{
 use itertools::Itertools;
 use rand::Rng;
 use rustc_hash::FxHashMap;
-
-use super::balancing::CommunicationScheme;
 
 pub mod genetic;
 pub mod simulated_annealing;

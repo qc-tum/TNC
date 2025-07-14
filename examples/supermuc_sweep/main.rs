@@ -25,18 +25,16 @@ use tensorcontraction::contractionpath::contraction_cost::{
 use tensorcontraction::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
 };
-use tensorcontraction::contractionpath::contraction_tree::repartitioning::simulated_annealing::{
-    IntermediatePartitioningModel, LeafPartitioningModel, NaiveIntermediatePartitioningModel,
-    NaivePartitioningModel,
-};
-use tensorcontraction::contractionpath::contraction_tree::repartitioning::{
-    compute_solution, simulated_annealing,
-};
 use tensorcontraction::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use tensorcontraction::contractionpath::paths::hyperoptimization::{HyperOptions, Hyperoptimizer};
 use tensorcontraction::contractionpath::paths::tree_annealing::TreeAnnealing;
 use tensorcontraction::contractionpath::paths::tree_tempering::TreeTempering;
 use tensorcontraction::contractionpath::paths::{CostType, OptimizePath};
+use tensorcontraction::contractionpath::repartitioning::simulated_annealing::{
+    IntermediatePartitioningModel, LeafPartitioningModel, NaiveIntermediatePartitioningModel,
+    NaivePartitioningModel,
+};
+use tensorcontraction::contractionpath::repartitioning::{compute_solution, simulated_annealing};
 use tensorcontraction::mpi::communication::{
     broadcast_path, broadcast_serializing, extract_communication_path,
     intermediate_reduce_tensor_network, scatter_tensor_network,

@@ -12,9 +12,8 @@ use rand::rngs::StdRng;
 use crate::{
     contractionpath::{
         contraction_cost::{compute_memory_requirements, contract_size_tensors_exact},
-        contraction_tree::{
-            balancing::communication_schemes::CommunicationScheme, repartitioning::compute_solution,
-        },
+        contraction_tree::balancing::communication_schemes::CommunicationScheme,
+        repartitioning::compute_solution,
     },
     tensornetwork::tensor::Tensor,
 };

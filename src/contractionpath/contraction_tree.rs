@@ -12,7 +12,6 @@ pub mod balancing;
 pub mod export;
 pub mod import;
 mod node;
-pub mod repartitioning;
 mod utils;
 
 /// Struct representing the full contraction path of a given Tensor object
