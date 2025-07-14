@@ -77,7 +77,7 @@ impl CommunicationScheme {
     }
 }
 
-pub(crate) fn greedy(
+fn greedy(
     children_tensors: &[Tensor],
     _latency_map: &FxHashMap<usize, f64>,
 ) -> Vec<ContractionIndex> {
@@ -87,7 +87,7 @@ pub(crate) fn greedy(
     opt.get_best_replace_path()
 }
 
-pub(crate) fn bipartition(
+fn bipartition(
     children_tensors: &[Tensor],
     _latency_map: &FxHashMap<usize, f64>,
 ) -> Vec<ContractionIndex> {
@@ -96,7 +96,7 @@ pub(crate) fn bipartition(
     tensor_bipartition(&children_tensors, imbalance)
 }
 
-pub(crate) fn bipartition_sweep<R>(
+fn bipartition_sweep<R>(
     children_tensors: &[Tensor],
     latency_map: &FxHashMap<usize, f64>,
     rng: &mut R,
@@ -144,7 +144,7 @@ where
 //     }
 // }
 
-pub(crate) fn weighted_branchbound(
+fn weighted_branchbound(
     children_tensors: &[Tensor],
     latency_map: &FxHashMap<usize, f64>,
 ) -> Vec<ContractionIndex> {
@@ -161,7 +161,7 @@ pub(crate) fn weighted_branchbound(
     opt.get_best_replace_path()
 }
 
-pub(crate) fn branchbound(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
+fn branchbound(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
     let latency_map = FxHashMap::from_iter((0..children_tensors.len()).map(|i| (i, 0.0)));
 
@@ -178,7 +178,7 @@ pub(crate) fn branchbound(children_tensors: &[Tensor]) -> Vec<ContractionIndex> 
 
 /// Uses recursive bipartitioning to identify a communication scheme for final tensors
 /// Returns root id of subtree, parallel contraction cost as f64, resultant tensor and prior contraction sequence
-pub fn tensor_bipartition_recursive(
+fn tensor_bipartition_recursive(
     children_tensor: &[(usize, Tensor)],
     imbalance: f64,
 ) -> (usize, Tensor, Vec<ContractionIndex>) {
@@ -240,7 +240,7 @@ pub fn tensor_bipartition_recursive(
 
 /// Repeatedly bipartitions tensor network to obtain communication scheme
 /// Assumes that all tensors contracted do so in parallel
-pub fn tensor_bipartition(
+fn tensor_bipartition(
     children_tensor: &[(usize, Tensor)],
     imbalance: f64,
 ) -> Vec<ContractionIndex> {
@@ -248,7 +248,7 @@ pub fn tensor_bipartition(
     contraction_path
 }
 
-pub(crate) fn random_greedy(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
+fn random_greedy(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
     let mut opt = Cotengrust::new(&communication_tensors, OptMethod::RandomGreedy(100));
