@@ -6,6 +6,7 @@ use crate::{
     utils::traits::{HashMapInsertNew, WithCapacity},
 };
 mod candidates;
+pub mod communication_schemes;
 pub mod contraction_cost;
 pub mod contraction_tree;
 pub mod paths;

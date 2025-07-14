@@ -1,7 +1,7 @@
 use crate::{
     contractionpath::{
+        communication_schemes::CommunicationScheme,
         contraction_cost::{communication_path_op_costs, contract_path_cost},
-        contraction_tree::balancing::CommunicationScheme,
         paths::{
             cotengrust::{Cotengrust, OptMethod},
             OptimizePath,

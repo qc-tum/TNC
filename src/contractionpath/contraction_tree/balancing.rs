@@ -8,6 +8,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
+        communication_schemes::CommunicationScheme,
         contraction_cost::communication_path_op_costs,
         contraction_tree::{
             export::{to_dendogram_format, to_pdf},
@@ -23,10 +24,8 @@ use crate::{
 use super::{export::DendogramSettings, ContractionTree};
 
 mod balancing_schemes;
-pub(crate) mod communication_schemes;
 
 pub use balancing_schemes::BalancingScheme;
-pub use communication_schemes::CommunicationScheme;
 
 #[derive(Debug, Clone, Copy)]
 pub struct BalanceSettings<R>

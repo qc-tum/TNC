@@ -258,15 +258,13 @@ pub(crate) fn random_greedy(children_tensors: &[Tensor]) -> Vec<ContractionIndex
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use itertools::Itertools;
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::{
-            contraction_cost::communication_path_cost,
-            contraction_tree::balancing::communication_schemes,
-        },
-        path,
+        contractionpath::contraction_cost::communication_path_cost, path,
         tensornetwork::tensor::Tensor,
     };
 
@@ -291,7 +289,7 @@ mod tests {
     fn test_greedy_communication() {
         let tensors = setup_simple();
         let latency_map = setup_simple_partition_data();
-        let communication_scheme = communication_schemes::greedy(&tensors, &latency_map);
+        let communication_scheme = greedy(&tensors, &latency_map);
 
         assert_eq!(&communication_scheme, path![(0, 1), (0, 2)]);
         let tensor_costs = (0..tensors.len()).map(|i| latency_map[&i]).collect_vec();
@@ -311,8 +309,7 @@ mod tests {
         let tensors = setup_simple();
         let latency_map = setup_simple_partition_data();
 
-        let communication_scheme =
-            communication_schemes::weighted_branchbound(&tensors, &latency_map);
+        let communication_scheme = weighted_branchbound(&tensors, &latency_map);
 
         assert_eq!(&communication_scheme, path![(1, 0), (2, 1)]);
         // Flop Cost: (1, 0) = 32 , Tensor cost = 40, Total = 72
@@ -337,7 +334,7 @@ mod tests {
         let tensors = setup_simple();
         let latency_map = setup_simple_partition_data();
 
-        let communication_scheme = communication_schemes::bipartition(&tensors, &latency_map);
+        let communication_scheme = bipartition(&tensors, &latency_map);
 
         assert_eq!(&communication_scheme, path![(2, 1), (2, 0)]);
 

@@ -11,8 +11,8 @@ use rustc_hash::FxHashSet;
 
 use crate::{
     contractionpath::{
+        communication_schemes::CommunicationScheme,
         contraction_cost::{compute_memory_requirements, contract_size_tensors_exact},
-        contraction_tree::balancing::communication_schemes::CommunicationScheme,
         paths::{
             cotengrust::{Cotengrust, OptMethod},
             OptimizePath,

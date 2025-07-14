@@ -19,11 +19,12 @@ use rand::distributions::Standard;
 use rand::rngs::StdRng;
 use rand::{Rng, RngCore, SeedableRng};
 use results::{OptimizationResult, RunResult, Writer};
+use tensorcontraction::contractionpath::communication_schemes::CommunicationScheme;
 use tensorcontraction::contractionpath::contraction_cost::{
     communication_path_cost, compute_memory_requirements, contract_size_tensors_exact,
 };
 use tensorcontraction::contractionpath::contraction_tree::balancing::{
-    balance_partitions_iter, BalanceSettings, BalancingScheme, CommunicationScheme,
+    balance_partitions_iter, BalanceSettings, BalancingScheme,
 };
 use tensorcontraction::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use tensorcontraction::contractionpath::paths::hyperoptimization::{HyperOptions, Hyperoptimizer};
