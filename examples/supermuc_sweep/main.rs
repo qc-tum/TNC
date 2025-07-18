@@ -103,7 +103,7 @@ fn main() {
     // Set the parameters
     let partition_range = args.partitions;
     let first_partition_num = partition_range.first().copied().unwrap_or_default();
-    let seed_index_range = 0..args.num_seeds;
+    let seed_indices = args.seed_indices;
     assert!(
         args.include.is_empty() || args.exclude.is_empty(),
         "Can not pass 'include' and 'exclude' parameters at the same time"
@@ -160,7 +160,7 @@ fn main() {
         .collect_vec();
     let file_range = 0..files.len();
 
-    let scenarios = iproduct!(file_range, seed_index_range, partition_range, methods);
+    let scenarios = iproduct!(file_range, seed_indices, partition_range, methods);
 
     // Run the scenarios
     let past_protocol = protocol.clone();
