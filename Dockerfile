@@ -1,6 +1,6 @@
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND="noninteractive" \
-    PATH="/root/.cargo/bin:${PATH}"
+    PATH="/root/.cargo/bin:/root/.venv/bin:${PATH}"
 COPY rust-toolchain.toml .
 RUN apt-get update && \
     # 1. Install dependencies for the toolchain
@@ -12,7 +12,12 @@ RUN apt-get update && \
     rustup show && \
     # 4. Install dependencies for the project
     apt-get install -y clang cmake libboost-all-dev libhdf5-dev libssl-dev pkg-config && \
-    # 5. Clear intermediate files
+    # 5. Set up a python virtual environment
+    apt-get install -y python3.12-venv && \
+    python3 -m venv /root/.venv && \
+    # 6. Install python dependencies
+    pip install cotengra && \
+    # 7. Clear intermediate files
     apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml Cargo.lock tmp/
 ARG SSH_PRIVATE_KEY
