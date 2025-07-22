@@ -166,7 +166,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_tree_contract_order_simple() {
         let tn = setup_simple();
         let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
@@ -181,7 +180,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_tree_contract_order_complex() {
         let tn = setup_complex();
         let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
@@ -199,7 +197,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_tree_large() {
         let tn = setup_large();
         let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
