@@ -4,8 +4,8 @@ use mpi::traits::{Communicator, CommunicatorCollectives};
 use rand::{rngs::StdRng, SeedableRng};
 use rustc_hash::FxHashMap;
 use static_init::dynamic;
+use tensorcontraction::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use tensorcontraction::contractionpath::paths::OptimizePath;
-use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType};
 use tensorcontraction::mpi::communication::{
     broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
     scatter_tensor_network,
@@ -59,7 +59,7 @@ pub fn partitioned_contraction_benchmark(c: &mut Criterion) {
             find_partitioning(&r_tn, 5, PartitioningStrategy::CommunityFinding, true);
         let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
 
-        let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+        let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
         opt.optimize_path();
         let path = opt.get_best_replace_path();
 
@@ -95,7 +95,7 @@ pub fn parallel_partition_benchmark(c: &mut Criterion) {
                 find_partitioning(&r_tn, size, PartitioningStrategy::CommunityFinding, true);
             let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
 
-            let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+            let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
             opt.optimize_path();
             let path = opt.get_best_replace_path();
             (partitioned_tn, path)

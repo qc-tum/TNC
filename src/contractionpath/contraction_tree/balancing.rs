@@ -2,13 +2,14 @@ use core::f64;
 use std::rc::Rc;
 
 use itertools::Itertools;
-use log::info;
+use log::debug;
 use rand::{rngs::StdRng, seq::SliceRandom, Rng};
 use rustc_hash::FxHashMap;
 
 use crate::{
     contractionpath::{
-        contraction_cost::communication_path_cost,
+        communication_schemes::CommunicationScheme,
+        contraction_cost::communication_path_op_costs,
         contraction_tree::{
             export::{to_dendogram_format, to_pdf},
             utils::{characterize_partition, subtree_contraction_path},
@@ -23,15 +24,13 @@ use crate::{
 use super::{export::DendogramSettings, ContractionTree};
 
 mod balancing_schemes;
-pub(crate) mod communication_schemes;
 
 pub use balancing_schemes::BalancingScheme;
-pub use communication_schemes::CommunicationScheme;
 
 #[derive(Debug, Clone, Copy)]
 pub struct BalanceSettings<R>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     /// If not None, randomly chooses from top `usize` options. Random choice is
     /// weighted by objective outcome.
@@ -67,7 +66,7 @@ impl BalanceSettings<StdRng> {
 
 impl<R> BalanceSettings<R>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     pub fn new_random(
         random_balance: Option<(usize, R)>,
@@ -104,9 +103,10 @@ pub fn balance_partitions_iter<R>(
     path: &[ContractionIndex],
     mut balance_settings: BalanceSettings<R>,
     dendogram_settings: Option<&DendogramSettings>,
-) -> (usize, Tensor, Vec<ContractionIndex>, Vec<f64>)
+    rng: &mut R,
+) -> (usize, Tensor, Vec<ContractionIndex>, Vec<(f64, f64)>)
 where
-    R: Sized + Rng,
+    R: Rng + Clone,
 {
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor_network, path);
 
@@ -137,7 +137,7 @@ where
         )
         .collect();
 
-    let (mut best_cost, _) = communication_path_cost(
+    let ((mut best_cost, sum_cost), _) = communication_path_op_costs(
         &partition_tensors,
         &communication_path,
         true,
@@ -145,7 +145,7 @@ where
     );
 
     let mut max_costs = Vec::with_capacity(iterations + 1);
-    max_costs.push(best_cost);
+    max_costs.push((best_cost, sum_cost));
 
     print_dendogram(dendogram_settings, &contraction_tree, tensor_network, 0);
 
@@ -154,7 +154,7 @@ where
     let mut best_tn = tensor_network.clone();
 
     for iteration in 1..=iterations {
-        info!("Balancing iteration {iteration} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
+        debug!("Balancing iteration {iteration} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
 
         // Balances and updates partitions
         let (mut intermediate_path, new_tensor_network) = balance_partitions(
@@ -175,6 +175,7 @@ where
             &mut contraction_tree,
             &new_tensor_network,
             &balance_settings,
+            Some(rng),
         );
 
         let (partition_tensors, partition_costs): (Vec<_>, Vec<_>) = partition_data
@@ -188,7 +189,7 @@ where
             )
             .collect();
 
-        let (flop_cost, mem_cost) = communication_path_cost(
+        let ((flop_cost, sum_cost), mem_cost) = communication_path_op_costs(
             &partition_tensors,
             &communication_path,
             true,
@@ -197,7 +198,7 @@ where
 
         intermediate_path.extend(communication_path);
 
-        max_costs.push(flop_cost);
+        max_costs.push((flop_cost, sum_cost));
         if memory_limit.is_some_and(|limit| mem_cost > limit) {
             break;
         }
@@ -243,9 +244,10 @@ fn communicate_partitions<R>(
     contraction_tree: &mut ContractionTree,
     tensor_network: &Tensor,
     balance_settings: &BalanceSettings<R>,
+    rng: Option<&mut R>,
 ) -> Vec<ContractionIndex>
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     let communication_scheme = balance_settings.communication_scheme;
     let children_tensors = tensor_network
@@ -263,17 +265,8 @@ where
         .iter()
         .map(|partition| partition.id)
         .collect_vec();
-    let communication_path = match communication_scheme {
-        CommunicationScheme::Greedy => {
-            communication_schemes::greedy(&children_tensors, &latency_map)
-        }
-        CommunicationScheme::Bipartition => {
-            communication_schemes::bipartition(&children_tensors, &latency_map)
-        }
-        CommunicationScheme::WeightedBranchBound => {
-            communication_schemes::weighted_branchbound(&children_tensors, &latency_map)
-        }
-    };
+    let communication_path =
+        communication_scheme.communication_path(&children_tensors, &latency_map, rng);
 
     contraction_tree.replace_communication_path(partition_ids, &communication_path);
 
@@ -288,7 +281,7 @@ fn balance_partitions<R>(
     iteration: usize,
 ) -> (Vec<ContractionIndex>, Tensor)
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     let BalanceSettings {
         ref mut random_balance,
@@ -373,6 +366,25 @@ where
                     partition_data,
                     contraction_tree,
                     random_balance,
+                    *objective_function,
+                    tensor_network,
+                    *height_limit,
+                )
+            }
+        }
+        BalancingScheme::AlternatingTreeTensors { height_limit } => {
+            if iteration % 2 == 1 {
+                balancing_schemes::tree_tensors_odd(
+                    partition_data,
+                    contraction_tree,
+                    *objective_function,
+                    tensor_network,
+                    *height_limit,
+                )
+            } else {
+                balancing_schemes::tree_tensors_even(
+                    partition_data,
+                    contraction_tree,
                     *objective_function,
                     tensor_network,
                     *height_limit,
@@ -504,7 +516,7 @@ fn find_rebalance_node<R>(
     objective_function: fn(&Tensor, &Tensor) -> f64,
 ) -> (usize, f64)
 where
-    R: Sized + Rng,
+    R: Rng,
 {
     let node_comparison = larger_subtree_nodes
         .iter()
@@ -705,9 +717,9 @@ mod tests {
         let node5 = child_node(5, vec![5]);
 
         let node6 = parent_node(6, &node1, &node5);
-        let node7 = parent_node(7, &node0, &node6);
+        let node7 = parent_node(7, &node6, &node0);
         let node8 = parent_node(8, &node2, &node4);
-        let node9 = parent_node(9, &node3, &node7);
+        let node9 = parent_node(9, &node7, &node3);
         let node10 = parent_node(10, &node9, &node8);
 
         let ref_root = Rc::clone(&node10);
@@ -738,9 +750,9 @@ mod tests {
         let node5 = child_node(5, vec![5]);
 
         let node6 = parent_node(6, &node1, &node5);
-        let node7 = parent_node(7, &node3, &node2);
-        let node8 = parent_node(8, &node0, &node6);
-        let node9 = parent_node(9, &node7, &node8);
+        let node7 = parent_node(7, &node2, &node3);
+        let node8 = parent_node(8, &node6, &node0);
+        let node9 = parent_node(9, &node8, &node7);
         let node10 = parent_node(10, &node9, &node4);
 
         let ref_root = Rc::clone(&node10);

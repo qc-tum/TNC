@@ -189,7 +189,10 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::paths::{greedy::Greedy, CostType, OptimizePath},
+        contractionpath::paths::{
+            cotengrust::{Cotengrust, OptMethod},
+            OptimizePath,
+        },
         tensornetwork::{
             contraction::contract_tensor_network, tensor::Tensor, tensordata::TensorData,
         },
@@ -208,7 +211,7 @@ mod tests {
         let tensor_network = new_circuit.finalize_ket0();
 
         let tensor = tensor_network.clone();
-        let mut contraction_order = Greedy::new(&tensor, CostType::Flops);
+        let mut contraction_order = Cotengrust::new(&tensor, OptMethod::Greedy);
         contraction_order.optimize_path();
         let path = contraction_order.get_best_replace_path();
 

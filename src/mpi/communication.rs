@@ -60,7 +60,7 @@ pub fn broadcast_path(path: &mut Vec<ContractionIndex>, root: &Process) {
 }
 
 /// Broadcast a value by serializing it and sending it as byte array.
-fn broadcast_serializing<T>(data: T, root: &Process) -> T
+pub fn broadcast_serializing<T>(data: T, root: &Process) -> T
 where
     T: serde::Serialize + serde::de::DeserializeOwned + Clone,
 {

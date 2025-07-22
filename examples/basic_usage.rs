@@ -7,7 +7,8 @@ use rand::SeedableRng;
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
 use tensorcontraction::contractionpath::contraction_tree::export::{to_dendogram_format, to_pdf};
 use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
-use tensorcontraction::contractionpath::paths::{greedy::Greedy, CostType, OptimizePath};
+use tensorcontraction::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
+use tensorcontraction::contractionpath::paths::OptimizePath;
 use tensorcontraction::mpi::communication::{
     broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
     scatter_tensor_network,
@@ -71,11 +72,11 @@ fn main() {
             r_tn
         };
 
-        let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
-
+        let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
         opt.optimize_path();
         let path = opt.get_best_replace_path();
         debug!(path:serde; "Found contraction path");
+
         let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
         let dendogram_entries =
             to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);

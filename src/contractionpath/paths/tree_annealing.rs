@@ -1,8 +1,6 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
-use rustengra::{
-    cotengra_check, cotengra_optimized_greedy, replace_to_ssa_path, tensor_legs_to_digit,
-};
+use rustengra::{cotengra_check, cotengra_sa_tree, replace_to_ssa_path, tensor_legs_to_digit};
 
 use crate::{
     contractionpath::{contraction_cost::contract_path_cost, ssa_replace_ordering},
@@ -13,20 +11,25 @@ use crate::{
 use super::{CostType, OptimizePath};
 
 /// Creates an interface to `rustengra` an interface to access `Cotengra` methods in
-/// Rust. Specifically exposes `subtree_reconfigure` method.
-pub struct TreeReconfigure<'a> {
+/// Rust. Specifically exposes `simulated_anneal_tree` method.
+pub struct TreeAnnealing<'a> {
     tensor: &'a Tensor,
-    subtree_size: usize,
+    temperature_steps: Option<usize>,
+    numiter: Option<usize>,
     best_flops: f64,
     best_size: f64,
     best_path: Vec<ContractionIndex>,
+    seed: Option<u64>,
 }
 
-impl<'a> TreeReconfigure<'a> {
-    /// Creates a new [`TreeReconfigure`] instance. `subtree_size` is the
-    /// size of subtrees that is considered (increases the optimization cost
-    /// exponentially!).
-    pub fn new(tensor: &'a Tensor, subtree_size: usize, minimize: CostType) -> Self {
+impl<'a> TreeAnnealing<'a> {
+    pub fn new(
+        tensor: &'a Tensor,
+        seed: Option<u64>,
+        minimize: CostType,
+        temperature_steps: Option<usize>,
+        numiter: Option<usize>,
+    ) -> Self {
         assert!(cotengra_check().is_ok());
         assert_eq!(
             minimize,
@@ -35,15 +38,17 @@ impl<'a> TreeReconfigure<'a> {
         );
         Self {
             tensor,
-            subtree_size,
+            temperature_steps,
+            numiter,
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
             best_path: vec![],
+            seed,
         }
     }
 }
 
-impl OptimizePath for TreeReconfigure<'_> {
+impl OptimizePath for TreeAnnealing<'_> {
     fn optimize_path(&mut self) {
         // Map tensors to legs
         let inputs = self
@@ -64,8 +69,15 @@ impl OptimizePath for TreeReconfigure<'_> {
         let (inputs, outputs, size_dict) =
             tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
 
-        let replace_path =
-            cotengra_optimized_greedy(&inputs, outputs, size_dict, self.subtree_size).unwrap();
+        let replace_path = cotengra_sa_tree(
+            &inputs,
+            outputs,
+            self.temperature_steps,
+            self.numiter,
+            size_dict,
+            self.seed,
+        )
+        .unwrap();
 
         let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
 
@@ -103,7 +115,7 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::paths::{tree_reconfiguration::TreeReconfigure, CostType, OptimizePath},
+        contractionpath::paths::{tree_annealing::TreeAnnealing, CostType, OptimizePath},
         path,
         tensornetwork::tensor::Tensor,
     };
@@ -144,9 +156,9 @@ mod tests {
     }
 
     #[test]
-    fn test_tree_contract_order_simple() {
+    fn test_anneal_tree_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
+        let mut opt = TreeAnnealing::new(&tn, Some(8), CostType::Flops, Some(100), Some(50));
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 600.);
@@ -156,9 +168,9 @@ mod tests {
     }
 
     #[test]
-    fn test_tree_contract_order_complex() {
+    fn test_anneal_tree_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
+        let mut opt = TreeAnnealing::new(&tn, Some(8), CostType::Flops, Some(100), Some(50));
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 332685.);

@@ -4,7 +4,10 @@ use rustc_hash::FxHashMap;
 use crate::{
     contractionpath::{
         contraction_cost::contract_path_cost,
-        paths::{greedy::Greedy, CostType, OptimizePath},
+        paths::{
+            cotengrust::{Cotengrust, OptMethod},
+            OptimizePath,
+        },
     },
     pair,
     tensornetwork::tensor::Tensor,
@@ -69,7 +72,7 @@ pub(super) fn subtree_contraction_path(
     // Obtain tensor network corresponding to subtree
     let subtree_tensor_network = Tensor::new_composite(tensors);
 
-    let mut opt = Greedy::new(&subtree_tensor_network, CostType::Flops);
+    let mut opt = Cotengrust::new(&subtree_tensor_network, OptMethod::Greedy);
     opt.optimize_path();
 
     let smaller_path_new_index = opt.get_best_replace_path();
@@ -254,12 +257,12 @@ mod tests {
 
         assert_eq!(
             tree_contraction_path,
-            path![(0, 1), (3, 0), (5, 3)].to_vec(),
+            path![(0, 1), (0, 3), (0, 5)].to_vec(),
         );
 
         assert_eq!(
             local_contraction_path,
-            path![(0, 1), (2, 0), (3, 2)].to_vec(),
+            path![(0, 1), (0, 2), (0, 3)].to_vec(),
         );
 
         assert_eq!(flop_cost, 8100.); // 120 + 420 + 7560

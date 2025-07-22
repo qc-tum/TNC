@@ -6,10 +6,11 @@ use crate::{
     utils::traits::{HashMapInsertNew, WithCapacity},
 };
 mod candidates;
+pub mod communication_schemes;
 pub mod contraction_cost;
 pub mod contraction_tree;
 pub mod paths;
-pub mod random_paths;
+pub mod repartitioning;
 
 /// The contraction ordering labels [`Tensor`] objects from each possible contraction with a
 /// unique identifier in SSA format. As only a subset of these [`Tensor`] objects are seen in

@@ -1,15 +1,13 @@
-use rand::Rng;
-use rustc_hash::FxHashMap;
-use std::collections::BinaryHeap;
-
-use crate::contractionpath::candidates::Candidate;
-use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 pub mod branchbound;
 pub mod cotengrust;
-pub mod greedy;
+pub mod hyperoptimization;
+#[cfg(feature = "cotengra")]
+pub mod tree_annealing;
 #[cfg(feature = "cotengra")]
 pub mod tree_reconfiguration;
+#[cfg(feature = "cotengra")]
+pub mod tree_tempering;
 pub mod weighted_branchbound;
 //pub mod parallel_greedy;
 
@@ -56,23 +54,6 @@ pub(crate) fn validate_path(path: &[ContractionIndex]) {
             }
         }
     }
-}
-
-type CostFnType = dyn Fn(f64, f64, f64, &Tensor, &Tensor, &Tensor) -> f64;
-
-/// Define a trait for functions that take an RNG as an argument.
-pub(crate) trait RNGChooser {
-    fn choose<R>(
-        &self,
-        queue: &mut BinaryHeap<Candidate>,
-        remaining_tensors: &FxHashMap<u64, usize>,
-        nbranch: usize,
-        temperature: f64,
-        rel_temperature: bool,
-        rng: &mut R,
-    ) -> Option<Candidate>
-    where
-        R: ?Sized + Rng;
 }
 
 #[cfg(test)]

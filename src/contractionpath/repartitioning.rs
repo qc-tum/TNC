@@ -1,31 +1,38 @@
 use crate::{
     contractionpath::{
-        contraction_cost::{communication_path_cost, contract_path_cost},
-        paths::{greedy::Greedy, CostType, OptimizePath},
+        communication_schemes::CommunicationScheme,
+        contraction_cost::{communication_path_op_costs, contract_path_cost},
+        paths::{
+            cotengrust::{Cotengrust, OptMethod},
+            OptimizePath,
+        },
     },
     tensornetwork::{partitioning::partition_tensor_network, tensor::Tensor},
     types::ContractionIndex,
 };
 use itertools::Itertools;
+use rand::Rng;
 use rustc_hash::FxHashMap;
-
-use super::balancing::{communication_schemes, CommunicationScheme};
 
 pub mod genetic;
 pub mod simulated_annealing;
 
 /// Given a `tensor` and a `partitioning` for it, this constructs the partitioned
 /// tensor and finds a contraction path for it.
-pub fn compute_solution(
+pub fn compute_solution<R>(
     tensor: &Tensor,
     partitioning: &[usize],
     communication_scheme: CommunicationScheme,
-) -> (Tensor, Vec<ContractionIndex>, f64) {
+    rng: Option<&mut R>,
+) -> (Tensor, Vec<ContractionIndex>, f64, f64)
+where
+    R: ?Sized + Rng,
+{
     // Partition the tensor network with the proposed solution
     let partitioned_tn = partition_tensor_network(tensor.clone(), partitioning);
 
     // Find contraction path
-    let mut greedy = Greedy::new(&partitioned_tn, CostType::Flops);
+    let mut greedy = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
     greedy.optimize_path();
     let path = greedy.get_best_replace_path();
 
@@ -48,23 +55,12 @@ pub fn compute_solution(
         .iter()
         .map(Tensor::external_tensor)
         .collect_vec();
-    let mut communication_path = {
-        match communication_scheme {
-            CommunicationScheme::Greedy => {
-                communication_schemes::greedy(&children_tensors, &latency_map)
-            }
-            CommunicationScheme::Bipartition => {
-                communication_schemes::bipartition(&children_tensors, &latency_map)
-            }
-            CommunicationScheme::WeightedBranchBound => {
-                communication_schemes::weighted_branchbound(&children_tensors, &latency_map)
-            }
-        }
-    };
+    let mut communication_path =
+        communication_scheme.communication_path(&children_tensors, &latency_map, rng);
     let tensor_costs = (0..children_tensors.len())
         .map(|i| latency_map[&i])
         .collect_vec();
-    let (communication_cost, _) = communication_path_cost(
+    let ((parallel_cost, sum_cost), _) = communication_path_op_costs(
         &children_tensors,
         &communication_path,
         true,
@@ -74,17 +70,5 @@ pub fn compute_solution(
     // Add the communication path to the local paths
     final_path.append(&mut communication_path);
 
-    (partitioned_tn, final_path, communication_cost)
-}
-
-/// Computes the total cost of contraction the `tensor` when partitioning it using
-/// the `partitioning` list and the `communication_scheme` for finding the
-/// communication path.
-#[inline]
-fn compute_partitioning_cost(
-    tensor: &Tensor,
-    partitioning: &[usize],
-    communication_scheme: CommunicationScheme,
-) -> f64 {
-    compute_solution(tensor, partitioning, communication_scheme).2
+    (partitioned_tn, final_path, parallel_cost, sum_cost)
 }

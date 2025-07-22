@@ -1,3 +1,5 @@
+use rustc_hash::FxHashSet;
+
 use crate::tensornetwork::tensor::Tensor;
 
 use super::{
@@ -11,7 +13,7 @@ use super::{
 /// all qubits are initialized to zero, this method adds a tensor for all initial
 /// states. The tensor network is not closed, i.e. for each wire in the circuit there
 /// is an unbounded leg.
-pub fn create_tensornetwork<S>(code: S) -> Tensor
+pub fn create_tensornetwork<S>(code: S) -> (Tensor, FxHashSet<usize>)
 where
     S: Into<String>,
 {
@@ -112,7 +114,7 @@ mod tests {
         h q[0];
         cx q[0], q[1];
         ";
-        let tn = create_tensornetwork(code);
+        let (tn, _) = create_tensornetwork(code);
 
         let (kets, single_qubit_gates, two_qubit_gates) = get_quantum_tensors(&tn);
         let [k0, k1] = kets.as_slice() else { panic!() };
@@ -162,7 +164,7 @@ mod tests {
         h q[0];
         cx q[0], q[1];
         ";
-        let tn = create_tensornetwork(code);
+        let (tn, _) = create_tensornetwork(code);
         let opt_path = (1..tn.tensors().len())
             .map(|tid| ContractionIndex::Pair(0, tid))
             .collect_vec();
@@ -198,7 +200,7 @@ mod tests {
         x q[0];
         myswap q[1], q[0];
         ";
-        let tn = create_tensornetwork(code);
+        let (tn, _) = create_tensornetwork(code);
         let opt_path = (1..tn.tensors().len())
             .map(|tid| ContractionIndex::Pair(0, tid))
             .collect_vec();

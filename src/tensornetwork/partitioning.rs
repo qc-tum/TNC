@@ -99,6 +99,7 @@ pub fn find_partitioning(
 pub fn communication_partitioning(
     tensors: &[(usize, Tensor)],
     k: i32,
+    imbalance: f64,
     partitioning_strategy: PartitioningStrategy,
     min: bool,
 ) -> Vec<usize> {
@@ -109,33 +110,32 @@ pub fn communication_partitioning(
 
     let x = if min { 1 } else { -1 };
 
-    let imbalance = 0.03;
     let mut objective = 0;
     let mut hyperedge_weights = vec![];
 
     let mut hyperedge_indices = vec![0];
     let mut hyperedges = vec![];
+
     // Bidirectional mapping to a new index as KaHyPar indexes from 0.
     // let mut edge_to_virtual_edge = FxHashMap::default();
     // New index that starts from 0
     // let mut edge_count = 0;
-
     let mut edge_dict = FxHashMap::default();
-    for (tensor_id, tensor) in tensors {
+    for (tensor_id, (_, tensor)) in tensors.iter().enumerate() {
         for (leg, dim) in tensor.edges() {
             edge_dict
                 .entry(leg)
                 .and_modify(|entry| {
                     hyperedges.push(*entry as u32);
-                    hyperedges.push(*tensor_id as u32);
+                    hyperedges.push(tensor_id as u32);
                     hyperedge_indices.push(hyperedge_indices.last().unwrap() + 2);
                     // Use log weights, because KaHyPar minimizes the sum of weights while we need the product.
                     // Since it accepts only integer weights, we scale the log values before rounding.
                     let weight = LOG_SCALE_FACTOR * (*dim as f64).log2();
                     hyperedge_weights.push(x * weight as i32);
-                    *entry = *tensor_id;
+                    *entry = tensor_id;
                 })
-                .or_insert(*tensor_id);
+                .or_insert(tensor_id);
         }
     }
 

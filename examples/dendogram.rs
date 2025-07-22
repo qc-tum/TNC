@@ -6,7 +6,10 @@ use tensorcontraction::{
             export::{to_dendogram_format, to_pdf},
             ContractionTree,
         },
-        paths::{greedy::Greedy, CostType, OptimizePath},
+        paths::{
+            cotengrust::{Cotengrust, OptMethod},
+            OptimizePath,
+        },
     },
     networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     tensornetwork::partitioning::{
@@ -20,7 +23,7 @@ fn main() {
     let partitioning = find_partitioning(&tensor, 3, PartitioningStrategy::MinCut, true);
 
     let partitioned_tn = partition_tensor_network(tensor, &partitioning);
-    let mut opt = Greedy::new(&partitioned_tn, CostType::Flops);
+    let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
 
     opt.optimize_path();
     let path = opt.get_best_replace_path();
