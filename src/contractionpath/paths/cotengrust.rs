@@ -55,14 +55,21 @@ impl<'a> Cotengrust<'a> {
 
         // Find the contraction path
         let path = match &self.opt_method {
-            OptMethod::Greedy => {
-                optimize_greedy_rust(inputs, output, size_dict, None, None, Some(42), false, true)
-            }
+            OptMethod::Greedy => optimize_greedy_rust(
+                inputs,
+                output,
+                &size_dict,
+                None,
+                None,
+                Some(42),
+                false,
+                true,
+            ),
             &OptMethod::RandomGreedy(ntrials) => {
                 optimize_random_greedy_rust(
                     inputs,
                     output,
-                    size_dict,
+                    &size_dict,
                     ntrials,
                     None,
                     None,
@@ -73,7 +80,7 @@ impl<'a> Cotengrust<'a> {
                 .0
             }
             OptMethod::Optimal => {
-                optimize_optimal_rust(inputs, output, size_dict, None, None, None, false, true)
+                optimize_optimal_rust(inputs, output, &size_dict, None, None, None, false, true)
             }
         };
 
