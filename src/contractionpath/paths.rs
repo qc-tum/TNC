@@ -8,6 +8,7 @@ use crate::types::ContractionIndex;
 pub mod branchbound;
 pub mod cotengrust;
 pub mod greedy;
+#[cfg(feature = "cotengra")]
 pub mod tree_reconfiguration;
 pub mod weighted_branchbound;
 //pub mod parallel_greedy;
