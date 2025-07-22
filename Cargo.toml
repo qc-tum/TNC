@@ -33,7 +33,7 @@ ndarray = "0.15.6"
 genetic_algorithm = { git = "https://github.com/Ectras/genetic-algorithm.git", branch = "f64_score" }
 rayon = "1.10.0"
 ordered-float = "4.5.0"
-rustengra = { git = "ssh://gitlab.lrz.de/quantum-research/tensornetworksimulation/rustengra", optional = true }
+rustengra = { git = "https://github.com/Ectras/rustengra.git", optional = true }
 cotengrust = { git = "https://github.com/Ectras/cotengrust.git", branch = "rust_extension" }
 serde-pickle = "1.2.0"
 jemallocator = "0.5.4"
