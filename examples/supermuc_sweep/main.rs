@@ -177,10 +177,11 @@ fn main() {
         let rng = StdRng::seed_from_u64(file_hash);
         let seed = rng.sample_iter(Standard).nth(seed_index).unwrap();
         let file = file.to_str().unwrap();
-        let num_partitions = method
-            .uses_partitions()
-            .then_some(num_partitions)
-            .unwrap_or(1);
+        let num_partitions = if method.uses_partitions() {
+            num_partitions
+        } else {
+            1
+        };
         info!(file=file, seed, num_partitions, method=method.name(); "Doing run");
 
         let key = format!(
@@ -446,6 +447,7 @@ trait MethodRun {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Generic;
 impl MethodRun for Generic {
@@ -481,6 +483,7 @@ impl MethodRun for Generic {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Sa;
 impl MethodRun for Sa {
@@ -519,6 +522,7 @@ impl MethodRun for Sa {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Ia;
 impl MethodRun for Ia {
@@ -572,6 +576,7 @@ impl MethodRun for Ia {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Sad;
 impl MethodRun for Sad {
@@ -615,6 +620,7 @@ impl MethodRun for Sad {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Iad;
 impl MethodRun for Iad {
@@ -676,6 +682,7 @@ impl MethodRun for Iad {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct GreedyBalance {
     iterations: usize,
@@ -734,6 +741,7 @@ impl MethodRun for GreedyBalance {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct CotengraTempering;
 impl MethodRun for CotengraTempering {
@@ -767,6 +775,7 @@ impl MethodRun for CotengraTempering {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct CotengraAnneal;
 impl MethodRun for CotengraAnneal {
@@ -800,6 +809,7 @@ impl MethodRun for CotengraAnneal {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct CotengraHyper;
 impl MethodRun for CotengraHyper {
