@@ -616,7 +616,7 @@ mod tests {
         let t2 = Tensor::new_from_map(vec![1, 6], &bond_dims);
         let ref_ssa_id_to_tensor = FxHashMap::from_iter([(2, t1), (3, t2)]);
         let ref_edge_to_tensor =
-            FxHashMap::from_iter([(0, vec![2]), (1, vec![2, 3]), (5, vec![2]), (6, vec![3])]);
+            FxHashMap::from_iter([(0, vec![2]), (1, vec![3, 2]), (5, vec![2]), (6, vec![3])]);
         let ref_scalar_tensors = vec![4];
         let ref_ssa_path = vec![(0, 1, 4)];
         let ref_next_ssa_id = 5;

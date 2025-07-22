@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use rustengra::{
-    cotengra_check, create_and_optimize_tree, replace_to_ssa_path, tensor_legs_to_digit,
+    cotengra_check, cotengra_optimized_greedy, replace_to_ssa_path, tensor_legs_to_digit,
 };
 
 use crate::{
@@ -27,30 +27,19 @@ impl<'a> TreeReconfigure<'a> {
     /// contraction path in SSA format that is to be optimized. `subtree_size` is the
     /// size of subtrees that is considered (increases the optimization cost
     /// exponentially!).
-    pub fn new(
-        tensor: &'a Tensor,
-        initial_path: Vec<ContractionIndex>,
-        subtree_size: usize,
-        minimize: CostType,
-    ) -> Self {
+    pub fn new(tensor: &'a Tensor, subtree_size: usize, minimize: CostType) -> Self {
         assert!(cotengra_check().is_ok());
         assert_eq!(
             minimize,
             CostType::Flops,
             "Currently, only Flops is supported"
         );
-        assert!(
-            initial_path
-                .iter()
-                .all(|index| matches!(index, ContractionIndex::Pair(..))),
-            "This method does not support nested Paths"
-        );
         Self {
             tensor,
             subtree_size,
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
-            best_path: initial_path,
+            best_path: vec![],
         }
     }
 }
@@ -76,29 +65,8 @@ impl OptimizePath for TreeReconfigure<'_> {
         let (inputs, outputs, size_dict) =
             tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
 
-        // Map ContractIndex to (i, j) tuples
-        let best_path = self
-            .best_path
-            .iter()
-            .map(|a| {
-                if let ContractionIndex::Pair(i, j) = a {
-                    (*i, *j)
-                } else {
-                    panic!("This method does not support nested Paths")
-                }
-            })
-            .collect_vec();
-
-        let is_ssa = true;
-        let replace_path = create_and_optimize_tree(
-            &inputs,
-            outputs,
-            size_dict,
-            best_path,
-            self.subtree_size,
-            is_ssa,
-        )
-        .unwrap();
+        let replace_path =
+            cotengra_optimized_greedy(&inputs, outputs, size_dict, self.subtree_size).unwrap();
 
         let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
 
@@ -203,12 +171,7 @@ mod tests {
         let tn = setup_simple();
         let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
         greedy_opt.optimize_path();
-        let mut opt = TreeReconfigure::new(
-            &tn,
-            greedy_opt.get_best_path().to_owned(),
-            8,
-            CostType::Flops,
-        );
+        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 600.);
@@ -223,12 +186,7 @@ mod tests {
         let tn = setup_complex();
         let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
         greedy_opt.optimize_path();
-        let mut opt = TreeReconfigure::new(
-            &tn,
-            greedy_opt.get_best_path().to_owned(),
-            8,
-            CostType::Flops,
-        );
+        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
         opt.optimize_path();
 
         assert_eq!(opt.best_flops, 332685.);
@@ -246,12 +204,7 @@ mod tests {
         let tn = setup_large();
         let mut greedy_opt = Greedy::new(&tn, CostType::Flops);
         greedy_opt.optimize_path();
-        let mut opt = TreeReconfigure::new(
-            &tn,
-            greedy_opt.get_best_path().to_owned(),
-            8,
-            CostType::Flops,
-        );
+        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
         opt.optimize_path();
     }
 }
