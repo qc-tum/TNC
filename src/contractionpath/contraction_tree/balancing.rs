@@ -391,7 +391,6 @@ where
                 )
             }
         }
-        _ => panic!("Balancing Scheme not implemented"),
     };
     let mut shifted_indices = FxHashMap::default();
     for shift in shifted_nodes {

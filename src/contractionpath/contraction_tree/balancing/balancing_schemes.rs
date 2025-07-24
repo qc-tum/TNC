@@ -64,7 +64,6 @@ pub enum BalancingScheme {
         /// `0` is then equivalent to the `Tensors` method.
         height_limit: usize,
     },
-    Configuration,
 }
 
 /// Shift of tensors between partitions.
