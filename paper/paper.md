@@ -4,6 +4,7 @@ tags:
   - Rust
   - tensor networks
   - quantum computing
+  - high-performance computing
 authors:
   - name: Manuel Geiger
     orcid: 0000-0003-3514-8657
@@ -16,16 +17,16 @@ authors:
 affiliations:
   - name: School for Computation, Information and Technology, Technical University of Munich, Germany
     index: 1
-date: 22.01.2024
+date: 22.01.2025
 bibliography: paper.bib
 ---
 
 # Summary
 
-TBD is a library for the efficient contraction of large tensor networks, focusing on a distributed-memory (i.e., multi-node HPC) setting.
-To this end, we employ partitioning techniques to contract a tensor network in parallel with similar time-to-solution.
-TBD is written in Rust, allowing for high-performance while guaranteeing memory safety.
-The library can for instance be used to classically simulate quantum circuits.
+TBD is a library for the efficient contraction of large tensor networks, focusing on a distributed-memory setting, as commonly found in high-performance computing (HPC) centers.
+To this end, we employ partitioning techniques to contract a tensor network in parallel on multiple nodes.
+TBD is written in Rust, allowing for high performance while guaranteeing memory safety.
+While the library can is focused on the classical simulation of quantum circuits, it can likewise be used to contract general tensor networks.
 
 # Statement of need
 
@@ -39,13 +40,14 @@ TBD allows the efficient contraction of large tensor networks and hence enables 
 The library can construct tensor networks from quantum circuits given in the common OpenQASM 2 language [@Cross2017].
 For contraction, tensor networks are partitioned based on the number of available MPI ranks.
 The partitioning is done using KaHyPar [@Andre2018].
-The library features different algorithms to improve this initial partitioning, for instance using a simulated annealing approach, for faster time-to-solution.
+The library features different algorithms to improve this initial partitioning with regard to expected time-to-solution, for instance using a simulated annealing approach.
+We showed in a recent publication that this method fine-tunes the partitionings such that the resulting contraction cost is compatitive with state-of-the-art methods.
 Contraction paths for the partitions which dictate the order of contractions are found by methods from cotengra [@Gray2021].
-The contraction is done using MKL for matrix-matrix multiplications and hptt [@Springer2017] for data transposition.
+The inidivudal contractions are done using MKL for matrix-matrix multiplications and hptt [@Springer2017] for data transposition.
 
 
 # Acknowledgements
 
-The research is part of the Munich Quantum Valley (MQV), which is supported by the Bavarian state government with funds from the Hightech Agenda Bayern Plus. Moreover, this project is also supported by the German Federal Ministry of Education and Research(BMBF) through the MUNIQC-SC project.
+We acknowledge the support and funding received for the MUNIQC-SC initiative under funding number 13N16191 from the VDI technology center as part of the German BMBF program.
 
 # References
