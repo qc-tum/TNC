@@ -316,20 +316,13 @@ impl ContractionTree {
     /// * `node` - pointer to Node object
     /// * `path` - vec to store contraction path in
     /// * `replace` - if set to `true` returns replace path, otherwise, returns in SSA format
-    /// * `hierarchy` - if set to `true` returns a nested contraction path, otherwise returns a flat contraction path
     fn to_contraction_path_recurse(
         node: &Node,
         path: &mut Vec<ContractionIndex>,
         replace: bool,
-        hierarchy: bool,
     ) -> usize {
         if node.is_leaf() {
-            if hierarchy {
-                let tn_index = node.tensor_index().as_ref().unwrap();
-                return *tn_index.last().unwrap();
-            } else {
-                return node.id();
-            }
+            return node.id();
         }
 
         // Get children
@@ -338,18 +331,10 @@ impl ContractionTree {
         };
 
         // Get right and left child tensor ids
-        let mut t1_id = Self::to_contraction_path_recurse(
-            &left_child.as_ref().borrow(),
-            path,
-            replace,
-            hierarchy,
-        );
-        let mut t2_id = Self::to_contraction_path_recurse(
-            &right_child.as_ref().borrow(),
-            path,
-            replace,
-            hierarchy,
-        );
+        let mut t1_id =
+            Self::to_contraction_path_recurse(&left_child.as_ref().borrow(), path, replace);
+        let mut t2_id =
+            Self::to_contraction_path_recurse(&right_child.as_ref().borrow(), path, replace);
         if t2_id < t1_id {
             (t1_id, t2_id) = (t2_id, t1_id);
         }
@@ -369,11 +354,10 @@ impl ContractionTree {
     /// # Arguments
     /// * `node` - pointer to Node object
     /// * `replace` - if set to `true` returns replace path, otherwise, returns in SSA format
-    /// * `hierarchy` - if set to `true` returns a nested contraction path, otherwise returns a flat contraction path
     pub fn to_flat_contraction_path(&self, node_id: usize, replace: bool) -> Vec<ContractionIndex> {
         let node = self.node(node_id);
         let mut path = Vec::new();
-        Self::to_contraction_path_recurse(&node, &mut path, replace, false);
+        Self::to_contraction_path_recurse(&node, &mut path, replace);
         path
     }
 
