@@ -2262,7 +2262,7 @@ checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
 [[package]]
 name = "rustengra"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rustengra.git#dacf05c52b8d785bef57c09ad7bf67c9eaaea8fd"
+source = "git+https://github.com/Ectras/rustengra.git#5934c463035b93f7cfb4bd02ac69bfc9845fda0d"
 dependencies = [
  "pyo3",
  "rustc-hash 2.1.1",
