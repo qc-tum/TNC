@@ -1,28 +1,41 @@
+use bincode::{
+    config::{self, Configuration},
+    enc::write::SizeWriter,
+    serde::{
+        decode_from_slice, decode_from_std_read, encode_into_std_write, encode_into_writer,
+        encode_to_vec,
+    },
+};
+
 use crate::{mpi::mpi_types::MessageBinaryBlob, tensornetwork::tensor::Tensor};
+
+static BINCODE_CONFIG: Configuration = config::standard();
 
 /// Serializes data to a byte array.
 pub fn serialize<S>(value: &S) -> Vec<u8>
 where
     S: serde::Serialize,
 {
-    bincode::serialize(value).unwrap()
+    encode_to_vec(value, BINCODE_CONFIG).unwrap()
 }
 
 /// Serializes data into a writer.
-pub fn serialize_into<W, S>(writer: W, value: &S)
+pub fn serialize_into<W, S>(mut writer: W, value: &S)
 where
     W: std::io::Write,
     S: serde::Serialize,
 {
-    bincode::serialize_into(writer, value).unwrap();
+    encode_into_std_write(value, &mut writer, BINCODE_CONFIG).unwrap();
 }
 
 /// Returns the serialized size of the data (i.e., the number of bytes).
-pub fn serialized_size<S>(value: &S) -> u64
+pub fn serialized_size<S>(value: &S) -> usize
 where
     S: serde::Serialize,
 {
-    bincode::serialized_size(value).unwrap()
+    let mut size_writer = SizeWriter::default();
+    encode_into_writer(value, &mut size_writer, BINCODE_CONFIG).unwrap();
+    size_writer.bytes_written
 }
 
 /// Deserializes data from a byte array.
@@ -30,16 +43,18 @@ pub fn deserialize<D>(data: &[u8]) -> D
 where
     D: serde::de::DeserializeOwned,
 {
-    bincode::deserialize(data).unwrap()
+    decode_from_slice(data, BINCODE_CONFIG)
+        .map(|(data, _size)| data)
+        .unwrap()
 }
 
 /// Deserializes data from a reader.
-pub fn deserialize_from<R, D>(reader: R) -> D
+pub fn deserialize_from<R, D>(mut reader: R) -> D
 where
     R: std::io::Read,
     D: serde::de::DeserializeOwned,
 {
-    bincode::deserialize_from(reader).unwrap()
+    decode_from_std_read(&mut reader, BINCODE_CONFIG).unwrap()
 }
 
 /// Serializes `tensor` (and its child tensors if any) into a vector of binary blobs.
