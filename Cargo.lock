@@ -2681,7 +2681,7 @@ dependencies = [
  "mpi-test",
  "ndarray",
  "num-complex",
- "ordered-float 4.6.0",
+ "ordered-float 5.0.0",
  "permutation",
  "rand 0.8.5",
  "rayon",
