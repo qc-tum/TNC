@@ -1,8 +1,0 @@
-include:
-- project: 'quantum-research/tensornetworksimulation/rust-ci'
-  ref: 856ae6a78a3e1dda9a07929c6c5e21545ebae3f6
-  file: 'template.yml'
-
-variables:
-  OMPI_ALLOW_RUN_AS_ROOT: 1
-  OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
