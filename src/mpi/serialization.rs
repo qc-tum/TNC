@@ -1,5 +1,5 @@
 use bincode::{
-    config,
+    config::{self, Configuration},
     enc::write::SizeWriter,
     serde::{
         decode_from_slice, decode_from_std_read, encode_into_std_write, encode_into_writer,
@@ -9,12 +9,14 @@ use bincode::{
 
 use crate::{mpi::mpi_types::MessageBinaryBlob, tensornetwork::tensor::Tensor};
 
+static BINCODE_CONFIG: Configuration = config::standard();
+
 /// Serializes data to a byte array.
 pub fn serialize<S>(value: &S) -> Vec<u8>
 where
     S: serde::Serialize,
 {
-    encode_to_vec(value, config::standard()).unwrap()
+    encode_to_vec(value, BINCODE_CONFIG).unwrap()
 }
 
 /// Serializes data into a writer.
@@ -23,7 +25,7 @@ where
     W: std::io::Write,
     S: serde::Serialize,
 {
-    encode_into_std_write(value, &mut writer, config::standard()).unwrap();
+    encode_into_std_write(value, &mut writer, BINCODE_CONFIG).unwrap();
 }
 
 /// Returns the serialized size of the data (i.e., the number of bytes).
@@ -32,7 +34,7 @@ where
     S: serde::Serialize,
 {
     let mut size_writer = SizeWriter::default();
-    encode_into_writer(value, &mut size_writer, config::standard()).unwrap();
+    encode_into_writer(value, &mut size_writer, BINCODE_CONFIG).unwrap();
     size_writer.bytes_written
 }
 
@@ -41,7 +43,7 @@ pub fn deserialize<D>(data: &[u8]) -> D
 where
     D: serde::de::DeserializeOwned,
 {
-    decode_from_slice(data, config::standard())
+    decode_from_slice(data, BINCODE_CONFIG)
         .map(|(data, _size)| data)
         .unwrap()
 }
@@ -52,7 +54,7 @@ where
     R: std::io::Read,
     D: serde::de::DeserializeOwned,
 {
-    decode_from_std_read(&mut reader, config::standard()).unwrap()
+    decode_from_std_read(&mut reader, BINCODE_CONFIG).unwrap()
 }
 
 /// Serializes `tensor` (and its child tensors if any) into a vector of binary blobs.
