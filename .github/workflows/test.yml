@@ -75,14 +75,14 @@ jobs:
         uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
         with:
           toolchain: stable
-      - name: Install nightly for -Zminimal-versions
+      - name: Install nightly for -Zdirect-minimal-versions
         uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
         with:
           toolchain: nightly
       - name: rustup default stable
         run: rustup default stable
-      - name: cargo update -Zminimal-versions
-        run: cargo +nightly update -Zminimal-versions
+      - name: cargo update -Zdirect-minimal-versions
+        run: cargo +nightly update -Zdirect-minimal-versions
       - name: cargo test
         run: cargo test --locked --all-features --all-targets
   # os-check:
