@@ -89,7 +89,9 @@ mod tests {
         tensor: &'a Tensor,
     }
 
-    fn get_quantum_tensors(tn: &Tensor) -> (Vec<IdTensor>, Vec<IdTensor>, Vec<IdTensor>) {
+    fn get_quantum_tensors(
+        tn: &Tensor,
+    ) -> (Vec<IdTensor<'_>>, Vec<IdTensor<'_>>, Vec<IdTensor<'_>>) {
         let mut kets = Vec::new();
         let mut single_qubit_gates = Vec::new();
         let mut two_qubit_gates = Vec::new();

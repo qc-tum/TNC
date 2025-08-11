@@ -33,7 +33,6 @@ pub trait WithCapacity {
 }
 
 impl<K, V> WithCapacity for FxHashMap<K, V> {
-    #[must_use]
     #[inline]
     fn with_capacity(capacity: usize) -> Self {
         FxHashMap::with_capacity_and_hasher(capacity, FxBuildHasher)
