@@ -19,20 +19,15 @@ name: test
 jobs:
   required:
     runs-on: ubuntu-latest
-    name: ubuntu / ${{ matrix.toolchain }}
-    strategy:
-      matrix:
-        # run on stable and beta to ensure that tests won't break on the next version of the rust
-        # toolchain
-        toolchain: [stable, beta]
+    name: ubuntu / nightly
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
         with:
           submodules: true
-      - name: Install ${{ matrix.toolchain }}
+      - name: Install nightly
         uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: nightly
       - name: cargo generate-lockfile
         # enable this ci template to run regardless of whether the lockfile is checked in or not
         if: hashFiles('Cargo.lock') == ''
@@ -117,15 +112,15 @@ jobs:
     # use llvm-cov to build and collect coverage and outputs in a format that
     # is compatible with https://github.com/marketplace/actions/code-coverage-summary.
     runs-on: ubuntu-latest
-    name: ubuntu / stable / coverage
+    name: ubuntu / nightly / coverage
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
         with:
           submodules: true
-      - name: Install stable
+      - name: Install nightly
         uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
         with:
-          toolchain: stable
+          toolchain: nightly
           components: llvm-tools-preview
       - name: cargo install cargo-llvm-cov
         uses: taiki-e/install-action@0eee80d37f55e834144deec670972c19e81a85b0 # tag=v2.56.0

@@ -98,17 +98,17 @@ jobs:
     # cargo-hack checks combinations of feature flags to ensure that features are all additive
     # which is required for feature unification
     runs-on: ubuntu-latest
-    name: ubuntu / stable / features
+    name: ubuntu / nightly / features
     steps:
       - name: Install system requirements
         run: sudo apt-get install -y libhdf5-dev mpich libboost-program-options-dev
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
         with:
           submodules: true
-      - name: Install stable
+      - name: Install nightly
         uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
         with:
-          toolchain: stable
+          toolchain: nightly
       - name: cargo install cargo-hack
         uses: taiki-e/install-action@0eee80d37f55e834144deec670972c19e81a85b0 # tag=v2.56.0
         with:
