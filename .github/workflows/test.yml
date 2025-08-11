@@ -21,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     name: ubuntu / nightly
     steps:
+      - name: Install system requirements
+        run: sudo apt-get install -y libhdf5-dev mpich libboost-program-options-dev
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
         with:
           submodules: true
@@ -64,6 +66,8 @@ jobs:
     runs-on: ubuntu-latest
     name: ubuntu / stable / minimal-versions
     steps:
+      - name: Install system requirements
+        run: sudo apt-get install -y libhdf5-dev mpich libboost-program-options-dev
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
         with:
           submodules: true
@@ -114,6 +118,8 @@ jobs:
     runs-on: ubuntu-latest
     name: ubuntu / nightly / coverage
     steps:
+      - name: Install system requirements
+        run: sudo apt-get install -y libhdf5-dev mpich libboost-program-options-dev
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
         with:
           submodules: true
