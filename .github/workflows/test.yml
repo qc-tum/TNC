@@ -71,23 +71,17 @@ jobs:
     # https://github.com/jonhoo/fantoccini/blob/fde336472b712bc7ebf5b4e772023a7ba71b2262/Cargo.toml#L47-L49.
     # This action is run on ubuntu with the stable toolchain, as it is not expected to fail
     runs-on: ubuntu-latest
-    name: ubuntu / stable / minimal-versions
+    name: ubuntu / nightly / minimal-versions
     steps:
       - name: Install system requirements
         run: sudo apt-get install -y libhdf5-dev mpich libboost-program-options-dev
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
         with:
           submodules: true
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
-        with:
-          toolchain: stable
-      - name: Install nightly for -Zdirect-minimal-versions
+      - name: Install nightly
         uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
         with:
           toolchain: nightly
-      - name: rustup default stable
-        run: rustup default stable
       - name: cargo update -Zdirect-minimal-versions
         run: cargo +nightly update -Zdirect-minimal-versions
       - name: cargo test
