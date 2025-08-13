@@ -20,6 +20,8 @@ jobs:
   required:
     runs-on: ubuntu-latest
     name: ubuntu / nightly
+    env:
+      OMPI_MCA_rmaps_base_oversubscribe: true
     steps:
       - name: Install system requirements
         run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
@@ -71,6 +73,8 @@ jobs:
     # This action is run on ubuntu with the stable toolchain, as it is not expected to fail
     runs-on: ubuntu-latest
     name: ubuntu / nightly / minimal-versions
+    env:
+      OMPI_MCA_rmaps_base_oversubscribe: true
     steps:
       - name: Install system requirements
         run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
@@ -123,6 +127,8 @@ jobs:
     # is compatible with https://github.com/marketplace/actions/code-coverage-summary.
     runs-on: ubuntu-latest
     name: ubuntu / nightly / coverage
+    env:
+      OMPI_MCA_rmaps_base_oversubscribe: true
     steps:
       - name: Install system requirements
         run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
