@@ -82,7 +82,7 @@ jobs:
     name: nightly / doc
     steps:
       - name: Install system requirements
-        run: sudo apt-get install -y libhdf5-dev mpich libboost-program-options-dev
+        run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
         with:
           submodules: true
@@ -101,7 +101,7 @@ jobs:
     name: ubuntu / nightly / features
     steps:
       - name: Install system requirements
-        run: sudo apt-get install -y libhdf5-dev mpich libboost-program-options-dev
+        run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
         with:
           submodules: true
