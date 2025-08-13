@@ -44,16 +44,10 @@ serde-pickle = "1.2.0"
 jemallocator = "0.5.4"
 
 [dev-dependencies]
-criterion = "0.5.1"
-static_init = "1.0.3"
 mpi-test = { git = "https://github.com/Ectras/mpi-test.git" }
 flexi_logger = { version = "0.29.6", features = ["kv", "json", "async"] }
 clap = { version = "4.5.28", features = ["derive"] }
 flate2 = "1.1.1"
-
-[[bench]]
-name = "benchmarks"
-harness = false
 
 [[example]]
 name = "supermuc_sweep"
