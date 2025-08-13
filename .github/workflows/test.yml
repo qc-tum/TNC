@@ -31,7 +31,7 @@ jobs:
           python-version: '3.12'
       - name: Install python dependencies
         run: pip install cotengra kahypar optuna
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
       - name: Install nightly
@@ -84,7 +84,7 @@ jobs:
           python-version: '3.12'
       - name: Install python dependencies
         run: pip install cotengra kahypar optuna
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
       - name: Install nightly
@@ -110,7 +110,7 @@ jobs:
   #     #   if: runner.os == 'Windows'
   #     # - run: vcpkg install openssl:x64-windows-static-md
   #     #   if: runner.os == 'Windows'
-  #     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+  #     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
   #       with:
   #         submodules: true
   #     - name: Install stable
@@ -138,7 +138,7 @@ jobs:
           python-version: '3.12'
       - name: Install python dependencies
         run: pip install cotengra kahypar optuna
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
       - name: Install nightly
