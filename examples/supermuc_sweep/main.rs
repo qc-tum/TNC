@@ -230,16 +230,17 @@ fn write_to_cache(
     contraction_path: &[ContractionIndex],
 ) {
     let file = fs::File::create(format!("{directory}/{key}")).unwrap();
-    let stream = ZlibEncoder::new(file, Compression::default());
+    let mut stream = ZlibEncoder::new(file, Compression::default());
     let serializable = (partitioned_tensor, contraction_path);
-    bincode::serialize_into(stream, &serializable).unwrap();
+    bincode::serde::encode_into_std_write(&serializable, &mut stream, bincode::config::legacy())
+        .unwrap();
 }
 
 fn read_from_cache(directory: &str, key: &str) -> (Tensor, Vec<ContractionIndex>) {
     let file = fs::File::open(format!("{directory}/{key}")).unwrap();
-    let stream = ZlibDecoder::new(file);
-    let (deserializable, path): (Tensor, Vec<ContractionIndex>) =
-        bincode::deserialize_from(stream).unwrap();
+    let mut stream = ZlibDecoder::new(file);
+    let (deserializable, path) =
+        bincode::serde::decode_from_std_read(&mut stream, bincode::config::legacy()).unwrap();
     (deserializable, path)
 }
 

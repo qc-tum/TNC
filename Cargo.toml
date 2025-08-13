@@ -26,7 +26,7 @@ float-cmp = "0.10.0"
 tetra = { git = "https://github.com/Ectras/tetra.git", features = ["serde"] }
 kahypar = { git = "https://github.com/Ectras/rust-kahypar" }
 permutation = "0.4.1"
-serde = { version = "1.0.215", features = ["derive"] }
+serde = { version = "1.0.218", features = ["derive"] }
 bincode = { version = "2.0.1", features = ["serde"] }
 lazy_static = "1.5.0"
 log = { version = "0.4.22", features = ["kv_std", "kv_serde"] }
@@ -44,16 +44,10 @@ serde-pickle = "1.2.0"
 jemallocator = "0.5.4"
 
 [dev-dependencies]
-criterion = "0.5.1"
-static_init = "1.0.3"
 mpi-test = { git = "https://github.com/Ectras/mpi-test.git" }
 flexi_logger = { version = "0.29.6", features = ["kv", "json", "async"] }
 clap = { version = "4.5.28", features = ["derive"] }
 flate2 = "1.1.1"
-
-[[bench]]
-name = "benchmarks"
-harness = false
 
 [[example]]
 name = "supermuc_sweep"

@@ -23,7 +23,7 @@ pub struct ContractionTree {
 }
 
 impl ContractionTree {
-    pub fn node(&self, node_id: usize) -> Ref<Node> {
+    pub fn node(&self, node_id: usize) -> Ref<'_, Node> {
         let borrow = &self.nodes[&node_id];
         borrow.as_ref().borrow()
     }
