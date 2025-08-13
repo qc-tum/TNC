@@ -26,7 +26,7 @@ float-cmp = "0.10.0"
 tetra = { git = "https://github.com/Ectras/tetra.git", features = ["serde"] }
 kahypar = { git = "https://github.com/Ectras/rust-kahypar" }
 permutation = "0.4.1"
-serde = { version = "1.0.215", features = ["derive"] }
+serde = { version = "1.0.218", features = ["derive"] }
 bincode = { version = "2.0.1", features = ["serde"] }
 lazy_static = "1.5.0"
 log = { version = "0.4.22", features = ["kv_std", "kv_serde"] }
