@@ -23,13 +23,13 @@ name: check
 jobs:
   fmt:
     runs-on: ubuntu-latest
-    name: stable / fmt
+    name: fmt (stable)
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
       - name: Install stable
-        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
+        uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
         with:
           toolchain: stable
           components: rustfmt
@@ -37,29 +37,20 @@ jobs:
         run: cargo fmt --check
   clippy:
     runs-on: ubuntu-latest
-    name: ${{ matrix.toolchain }} / clippy
-    permissions:
-      contents: read
-      checks: write
-    strategy:
-      fail-fast: false
-      matrix:
-        # Get early warning of new lints which are regularly introduced in beta channels.
-        toolchain: [stable, beta]
+    name: clippy (nightly)
     steps:
+      - name: Install system requirements
+        run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
-      - name: Install ${{ matrix.toolchain }}
-        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
+      - name: Install nightly
+        uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: nightly
           components: clippy
       - name: cargo clippy
-        uses: giraffate/clippy-action@13b9d32482f25d29ead141b79e7e04e7900281e0 # tag=v1.0.1
-        with:
-          reporter: 'github-pr-check'
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        run: cargo clippy --all-features --all-targets
   # semver:
   #   runs-on: ubuntu-latest
   #   name: semver
@@ -68,7 +59,7 @@ jobs:
   #       with:
   #         submodules: true
   #     - name: Install stable
-  #       uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
+  #       uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
   #       with:
   #         toolchain: stable
   #         components: rustfmt
@@ -79,7 +70,7 @@ jobs:
     # https://doc.rust-lang.org/beta/unstable-book/language-features/doc-cfg.html which allows an
     # API be documented as only available in some specific platforms.
     runs-on: ubuntu-latest
-    name: nightly / doc
+    name: doc (nightly)
     steps:
       - name: Install system requirements
         run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
@@ -87,7 +78,7 @@ jobs:
         with:
           submodules: true
       - name: Install nightly
-        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
+        uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
         with:
           toolchain: nightly
       - name: Install cargo-docs-rs
@@ -98,7 +89,7 @@ jobs:
     # cargo-hack checks combinations of feature flags to ensure that features are all additive
     # which is required for feature unification
     runs-on: ubuntu-latest
-    name: ubuntu / nightly / features
+    name: features (nightly)
     steps:
       - name: Install system requirements
         run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
@@ -106,7 +97,7 @@ jobs:
         with:
           submodules: true
       - name: Install nightly
-        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
+        uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
         with:
           toolchain: nightly
       - name: cargo install cargo-hack
@@ -125,13 +116,13 @@ jobs:
   #   strategy:
   #     matrix:
   #       msrv: ["1.56.1"] # 2021 edition requires 1.56
-  #   name: ubuntu / ${{ matrix.msrv }}
+  #   name: msrv (${{ matrix.msrv }})
   #   steps:
   #     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
   #       with:
   #         submodules: true
   #     - name: Install ${{ matrix.msrv }}
-  #       uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # branch=master
+  #       uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
   #       with:
   #         toolchain: ${{ matrix.msrv }}
   #     - name: cargo +${{ matrix.msrv }} check

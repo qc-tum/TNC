@@ -232,7 +232,7 @@ fn write_to_cache(
     let file = fs::File::create(format!("{directory}/{key}")).unwrap();
     let mut stream = ZlibEncoder::new(file, Compression::default());
     let serializable = (partitioned_tensor, contraction_path);
-    bincode::serde::encode_into_std_write(&serializable, &mut stream, bincode::config::legacy())
+    bincode::serde::encode_into_std_write(serializable, &mut stream, bincode::config::legacy())
         .unwrap();
 }
 
