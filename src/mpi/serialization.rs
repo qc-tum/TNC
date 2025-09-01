@@ -67,7 +67,6 @@ where
 pub fn serialize_tensor(tensor: &Tensor) -> Vec<MessageBinaryBlob> {
     // Get the total message size in bytes
     let total_size = serialized_size(tensor);
-    let total_size: usize = total_size.try_into().unwrap();
 
     // Allocate a buffer of blobs
     let element_size = std::mem::size_of::<MessageBinaryBlob>();
