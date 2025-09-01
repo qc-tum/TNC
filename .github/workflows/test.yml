@@ -19,7 +19,7 @@ name: test
 jobs:
   required:
     runs-on: ubuntu-latest
-    name: ubuntu / nightly
+    name: test (nightly)
     env:
       OMPI_MCA_rmaps_base_oversubscribe: true
     steps:
@@ -72,7 +72,7 @@ jobs:
     # https://github.com/jonhoo/fantoccini/blob/fde336472b712bc7ebf5b4e772023a7ba71b2262/Cargo.toml#L47-L49.
     # This action is run on ubuntu with the stable toolchain, as it is not expected to fail
     runs-on: ubuntu-latest
-    name: ubuntu / nightly / minimal-versions
+    name: minimal-versions (nightly)
     env:
       OMPI_MCA_rmaps_base_oversubscribe: true
     steps:
@@ -98,7 +98,7 @@ jobs:
   # os-check:
   #   # run cargo test on mac and windows
   #   runs-on: ${{ matrix.os }}
-  #   name: ${{ matrix.os }} / stable
+  #   name: test (stable, ${{ matrix.os }})
   #   strategy:
   #     fail-fast: false
   #     matrix:
@@ -126,7 +126,7 @@ jobs:
     # use llvm-cov to build and collect coverage and outputs in a format that
     # is compatible with https://github.com/marketplace/actions/code-coverage-summary.
     runs-on: ubuntu-latest
-    name: ubuntu / nightly / coverage
+    name: coverage (nightly)
     env:
       OMPI_MCA_rmaps_base_oversubscribe: true
     steps:
