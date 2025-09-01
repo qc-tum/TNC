@@ -37,25 +37,17 @@ jobs:
         run: cargo fmt --check
   clippy:
     runs-on: ubuntu-latest
-    name: clippy (${{ matrix.toolchain }})
-    permissions:
-      contents: read
-      checks: write
-    strategy:
-      fail-fast: false
-      matrix:
-        # Get early warning of new lints which are regularly introduced in beta channels.
-        toolchain: [stable, beta]
+    name: clippy (nightly)
     steps:
       - name: Install system requirements
         run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
-      - name: Install ${{ matrix.toolchain }}
+      - name: Install nightly
         uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: nightly
           components: clippy
       - name: cargo clippy
         run: cargo clippy --all-features --all-targets
