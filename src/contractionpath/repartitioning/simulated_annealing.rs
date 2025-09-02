@@ -598,4 +598,36 @@ mod tests {
         assert_approx_eq!(f64, linear_interpolation(-7.0, -6.0, 0.0), -7.0);
         assert_approx_eq!(f64, linear_interpolation(3.0, 5.0, 1.0), 5.0);
     }
+
+    #[test]
+    fn small_leaf_partitioning() {
+        let t1 = Tensor::new_from_const(vec![0, 1], 2);
+        let t2 = Tensor::new_from_const(vec![2, 3], 2);
+        let t3 = Tensor::new_from_const(vec![0, 1, 4], 2);
+        let t4 = Tensor::new_from_const(vec![2, 3, 4], 2);
+        let tn = Tensor::new_composite(vec![t1.clone(), t2.clone(), t3.clone(), t4.clone()]);
+        let tn1 = Tensor::new_composite(vec![t1, t2]);
+        let tn2 = Tensor::new_composite(vec![t3, t4]);
+        let initial_partitioning = vec![0, 0, 1, 1];
+        let initial_partitions = vec![tn1, tn2];
+        let mut rng = StdRng::seed_from_u64(42);
+
+        let ((partitioning, _partitions), _) = balance_partitions(
+            LeafPartitioningModel {
+                tensor: &tn,
+                communication_scheme: CommunicationScheme::Greedy,
+                memory_limit: None,
+            },
+            (initial_partitioning, initial_partitions),
+            &mut rng,
+            Duration::from_secs(2),
+        );
+        // Normalize for comparability
+        let ref_partitioning = if partitioning[0] == 0 {
+            [0, 1, 0, 1]
+        } else {
+            [1, 0, 1, 0]
+        };
+        assert_eq!(partitioning, ref_partitioning);
+    }
 }

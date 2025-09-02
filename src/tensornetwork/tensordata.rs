@@ -78,3 +78,36 @@ impl TensorData {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gates_eq_different_name() {
+        let g1 = TensorData::Gate((String::from("cx"), vec![], false));
+        let g2 = TensorData::Gate((String::from("CX"), vec![], false));
+        assert!(!g1.approx_eq(&g2, 1e-8));
+    }
+
+    #[test]
+    fn gates_eq_adjoint() {
+        let g1 = TensorData::Gate((String::from("h"), vec![], false));
+        let g2 = TensorData::Gate((String::from("h"), vec![], true));
+        assert!(!g1.approx_eq(&g2, 1e-8));
+    }
+
+    #[test]
+    fn gates_eq_different_angles() {
+        let g1 = TensorData::Gate((String::from("u"), vec![1.4, 2.0, -3.0], false));
+        let g2 = TensorData::Gate((String::from("u"), vec![1.4, -2.0, -3.0], false));
+        assert!(!g1.approx_eq(&g2, 1e-8));
+    }
+
+    #[test]
+    fn eq_different_data() {
+        let g1 = TensorData::Gate((String::from("u"), vec![1.4, 2.0, -3.0], false));
+        let g2 = TensorData::new_from_data(&[], vec![Complex64::ONE], None);
+        assert!(!g1.approx_eq(&g2, 1e-8));
+    }
+}
