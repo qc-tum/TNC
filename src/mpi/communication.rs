@@ -273,14 +273,19 @@ pub fn intermediate_reduce_tensor_network(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use mpi::traits::Communicator;
     use mpi_test::mpi_test;
 
     use super::*;
     use crate::path;
 
+    static MPI_SERIAL_TEST_LOCK: Mutex<()> = Mutex::new(());
+
     #[mpi_test(2)]
     fn test_broadcast_contraction_path() {
+        let _lock = MPI_SERIAL_TEST_LOCK.lock().unwrap();
         let universe = mpi::initialize().unwrap();
         let world = universe.world();
         let rank = world.rank();
