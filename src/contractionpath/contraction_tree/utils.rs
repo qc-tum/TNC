@@ -4,6 +4,7 @@ use rustc_hash::FxHashMap;
 use crate::{
     contractionpath::{
         contraction_cost::contract_path_cost,
+        contraction_tree::{balancing::PartitionData, ContractionTree},
         paths::{
             cotengrust::{Cotengrust, OptMethod},
             OptimizePath,
@@ -13,8 +14,6 @@ use crate::{
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
 };
-
-use super::{balancing::PartitionData, ContractionTree};
 
 /// Identifies the contraction path designated by subtree rooted at `node_id` in contraction tree. Allows for Tensor to have a different structure than
 /// ContractionTree as long as `tensor_index` in ContractionTree match the Tensor
@@ -128,12 +127,13 @@ pub(super) fn characterize_partition(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::iter::zip;
 
-    use super::*;
-    use crate::{path, types::EdgeIndex};
-
     use rustc_hash::FxHashMap;
+
+    use crate::{path, types::EdgeIndex};
 
     fn setup_complex() -> (Tensor, Vec<ContractionIndex>, FxHashMap<EdgeIndex, u64>) {
         let bond_dims = FxHashMap::from_iter([

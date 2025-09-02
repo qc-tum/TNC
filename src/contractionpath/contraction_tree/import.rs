@@ -1,20 +1,17 @@
+use std::{fs, rc::Rc};
+
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use regex::RegexSet;
 use rustc_hash::FxHashMap;
-use std::{fs, rc::Rc};
 
-use crate::{
-    contractionpath::contraction_tree::export::to_pdf, types::ContractionIndex,
-    utils::traits::HashMapInsertNew,
+use crate::contractionpath::contraction_tree::{
+    export::{to_pdf, DendogramEntry, COLORS, COMMUNICATION_COLOR},
+    node::{child_node, parent_node, NodeRef},
+    ContractionTree,
 };
-
-use super::{
-    child_node,
-    export::{DendogramEntry, COLORS, COMMUNICATION_COLOR},
-    node::parent_node,
-    ContractionTree, NodeRef,
-};
+use crate::types::ContractionIndex;
+use crate::utils::traits::HashMapInsertNew;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {

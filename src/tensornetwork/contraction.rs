@@ -1,9 +1,10 @@
 use log::debug;
 use tetra::contract;
 
-use crate::{tensornetwork::tensor::Tensor, types::ContractionIndex};
-
-use super::tensordata::TensorData;
+use crate::{
+    tensornetwork::{tensor::Tensor, tensordata::TensorData},
+    types::ContractionIndex,
+};
 
 /// Fully contracts `tn` based on the given `contract_path` using ReplaceLeft format.
 /// Returns the resulting tensor.
@@ -88,15 +89,16 @@ impl TensorContraction for Tensor {
 
 #[cfg(test)]
 mod tests {
-    use super::contract_tensor_network;
-    use crate::{
-        path,
-        tensornetwork::{contraction::TensorContraction, tensor::Tensor, tensordata::TensorData},
-    };
+    use super::*;
 
     use num_complex::Complex64;
     use rustc_hash::FxHashMap;
     use tetra::Layout;
+
+    use crate::{
+        path,
+        tensornetwork::{contraction::TensorContraction, tensor::Tensor, tensordata::TensorData},
+    };
 
     fn setup() -> (
         Vec<Complex64>,

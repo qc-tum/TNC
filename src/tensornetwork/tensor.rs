@@ -1,16 +1,14 @@
-use core::ops::{BitAnd, BitOr, BitXor, Sub};
 use std::hash::{Hash, Hasher};
 use std::iter::zip;
 use std::num::TryFromIntError;
-use std::ops::BitXorAssign;
+use std::ops::{BitAnd, BitOr, BitXor, BitXorAssign, Sub};
 
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
+use crate::tensornetwork::tensordata::TensorData;
 use crate::types::{EdgeIndex, TensorIndex};
 use crate::utils::datastructures::UnionFind;
-
-use super::tensordata::TensorData;
 
 /// Abstract representation of a tensor.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -560,13 +558,13 @@ impl BitXorAssign<&Tensor> for Tensor {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::{assert_matches::assert_matches, iter::zip};
 
     use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::tensordata::TensorData;
-
-    use super::Tensor;
 
     #[test]
     fn test_empty_tensor() {

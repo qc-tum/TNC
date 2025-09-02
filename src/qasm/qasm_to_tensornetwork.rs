@@ -1,11 +1,10 @@
 use rustc_hash::FxHashSet;
 
-use crate::tensornetwork::tensor::Tensor;
-
-use super::{
+use crate::qasm::{
     ast::Visitor, expression_folder::ExpressionFolder, gate_inliner::GateInliner,
     include_resolver::expand_includes, parser::parse, tn_creator::TensorNetworkCreator,
 };
+use crate::tensornetwork::tensor::Tensor;
 
 /// Creates a tensor network from QASM2 code.
 ///
@@ -43,6 +42,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::f64::consts::FRAC_1_SQRT_2;
 
     use itertools::Itertools;
@@ -54,8 +55,6 @@ mod tests {
         },
         types::{ContractionIndex, EdgeIndex, TensorIndex},
     };
-
-    use super::create_tensornetwork;
 
     /// Returns whether the edge connects the two tensors.
     fn edge_connects(

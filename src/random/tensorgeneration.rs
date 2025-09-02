@@ -1,5 +1,3 @@
-use crate::tensornetwork::tensor::Tensor;
-use crate::tensornetwork::tensordata::TensorData;
 use itertools::Itertools;
 use num_complex::Complex64;
 use rand::distributions::{Distribution, Uniform};
@@ -7,6 +5,9 @@ use rand::prelude::SliceRandom;
 use rand::Rng;
 use rustc_hash::FxHashMap;
 use tetra::Tensor as DataTensor;
+
+use crate::tensornetwork::tensor::Tensor;
+use crate::tensornetwork::tensordata::TensorData;
 
 /// Generates random sparse [`DataTensor`] object.
 /// Fills in sparse tensor based on `sparsity` value (defaults to `0.5`).

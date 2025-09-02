@@ -90,7 +90,7 @@ impl Default for MessageBinaryBlob {
 
 #[cfg(test)]
 mod tests {
-    use super::RankTensorMapping;
+    use super::*;
 
     #[test]
     fn test_tensor_mapping() {

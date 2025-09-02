@@ -1,4 +1,5 @@
 use crate::types::ContractionIndex;
+
 pub mod branchbound;
 pub mod cotengrust;
 pub mod hyperoptimization;
@@ -58,9 +59,9 @@ pub(crate) fn validate_path(path: &[ContractionIndex]) {
 
 #[cfg(test)]
 mod tests {
-    use crate::path;
+    use super::*;
 
-    use super::validate_path;
+    use crate::path;
 
     #[test]
     #[should_panic(

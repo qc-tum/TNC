@@ -2,19 +2,24 @@ use antlr_rust::common_token_stream::CommonTokenStream;
 use antlr_rust::tree::{ParseTree, ParseTreeVisitorCompat, Visitable};
 use antlr_rust::InputStream;
 
-use super::ast::{Argument, BinOp, Expr, FuncType, Program, Statement, UnOp};
-use super::qasm2lexer::Qasm2Lexer;
-use super::qasm2parser::{
-    AdditiveExpressionContextAttrs, ArgumentContextAttrs, BitwiseXorExpressionContextAttrs,
-    BodyStatementContextAttrs, DeclarationContextAttrs, DesignatorContextAttrs,
-    ExplistContextAttrs, FunctionExpressionContextAttrs, GateCallContextAttrs,
-    GateDeclarationContextAttrs, IdlistContextAttrs, MixedlistContextAttrs,
-    MultiplicativeExpressionContextAttrs, ParenthesisExpressionContextAttrs, ProgramContextAttrs,
-    Qasm2Parser, QuantumOperationContextAttrs, StatementContextAttrs, UnaryExpressionContextAttrs,
+use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement, UnOp};
+use crate::qasm::generated::qasm2lexer::Qasm2Lexer;
+use crate::qasm::generated::qasm2parser::{
+    AdditiveExpressionContext, AdditiveExpressionContextAttrs, ArgumentContext,
+    ArgumentContextAttrs, BitwiseXorExpressionContext, BitwiseXorExpressionContextAttrs,
+    BodyStatementContext, BodyStatementContextAttrs, DeclarationContext, DeclarationContextAttrs,
+    DesignatorContext, DesignatorContextAttrs, ExplistContext, ExplistContextAttrs,
+    FunctionExpressionContext, FunctionExpressionContextAttrs, GateCallContext,
+    GateCallContextAttrs, GateDeclarationContext, GateDeclarationContextAttrs, IdlistContext,
+    IdlistContextAttrs, LiteralExpressionContext, MixedlistContext, MixedlistContextAttrs,
+    MultiplicativeExpressionContext, MultiplicativeExpressionContextAttrs,
+    ParenthesisExpressionContext, ParenthesisExpressionContextAttrs, ProgramContext,
+    ProgramContextAttrs, Qasm2Parser, QuantumOperationContext, QuantumOperationContextAttrs,
+    StatementContext, StatementContextAttrs, UnaryExpressionContext, UnaryExpressionContextAttrs,
 };
-use super::qasm2parser::{LiteralExpressionContextAttrs, Qasm2ParserContextType};
-use super::qasm2parservisitor::Qasm2ParserVisitorCompat;
-use super::utils::cast;
+use crate::qasm::generated::qasm2parser::{LiteralExpressionContextAttrs, Qasm2ParserContextType};
+use crate::qasm::generated::qasm2parservisitor::Qasm2ParserVisitorCompat;
+use crate::qasm::utils::cast;
 
 #[derive(Debug)]
 enum ReturnVal {
@@ -51,7 +56,7 @@ impl ParseTreeVisitorCompat<'_> for AstBuilderVisitor {
 }
 
 impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
-    fn visit_program(&mut self, ctx: &super::qasm2parser::ProgramContext) -> Self::Return {
+    fn visit_program(&mut self, ctx: &ProgramContext) -> Self::Return {
         let mut statements = Vec::new();
         while let Some(sctx) = ctx.statement(statements.len()) {
             let statement = self.visit(&*sctx);
@@ -61,7 +66,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         ReturnVal::Program(Program { statements })
     }
 
-    fn visit_statement(&mut self, ctx: &super::qasm2parser::StatementContext) -> Self::Return {
+    fn visit_statement(&mut self, ctx: &StatementContext) -> Self::Return {
         if let Some(qctx) = ctx.quantumOperation() {
             self.visit(&*qctx)
         } else if let Some(gctx) = ctx.declaration() {
@@ -79,7 +84,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         }
     }
 
-    fn visit_declaration(&mut self, ctx: &super::qasm2parser::DeclarationContext) -> Self::Return {
+    fn visit_declaration(&mut self, ctx: &DeclarationContext) -> Self::Return {
         let is_quantum = ctx.QREG().is_some();
         let name = ctx.Identifier().unwrap().get_text();
         let dctx = ctx
@@ -94,10 +99,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         }))
     }
 
-    fn visit_gateDeclaration(
-        &mut self,
-        ctx: &super::qasm2parser::GateDeclarationContext,
-    ) -> Self::Return {
+    fn visit_gateDeclaration(&mut self, ctx: &GateDeclarationContext) -> Self::Return {
         let is_opaque = ctx.OPAQUE().is_some();
         let name = ctx.Identifier().unwrap().get_text();
 
@@ -129,10 +131,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         )))
     }
 
-    fn visit_quantumOperation(
-        &mut self,
-        ctx: &super::qasm2parser::QuantumOperationContext,
-    ) -> Self::Return {
+    fn visit_quantumOperation(&mut self, ctx: &QuantumOperationContext) -> Self::Return {
         if let Some(gctx) = ctx.gateCall() {
             self.visit(&*gctx)
         } else if ctx.MEASURE().is_some() || ctx.RESET().is_some() {
@@ -142,10 +141,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         }
     }
 
-    fn visit_bodyStatement(
-        &mut self,
-        ctx: &super::qasm2parser::BodyStatementContext,
-    ) -> Self::Return {
+    fn visit_bodyStatement(&mut self, ctx: &BodyStatementContext) -> Self::Return {
         if let Some(gctx) = ctx.gateCall() {
             self.visit(&*gctx)
         } else {
@@ -153,7 +149,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         }
     }
 
-    fn visit_gateCall(&mut self, ctx: &super::qasm2parser::GateCallContext) -> Self::Return {
+    fn visit_gateCall(&mut self, ctx: &GateCallContext) -> Self::Return {
         let name = if let Some(id) = ctx.Identifier() {
             id.get_text()
         } else if ctx.U().is_some() {
@@ -176,7 +172,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         ReturnVal::Statement(Box::new(Statement::gate_call(name, args, qargs)))
     }
 
-    fn visit_idlist(&mut self, ctx: &super::qasm2parser::IdlistContext) -> Self::Return {
+    fn visit_idlist(&mut self, ctx: &IdlistContext) -> Self::Return {
         let mut identifiers = Vec::new();
         while let Some(ictx) = ctx.Identifier(identifiers.len()) {
             identifiers.push(ictx.get_text());
@@ -184,7 +180,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         ReturnVal::IdentifierList(identifiers)
     }
 
-    fn visit_mixedlist(&mut self, ctx: &super::qasm2parser::MixedlistContext) -> Self::Return {
+    fn visit_mixedlist(&mut self, ctx: &MixedlistContext) -> Self::Return {
         let mut arguments = Vec::new();
         while let Some(actx) = ctx.argument(arguments.len()) {
             let arg = self.visit(&*actx);
@@ -194,7 +190,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         ReturnVal::ArgList(arguments)
     }
 
-    fn visit_argument(&mut self, ctx: &super::qasm2parser::ArgumentContext) -> Self::Return {
+    fn visit_argument(&mut self, ctx: &ArgumentContext) -> Self::Return {
         let name = ctx.Identifier().unwrap().get_text();
         let count = ctx
             .designator()
@@ -202,13 +198,13 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         ReturnVal::Arg(Argument(name, count))
     }
 
-    fn visit_designator(&mut self, ctx: &super::qasm2parser::DesignatorContext) -> Self::Return {
+    fn visit_designator(&mut self, ctx: &DesignatorContext) -> Self::Return {
         let number = ctx.Integer().unwrap().get_text();
         let number = number.parse().unwrap();
         ReturnVal::Int(number)
     }
 
-    fn visit_explist(&mut self, ctx: &super::qasm2parser::ExplistContext) -> Self::Return {
+    fn visit_explist(&mut self, ctx: &ExplistContext) -> Self::Return {
         let mut expressions = Vec::new();
         while let Some(ectx) = ctx.exp(expressions.len()) {
             let expr = self.visit(&*ectx);
@@ -218,17 +214,11 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         ReturnVal::ExpressionList(expressions)
     }
 
-    fn visit_parenthesisExpression(
-        &mut self,
-        ctx: &super::qasm2parser::ParenthesisExpressionContext,
-    ) -> Self::Return {
+    fn visit_parenthesisExpression(&mut self, ctx: &ParenthesisExpressionContext) -> Self::Return {
         self.visit(&*ctx.exp().unwrap())
     }
 
-    fn visit_additiveExpression(
-        &mut self,
-        ctx: &super::qasm2parser::AdditiveExpressionContext,
-    ) -> Self::Return {
+    fn visit_additiveExpression(&mut self, ctx: &AdditiveExpressionContext) -> Self::Return {
         let lhs = self.visit(&**ctx.lhs.as_ref().unwrap());
         let lhs = cast!(lhs, ReturnVal::Expression);
         let rhs = self.visit(&**ctx.rhs.as_ref().unwrap());
@@ -245,7 +235,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
 
     fn visit_multiplicativeExpression(
         &mut self,
-        ctx: &super::qasm2parser::MultiplicativeExpressionContext,
+        ctx: &MultiplicativeExpressionContext,
     ) -> Self::Return {
         let lhs = self.visit(&**ctx.lhs.as_ref().unwrap());
         let lhs = cast!(lhs, ReturnVal::Expression);
@@ -261,10 +251,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         ReturnVal::Expression(Box::new(Expr::Binary(op, lhs, rhs)))
     }
 
-    fn visit_bitwiseXorExpression(
-        &mut self,
-        ctx: &super::qasm2parser::BitwiseXorExpressionContext,
-    ) -> Self::Return {
+    fn visit_bitwiseXorExpression(&mut self, ctx: &BitwiseXorExpressionContext) -> Self::Return {
         let lhs = self.visit(&**ctx.lhs.as_ref().unwrap());
         let lhs = cast!(lhs, ReturnVal::Expression);
         let rhs = self.visit(&**ctx.rhs.as_ref().unwrap());
@@ -277,19 +264,13 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         ReturnVal::Expression(Box::new(Expr::Binary(op, lhs, rhs)))
     }
 
-    fn visit_unaryExpression(
-        &mut self,
-        ctx: &super::qasm2parser::UnaryExpressionContext,
-    ) -> Self::Return {
+    fn visit_unaryExpression(&mut self, ctx: &UnaryExpressionContext) -> Self::Return {
         let inner = self.visit(&*ctx.exp().unwrap());
         let inner = cast!(inner, ReturnVal::Expression);
         ReturnVal::Expression(Box::new(Expr::Unary(UnOp::Neg, inner)))
     }
 
-    fn visit_functionExpression(
-        &mut self,
-        ctx: &super::qasm2parser::FunctionExpressionContext,
-    ) -> Self::Return {
+    fn visit_functionExpression(&mut self, ctx: &FunctionExpressionContext) -> Self::Return {
         let inner = self.visit(&*ctx.exp().unwrap());
         let inner = cast!(inner, ReturnVal::Expression);
         let kind = if ctx.SIN().is_some() {
@@ -310,10 +291,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         ReturnVal::Expression(Box::new(Expr::Function(kind, inner)))
     }
 
-    fn visit_literalExpression(
-        &mut self,
-        ctx: &super::qasm2parser::LiteralExpressionContext,
-    ) -> Self::Return {
+    fn visit_literalExpression(&mut self, ctx: &LiteralExpressionContext) -> Self::Return {
         let expr = if let Some(val) = ctx.Float() {
             Expr::Float(val.get_text().parse::<f64>().unwrap())
         } else if let Some(val) = ctx.Integer() {
@@ -344,9 +322,9 @@ pub fn parse(code: &str) -> Program {
 
 #[cfg(test)]
 mod tests {
-    use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement};
+    use super::*;
 
-    use super::parse;
+    use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement};
 
     #[test]
     fn program() {

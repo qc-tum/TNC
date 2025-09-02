@@ -34,7 +34,7 @@ macro_rules! pair {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::ContractionIndex;
+    use super::*;
 
     #[test]
     fn test_path_simple_macro() {

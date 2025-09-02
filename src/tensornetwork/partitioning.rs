@@ -1,10 +1,11 @@
-use itertools::Itertools;
-use partition_config::PartitioningStrategy;
-use rustc_hash::FxHashMap;
 use std::iter::zip;
 
-use super::tensor::Tensor;
+use itertools::Itertools;
 use kahypar::{partition, KaHyParContext};
+use rustc_hash::FxHashMap;
+
+use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
+use crate::tensornetwork::tensor::Tensor;
 
 pub mod partition_config;
 
@@ -174,15 +175,13 @@ pub fn partition_tensor_network(tn: Tensor, partitioning: &[usize]) -> Tensor {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     use rustc_hash::FxHashMap;
 
+    use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
     use crate::tensornetwork::tensor::Tensor;
-    use crate::{
-        tensornetwork::partitioning::partition_config::PartitioningStrategy, types::EdgeIndex,
-    };
-
-    use super::{find_partitioning, partition_tensor_network};
+    use crate::types::EdgeIndex;
 
     fn setup_complex() -> (Tensor, FxHashMap<EdgeIndex, u64>) {
         let bond_dims = FxHashMap::from_iter([
@@ -235,5 +234,12 @@ mod tests {
         assert!(partitioned_tn.tensor(2).approx_eq(&ref_tensor_1, 1e-12));
         assert!(partitioned_tn.tensor(1).approx_eq(&ref_tensor_2, 1e-12));
         assert!(partitioned_tn.tensor(0).approx_eq(&ref_tensor_3, 1e-12));
+    }
+
+    #[test]
+    fn test_single_partition() {
+        let (tn, _) = setup_complex();
+        let partitioning = find_partitioning(&tn, 1, PartitioningStrategy::MinCut, true);
+        assert_eq!(partitioning, [0, 0, 0, 0, 0, 0]);
     }
 }

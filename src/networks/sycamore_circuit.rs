@@ -99,3 +99,26 @@ where
 
     circuit_tn
 }
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+    use rand::{rngs::StdRng, SeedableRng};
+
+    use super::*;
+
+    #[test]
+    fn small_sycamore() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let tn = sycamore_circuit(3, 3, &mut rng);
+
+        let rank_counts = tn.tensors().iter().counts_by(|t| t.legs().len());
+        assert_eq!(rank_counts.len(), 3);
+        // 3 initial state, 3 final state
+        assert_eq!(rank_counts[&1], 6);
+        // 4 * 3 single qubit gates
+        assert_eq!(rank_counts[&2], 12);
+        // 1 two-qubit gate (in round C)
+        assert_eq!(rank_counts[&4], 1);
+    }
+}

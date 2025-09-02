@@ -2,7 +2,7 @@ use std::{iter::zip, mem::take};
 
 use rustc_hash::FxHashMap;
 
-use super::{
+use crate::qasm::{
     ast::{Expr, GateCallData, GateDeclarationData, Program, Statement},
     utils::cast,
 };
@@ -148,11 +148,11 @@ impl GateInliner {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use rustc_hash::FxHashMap;
 
     use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement, UnOp};
-
-    use super::GateInliner;
 
     #[test]
     fn recursive_inline() {

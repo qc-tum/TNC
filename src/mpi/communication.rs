@@ -3,10 +3,8 @@ use mpi::topology::{Process, SimpleCommunicator};
 use mpi::traits::{BufferMut, Communicator, Destination, Root, Source};
 use mpi::Rank;
 
-use super::mpi_types::RankTensorMapping;
-use super::serialization::{deserialize_tensor, serialize_tensor};
-use crate::mpi::mpi_types::MessageBinaryBlob;
-use crate::mpi::serialization::{deserialize, serialize};
+use crate::mpi::mpi_types::{MessageBinaryBlob, RankTensorMapping};
+use crate::mpi::serialization::{deserialize, deserialize_tensor, serialize, serialize_tensor};
 use crate::tensornetwork::contraction::contract_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
@@ -273,14 +271,20 @@ pub fn intermediate_reduce_tensor_network(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    use std::sync::Mutex;
+
     use mpi::traits::Communicator;
     use mpi_test::mpi_test;
 
-    use super::*;
     use crate::path;
+
+    static MPI_SERIAL_TEST_LOCK: Mutex<()> = Mutex::new(());
 
     #[mpi_test(2)]
     fn test_broadcast_contraction_path() {
+        let _lock = MPI_SERIAL_TEST_LOCK.lock().unwrap();
         let universe = mpi::initialize().unwrap();
         let world = universe.world();
         let rank = world.rank();

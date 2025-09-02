@@ -1,9 +1,9 @@
-use float_cmp::approx_eq;
-use serde::{Deserialize, Serialize};
 use std::iter::zip;
 use std::path::PathBuf;
 
+use float_cmp::approx_eq;
 use num_complex::Complex64;
+use serde::{Deserialize, Serialize};
 use tetra::{all_close, Layout, Tensor as DataTensor};
 
 use crate::{
@@ -46,7 +46,7 @@ impl TensorData {
                 if adjoint_l != adjoint_r {
                     return false;
                 }
-                if l0.to_lowercase() != r0.to_lowercase() {
+                if l0 != r0 {
                     return false;
                 }
                 for (angle1, angle2) in zip(angles_l.iter(), angles_r.iter()) {
@@ -77,11 +77,37 @@ impl TensorData {
             TensorData::Matrix(tensor) => tensor,
         }
     }
+}
 
-    /// Slices the tensor data along a given dimension at a given index.
-    pub fn into_sliced(self, dimension: usize, index: usize) -> Self {
-        let data = self.into_data();
-        let sliced = data.slice(dimension, index);
-        TensorData::Matrix(sliced)
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gates_eq_different_name() {
+        let g1 = TensorData::Gate((String::from("cx"), vec![], false));
+        let g2 = TensorData::Gate((String::from("CX"), vec![], false));
+        assert!(!g1.approx_eq(&g2, 1e-8));
+    }
+
+    #[test]
+    fn gates_eq_adjoint() {
+        let g1 = TensorData::Gate((String::from("h"), vec![], false));
+        let g2 = TensorData::Gate((String::from("h"), vec![], true));
+        assert!(!g1.approx_eq(&g2, 1e-8));
+    }
+
+    #[test]
+    fn gates_eq_different_angles() {
+        let g1 = TensorData::Gate((String::from("u"), vec![1.4, 2.0, -3.0], false));
+        let g2 = TensorData::Gate((String::from("u"), vec![1.4, -2.0, -3.0], false));
+        assert!(!g1.approx_eq(&g2, 1e-8));
+    }
+
+    #[test]
+    fn eq_different_data() {
+        let g1 = TensorData::Gate((String::from("u"), vec![1.4, 2.0, -3.0], false));
+        let g2 = TensorData::new_from_data(&[], vec![Complex64::ONE], None);
+        assert!(!g1.approx_eq(&g2, 1e-8));
     }
 }

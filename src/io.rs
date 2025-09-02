@@ -4,10 +4,10 @@ use hdf5::{File, Result};
 use itertools::Itertools;
 use ndarray::Array;
 use num_complex::Complex64;
-
 use tetra::Tensor as DataTensor;
 
-use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
+use crate::tensornetwork::tensor::Tensor;
+use crate::tensornetwork::tensordata::TensorData;
 
 /// Loads a tensor network from a HDF5 file.
 pub fn load_tensor<P>(filename: P) -> Result<Tensor>
@@ -102,6 +102,8 @@ fn write_data(file: &File, tensor: &DataTensor) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::iter::zip;
 
     use float_cmp::assert_approx_eq;
@@ -112,12 +114,10 @@ mod tests {
         distributions::{Alphanumeric, DistString},
         thread_rng,
     };
-
-    use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
-
     use tetra::{all_close, Tensor as DataTensor};
 
-    use super::{read_data, read_tensor, write_data};
+    use crate::tensornetwork::tensor::Tensor;
+    use crate::tensornetwork::tensordata::TensorData;
 
     /// Creates a new HDF5 file in memory.
     /// This method is taken from the hdf5 crate integration tests:

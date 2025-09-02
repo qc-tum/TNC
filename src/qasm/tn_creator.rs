@@ -2,9 +2,8 @@ use itertools::Itertools;
 use num_complex::Complex64;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use crate::qasm::ast::{Argument, Program, Statement};
 use crate::tensornetwork::tensor::Tensor;
-
-use super::ast::{Argument, Program, Statement};
 use crate::tensornetwork::tensordata::TensorData;
 
 type EdgeId = usize;
@@ -148,11 +147,13 @@ impl TensorNetworkCreator {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    use std::slice;
+
     use rustc_hash::FxHashMap;
 
     use crate::qasm::ast::Argument;
-
-    use super::TensorNetworkCreator;
 
     #[test]
     fn broadcasting_2qargs() {
@@ -208,8 +209,8 @@ mod tests {
         let a0 = Argument(String::from("a"), Some(0));
         let a1 = Argument(String::from("a"), Some(1));
 
-        let no_broadcast_args = &[a1.clone()];
-        let broadcast_args = &[a];
+        let no_broadcast_args = slice::from_ref(&a1);
+        let broadcast_args = slice::from_ref(&a);
 
         let no_broadcast_calls =
             TensorNetworkCreator::broadcast(no_broadcast_args, &register_sizes);

@@ -2,7 +2,6 @@ use std::fmt;
 use std::rc::Weak;
 
 use std::cell::RefCell;
-
 use std::rc::Rc;
 
 pub(crate) type NodeRef = Rc<RefCell<Node>>;
@@ -148,8 +147,7 @@ impl fmt::Display for Node {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::contractionpath::contraction_tree::node::{child_node, parent_node};
+    use super::*;
 
     #[test]
     fn test_node_format() {

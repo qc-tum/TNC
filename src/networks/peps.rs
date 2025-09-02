@@ -464,13 +464,13 @@ pub fn peps(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::iter::zip;
 
     use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::tensor::Tensor;
-
-    use super::{pepo, peps, peps_final, peps_init};
 
     #[test]
     fn test_pep_init() {

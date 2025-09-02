@@ -82,7 +82,7 @@ impl UnionFind {
 
 #[cfg(test)]
 mod tests {
-    use super::UnionFind;
+    use super::*;
 
     #[test]
     fn test_union_find_individual() {
