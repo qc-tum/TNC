@@ -149,6 +149,8 @@ impl TensorNetworkCreator {
 mod tests {
     use super::*;
 
+    use std::slice;
+
     use rustc_hash::FxHashMap;
 
     use crate::qasm::ast::Argument;
@@ -207,8 +209,8 @@ mod tests {
         let a0 = Argument(String::from("a"), Some(0));
         let a1 = Argument(String::from("a"), Some(1));
 
-        let no_broadcast_args = &[a1.clone()];
-        let broadcast_args = &[a];
+        let no_broadcast_args = slice::from_ref(&a1);
+        let broadcast_args = slice::from_ref(&a);
 
         let no_broadcast_calls =
             TensorNetworkCreator::broadcast(no_broadcast_args, &register_sizes);

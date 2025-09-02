@@ -239,7 +239,7 @@ mod tests {
         let mut tn_ref = Tensor::default();
         tn_ref.set_tensor_data(TensorData::new_from_data(
             &[],
-            vec![Complex64::new(FRAC_1_SQRT_2.powi(qubits as i32), 0.0)],
+            vec![Complex64::new(FRAC_1_SQRT_2.powi(qubits), 0.0)],
             None,
         ));
 
