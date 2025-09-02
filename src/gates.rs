@@ -574,3 +574,45 @@ impl Gate for Fsim {
         self.compute(&angles.iter().map(|&x| -x).collect_vec())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::f64::consts::PI;
+
+    use rand::{distributions::Uniform, prelude::Distribution, rngs::StdRng, SeedableRng};
+    use rustc_hash::FxHashMap;
+    use tetra::all_close;
+
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "Gate 'foo' not found.")]
+    fn load_unknown() {
+        let _ = load_gate("foo", &[]);
+    }
+
+    #[test]
+    #[should_panic(expected = "Gate 'foo' not found.")]
+    fn load_unknown_adjoint() {
+        let _ = load_gate_adjoint("foo", &[]);
+    }
+
+    #[test]
+    fn test_custom_adjoint_impls() {
+        let gate_params =
+            FxHashMap::from_iter([("u", 3), ("rx", 1), ("ry", 1), ("rz", 1), ("fsim", 2)]);
+        let rng = StdRng::seed_from_u64(42);
+        let dist = Uniform::new(-PI, PI);
+        let rng_iter = &mut dist.sample_iter(rng);
+
+        for gate in GATES.read().unwrap().iter() {
+            let param_count = gate_params.get(gate.name()).copied().unwrap_or_default();
+            let params = rng_iter.take(param_count).collect_vec();
+            let specialized_adjoint = gate.adjoint(&params);
+            let mut matrix = gate.compute(&params);
+            matrix_adjoint_inplace(&mut matrix);
+            let general_adjoint = matrix;
+            assert!(all_close(&specialized_adjoint, &general_adjoint, 1e-8));
+        }
+    }
+}

@@ -235,4 +235,11 @@ mod tests {
         assert!(partitioned_tn.tensor(1).approx_eq(&ref_tensor_2, 1e-12));
         assert!(partitioned_tn.tensor(0).approx_eq(&ref_tensor_3, 1e-12));
     }
+
+    #[test]
+    fn test_single_partition() {
+        let (tn, _) = setup_complex();
+        let partitioning = find_partitioning(&tn, 1, PartitioningStrategy::MinCut, true);
+        assert_eq!(partitioning, [0, 0, 0, 0, 0, 0]);
+    }
 }

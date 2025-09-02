@@ -188,7 +188,6 @@ mod tests {
     use std::f64::consts::FRAC_1_SQRT_2;
 
     use num_complex::Complex64;
-    use rustc_hash::FxHashMap;
 
     use crate::{
         contractionpath::paths::{
@@ -201,23 +200,21 @@ mod tests {
     };
 
     #[test]
-    fn test_circuit_builder() {
+    fn hadmards_expectation() {
         let qubits = 5;
-        let mut new_circuit = Circuit::initialize_ket0(qubits);
+        let mut circuit = Circuit::initialize_ket0(qubits);
         for i in 0..qubits {
-            new_circuit.append_gate(TensorData::Gate((String::from("h"), vec![], true)), &[i]);
+            circuit.append_gate(TensorData::Gate((String::from("h"), vec![], true)), &[i]);
         }
+        let tensor_network = circuit.finalize_ket0();
 
-        let tensor_network = new_circuit.finalize_ket0();
-
-        let tensor = tensor_network.clone();
-        let mut contraction_order = Cotengrust::new(&tensor, OptMethod::Greedy);
-        contraction_order.optimize_path();
-        let path = contraction_order.get_best_replace_path();
+        let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
+        opt.optimize_path();
+        let path = opt.get_best_replace_path();
 
         let result = contract_tensor_network(tensor_network, &path);
 
-        let mut tn_ref = Tensor::new_from_map(vec![], &FxHashMap::default());
+        let mut tn_ref = Tensor::default();
         tn_ref.set_tensor_data(TensorData::new_from_data(
             &[],
             vec![Complex64::new(FRAC_1_SQRT_2.powi(qubits as i32), 0.0)],
@@ -225,5 +222,37 @@ mod tests {
         ));
 
         assert!(result.approx_eq(&tn_ref, 1e-8));
+    }
+
+    #[test]
+    fn superposition_expectation() {
+        let qubits = 3;
+        let circuit = Circuit::initialize_bitstring("+++");
+        let tensor_network = circuit.finalize_ket0();
+
+        let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
+        opt.optimize_path();
+        let path = opt.get_best_replace_path();
+
+        let result = contract_tensor_network(tensor_network, &path);
+
+        let mut tn_ref = Tensor::default();
+        tn_ref.set_tensor_data(TensorData::new_from_data(
+            &[],
+            vec![Complex64::new(FRAC_1_SQRT_2.powi(qubits as i32), 0.0)],
+            None,
+        ));
+
+        assert!(result.approx_eq(&tn_ref, 1e-8));
+    }
+
+    #[test]
+    #[should_panic(expected = "Qubit indices must be unique")]
+    fn duplicate_qubit_arg() {
+        let mut circuit = Circuit::initialize_ket0(2);
+        circuit.append_gate(
+            TensorData::Gate((String::from("cx"), vec![], true)),
+            &[1, 1],
+        );
     }
 }

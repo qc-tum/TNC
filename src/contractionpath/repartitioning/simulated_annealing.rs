@@ -584,3 +584,18 @@ where
     };
     optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, rng)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use float_cmp::assert_approx_eq;
+
+    #[test]
+    fn simple_linear_interpolation() {
+        assert_approx_eq!(f64, linear_interpolation(0., 6., 0.5), 3.0);
+        assert_approx_eq!(f64, linear_interpolation(-1.0, 4.0, 0.2), 0.0);
+        assert_approx_eq!(f64, linear_interpolation(-7.0, -6.0, 0.0), -7.0);
+        assert_approx_eq!(f64, linear_interpolation(3.0, 5.0, 1.0), 5.0);
+    }
+}
