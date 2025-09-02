@@ -7,10 +7,11 @@ use antlr_rust::tree::{ParseTree, ParseTreeVisitorCompat, Visitable};
 use antlr_rust::InputStream;
 use rustc_hash::FxHashSet;
 
-use super::qasm2lexer::Qasm2Lexer;
-use super::qasm2parser::Qasm2ParserContextType;
-use super::qasm2parser::{IncludeStatementContextAttrs, Qasm2Parser};
-use super::qasm2parservisitor::Qasm2ParserVisitorCompat;
+use crate::qasm::generated::qasm2lexer::Qasm2Lexer;
+use crate::qasm::generated::qasm2parser::IncludeStatementContext;
+use crate::qasm::generated::qasm2parser::Qasm2ParserContextType;
+use crate::qasm::generated::qasm2parser::{IncludeStatementContextAttrs, Qasm2Parser};
+use crate::qasm::generated::qasm2parservisitor::Qasm2ParserVisitorCompat;
 
 static QELIB: &str = include_str!("qelib1.inc");
 
@@ -42,10 +43,7 @@ impl ParseTreeVisitorCompat<'_> for IncludeVisitor {
 }
 
 impl Qasm2ParserVisitorCompat<'_> for IncludeVisitor {
-    fn visit_includeStatement(
-        &mut self,
-        ctx: &super::qasm2parser::IncludeStatementContext,
-    ) -> Self::Return {
+    fn visit_includeStatement(&mut self, ctx: &IncludeStatementContext) -> Self::Return {
         let start = ctx.INCLUDE().unwrap().symbol.start as usize;
         let end = ctx.SEMICOLON().unwrap().symbol.stop as usize;
         let include_path = ctx.StringLiteral().unwrap().get_text();
