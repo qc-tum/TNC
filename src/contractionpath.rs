@@ -1,10 +1,8 @@
 use rustc_hash::FxHashMap;
 
-use crate::{
-    pair,
-    types::ContractionIndex,
-    utils::traits::{HashMapInsertNew, WithCapacity},
-};
+use crate::pair;
+use crate::types::ContractionIndex;
+use crate::utils::traits::{HashMapInsertNew, WithCapacity};
 mod candidates;
 pub mod communication_schemes;
 pub mod contraction_cost;
@@ -72,10 +70,9 @@ pub(super) fn ssa_replace_ordering(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        contractionpath::{ssa_ordering, ssa_replace_ordering},
-        path,
-    };
+    use super::*;
+
+    use crate::path;
 
     #[test]
     fn test_ssa_ordering() {

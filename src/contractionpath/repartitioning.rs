@@ -1,3 +1,7 @@
+use itertools::Itertools;
+use rand::Rng;
+use rustc_hash::FxHashMap;
+
 use crate::{
     contractionpath::{
         communication_schemes::CommunicationScheme,
@@ -10,9 +14,6 @@ use crate::{
     tensornetwork::{partitioning::partition_tensor_network, tensor::Tensor},
     types::ContractionIndex,
 };
-use itertools::Itertools;
-use rand::Rng;
-use rustc_hash::FxHashMap;
 
 pub mod genetic;
 pub mod simulated_annealing;

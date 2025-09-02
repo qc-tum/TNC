@@ -1,9 +1,9 @@
-use float_cmp::approx_eq;
-use serde::{Deserialize, Serialize};
 use std::iter::zip;
 use std::path::PathBuf;
 
+use float_cmp::approx_eq;
 use num_complex::Complex64;
+use serde::{Deserialize, Serialize};
 use tetra::{all_close, Layout, Tensor as DataTensor};
 
 use crate::{

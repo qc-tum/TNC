@@ -322,9 +322,9 @@ pub fn parse(code: &str) -> Program {
 
 #[cfg(test)]
 mod tests {
-    use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement};
+    use super::*;
 
-    use super::parse;
+    use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement};
 
     #[test]
     fn program() {

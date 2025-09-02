@@ -6,14 +6,13 @@ use std::{
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
-use crate::{
-    tensornetwork::tensor::Tensor, types::ContractionIndex, utils::traits::HashMapInsertNew,
-};
-
-use super::{
+use crate::contractionpath::contraction_tree::{
     import::{CommunicationEvent, Direction},
     ContractionTree,
 };
+use crate::tensornetwork::tensor::Tensor;
+use crate::types::ContractionIndex;
+use crate::utils::traits::HashMapInsertNew;
 
 pub(super) const COMMUNICATION_COLOR: &str = "black";
 pub(super) const COLORS: [&str; 16] = [

@@ -3,12 +3,14 @@ use rustc_hash::FxHashMap;
 use rustengra::{cotengra_check, cotengra_sa_tree, replace_to_ssa_path, tensor_legs_to_digit};
 
 use crate::{
-    contractionpath::{contraction_cost::contract_path_cost, ssa_replace_ordering},
+    contractionpath::{
+        contraction_cost::contract_path_cost,
+        paths::{CostType, OptimizePath},
+        ssa_replace_ordering,
+    },
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
 };
-
-use super::{CostType, OptimizePath};
 
 /// Creates an interface to `rustengra` an interface to access `Cotengra` methods in
 /// Rust. Specifically exposes `simulated_anneal_tree` method.
@@ -112,10 +114,12 @@ impl OptimizePath for TreeAnnealing<'_> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::paths::{tree_annealing::TreeAnnealing, CostType, OptimizePath},
+        contractionpath::paths::{CostType, OptimizePath},
         path,
         tensornetwork::tensor::Tensor,
     };

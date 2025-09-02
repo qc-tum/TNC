@@ -1,12 +1,15 @@
-use crate::pair;
-use crate::tensornetwork::tensor::Tensor;
-use crate::types::ContractionIndex;
-use node::{child_node, parent_node, Node, NodeRef, WeakNodeRef};
-use rustc_hash::FxHashMap;
 use std::cell::Ref;
 use std::rc::Rc;
 
-use super::paths::validate_path;
+use rustc_hash::FxHashMap;
+
+use crate::contractionpath::contraction_tree::node::{
+    child_node, parent_node, Node, NodeRef, WeakNodeRef,
+};
+use crate::contractionpath::paths::validate_path;
+use crate::pair;
+use crate::tensornetwork::tensor::Tensor;
+use crate::types::ContractionIndex;
 
 pub mod balancing;
 pub mod export;
@@ -485,21 +488,21 @@ fn populate_leaf_node_tensor_map(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::cell::RefCell;
     use std::iter::zip;
     use std::rc::Weak;
 
     use itertools::Itertools;
-    use node::{child_node, parent_node};
 
     use crate::contractionpath::contraction_cost::contract_cost_tensors;
+    use crate::contractionpath::contraction_tree::node::{child_node, parent_node};
     use crate::contractionpath::contraction_tree::{ContractionTree, Node};
     use crate::contractionpath::ssa_replace_ordering;
     use crate::path;
     use crate::tensornetwork::tensor::Tensor;
     use crate::types::{ContractionIndex, EdgeIndex};
-
-    use super::*;
 
     fn setup_simple() -> (Tensor, Vec<ContractionIndex>, FxHashMap<EdgeIndex, u64>) {
         let bond_dims =

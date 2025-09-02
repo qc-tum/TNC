@@ -5,12 +5,14 @@ use rustengra::{
 };
 
 use crate::{
-    contractionpath::{contraction_cost::contract_path_cost, ssa_replace_ordering},
+    contractionpath::{
+        contraction_cost::contract_path_cost,
+        paths::{CostType, OptimizePath},
+        ssa_replace_ordering,
+    },
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
 };
-
-use super::{CostType, OptimizePath};
 
 /// Creates an interface to `rustengra` an interface to access `Cotengra` methods in
 /// Rust. Specifically exposes `parallel_temper_tree` method.
@@ -104,10 +106,12 @@ impl OptimizePath for TreeTempering<'_> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::paths::{tree_tempering::TreeTempering, CostType, OptimizePath},
+        contractionpath::paths::{CostType, OptimizePath},
         path,
         tensornetwork::tensor::Tensor,
     };

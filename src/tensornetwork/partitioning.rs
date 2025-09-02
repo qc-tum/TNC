@@ -1,10 +1,11 @@
-use itertools::Itertools;
-use partition_config::PartitioningStrategy;
-use rustc_hash::FxHashMap;
 use std::iter::zip;
 
-use super::tensor::Tensor;
+use itertools::Itertools;
 use kahypar::{partition, KaHyParContext};
+use rustc_hash::FxHashMap;
+
+use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
+use crate::tensornetwork::tensor::Tensor;
 
 pub mod partition_config;
 
@@ -174,15 +175,13 @@ pub fn partition_tensor_network(tn: Tensor, partitioning: &[usize]) -> Tensor {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     use rustc_hash::FxHashMap;
 
+    use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
     use crate::tensornetwork::tensor::Tensor;
-    use crate::{
-        tensornetwork::partitioning::partition_config::PartitioningStrategy, types::EdgeIndex,
-    };
-
-    use super::{find_partitioning, partition_tensor_network};
+    use crate::types::EdgeIndex;
 
     fn setup_complex() -> (Tensor, FxHashMap<EdgeIndex, u64>) {
         let bond_dims = FxHashMap::from_iter([

@@ -1,16 +1,16 @@
-use itertools::Itertools;
-use lazy_static::lazy_static;
-use num_complex::Complex64;
-use permutation::Permutation;
-use rustc_hash::FxHashSet;
-use tetra::Tensor as DataTensor;
-
 use std::{
     borrow::Borrow,
     f64::consts::FRAC_1_SQRT_2,
     hash::{Hash, Hasher},
     sync::RwLock,
 };
+
+use itertools::Itertools;
+use lazy_static::lazy_static;
+use num_complex::Complex64;
+use permutation::Permutation;
+use rustc_hash::FxHashSet;
+use tetra::Tensor as DataTensor;
 
 lazy_static! {
     static ref GATES: RwLock<FxHashSet<Box<dyn Gate>>> = {

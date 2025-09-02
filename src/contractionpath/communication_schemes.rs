@@ -1,3 +1,5 @@
+use std::fmt;
+
 use itertools::Itertools;
 use rand::distributions::Uniform;
 use rand::Rng;
@@ -10,13 +12,8 @@ use crate::contractionpath::paths::{CostType, OptimizePath};
 use crate::pair;
 use crate::tensornetwork::partitioning::communication_partitioning;
 use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
-
-use core::f64;
-use std::fmt;
-
-use crate::types::ContractionIndex;
-
 use crate::tensornetwork::tensor::Tensor;
+use crate::types::ContractionIndex;
 
 #[derive(Debug, Copy, Clone)]
 pub enum CommunicationScheme {

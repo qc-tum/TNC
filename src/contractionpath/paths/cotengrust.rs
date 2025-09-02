@@ -1,15 +1,14 @@
 use std::iter::zip;
 
-use crate::{
-    contractionpath::{contraction_cost::contract_path_cost, ssa_replace_ordering},
-    tensornetwork::tensor::Tensor,
-    types::ContractionIndex,
-};
-
-use super::OptimizePath;
 use cotengrust::{optimize_greedy_rust, optimize_optimal_rust, optimize_random_greedy_rust};
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
+
+use crate::contractionpath::contraction_cost::contract_path_cost;
+use crate::contractionpath::paths::OptimizePath;
+use crate::contractionpath::ssa_replace_ordering;
+use crate::tensornetwork::tensor::Tensor;
+use crate::types::ContractionIndex;
 
 /// The optimization method to use.
 #[derive(Debug, Clone)]
@@ -163,9 +162,9 @@ impl OptimizePath for Cotengrust<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::path;
-
     use super::*;
+
+    use crate::path;
 
     fn setup_simple() -> Tensor {
         let bond_dims =

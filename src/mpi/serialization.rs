@@ -104,12 +104,11 @@ pub fn deserialize_tensor(data: &[MessageBinaryBlob]) -> Tensor {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use rustc_hash::FxHashMap;
 
-    use crate::{
-        mpi::serialization::{deserialize_tensor, serialize_tensor},
-        tensornetwork::tensor::Tensor,
-    };
+    use crate::tensornetwork::tensor::Tensor;
 
     #[test]
     fn test_serialize_deserialize_tensor_roundtrip() {

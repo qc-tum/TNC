@@ -1,11 +1,11 @@
-use super::circuit_builder::Circuit;
-use super::connectivity::{Connectivity, ConnectivityLayout};
 use itertools::Itertools;
 use rand::distributions::Bernoulli;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use rustc_hash::FxHashMap;
 
+use crate::networks::circuit_builder::Circuit;
+use crate::networks::connectivity::{Connectivity, ConnectivityLayout};
 use crate::random::tensorgeneration::random_sparse_tensor_data_with_rng;
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
@@ -271,18 +271,14 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::iter::zip;
 
     use rand::thread_rng;
 
-    use crate::{
-        networks::{
-            connectivity::ConnectivityLayout, random_circuit::random_circuit_with_set_observable,
-        },
-        tensornetwork::tensor::Tensor,
-    };
-
-    use super::random_circuit_with_observable;
+    use crate::networks::connectivity::ConnectivityLayout;
+    use crate::tensornetwork::tensor::Tensor;
 
     #[test]
     fn test_random_circuit_with_observable() {

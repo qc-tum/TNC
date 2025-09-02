@@ -6,22 +6,17 @@ use log::debug;
 use rand::{rngs::StdRng, seq::SliceRandom, Rng};
 use rustc_hash::FxHashMap;
 
-use crate::{
-    contractionpath::{
-        communication_schemes::CommunicationScheme,
-        contraction_cost::communication_path_op_costs,
-        contraction_tree::{
-            export::{to_dendogram_format, to_pdf},
-            utils::{characterize_partition, subtree_contraction_path},
-        },
-        paths::validate_path,
-    },
-    mpi::communication::extract_communication_path,
-    tensornetwork::tensor::Tensor,
-    types::ContractionIndex,
+use crate::contractionpath::communication_schemes::CommunicationScheme;
+use crate::contractionpath::contraction_cost::communication_path_op_costs;
+use crate::contractionpath::contraction_tree::{
+    export::{to_dendogram_format, to_pdf, DendogramSettings},
+    utils::{characterize_partition, subtree_contraction_path},
+    ContractionTree,
 };
-
-use super::{export::DendogramSettings, ContractionTree};
+use crate::contractionpath::paths::validate_path;
+use crate::mpi::communication::extract_communication_path;
+use crate::tensornetwork::tensor::Tensor;
+use crate::types::ContractionIndex;
 
 mod balancing_schemes;
 
@@ -652,22 +647,20 @@ fn shift_node_between_subtrees(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::rc::Rc;
 
     use rand::{rngs::StdRng, SeedableRng};
     use rustc_hash::FxHashMap;
 
-    use crate::{
-        contractionpath::contraction_tree::{
-            balancing::find_rebalance_node,
-            node::{child_node, parent_node},
-            ContractionTree,
-        },
-        path,
-        tensornetwork::tensor::Tensor,
+    use crate::contractionpath::contraction_tree::{
+        balancing::find_rebalance_node,
+        node::{child_node, parent_node},
+        ContractionTree,
     };
-
-    use super::shift_node_between_subtrees;
+    use crate::path;
+    use crate::tensornetwork::tensor::Tensor;
 
     fn setup_complex() -> (ContractionTree, Tensor) {
         let bond_dims = FxHashMap::from_iter([

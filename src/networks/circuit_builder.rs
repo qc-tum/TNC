@@ -183,6 +183,8 @@ impl Circuit {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::f64::consts::FRAC_1_SQRT_2;
 
     use num_complex::Complex64;
@@ -197,8 +199,6 @@ mod tests {
             contraction::contract_tensor_network, tensor::Tensor, tensordata::TensorData,
         },
     };
-
-    use super::Circuit;
 
     #[test]
     fn test_circuit_builder() {

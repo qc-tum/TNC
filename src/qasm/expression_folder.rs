@@ -1,4 +1,4 @@
-use super::{ast::Visitor, expression_simplification::fold_expr};
+use crate::qasm::{ast::Visitor, expression_simplification::fold_expr};
 
 /// Struct to fold constant subexpressions in an expression.
 #[derive(Debug)]
@@ -12,9 +12,9 @@ impl Visitor for ExpressionFolder {
 
 #[cfg(test)]
 mod tests {
-    use crate::qasm::ast::{BinOp, Expr, FuncType, Program, Statement, UnOp, Visitor};
+    use super::*;
 
-    use super::ExpressionFolder;
+    use crate::qasm::ast::{BinOp, Expr, FuncType, Program, Statement, UnOp, Visitor};
 
     #[test]
     fn simplify_gatecall() {

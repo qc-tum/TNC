@@ -10,12 +10,14 @@ use serde::Serialize;
 use serde_pickle::{DeOptions, SerOptions};
 
 use crate::{
-    contractionpath::{contraction_cost::contract_path_cost, ssa_replace_ordering},
+    contractionpath::{
+        contraction_cost::contract_path_cost,
+        paths::{CostType, OptimizePath},
+        ssa_replace_ordering,
+    },
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
 };
-
-use super::{CostType, OptimizePath};
 
 /// Creates an interface to access `Cotengra` methods in Rust. Specifically exposes
 /// `search` method of `HyperOptimizer`.
@@ -174,13 +176,16 @@ impl OptimizePath for Hyperoptimizer<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::time::Duration;
+
+    use rustc_hash::FxHashMap;
+
     use crate::{
         contractionpath::paths::{CostType, OptimizePath},
         path,
         tensornetwork::tensor::Tensor,
     };
-    use rustc_hash::FxHashMap;
-    use std::time::Duration;
 
     fn setup_simple() -> Tensor {
         let bond_dims =

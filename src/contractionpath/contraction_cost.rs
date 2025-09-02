@@ -316,10 +316,10 @@ pub fn compute_memory_requirements(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     use rustc_hash::FxHashMap;
 
-    use crate::contractionpath::contraction_cost::{communication_path_cost, contract_path_cost};
     use crate::path;
     use crate::tensornetwork::tensor::Tensor;
 

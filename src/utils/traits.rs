@@ -41,9 +41,9 @@ impl<K, V> WithCapacity for FxHashMap<K, V> {
 
 #[cfg(test)]
 mod tests {
-    use rustc_hash::FxHashMap;
-
     use super::*;
+
+    use rustc_hash::FxHashMap;
 
     #[test]
     fn test_insert_new() {

@@ -1,11 +1,11 @@
-use super::{find_rebalance_node, PartitionData};
+use rand::Rng;
+use rustc_hash::FxHashMap;
+
+use crate::contractionpath::contraction_tree::balancing::{find_rebalance_node, PartitionData};
 use crate::contractionpath::contraction_tree::{
     populate_leaf_node_tensor_map, populate_subtree_tensor_map, ContractionTree,
 };
 use crate::tensornetwork::tensor::Tensor;
-
-use rand::Rng;
-use rustc_hash::FxHashMap;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BalancingScheme {
@@ -604,20 +604,13 @@ pub(super) fn tree_tensors_even(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use rand::rngs::StdRng;
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::contraction_tree::{
-            balancing::{
-                balancing_schemes::{
-                    best_intermediate_tensors, best_tensor, best_tensors, best_worst, tensors_even,
-                    tensors_odd, Shift,
-                },
-                PartitionData,
-            },
-            ContractionTree,
-        },
+        contractionpath::contraction_tree::{balancing::PartitionData, ContractionTree},
         path,
         tensornetwork::tensor::Tensor,
     };

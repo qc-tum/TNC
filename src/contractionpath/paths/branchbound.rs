@@ -7,14 +7,13 @@ use crate::{
     contractionpath::{
         candidates::Candidate,
         contraction_cost::{contract_cost_tensors, contract_size_tensors},
+        paths::{CostType, OptimizePath},
         ssa_ordering, ssa_replace_ordering,
     },
     tensornetwork::tensor::Tensor,
     types::ContractionIndex,
     utils::traits::HashMapInsertNew,
 };
-
-use super::{CostType, OptimizePath};
 
 /// A struct with an [`OptimizePath`] implementation that explores possible pair contractions in a depth-first manner.
 pub struct BranchBound<'a> {
@@ -233,11 +232,11 @@ impl OptimizePath for BranchBound<'_> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use rustc_hash::FxHashMap;
 
-    use crate::contractionpath::paths::branchbound::BranchBound;
-    use crate::contractionpath::paths::CostType;
-    use crate::contractionpath::paths::OptimizePath;
+    use crate::contractionpath::paths::{CostType, OptimizePath};
     use crate::path;
     use crate::tensornetwork::tensor::Tensor;
 
