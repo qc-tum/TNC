@@ -109,22 +109,6 @@ pub fn balance_partitions(
         .unwrap()
 }
 
-/// Calculates the fitness of a partitioning. The fitness is the total contraction
-/// cost (max parallel contraction cost + communication cost).
-pub fn calculate_fitness(
-    tensor: &Tensor,
-    partitioning: &[usize],
-    communication_scheme: CommunicationScheme,
-) -> f64 {
-    let fitness = PartitioningFitness {
-        tensor,
-        communication_scheme,
-        memory_limit: None,
-    };
-
-    fitness.calculate_fitness(partitioning).into_inner()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
