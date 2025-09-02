@@ -46,7 +46,7 @@ impl TensorData {
                 if adjoint_l != adjoint_r {
                     return false;
                 }
-                if l0.to_lowercase() != r0.to_lowercase() {
+                if l0 != r0 {
                     return false;
                 }
                 for (angle1, angle2) in zip(angles_l.iter(), angles_r.iter()) {
@@ -76,12 +76,5 @@ impl TensorData {
             }
             TensorData::Matrix(tensor) => tensor,
         }
-    }
-
-    /// Slices the tensor data along a given dimension at a given index.
-    pub fn into_sliced(self, dimension: usize, index: usize) -> Self {
-        let data = self.into_data();
-        let sliced = data.slice(dimension, index);
-        TensorData::Matrix(sliced)
     }
 }
