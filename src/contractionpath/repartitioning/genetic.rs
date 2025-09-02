@@ -124,3 +124,33 @@ pub fn calculate_fitness(
 
     fitness.calculate_fitness(partitioning).into_inner()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn small_partitioning() {
+        let t1 = Tensor::new_from_const(vec![0, 1], 2);
+        let t2 = Tensor::new_from_const(vec![2, 3], 2);
+        let t3 = Tensor::new_from_const(vec![0, 1, 4], 2);
+        let t4 = Tensor::new_from_const(vec![2, 3, 4], 2);
+        let tn = Tensor::new_composite(vec![t1, t2, t3, t4]);
+        let initial_partitioning = vec![0, 0, 1, 1];
+
+        let (partitioning, _) = balance_partitions(
+            &tn,
+            2,
+            &initial_partitioning,
+            CommunicationScheme::RandomGreedy,
+            None,
+        );
+        // Normalize for comparability
+        let ref_partitioning = if partitioning[0] == 0 {
+            [0, 1, 0, 1]
+        } else {
+            [1, 0, 1, 0]
+        };
+        assert_eq!(partitioning, ref_partitioning);
+    }
+}
