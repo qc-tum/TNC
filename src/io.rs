@@ -211,7 +211,7 @@ mod tests {
         ));
         ref_tn.push_tensor(ref_tensor);
         ref_tn.set_legs(vec![0, 1]);
-        assert!(tensor.approx_eq(&ref_tn, 1e-12));
+        assert_approx_eq!(&Tensor, &tensor, &ref_tn);
     }
 
     #[test]

@@ -3,7 +3,7 @@ use std::iter::zip;
 use std::num::TryFromIntError;
 use std::ops::{BitAnd, BitOr, BitXor, BitXorAssign, Sub};
 
-use float_cmp::approx_eq;
+use float_cmp::{ApproxEq, F64Margin};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
@@ -282,33 +282,6 @@ impl Tensor {
             && matches!(*self.tensor_data(), TensorData::Uncontracted)
     }
 
-    /// Comparison of two Tensors, returns true if Tensor objects are equivalent up to `epsilon` precision.
-    /// Considers `legs`, `bond_dims` and `tensordata`.
-    pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
-        if self.tensors.len() != other.tensors.len() {
-            return false;
-        }
-        if self.legs != other.legs {
-            return false;
-        }
-        if self.bond_dims != other.bond_dims {
-            return false;
-        }
-
-        for (tensor, other_tensor) in zip(&self.tensors, &other.tensors) {
-            if !tensor.approx_eq(other_tensor, epsilon) {
-                return false;
-            }
-        }
-
-        approx_eq!(
-            &TensorData,
-            &self.tensordata,
-            &other.tensordata,
-            epsilon = epsilon
-        )
-    }
-
     /// Pushes additional `tensor` into this tensor, which must be a composite tensor.
     #[inline]
     pub fn push_tensor(&mut self, tensor: Self) {
@@ -520,6 +493,30 @@ impl Tensor {
         }
 
         ext_tensor
+    }
+}
+
+impl ApproxEq for &Tensor {
+    type Margin = F64Margin;
+
+    fn approx_eq<M: Into<Self::Margin>>(self, other: Self, margin: M) -> bool {
+        let margin = margin.into();
+        if self.legs != other.legs {
+            return false;
+        }
+        if self.bond_dims != other.bond_dims {
+            return false;
+        }
+        if self.tensors.len() != other.tensors.len() {
+            return false;
+        }
+        for (tensor, other_tensor) in zip(&self.tensors, &other.tensors) {
+            if !tensor.approx_eq(other_tensor, margin) {
+                return false;
+            }
+        }
+
+        self.tensordata.approx_eq(&other.tensordata, margin)
     }
 }
 

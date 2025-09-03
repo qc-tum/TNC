@@ -17,6 +17,7 @@ use tensorcontraction::{
         partitioning::{
             find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
         },
+        tensor::Tensor,
         tensordata::TensorData,
     },
 };
@@ -39,7 +40,7 @@ fn test_partitioned_contraction_random() {
     opt.optimize_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
-    assert!(&ref_result.approx_eq(&result, 1e-12));
+    assert_approx_eq!(&Tensor, &ref_result, &result);
 }
 
 #[test]
@@ -60,7 +61,7 @@ fn test_partitioned_contraction() {
     opt.optimize_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
-    assert!(&ref_result.approx_eq(&result, 1e-12));
+    assert_approx_eq!(&Tensor, &ref_result, &result);
 }
 
 #[test]
@@ -81,7 +82,7 @@ fn test_partitioned_contraction_mixed() {
     opt.optimize_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
-    assert!(&ref_result.approx_eq(&result, 1e-12));
+    assert_approx_eq!(&Tensor, &ref_result, &result);
 }
 
 #[mpi_test(4)]

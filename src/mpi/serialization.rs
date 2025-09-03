@@ -106,6 +106,7 @@ pub fn deserialize_tensor(data: &[MessageBinaryBlob]) -> Tensor {
 mod tests {
     use super::*;
 
+    use float_cmp::assert_approx_eq;
     use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::tensor::Tensor;
@@ -119,6 +120,6 @@ mod tests {
         let ta = Tensor::new_composite(vec![t2, t3, t4]);
         let serialized = serialize_tensor(&ta);
         let deserialized = deserialize_tensor(&serialized);
-        assert!(Tensor::approx_eq(&ta, &deserialized, 1e-10));
+        assert_approx_eq!(&Tensor, &ta, &deserialized);
     }
 }

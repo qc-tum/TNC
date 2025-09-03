@@ -187,6 +187,7 @@ mod tests {
 
     use std::f64::consts::FRAC_1_SQRT_2;
 
+    use float_cmp::assert_approx_eq;
     use num_complex::Complex64;
 
     use crate::{
@@ -221,7 +222,7 @@ mod tests {
             None,
         ));
 
-        assert!(result.approx_eq(&tn_ref, 1e-8));
+        assert_approx_eq!(&Tensor, &result, &tn_ref);
     }
 
     #[test]
@@ -243,7 +244,7 @@ mod tests {
             None,
         ));
 
-        assert!(result.approx_eq(&tn_ref, 1e-8));
+        assert_approx_eq!(&Tensor, &result, &tn_ref);
     }
 
     #[test]
