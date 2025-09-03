@@ -46,6 +46,7 @@ mod tests {
 
     use std::f64::consts::FRAC_1_SQRT_2;
 
+    use float_cmp::assert_approx_eq;
     use itertools::Itertools;
     use num_complex::{c64, Complex64};
 
@@ -182,10 +183,7 @@ mod tests {
             ],
             None,
         );
-        assert!(
-            resulting_state.approx_eq(&expected, f64::EPSILON),
-            "Got: {resulting_state:?}\nExpected: {expected:?}"
-        );
+        assert_approx_eq!(&TensorData, &resulting_state, &expected);
     }
 
     #[test]
@@ -219,9 +217,6 @@ mod tests {
             ],
             None,
         );
-        assert!(
-            resulting_state.approx_eq(&expected, f64::EPSILON),
-            "Got: {resulting_state:?}\nExpected: {expected:?}"
-        );
+        assert_approx_eq!(&TensorData, &resulting_state, &expected);
     }
 }

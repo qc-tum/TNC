@@ -1,10 +1,9 @@
-use std::iter::zip;
 use std::path::PathBuf;
 
-use float_cmp::approx_eq;
+use float_cmp::{ApproxEq, F64Margin};
 use num_complex::Complex64;
 use serde::{Deserialize, Serialize};
-use tetra::{all_close, Layout, Tensor as DataTensor};
+use tetra::{Layout, Tensor as DataTensor};
 
 use crate::{
     gates::{load_gate, load_gate_adjoint},
@@ -37,31 +36,6 @@ impl TensorData {
         Self::Matrix(DataTensor::new_from_flat(dimensions, data, layout))
     }
 
-    /// Checks for equality of two tensor sources. Does not check between different
-    /// types (e.g. `File` and `Matrix`).
-    pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
-        match (self, other) {
-            (Self::File(l0), Self::File(r0)) => l0 == r0,
-            (Self::Gate((l0, angles_l, adjoint_l)), Self::Gate((r0, angles_r, adjoint_r))) => {
-                if adjoint_l != adjoint_r {
-                    return false;
-                }
-                if l0 != r0 {
-                    return false;
-                }
-                for (angle1, angle2) in zip(angles_l.iter(), angles_r.iter()) {
-                    if !approx_eq!(f64, *angle1, *angle2, epsilon = epsilon) {
-                        return false;
-                    }
-                }
-                true
-            }
-            (Self::Matrix(l0), Self::Matrix(r0)) => all_close(l0, r0, epsilon),
-            (Self::Uncontracted, Self::Uncontracted) => true,
-            _ => false,
-        }
-    }
-
     /// Consumes the tensor data and returns the contained tensor.
     pub fn into_data(self) -> DataTensor {
         match self {
@@ -79,35 +53,59 @@ impl TensorData {
     }
 }
 
+impl ApproxEq for &TensorData {
+    type Margin = F64Margin;
+
+    fn approx_eq<M: Into<Self::Margin>>(self, other: Self, margin: M) -> bool {
+        let margin = margin.into();
+        match (self, other) {
+            (TensorData::File(l0), TensorData::File(r0)) => l0 == r0,
+            (
+                TensorData::Gate((name_l, angles_l, adjoint_l)),
+                TensorData::Gate((name_r, angles_r, adjoint_r)),
+            ) => name_l == name_r && adjoint_l == adjoint_r && angles_l.approx_eq(angles_r, margin),
+            (TensorData::Matrix(l0), TensorData::Matrix(r0)) => l0.approx_eq(r0, margin),
+            (TensorData::Uncontracted, TensorData::Uncontracted) => true,
+            _ => false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use float_cmp::assert_approx_eq;
+
     use super::*;
 
     #[test]
+    #[should_panic(expected = "assertion failed: `(left approx_eq right)`")]
     fn gates_eq_different_name() {
         let g1 = TensorData::Gate((String::from("cx"), vec![], false));
         let g2 = TensorData::Gate((String::from("CX"), vec![], false));
-        assert!(!g1.approx_eq(&g2, 1e-8));
+        assert_approx_eq!(&TensorData, &g1, &g2);
     }
 
     #[test]
+    #[should_panic(expected = "assertion failed: `(left approx_eq right)`")]
     fn gates_eq_adjoint() {
         let g1 = TensorData::Gate((String::from("h"), vec![], false));
         let g2 = TensorData::Gate((String::from("h"), vec![], true));
-        assert!(!g1.approx_eq(&g2, 1e-8));
+        assert_approx_eq!(&TensorData, &g1, &g2);
     }
 
     #[test]
+    #[should_panic(expected = "assertion failed: `(left approx_eq right)`")]
     fn gates_eq_different_angles() {
         let g1 = TensorData::Gate((String::from("u"), vec![1.4, 2.0, -3.0], false));
         let g2 = TensorData::Gate((String::from("u"), vec![1.4, -2.0, -3.0], false));
-        assert!(!g1.approx_eq(&g2, 1e-8));
+        assert_approx_eq!(&TensorData, &g1, &g2);
     }
 
     #[test]
+    #[should_panic(expected = "assertion failed: `(left approx_eq right)`")]
     fn eq_different_data() {
         let g1 = TensorData::Gate((String::from("u"), vec![1.4, 2.0, -3.0], false));
         let g2 = TensorData::new_from_data(&[], vec![Complex64::ONE], None);
-        assert!(!g1.approx_eq(&g2, 1e-8));
+        assert_approx_eq!(&TensorData, &g1, &g2);
     }
 }
