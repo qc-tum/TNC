@@ -216,7 +216,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.12.1",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -296,9 +296,9 @@ checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
 
 [[package]]
 name = "bytemuck"
-version = "1.23.1"
+version = "1.23.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c76a5792e44e4abe34d3abf15636779261d45a7450612059293d1d2cfc63422"
+checksum = "3995eaeebcdf32f91f980d360f78732ddc061097ab4e39991ae7a6ace9194677"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -957,7 +957,7 @@ dependencies = [
 [[package]]
 name = "hptt"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#5ca484b83be1fecebc1be389b97a7fee7ea39576"
+source = "git+https://github.com/Ectras/rust-hptt.git#b82ff21e0d5226aad365d00979cfbbc882fd9551"
 dependencies = [
  "hptt-sys",
  "num-complex",
@@ -967,7 +967,7 @@ dependencies = [
 [[package]]
 name = "hptt-sys"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#5ca484b83be1fecebc1be389b97a7fee7ea39576"
+source = "git+https://github.com/Ectras/rust-hptt.git#b82ff21e0d5226aad365d00979cfbbc882fd9551"
 dependencies = [
  "bindgen 0.71.1",
  "cmake",
@@ -2552,9 +2552,11 @@ dependencies = [
 [[package]]
 name = "tetra"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/tetra.git#99f931dc7a6c9cba1907b6023990f3dd371307e1"
+source = "git+https://github.com/Ectras/tetra.git#3faf8de951aa3897c07734c460a2d2222a9487df"
 dependencies = [
+ "bytemuck",
  "cblas-sys",
+ "float-cmp",
  "hptt",
  "intel-mkl-src",
  "itertools 0.14.0",

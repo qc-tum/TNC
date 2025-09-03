@@ -114,7 +114,7 @@ mod tests {
         distributions::{Alphanumeric, DistString},
         thread_rng,
     };
-    use tetra::{all_close, Tensor as DataTensor};
+    use tetra::Tensor as DataTensor;
 
     use crate::tensornetwork::tensor::Tensor;
     use crate::tensornetwork::tensordata::TensorData;
@@ -230,6 +230,6 @@ mod tests {
         write_data(&file, &tensor).unwrap();
         let read = read_data(&file).unwrap();
 
-        assert!(all_close(&tensor, &read, 1e-10));
+        assert_approx_eq!(&DataTensor, &tensor, &read);
     }
 }

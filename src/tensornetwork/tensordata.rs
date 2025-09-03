@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use float_cmp::approx_eq;
 use num_complex::Complex64;
 use serde::{Deserialize, Serialize};
-use tetra::{all_close, Layout, Tensor as DataTensor};
+use tetra::{Layout, Tensor as DataTensor};
 
 use crate::{
     gates::{load_gate, load_gate_adjoint},
@@ -56,7 +56,9 @@ impl TensorData {
                 }
                 true
             }
-            (Self::Matrix(l0), Self::Matrix(r0)) => all_close(l0, r0, epsilon),
+            (Self::Matrix(l0), Self::Matrix(r0)) => {
+                approx_eq!(&DataTensor, l0, r0, epsilon = epsilon)
+            }
             (Self::Uncontracted, Self::Uncontracted) => true,
             _ => false,
         }

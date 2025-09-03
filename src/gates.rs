@@ -579,9 +579,9 @@ impl Gate for Fsim {
 mod tests {
     use std::f64::consts::PI;
 
+    use float_cmp::assert_approx_eq;
     use rand::{distributions::Uniform, prelude::Distribution, rngs::StdRng, SeedableRng};
     use rustc_hash::FxHashMap;
-    use tetra::all_close;
 
     use super::*;
 
@@ -612,7 +612,7 @@ mod tests {
             let mut matrix = gate.compute(&params);
             matrix_adjoint_inplace(&mut matrix);
             let general_adjoint = matrix;
-            assert!(all_close(&specialized_adjoint, &general_adjoint, 1e-8));
+            assert_approx_eq!(&DataTensor, &specialized_adjoint, &general_adjoint);
         }
     }
 }
