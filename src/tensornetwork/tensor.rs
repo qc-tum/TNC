@@ -3,6 +3,7 @@ use std::iter::zip;
 use std::num::TryFromIntError;
 use std::ops::{BitAnd, BitOr, BitXor, BitXorAssign, Sub};
 
+use float_cmp::approx_eq;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
@@ -300,7 +301,12 @@ impl Tensor {
             }
         }
 
-        self.tensordata.approx_eq(&other.tensordata, epsilon)
+        approx_eq!(
+            &TensorData,
+            &self.tensordata,
+            &other.tensordata,
+            epsilon = epsilon
+        )
     }
 
     /// Pushes additional `tensor` into this tensor, which must be a composite tensor.

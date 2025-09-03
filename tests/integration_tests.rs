@@ -1,3 +1,4 @@
+use float_cmp::assert_approx_eq;
 use mpi::traits::Communicator;
 use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
@@ -16,6 +17,7 @@ use tensorcontraction::{
         partitioning::{
             find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
         },
+        tensordata::TensorData,
     },
 };
 
@@ -126,6 +128,6 @@ fn test_partitioned_contraction_need_mpi() {
 
         let ref_tn = contract_tensor_network(ref_tn, &ref_path);
 
-        assert!(local_tn.tensor_data().approx_eq(ref_tn.tensor_data(), 1e-8));
+        assert_approx_eq!(&TensorData, local_tn.tensor_data(), ref_tn.tensor_data());
     }
 }
