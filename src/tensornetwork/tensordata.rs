@@ -63,9 +63,7 @@ impl ApproxEq for &TensorData {
             (
                 TensorData::Gate((name_l, angles_l, adjoint_l)),
                 TensorData::Gate((name_r, angles_r, adjoint_r)),
-            ) => {
-                name_l == name_r && adjoint_l == adjoint_r && angles_l.approx_eq(&angles_r, margin)
-            }
+            ) => name_l == name_r && adjoint_l == adjoint_r && angles_l.approx_eq(angles_r, margin),
             (TensorData::Matrix(l0), TensorData::Matrix(r0)) => l0.approx_eq(r0, margin),
             (TensorData::Uncontracted, TensorData::Uncontracted) => true,
             _ => false,
