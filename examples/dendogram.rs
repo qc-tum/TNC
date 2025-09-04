@@ -1,5 +1,6 @@
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
+    builders::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     contractionpath::{
         contraction_cost::contract_cost_tensors,
         contraction_tree::{
@@ -11,7 +12,6 @@ use tensorcontraction::{
             OptimizePath,
         },
     },
-    networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     tensornetwork::partitioning::{
         find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
     },

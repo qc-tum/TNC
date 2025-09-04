@@ -30,8 +30,8 @@ impl Connectivity {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::networks::connectivity::Connectivity;
-    /// # use tensorcontraction::networks::connectivity::ConnectivityLayout;
+    /// # use tensorcontraction::builders::connectivity::Connectivity;
+    /// # use tensorcontraction::builders::connectivity::ConnectivityLayout;
     /// let cn = Connectivity::new(ConnectivityLayout::Eagle);
     /// ```
     #[must_use]

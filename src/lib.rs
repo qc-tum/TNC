@@ -7,11 +7,11 @@ extern crate jemallocator;
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
+pub mod builders;
 pub mod contractionpath;
 pub mod gates;
 pub mod io;
 pub mod mpi;
-pub mod networks;
 pub mod qasm;
 pub mod random;
 pub mod tensornetwork;

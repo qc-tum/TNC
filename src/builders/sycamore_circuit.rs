@@ -4,7 +4,7 @@ use rand::{seq::SliceRandom, Rng};
 use rustc_hash::FxHashMap;
 
 use crate::{
-    networks::connectivity::{sycamore_a, sycamore_b, sycamore_c, sycamore_d},
+    builders::connectivity::{sycamore_a, sycamore_b, sycamore_c, sycamore_d},
     random::tensorgeneration::random_sparse_tensor_data_with_rng,
     tensornetwork::{tensor::Tensor, tensordata::TensorData},
 };
