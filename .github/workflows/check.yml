@@ -39,8 +39,10 @@ jobs:
     runs-on: ubuntu-latest
     name: clippy (nightly)
     steps:
-      - name: Install system requirements
-        run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
+      - uses: awalsh128/cache-apt-pkgs-action@2c09a5e66da6c8016428a2172bd76e5e4f14bb17 # tag=v1.5.3
+        with:
+          packages: libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
+          version: 1.0
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
@@ -72,8 +74,10 @@ jobs:
     runs-on: ubuntu-latest
     name: doc (nightly)
     steps:
-      - name: Install system requirements
-        run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
+      - uses: awalsh128/cache-apt-pkgs-action@2c09a5e66da6c8016428a2172bd76e5e4f14bb17 # tag=v1.5.3
+        with:
+          packages: libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
+          version: 1.0
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
@@ -91,8 +95,10 @@ jobs:
     runs-on: ubuntu-latest
     name: features (nightly)
     steps:
-      - name: Install system requirements
-        run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
+      - uses: awalsh128/cache-apt-pkgs-action@2c09a5e66da6c8016428a2172bd76e5e4f14bb17 # tag=v1.5.3
+        with:
+          packages: libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
+          version: 1.0
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
