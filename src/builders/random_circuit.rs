@@ -53,27 +53,28 @@ where
         .collect_vec();
 
     // Initialize circuit with random qubit states
-    let mut circuit = Circuit::initialize_random(qubits, rng);
+    let mut circuit = Circuit::default();
+    let qr = circuit.allocate_register(qubits);
 
     for _ in 1..rounds {
         for i in 0..qubits {
             // Placing of random single qubit gate
             if rng.sample(single_qubit_die) {
                 let gate = single_qubit_gates.choose(rng).unwrap().clone();
-                circuit.append_gate(gate, &[i]);
+                circuit.append_gate(gate, &[qr.qubit(i)]);
             }
         }
         for (i, j) in &filtered_connectivity {
             // Placing of random two qubit gate
             if rng.sample(two_qubit_die) {
                 let gate = fsim!(0.3, 0.2, false);
-                circuit.append_gate(gate, &[*i, *j]);
+                circuit.append_gate(gate, &[qr.qubit(*i), qr.qubit(*j)]);
             }
         }
     }
 
     // Set up final state
-    circuit.finalize_random(rng)
+    circuit.into_amplitude_network(&"0".repeat(qubits))
 }
 
 /// Creates a random circuit with `rounds` many rounds of single and two qubit gate
