@@ -40,7 +40,7 @@ use tensorcontraction::mpi::communication::{
     broadcast_path, broadcast_serializing, extract_communication_path,
     intermediate_reduce_tensor_network, scatter_tensor_network,
 };
-use tensorcontraction::qasm::qasm_to_tensornetwork::create_tensornetwork;
+use tensorcontraction::qasm::create_tensornetwork;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::find_partitioning;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
