@@ -48,7 +48,7 @@ use tensorcontraction::{
         broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
         scatter_tensor_network,
     },
-    qasm::qasm_to_tensornetwork::create_tensornetwork,
+    qasm::create_tensornetwork,
     tensornetwork::{
         contraction::contract_tensor_network,
         partitioning::{

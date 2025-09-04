@@ -13,14 +13,14 @@ use crate::{
 /// ```
 /// # use tensorcontraction::{
 ///     contractionpath::paths::{branchbound::BranchBound, CostType, OptimizePath},
-///     random::tensorgeneration::random_tensor_network_with_rng,
+///     builders::sycamore_circuit::sycamore_circuit,
 ///     tensornetwork::tensor::Tensor,
 ///     tensornetwork::contraction::contract_tensor_network,
 /// };
 /// # use rand::rngs::StdRng;
 /// # use rand::SeedableRng;
 /// let mut r = StdRng::seed_from_u64(42);
-/// let mut r_tn = random_tensor_network_with_rng(2, 3, &mut r);
+/// let mut r_tn = sycamore_circuit(2, 1, &mut r);
 /// let mut opt = BranchBound::new(&r_tn, None, 20., CostType::Flops);
 /// opt.optimize_path();
 /// let opt_path = opt.get_best_replace_path();

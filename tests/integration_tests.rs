@@ -3,6 +3,7 @@ use mpi::traits::Communicator;
 use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
 use tensorcontraction::{
+    builders::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     contractionpath::paths::{
         cotengrust::{Cotengrust, OptMethod},
         OptimizePath,
@@ -11,7 +12,6 @@ use tensorcontraction::{
         broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
         scatter_tensor_network,
     },
-    networks::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     tensornetwork::{
         contraction::contract_tensor_network,
         partitioning::{

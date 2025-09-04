@@ -4,6 +4,8 @@ use mpi::traits::Communicator;
 use mpi::Rank;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use tensorcontraction::builders::connectivity::ConnectivityLayout;
+use tensorcontraction::builders::random_circuit::random_circuit;
 use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
 use tensorcontraction::contractionpath::contraction_tree::export::{to_dendogram_format, to_pdf};
 use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
@@ -13,8 +15,6 @@ use tensorcontraction::mpi::communication::{
     broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
     scatter_tensor_network,
 };
-use tensorcontraction::networks::connectivity::ConnectivityLayout;
-use tensorcontraction::networks::random_circuit::random_circuit;
 use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
 use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};

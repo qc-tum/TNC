@@ -1,3 +1,5 @@
+//! Implementation of various quantum gates to be used in tensor networks.
+
 use std::{
     borrow::Borrow,
     f64::consts::FRAC_1_SQRT_2,

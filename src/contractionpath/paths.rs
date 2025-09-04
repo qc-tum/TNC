@@ -1,3 +1,5 @@
+//! Contraction path finders.
+
 use crate::types::ContractionIndex;
 
 pub mod branchbound;

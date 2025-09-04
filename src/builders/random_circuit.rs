@@ -4,9 +4,9 @@ use rand::seq::SliceRandom;
 use rand::Rng;
 use rustc_hash::FxHashMap;
 
-use crate::networks::circuit_builder::Circuit;
-use crate::networks::connectivity::{Connectivity, ConnectivityLayout};
-use crate::random::tensorgeneration::random_sparse_tensor_data_with_rng;
+use crate::builders::circuit_builder::Circuit;
+use crate::builders::connectivity::{Connectivity, ConnectivityLayout};
+use crate::builders::tensorgeneration::random_sparse_tensor_data_with_rng;
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 use crate::utils::traits::WithCapacity;
@@ -277,7 +277,7 @@ mod tests {
 
     use rand::thread_rng;
 
-    use crate::networks::connectivity::ConnectivityLayout;
+    use crate::builders::connectivity::ConnectivityLayout;
     use crate::tensornetwork::tensor::Tensor;
 
     #[test]
