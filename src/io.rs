@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use hdf5_metno::{File, Result};
-use itertools::Itertools;
 use ndarray::Array;
 use num_complex::Complex64;
 use tetra::Tensor as DataTensor;
@@ -57,9 +56,11 @@ fn read_tensor(file: &File) -> Result<Tensor> {
         let tensor_shape = tensor_dataset.shape().to_vec();
         let bond_dims = tensor_shape.iter().map(|s| *s as u64).collect();
         let mut new_tensor = Tensor::new(bond_ids.to_vec(), bond_dims);
+        let (data, offset) = tensor_dataset.into_raw_vec_and_offset();
+        assert_eq!(offset, Some(0));
         new_tensor.set_tensor_data(TensorData::Matrix(DataTensor::new_from_flat(
             &tensor_shape,
-            tensor_dataset.into_raw_vec(),
+            data,
             None,
         )));
         new_tensor_network.push_tensor(new_tensor);
@@ -78,23 +79,16 @@ fn read_data(file: &File) -> Result<DataTensor> {
         .unwrap()
         .read_dyn::<Complex64>()?;
     let tensor_shape = tensor_dataset.shape().to_vec();
-    Ok(DataTensor::new_from_flat(
-        &tensor_shape,
-        tensor_dataset.into_raw_vec(),
-        None,
-    ))
+    let (data, offset) = tensor_dataset.into_raw_vec_and_offset();
+    assert_eq!(offset, Some(0));
+    Ok(DataTensor::new_from_flat(&tensor_shape, data, None))
 }
 
 fn write_data(file: &File, tensor: &DataTensor) -> Result<()> {
     let gr = file.create_group("/tensors")?;
     let data = tensor.elements().into_owned();
-    let data = Array::from(data);
-    let shape = tensor
-        .shape()
-        .into_iter()
-        .map(|e| TryInto::<usize>::try_into(e).unwrap())
-        .collect_vec();
-    let data = data.into_shape(shape)?;
+    let shape = tensor.shape();
+    let data = Array::from_shape_vec(shape, data)?;
     let tensor_dataset = gr.new_dataset_builder().with_data(&data);
     tensor_dataset.create("-1")?;
     file.flush()
@@ -139,13 +133,15 @@ mod tests {
         let attribute = attribute.with_data(&bid);
         attribute.create("bids")?;
 
-        let data = array![
-            Complex64::new(1.0, 0.0),
-            Complex64::new(0.0, 2.0),
-            Complex64::new(3.0, 0.0),
-            Complex64::new(0.0, 1.0),
-        ];
-        let data = data.into_shape((2, 2))?;
+        let data = Array::from_shape_vec(
+            (2, 2),
+            vec![
+                Complex64::new(1.0, 0.0),
+                Complex64::new(0.0, 2.0),
+                Complex64::new(3.0, 0.0),
+                Complex64::new(0.0, 1.0),
+            ],
+        )?;
         let dataset_builder2 = tensor_group.new_dataset_builder();
         let dataset_data_builder2 = dataset_builder2.with_data(&data);
         let dataset2 = dataset_data_builder2.create("0")?;
@@ -162,13 +158,15 @@ mod tests {
         let new_file = new_in_memory_file()?;
         let tensor_group = new_file.create_group("./tensors")?;
         let dataset_builder = tensor_group.new_dataset_builder();
-        let data = array![
-            Complex64::new(1.0, 0.0),
-            Complex64::new(0.0, 2.0),
-            Complex64::new(3.0, 0.0),
-            Complex64::new(0.0, 1.0),
-        ];
-        let data = data.into_shape((2, 2))?;
+        let data = Array::from_shape_vec(
+            (2, 2),
+            vec![
+                Complex64::new(1.0, 0.0),
+                Complex64::new(0.0, 2.0),
+                Complex64::new(3.0, 0.0),
+                Complex64::new(0.0, 1.0),
+            ],
+        )?;
         let dataset_data_builder = dataset_builder.with_data(&data);
         dataset_data_builder.create("-1")?;
         new_file.flush()?;

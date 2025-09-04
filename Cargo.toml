@@ -32,7 +32,7 @@ rustc-hash = "2.1.1"
 chrono = "0.4.38"
 serde_json = "1.0.133"
 regex = "1.11.1"
-ndarray = "0.15.6"
+ndarray = "0.16.1"
 genetic_algorithm = { git = "https://github.com/Ectras/genetic-algorithm.git", branch = "f64_score" }
 rayon = "1.10.0"
 ordered-float = "5.0.0"
