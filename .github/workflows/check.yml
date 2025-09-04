@@ -43,6 +43,7 @@ jobs:
         with:
           packages: libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
           version: 1.0
+          execute_install_scripts: true
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
@@ -78,6 +79,7 @@ jobs:
         with:
           packages: libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
           version: 1.0
+          execute_install_scripts: true
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
@@ -99,6 +101,7 @@ jobs:
         with:
           packages: libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
           version: 1.0
+          execute_install_scripts: true
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
