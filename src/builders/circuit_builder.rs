@@ -6,7 +6,7 @@ use rand::Rng;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    random::tensorgeneration::random_sparse_tensor_data_with_rng,
+    builders::tensorgeneration::random_sparse_tensor_data_with_rng,
     tensornetwork::{tensor::Tensor, tensordata::TensorData},
     types::EdgeIndex,
 };

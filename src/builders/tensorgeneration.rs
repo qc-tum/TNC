@@ -11,7 +11,7 @@ use crate::tensornetwork::tensordata::TensorData;
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::random::tensorgeneration::random_sparse_tensor_data_with_rng;
+/// # use tensorcontraction::builders::tensorgeneration::random_sparse_tensor_data_with_rng;
 /// let shape = vec![5, 4, 3];
 /// random_sparse_tensor_data_with_rng(&shape, None, &mut rand::thread_rng());
 /// ```
@@ -54,7 +54,7 @@ where
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::random::tensorgeneration::random_sparse_tensor_data;
+/// # use tensorcontraction::builders::tensorgeneration::random_sparse_tensor_data;
 /// let shape = vec![5,4,3];
 /// let r_tensor = random_sparse_tensor_data(&shape, None);
 /// ```

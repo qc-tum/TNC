@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap;
 
 use crate::builders::circuit_builder::Circuit;
 use crate::builders::connectivity::{Connectivity, ConnectivityLayout};
-use crate::random::tensorgeneration::random_sparse_tensor_data_with_rng;
+use crate::builders::tensorgeneration::random_sparse_tensor_data_with_rng;
 use crate::tensornetwork::tensor::Tensor;
 use crate::tensornetwork::tensordata::TensorData;
 use crate::utils::traits::WithCapacity;

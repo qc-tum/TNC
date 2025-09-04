@@ -13,7 +13,6 @@ pub mod gates;
 pub mod io;
 pub mod mpi;
 pub mod qasm;
-pub mod random;
 pub mod tensornetwork;
 pub mod types;
 mod utils;
