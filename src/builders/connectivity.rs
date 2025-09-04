@@ -27,8 +27,8 @@ impl Connectivity {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::builders::connectivity::Connectivity;
-    /// # use tensorcontraction::builders::connectivity::ConnectivityLayout;
+    /// # use tnc::builders::connectivity::Connectivity;
+    /// # use tnc::builders::connectivity::ConnectivityLayout;
     /// let cn = Connectivity::new(ConnectivityLayout::Eagle);
     /// ```
     #[must_use]

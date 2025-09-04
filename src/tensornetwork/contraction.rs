@@ -11,7 +11,7 @@ use crate::{
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::{
+/// # use tnc::{
 ///     contractionpath::paths::{branchbound::BranchBound, CostType, OptimizePath},
 ///     builders::sycamore_circuit::sycamore_circuit,
 ///     tensornetwork::tensor::Tensor,

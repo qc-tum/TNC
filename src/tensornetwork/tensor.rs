@@ -52,7 +52,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6)]);
     /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
@@ -70,7 +70,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// let tensor = Tensor::new_from_const(vec![1, 2, 3], 2);
     /// assert_eq!(tensor.legs(), &[1, 2, 3]);
     /// assert_eq!(tensor.bond_dims(), &[2, 2, 2]);
@@ -94,7 +94,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// let tensor = Tensor::new_from_const(vec![1, 2, 3], 3);
     /// assert_eq!(tensor.legs(), &[1, 2, 3]);
     /// ```
@@ -120,7 +120,7 @@ impl Tensor {
     /// # Examples
     ///
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(0, 17), (1, 19), (2, 8)]);
     /// let v1 = Tensor::new_from_map(vec![0, 1], &bond_dims);
@@ -140,7 +140,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(0, 17), (1, 19), (2, 8), (3, 2), (4, 1)]);
     /// let mut v1 = Tensor::new_from_map(vec![0, 1], &bond_dims);
@@ -175,7 +175,7 @@ impl Tensor {
     /// # Examples
     ///
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(0, 17), (1, 19), (2, 8)]);
     /// let v1 = Tensor::new_from_map(vec![0, 1], &bond_dims);
@@ -205,7 +205,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(1, 4), (2, 6), (3, 2)]);
     /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
@@ -221,7 +221,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(1, 5), (2, 15), (3, 8)]);
     /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
@@ -236,7 +236,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6)]);
     /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
@@ -253,7 +253,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6)]);
     /// let tensor = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
@@ -271,7 +271,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// let tensor = Tensor::default();
     /// assert_eq!(tensor.is_empty(), true);
     /// ```
@@ -313,8 +313,8 @@ impl Tensor {
     /// # Examples
     ///
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
-    /// # use tensorcontraction::tensornetwork::tensordata::TensorData;
+    /// # use tnc::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensordata::TensorData;
     /// let mut tensor = Tensor::new_from_const(vec![0, 1], 2);
     /// let tensordata = TensorData::Gate((String::from("x"), vec![], false));
     /// tensor.set_tensor_data(tensordata);
@@ -333,7 +333,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// // Create a tensor network with two connected tensors
     /// let bond_dims = FxHashMap::from_iter([(0, 17), (1, 19), (2, 8), (3, 5)]);
@@ -368,7 +368,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6), (4, 3), (5, 9)]);
     /// let tensor1 = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
@@ -394,7 +394,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6), (4, 3), (5, 9)]);
     /// let tensor1 = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
@@ -422,7 +422,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6), (4, 3), (5, 9)]);
     /// let tensor1 = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
@@ -448,7 +448,7 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// # use tensorcontraction::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensor::Tensor;
     /// # use rustc_hash::FxHashMap;
     /// let bond_dims = FxHashMap::from_iter([(1, 2), (2, 4), (3, 6), (4, 3), (5, 9)]);
     /// let tensor1 = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);

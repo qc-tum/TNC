@@ -2516,42 +2516,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e502f78cdbb8ba4718f566c418c52bc729126ffd16baee5baa718cf25dd5a69a"
 
 [[package]]
-name = "tensorcontraction"
-version = "0.1.0"
-dependencies = [
- "antlr-rust",
- "bincode",
- "chrono",
- "clap",
- "cotengrust",
- "flate2",
- "flexi_logger",
- "float-cmp",
- "genetic_algorithm",
- "hdf5-metno",
- "itertools 0.13.0",
- "jemallocator",
- "kahypar",
- "lazy_static",
- "log",
- "mpi",
- "mpi-test",
- "ndarray",
- "num-complex",
- "ordered-float",
- "permutation",
- "rand 0.8.5",
- "rayon",
- "regex",
- "rustc-hash 2.1.1",
- "rustengra",
- "serde",
- "serde-pickle",
- "serde_json",
- "tetra",
-]
-
-[[package]]
 name = "tetra"
 version = "0.1.0"
 source = "git+https://github.com/Ectras/tetra.git#3faf8de951aa3897c07734c460a2d2222a9487df"
@@ -2625,6 +2589,42 @@ checksum = "5d4f6d1145dcb577acf783d4e601bc1d76a13337bb54e6233add580b07344c8b"
 dependencies = [
  "displaydoc",
  "zerovec",
+]
+
+[[package]]
+name = "tnc"
+version = "0.1.0"
+dependencies = [
+ "antlr-rust",
+ "bincode",
+ "chrono",
+ "clap",
+ "cotengrust",
+ "flate2",
+ "flexi_logger",
+ "float-cmp",
+ "genetic_algorithm",
+ "hdf5-metno",
+ "itertools 0.13.0",
+ "jemallocator",
+ "kahypar",
+ "lazy_static",
+ "log",
+ "mpi",
+ "mpi-test",
+ "ndarray",
+ "num-complex",
+ "ordered-float",
+ "permutation",
+ "rand 0.8.5",
+ "rayon",
+ "regex",
+ "rustc-hash 2.1.1",
+ "rustengra",
+ "serde",
+ "serde-pickle",
+ "serde_json",
+ "tetra",
 ]
 
 [[package]]

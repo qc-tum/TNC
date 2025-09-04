@@ -8,8 +8,8 @@ use crate::types::{ContractionIndex, EdgeIndex};
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
+/// # use tnc::tensornetwork::tensor::Tensor;
+/// # use tnc::contractionpath::contraction_cost::contract_cost_tensors;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims);
@@ -31,8 +31,8 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::contractionpath::contraction_cost::contract_op_cost_tensors;
+/// # use tnc::tensornetwork::tensor::Tensor;
+/// # use tnc::contractionpath::contraction_cost::contract_op_cost_tensors;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims);
@@ -52,8 +52,8 @@ pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors;
+/// # use tnc::tensornetwork::tensor::Tensor;
+/// # use tnc::contractionpath::contraction_cost::contract_size_tensors;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
 /// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims); // 315 entries
@@ -77,8 +77,8 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 ///
 /// # Examples
 /// ```
-/// # use tensorcontraction::tensornetwork::tensor::Tensor;
-/// # use tensorcontraction::contractionpath::contraction_cost::contract_size_tensors_exact;
+/// # use tnc::tensornetwork::tensor::Tensor;
+/// # use tnc::contractionpath::contraction_cost::contract_size_tensors_exact;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
 /// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims); // requires 5040 bytes

@@ -39,7 +39,7 @@ use std::fs;
 
 use mpi::{topology::SimpleCommunicator, traits::Communicator};
 use num_complex::Complex64;
-use tensorcontraction::{
+use tnc::{
     contractionpath::paths::{
         cotengrust::{Cotengrust, OptMethod},
         OptimizePath,

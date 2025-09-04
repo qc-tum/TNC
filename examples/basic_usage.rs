@@ -4,20 +4,20 @@ use mpi::traits::Communicator;
 use mpi::Rank;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-use tensorcontraction::builders::connectivity::ConnectivityLayout;
-use tensorcontraction::builders::random_circuit::random_circuit;
-use tensorcontraction::contractionpath::contraction_cost::contract_cost_tensors;
-use tensorcontraction::contractionpath::contraction_tree::export::{to_dendogram_format, to_pdf};
-use tensorcontraction::contractionpath::contraction_tree::ContractionTree;
-use tensorcontraction::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
-use tensorcontraction::contractionpath::paths::OptimizePath;
-use tensorcontraction::mpi::communication::{
+use tnc::builders::connectivity::ConnectivityLayout;
+use tnc::builders::random_circuit::random_circuit;
+use tnc::contractionpath::contraction_cost::contract_cost_tensors;
+use tnc::contractionpath::contraction_tree::export::{to_dendogram_format, to_pdf};
+use tnc::contractionpath::contraction_tree::ContractionTree;
+use tnc::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
+use tnc::contractionpath::paths::OptimizePath;
+use tnc::mpi::communication::{
     broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
     scatter_tensor_network,
 };
-use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
-use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
-use tensorcontraction::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
+use tnc::tensornetwork::contraction::contract_tensor_network;
+use tnc::tensornetwork::partitioning::partition_config::PartitioningStrategy;
+use tnc::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 
 /// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
 fn setup_logging_mpi(rank: Rank) {

@@ -2,7 +2,7 @@ use float_cmp::assert_approx_eq;
 use mpi::traits::Communicator;
 use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
-use tensorcontraction::{
+use tnc::{
     builders::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     contractionpath::paths::{
         cotengrust::{Cotengrust, OptMethod},

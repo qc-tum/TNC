@@ -1,5 +1,5 @@
 use rand::{rngs::StdRng, SeedableRng};
-use tensorcontraction::{
+use tnc::{
     builders::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     contractionpath::{
         contraction_cost::contract_cost_tensors,

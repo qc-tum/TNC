@@ -1,5 +1,5 @@
 [package]
-name = "tensorcontraction"
+name = "tnc"
 version = "0.1.0"
 edition = "2021"
 description = "A distributed-memory tensor network contraction library using partitioning."

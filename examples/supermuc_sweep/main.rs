@@ -19,34 +19,34 @@ use rand::distributions::Standard;
 use rand::rngs::StdRng;
 use rand::{Rng, RngCore, SeedableRng};
 use results::{OptimizationResult, RunResult, Writer};
-use tensorcontraction::contractionpath::communication_schemes::CommunicationScheme;
-use tensorcontraction::contractionpath::contraction_cost::{
+use tnc::contractionpath::communication_schemes::CommunicationScheme;
+use tnc::contractionpath::contraction_cost::{
     communication_path_cost, compute_memory_requirements, contract_size_tensors_exact,
 };
-use tensorcontraction::contractionpath::contraction_tree::balancing::{
+use tnc::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme,
 };
-use tensorcontraction::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
-use tensorcontraction::contractionpath::paths::hyperoptimization::{HyperOptions, Hyperoptimizer};
-use tensorcontraction::contractionpath::paths::tree_annealing::TreeAnnealing;
-use tensorcontraction::contractionpath::paths::tree_tempering::TreeTempering;
-use tensorcontraction::contractionpath::paths::{CostType, OptimizePath};
-use tensorcontraction::contractionpath::repartitioning::simulated_annealing::{
+use tnc::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
+use tnc::contractionpath::paths::hyperoptimization::{HyperOptions, Hyperoptimizer};
+use tnc::contractionpath::paths::tree_annealing::TreeAnnealing;
+use tnc::contractionpath::paths::tree_tempering::TreeTempering;
+use tnc::contractionpath::paths::{CostType, OptimizePath};
+use tnc::contractionpath::repartitioning::simulated_annealing::{
     IntermediatePartitioningModel, LeafPartitioningModel, NaiveIntermediatePartitioningModel,
     NaivePartitioningModel,
 };
-use tensorcontraction::contractionpath::repartitioning::{compute_solution, simulated_annealing};
-use tensorcontraction::mpi::communication::{
+use tnc::contractionpath::repartitioning::{compute_solution, simulated_annealing};
+use tnc::mpi::communication::{
     broadcast_path, broadcast_serializing, extract_communication_path,
     intermediate_reduce_tensor_network, scatter_tensor_network,
 };
-use tensorcontraction::qasm::create_tensornetwork;
-use tensorcontraction::tensornetwork::contraction::contract_tensor_network;
-use tensorcontraction::tensornetwork::partitioning::find_partitioning;
-use tensorcontraction::tensornetwork::partitioning::partition_config::PartitioningStrategy;
-use tensorcontraction::tensornetwork::tensor::Tensor;
-use tensorcontraction::tensornetwork::tensordata::TensorData;
-use tensorcontraction::types::ContractionIndex;
+use tnc::qasm::create_tensornetwork;
+use tnc::tensornetwork::contraction::contract_tensor_network;
+use tnc::tensornetwork::partitioning::find_partitioning;
+use tnc::tensornetwork::partitioning::partition_config::PartitioningStrategy;
+use tnc::tensornetwork::tensor::Tensor;
+use tnc::tensornetwork::tensordata::TensorData;
+use tnc::types::ContractionIndex;
 use utils::{hash_str, parse_range_list, setup_logging_mpi};
 
 mod cli;

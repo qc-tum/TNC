@@ -1,4 +1,4 @@
-use tensorcontraction::contractionpath::contraction_tree::import::logs_to_pdf;
+use tnc::contractionpath::contraction_tree::import::logs_to_pdf;
 
 static LOGGING_FOLDER: &str = "logs/run";
 
