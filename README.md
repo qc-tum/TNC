@@ -1,6 +1,8 @@
 [![check](https://github.com/qc-tum/TNC/actions/workflows/check.yml/badge.svg)](https://github.com/qc-tum/TNC/actions/workflows/check.yml)
 [![test](https://github.com/qc-tum/TNC/actions/workflows/test.yml/badge.svg)](https://github.com/qc-tum/TNC/actions/workflows/test.yml)
 
+[**Documentation**](https://qc-tum.github.io/TNC/)
+
 # Tensornetwork Contraction Library
 
 This library is designed to perform tensor network contractions, using partitioning of the network as parallelization strategy.
