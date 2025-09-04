@@ -1,3 +1,5 @@
+//! Methods for improving the partitioning of a tensor network to improve time-to-solution.
+
 use itertools::Itertools;
 use rand::Rng;
 use rustc_hash::FxHashMap;

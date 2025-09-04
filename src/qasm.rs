@@ -1,3 +1,5 @@
+//! Import utilities for OpenQASM 2 code.
+
 mod ast;
 mod expression_folder;
 mod expression_simplification;

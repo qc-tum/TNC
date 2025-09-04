@@ -1,3 +1,5 @@
+//! Import and export of tensors or tensor networks as HDF5 files.
+
 use std::path::Path;
 
 use hdf5_metno::{File, Result};

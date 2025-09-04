@@ -1,3 +1,5 @@
+//! Methods for creating tensor networks.
+
 pub mod circuit_builder;
 pub mod connectivity;
 pub mod peps;

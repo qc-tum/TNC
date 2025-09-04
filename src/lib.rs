@@ -1,3 +1,8 @@
+//! This library is designed to perform tensor network contractions, using partitioning of the network as parallelization strategy.
+//! To this end, it ships multiple methods to partition a tensor network for lowest contraction cost, for example, based on simulated annealing.
+//! The partitionings can then be contracted in parallel on a distributed-memory system, as common in high-performance computing.
+//! Local contractions on a single system are also possible.
+
 #![feature(map_try_insert)]
 #![feature(assert_matches)]
 #![feature(binary_heap_into_iter_sorted)]
