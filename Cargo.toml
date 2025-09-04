@@ -15,9 +15,7 @@ cotengra = ["dep:rustengra"]
 
 [dependencies]
 mpi = { version = "0.8.0", features = ["complex", "derive"] }
-hdf5 = { git = "https://github.com/aldanor/hdf5-rust.git", features = [
-    "complex",
-] }
+hdf5-metno = { version = "0.10.1", features = ["complex"] }
 itertools = "0.13.0"
 num-complex = "0.4.6"
 rand = "0.8.5"

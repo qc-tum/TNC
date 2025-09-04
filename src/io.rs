@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use hdf5::{File, Result};
+use hdf5_metno::{File, Result};
 use itertools::Itertools;
 use ndarray::Array;
 use num_complex::Complex64;
@@ -107,7 +107,7 @@ mod tests {
     use std::iter::zip;
 
     use float_cmp::assert_approx_eq;
-    use hdf5::{AttributeBuilder, File, Result};
+    use hdf5_metno::{AttributeBuilder, File, Result};
     use ndarray::array;
     use num_complex::Complex64;
     use rand::{
