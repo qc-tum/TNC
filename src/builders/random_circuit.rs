@@ -74,7 +74,7 @@ where
     }
 
     // Set up final state
-    circuit.into_amplitude_network(&"0".repeat(qubits))
+    circuit.into_amplitude_network(&"0".repeat(qubits)).0
 }
 
 /// Creates a random circuit with `rounds` many rounds of single and two qubit gate

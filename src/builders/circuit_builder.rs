@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use itertools::Itertools;
 use num_complex::Complex64;
+use permutation::Permutation;
 
 use crate::{
     tensornetwork::{tensor::Tensor, tensordata::TensorData},
@@ -64,6 +65,66 @@ impl QuantumRegister<'_> {
 pub struct Qubit<'a> {
     index: usize,
     phantom: PhantomData<&'a Circuit>,
+}
+
+/// A struct holding a permutation to be applied to a tensor.
+#[derive(Debug, Clone)]
+pub struct Permutor {
+    target_leg_order: Vec<EdgeIndex>,
+}
+
+impl Permutor {
+    fn new(target_legs: Vec<EdgeIndex>) -> Self {
+        Self {
+            target_leg_order: target_legs,
+        }
+    }
+
+    /// Permutates the tensor according to the stored permutation.
+    pub fn apply(&self, tensor: Tensor) -> Tensor {
+        assert!(tensor.is_leaf());
+        if self.is_empty() {
+            return tensor;
+        }
+
+        let Tensor {
+            mut legs,
+            mut bond_dims,
+            tensordata,
+            ..
+        } = tensor;
+        let mut data = tensordata.into_data();
+
+        // Find the permutation
+        let mut perm = Self::permutation_between(&legs, &self.target_leg_order);
+
+        // Permute legs, shape and data
+        perm.apply_slice_in_place(&mut legs);
+        perm.apply_slice_in_place(&mut bond_dims);
+        data.transpose(&perm);
+
+        Tensor {
+            tensors: vec![],
+            legs,
+            bond_dims,
+            tensordata: TensorData::Matrix(data),
+        }
+    }
+
+    /// Returns whether the permutor is empty, in which case it won't have any
+    /// effect.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.target_leg_order.is_empty()
+    }
+
+    /// Computes the permutation that, when applied to `given`, returns `target`.
+    /// Assumes that `given` and `target` are equal up to permutation.
+    fn permutation_between(given: &[usize], target: &[usize]) -> Permutation {
+        let given_to_sorted = permutation::sort_unstable(given);
+        let target_to_sorted = permutation::sort_unstable(target);
+        &target_to_sorted.inverse() * &given_to_sorted
+    }
 }
 
 /// A quantum circuit builder that constructs a tensor network representing a quantum
@@ -134,11 +195,11 @@ impl Circuit {
         // Get the old and new edges
         let old_edges = indices.iter().map(|q| self.open_edges[q.index]);
         let new_edges = (0..indices.len()).map(|e| e + self.next_edge);
-        let edges = new_edges.chain(old_edges.rev()).collect_vec();
+        let edges = old_edges.chain(new_edges).collect_vec();
         self.next_edge += indices.len();
 
         // Update the open edges
-        for (q, next_edge) in indices.iter().zip(&edges[..indices.len()]) {
+        for (q, next_edge) in indices.iter().zip(&edges[indices.len()..]) {
             self.open_edges[q.index] = *next_edge;
         }
 
@@ -152,22 +213,56 @@ impl Circuit {
 
     /// Converts the circuit to a tensor network that computes the amplitude for the
     /// given bitstring.
-    pub fn into_amplitude_network(mut self, bitstring: &str) -> Tensor {
+    ///
+    /// The bitstring can also contain wildcards `*`, in which case the tensor leg
+    /// corresponding to this qubit is left open. For every wildcard, the output
+    /// tensor will be doubled in size. In the extreme case where there's only
+    /// wildcards, the full statevector will be computed.
+    ///
+    /// Since the final tensor can end up with arbitrary permutation, a [`Permutor`]
+    /// is returned that can transpose the final tensor after contraction to the
+    /// natural order, i.e., sorted by increasing qubit number. If the bitstring
+    /// contains no wildcards, the final result is a scalar and the permutator can be
+    /// ignored.
+    pub fn into_amplitude_network(mut self, bitstring: &str) -> (Tensor, Permutor) {
         assert_eq!(bitstring.len(), self.num_qubits());
 
+        // Apply the final bras
         self.tensors.reserve(bitstring.len());
+        let mut final_legs = Vec::new();
         for (c, e) in bitstring.chars().zip(self.open_edges) {
             let bra = match c {
                 '0' => Self::ket0(),
                 '1' => Self::ket1(),
-                '*' => continue, // leave this edge open
+                '*' => {
+                    final_legs.push(e);
+                    continue; // leave this edge open
+                }
                 _ => panic!("Only 0, 1 and * are allowed in bitstring"),
             };
             let mut tensor = Tensor::new_from_const(vec![e], 2);
             tensor.set_tensor_data(bra);
             self.tensors.push(tensor);
         }
-        Tensor::new_composite(self.tensors)
+
+        // The contraction can re-order the legs depending on the contraction order,
+        // so we need to return the order we want the legs to be in at the end, such
+        // that the user can transpose the final tensor and has the expected order of
+        // elements.
+        let out = Tensor::new_composite(self.tensors);
+        let permutor = Permutor::new(final_legs);
+        (out, permutor)
+    }
+
+    /// Converts the circuit to a tensor network that computes the full statevector.
+    ///
+    /// Since the final tensor can end up with arbitrary permutation, a [`Permutor`]
+    /// is returned that can transpose the final tensor after contraction to the
+    /// natural order, i.e., sorted by increasing qubit number.
+    #[inline]
+    pub fn into_statevector_network(self) -> (Tensor, Permutor) {
+        let qubits = self.num_qubits();
+        self.into_amplitude_network(&"*".repeat(qubits))
     }
 }
 
@@ -190,15 +285,30 @@ mod tests {
         },
     };
 
+    fn test_permutation_between(given: &[usize], target: &[usize]) {
+        let perm = Permutor::permutation_between(given, target);
+        assert_eq!(perm.apply_slice(given), target);
+    }
+
     #[test]
-    fn hadmards_expectation() {
+    fn permutation_between() {
+        test_permutation_between(&[1, 2, 3, 4], &[1, 2, 3, 4]);
+        test_permutation_between(&[1, 2, 3, 4], &[4, 3, 2, 1]);
+        test_permutation_between(&[4, 3, 2, 1], &[1, 2, 3, 4]);
+        test_permutation_between(&[4, 1, 3, 2], &[2, 4, 3, 1]);
+        test_permutation_between(&[5, 1, 4, 3, 2, 6], &[1, 6, 3, 5, 2, 4]);
+    }
+
+    #[test]
+    fn hadmards_amplitude() {
         let qubits = 5;
         let mut circuit = Circuit::default();
         let qr = circuit.allocate_register(qubits);
         for q in qr.qubits() {
             circuit.append_gate(TensorData::Gate((String::from("h"), vec![], true)), &[q]);
         }
-        let tensor_network = circuit.into_amplitude_network("00000");
+        let (tensor_network, permutor) = circuit.into_amplitude_network("00000");
+        assert!(permutor.is_empty());
 
         let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
         opt.optimize_path();

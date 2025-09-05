@@ -66,7 +66,7 @@ fn read_circuit(file: &str) -> Tensor {
     let source = fs::read_to_string(file).unwrap();
     let circuit = create_tensornetwork(source);
     let qubits = circuit.num_qubits();
-    let tensor = circuit.into_amplitude_network(&"0".repeat(qubits));
+    let (tensor, _) = circuit.into_amplitude_network(&"0".repeat(qubits));
 
     last_values.replace((file.into(), tensor.clone()));
     tensor
