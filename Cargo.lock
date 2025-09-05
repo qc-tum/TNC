@@ -962,7 +962,7 @@ dependencies = [
 [[package]]
 name = "hptt"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#b82ff21e0d5226aad365d00979cfbbc882fd9551"
+source = "git+https://github.com/Ectras/rust-hptt.git#eee5d7966a0414f417ef0ebf03372003e08d8ce5"
 dependencies = [
  "hptt-sys",
  "num-complex",
@@ -972,7 +972,7 @@ dependencies = [
 [[package]]
 name = "hptt-sys"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#b82ff21e0d5226aad365d00979cfbbc882fd9551"
+source = "git+https://github.com/Ectras/rust-hptt.git#eee5d7966a0414f417ef0ebf03372003e08d8ce5"
 dependencies = [
  "bindgen 0.71.1",
  "cmake",
@@ -2518,7 +2518,7 @@ checksum = "e502f78cdbb8ba4718f566c418c52bc729126ffd16baee5baa718cf25dd5a69a"
 [[package]]
 name = "tetra"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/tetra.git#3faf8de951aa3897c07734c460a2d2222a9487df"
+source = "git+https://github.com/Ectras/tetra.git#5f26a952a5ace6ec1732fbecb88ea1b07a9aae59"
 dependencies = [
  "bytemuck",
  "cblas-sys",
