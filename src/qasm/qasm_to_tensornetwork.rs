@@ -1,10 +1,8 @@
-use rustc_hash::FxHashSet;
-
+use crate::builders::circuit_builder::Circuit;
 use crate::qasm::{
     ast::Visitor, expression_folder::ExpressionFolder, gate_inliner::GateInliner,
     include_resolver::expand_includes, parser::parse, tn_creator::TensorNetworkCreator,
 };
-use crate::tensornetwork::tensor::Tensor;
 
 /// Creates a tensor network from QASM2 code.
 ///
@@ -12,7 +10,7 @@ use crate::tensornetwork::tensor::Tensor;
 /// all qubits are initialized to zero, this method adds a tensor for all initial
 /// states. The tensor network is not closed, i.e. for each wire in the circuit there
 /// is an unbounded leg.
-pub fn create_tensornetwork<S>(code: S) -> (Tensor, FxHashSet<usize>)
+pub fn create_tensornetwork<S>(code: S) -> Circuit
 where
     S: Into<String>,
 {
@@ -36,7 +34,7 @@ where
     expression_folder.visit_program(&mut program);
 
     // Create the tensornetwork
-    let mut tn_creator = TensorNetworkCreator::default();
+    let mut tn_creator = TensorNetworkCreator;
     tn_creator.create_tensornetwork(&program)
 }
 
@@ -51,6 +49,7 @@ mod tests {
     use num_complex::{c64, Complex64};
 
     use crate::{
+        builders::circuit_builder::Permutor,
         tensornetwork::{
             contraction::contract_tensor_network, tensor::Tensor, tensordata::TensorData,
         },
@@ -116,7 +115,8 @@ mod tests {
         h q[0];
         cx q[0], q[1];
         ";
-        let (tn, _) = create_tensornetwork(code);
+        let circuit = create_tensornetwork(code);
+        let (tn, _) = circuit.into_statevector_network();
 
         let (kets, single_qubit_gates, two_qubit_gates) = get_quantum_tensors(&tn);
         let [k0, k1] = kets.as_slice() else { panic!() };
@@ -129,7 +129,7 @@ mod tests {
 
         // Find out which tensor is the first/top qubit (the one connected to the H gate tensor)
         // and which is the second/bottom qubit
-        let first_qubit_id = h.tensor.legs()[1];
+        let first_qubit_id = h.tensor.legs()[0];
         let (first_qubit, second_qubit) = if first_qubit_id == k0.id {
             (k0, k1)
         } else if first_qubit_id == k1.id {
@@ -140,22 +140,33 @@ mod tests {
 
         // Check edges
         let fq_to_h_id = first_qubit.tensor.legs()[0];
-        assert_eq!(h.tensor.legs()[1], fq_to_h_id);
+        assert_eq!(h.tensor.legs()[0], fq_to_h_id);
         assert!(edge_connects(fq_to_h_id, first_qubit_id, h.id, &tn));
 
         let sq_to_cx_t_id = second_qubit.tensor.legs()[0];
-        assert_eq!(cx.tensor.legs()[2], sq_to_cx_t_id);
+        assert_eq!(cx.tensor.legs()[1], sq_to_cx_t_id);
         assert!(edge_connects(sq_to_cx_t_id, second_qubit.id, cx.id, &tn));
 
-        let h_to_cx_c_id = h.tensor.legs()[0];
-        assert_eq!(cx.tensor.legs()[3], h_to_cx_c_id);
+        let h_to_cx_c_id = h.tensor.legs()[1];
+        assert_eq!(cx.tensor.legs()[0], h_to_cx_c_id);
         assert!(edge_connects(h_to_cx_c_id, h.id, cx.id, &tn));
 
-        let cx_c_to_open_id = cx.tensor.legs()[0];
+        let cx_c_to_open_id = cx.tensor.legs()[2];
         assert!(is_open_edge_of(cx_c_to_open_id, cx.id, &tn));
 
-        let cx_t_to_open_id = cx.tensor.legs()[1];
+        let cx_t_to_open_id = cx.tensor.legs()[3];
         assert!(is_open_edge_of(cx_t_to_open_id, cx.id, &tn));
+    }
+
+    /// Contracts the tensor network with an arbitrary contraction order, then
+    /// returns the correctly permuted tensor data.
+    fn contract_tn(tn: Tensor, perm: Permutor) -> TensorData {
+        let opt_path = (1..tn.tensors().len())
+            .map(|tid| ContractionIndex::Pair(0, tid))
+            .collect_vec();
+        let tn = contract_tensor_network(tn, &opt_path);
+        let mut tn = perm.apply(tn);
+        std::mem::take(&mut tn.tensordata)
     }
 
     #[test]
@@ -166,20 +177,17 @@ mod tests {
         h q[0];
         cx q[0], q[1];
         ";
-        let (tn, _) = create_tensornetwork(code);
-        let opt_path = (1..tn.tensors().len())
-            .map(|tid| ContractionIndex::Pair(0, tid))
-            .collect_vec();
-        let tn = contract_tensor_network(tn, &opt_path);
-        let resulting_state = tn.tensor_data();
+        let circuit = create_tensornetwork(code);
+        let (tn, perm) = circuit.into_statevector_network();
+        let resulting_state = contract_tn(tn, perm);
 
         let expected = TensorData::new_from_data(
             &[2, 2],
             vec![
                 c64(FRAC_1_SQRT_2, 0.),
+                c64(0, 0),
+                c64(0, 0),
                 c64(FRAC_1_SQRT_2, 0.),
-                c64(0, 0),
-                c64(0, 0),
             ],
             None,
         );
@@ -199,21 +207,91 @@ mod tests {
         x q[0];
         myswap q[1], q[0];
         ";
-        let (tn, _) = create_tensornetwork(code);
-        let opt_path = (1..tn.tensors().len())
-            .map(|tid| ContractionIndex::Pair(0, tid))
-            .collect_vec();
-        let tn = contract_tensor_network(tn, &opt_path);
-
-        let resulting_state = tn.tensor_data();
+        let circuit = create_tensornetwork(code);
+        let (tn, perm) = circuit.into_statevector_network();
+        let resulting_state = contract_tn(tn, perm);
 
         let expected = TensorData::new_from_data(
             &[2, 2],
             vec![
                 Complex64::ZERO,
-                Complex64::ZERO,
-                Complex64::ZERO,
                 Complex64::ONE,
+                Complex64::ZERO,
+                Complex64::ZERO,
+            ],
+            None,
+        );
+        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+    }
+
+    fn odd_test_circuit() -> Circuit {
+        // Test with odd numbers to check the order of the statevector is correct
+        let code = "OPENQASM 2.0;
+        include \"qelib1.inc\";
+        qreg q[3];
+        rx(0.5) q[0];
+        rx(0.2) q[1];
+        rx(0.3) q[2];
+        cx q[0], q[1];
+        cx q[1], q[2];";
+        create_tensornetwork(code)
+    }
+
+    #[test]
+    fn statevector_order() {
+        let circuit = odd_test_circuit();
+        let (tn, perm) = circuit.into_statevector_network();
+        let resulting_state = contract_tn(tn, perm);
+
+        let expected = TensorData::new_from_data(
+            &[2, 2, 2],
+            vec![
+                Complex64::new(0.953246407214305, 0.0),
+                Complex64::new(0.0, -0.14406910361762032),
+                Complex64::new(-0.014455126269118733, 0.0),
+                Complex64::new(0.0, -0.09564366568448116),
+                Complex64::new(-0.024421837348497916, 0.0),
+                Complex64::new(0.0, 0.0036909997130494475),
+                Complex64::new(-0.03678688170631573, 0.0),
+                Complex64::new(0.0, -0.24340376901515096),
+            ],
+            None,
+        );
+        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+    }
+
+    #[test]
+    fn statevector_order_two_fixed_qubits() {
+        let circuit = odd_test_circuit();
+        // 1*0 should get a vec with amplitudes |100> and |110>
+        let (tn, perm) = circuit.into_amplitude_network("1*0");
+        let resulting_state = contract_tn(tn, perm);
+
+        let expected = TensorData::new_from_data(
+            &[2],
+            vec![
+                Complex64::new(-0.024421837348497916, 0.0),
+                Complex64::new(-0.03678688170631573, 0.0),
+            ],
+            None,
+        );
+        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+    }
+
+    #[test]
+    fn statevector_order_one_fixed_qubit() {
+        let circuit = odd_test_circuit();
+        // *1* should get a vec with amplitudes |010>, |011>, |110>, |111>
+        let (tn, perm) = circuit.into_amplitude_network("*1*");
+        let resulting_state = contract_tn(tn, perm);
+
+        let expected = TensorData::new_from_data(
+            &[2, 2],
+            vec![
+                Complex64::new(-0.014455126269118733, 0.0),
+                Complex64::new(0.0, -0.09564366568448116),
+                Complex64::new(-0.03678688170631573, 0.0),
+                Complex64::new(0.0, -0.24340376901515096),
             ],
             None,
         );

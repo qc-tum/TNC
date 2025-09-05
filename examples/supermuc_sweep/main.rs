@@ -13,7 +13,6 @@ use itertools::{iproduct, Itertools};
 use log::info;
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::{Communicator, CommunicatorCollectives};
-use num_complex::Complex64;
 use protocol::Protocol;
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
@@ -45,7 +44,6 @@ use tnc::tensornetwork::contraction::contract_tensor_network;
 use tnc::tensornetwork::partitioning::find_partitioning;
 use tnc::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tnc::tensornetwork::tensor::Tensor;
-use tnc::tensornetwork::tensordata::TensorData;
 use tnc::types::ContractionIndex;
 use utils::{hash_str, parse_range_list, setup_logging_mpi};
 
@@ -66,18 +64,9 @@ fn read_circuit(file: &str) -> Tensor {
         }
     }
     let source = fs::read_to_string(file).unwrap();
-    let (mut tensor, open_legs) = create_tensornetwork(source);
-
-    // Add bras to each open leg
-    for leg in open_legs {
-        let mut bra = Tensor::new_from_const(vec![leg], 2);
-        bra.set_tensor_data(TensorData::new_from_data(
-            &[2],
-            vec![Complex64::ONE, Complex64::ONE],
-            None,
-        ));
-        tensor.push_tensor(bra);
-    }
+    let circuit = create_tensornetwork(source);
+    let qubits = circuit.num_qubits();
+    let (tensor, _) = circuit.into_amplitude_network(&"0".repeat(qubits));
 
     last_values.replace((file.into(), tensor.clone()));
     tensor
