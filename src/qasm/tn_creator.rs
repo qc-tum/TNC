@@ -7,7 +7,7 @@ use crate::tensornetwork::tensordata::TensorData;
 use crate::utils::traits::HashMapInsertNew;
 
 /// Struct to create a tensor network from an QASM2 AST.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TensorNetworkCreator;
 
 impl TensorNetworkCreator {

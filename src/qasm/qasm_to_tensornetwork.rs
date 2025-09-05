@@ -34,7 +34,7 @@ where
     expression_folder.visit_program(&mut program);
 
     // Create the tensornetwork
-    let mut tn_creator = TensorNetworkCreator::default();
+    let mut tn_creator = TensorNetworkCreator;
     tn_creator.create_tensornetwork(&program)
 }
 
