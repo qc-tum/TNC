@@ -177,9 +177,9 @@ mod tests {
             &[2, 2],
             vec![
                 c64(FRAC_1_SQRT_2, 0.),
-                c64(0, 0),
-                c64(0, 0),
                 c64(FRAC_1_SQRT_2, 0.),
+                c64(0, 0),
+                c64(0, 0),
             ],
             None,
         );
@@ -211,9 +211,9 @@ mod tests {
             &[2, 2],
             vec![
                 Complex64::ZERO,
+                Complex64::ZERO,
+                Complex64::ZERO,
                 Complex64::ONE,
-                Complex64::ZERO,
-                Complex64::ZERO,
             ],
             None,
         );

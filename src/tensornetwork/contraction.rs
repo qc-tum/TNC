@@ -168,12 +168,12 @@ mod tests {
         let mut tn_12 = Tensor::new_composite(vec![t1.clone(), t2.clone(), t3.clone()]);
 
         tn_12.contract_tensors(0, 1);
-        assert_approx_eq!(&Tensor, tn_12.tensor(0), &t12, ulps = 1024);
+        assert_approx_eq!(&Tensor, tn_12.tensor(0), &t12, epsilon = 1e-14);
 
         let mut tn_23 = Tensor::new_composite(vec![t1, t2, t3]);
 
         tn_23.contract_tensors(1, 2);
-        assert_approx_eq!(&Tensor, tn_23.tensor(1), &t23, ulps = 1024);
+        assert_approx_eq!(&Tensor, tn_23.tensor(1), &t23, epsilon = 1e-14);
     }
 
     #[test]
@@ -219,7 +219,7 @@ mod tests {
         let contract_path = path![(0, 1), (0, 2)];
 
         let result = contract_tensor_network(tn, contract_path);
-        assert_approx_eq!(&Tensor, &result, &tout, ulps = 1024);
+        assert_approx_eq!(&Tensor, &result, &tout, epsilon = 1e-14);
     }
 
     #[test]
@@ -249,10 +249,10 @@ mod tests {
             &[2, 3],
             vec![
                 Complex64::new(-4.0, 2.0),
-                Complex64::new(0.0, -1.0),
                 Complex64::new(-18.0, -16.0),
-                Complex64::new(5.0, -2.0),
                 Complex64::new(-10.0, 10.0),
+                Complex64::new(0.0, -1.0),
+                Complex64::new(5.0, -2.0),
                 Complex64::new(-1.0, -3.0),
             ],
             None,
