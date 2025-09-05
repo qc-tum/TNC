@@ -94,7 +94,7 @@ fn matrix_transpose_inplace(data: &mut DataTensor) {
 /// in `2n` dimensions of size `2`, like `(2,2,2,...)`.
 ///
 /// For example, both `(8,8)` or `(2,2,2,2,2,2)` are okay.
-fn matrix_adjoint_inplace(data: &mut DataTensor) {
+pub(crate) fn matrix_adjoint_inplace(data: &mut DataTensor) {
     matrix_transpose_inplace(data);
     data.conjugate();
 }
