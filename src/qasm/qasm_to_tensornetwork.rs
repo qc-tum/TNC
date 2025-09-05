@@ -49,6 +49,7 @@ mod tests {
     use num_complex::{c64, Complex64};
 
     use crate::{
+        builders::circuit_builder::Permutor,
         tensornetwork::{
             contraction::contract_tensor_network, tensor::Tensor, tensordata::TensorData,
         },
@@ -157,6 +158,17 @@ mod tests {
         assert!(is_open_edge_of(cx_t_to_open_id, cx.id, &tn));
     }
 
+    /// Contracts the tensor network with an arbitrary contraction order, then
+    /// returns the correctly permuted tensor data.
+    fn contract_tn(tn: Tensor, perm: Permutor) -> TensorData {
+        let opt_path = (1..tn.tensors().len())
+            .map(|tid| ContractionIndex::Pair(0, tid))
+            .collect_vec();
+        let tn = contract_tensor_network(tn, &opt_path);
+        let mut tn = perm.apply(tn);
+        std::mem::take(&mut tn.tensordata)
+    }
+
     #[test]
     fn bell_contract() {
         let code = "OPENQASM 2.0;
@@ -167,12 +179,7 @@ mod tests {
         ";
         let circuit = create_tensornetwork(code);
         let (tn, perm) = circuit.into_statevector_network();
-        let opt_path = (1..tn.tensors().len())
-            .map(|tid| ContractionIndex::Pair(0, tid))
-            .collect_vec();
-        let tn = contract_tensor_network(tn, &opt_path);
-        let tn = perm.apply(tn);
-        let resulting_state = tn.tensor_data();
+        let resulting_state = contract_tn(tn, perm);
 
         let expected = TensorData::new_from_data(
             &[2, 2],
@@ -202,12 +209,7 @@ mod tests {
         ";
         let circuit = create_tensornetwork(code);
         let (tn, perm) = circuit.into_statevector_network();
-        let opt_path = (1..tn.tensors().len())
-            .map(|tid| ContractionIndex::Pair(0, tid))
-            .collect_vec();
-        let tn = contract_tensor_network(tn, &opt_path);
-        let tn = perm.apply(tn);
-        let resulting_state = tn.tensor_data();
+        let resulting_state = contract_tn(tn, perm);
 
         let expected = TensorData::new_from_data(
             &[2, 2],
@@ -222,8 +224,7 @@ mod tests {
         assert_approx_eq!(&TensorData, &resulting_state, &expected);
     }
 
-    #[test]
-    fn statevector_order() {
+    fn odd_test_circuit() -> Circuit {
         // Test with odd numbers to check the order of the statevector is correct
         let code = "OPENQASM 2.0;
         include \"qelib1.inc\";
@@ -233,14 +234,14 @@ mod tests {
         rx(0.3) q[2];
         cx q[0], q[1];
         cx q[1], q[2];";
-        let circuit = create_tensornetwork(code);
+        create_tensornetwork(code)
+    }
+
+    #[test]
+    fn statevector_order() {
+        let circuit = odd_test_circuit();
         let (tn, perm) = circuit.into_statevector_network();
-        let opt_path = (1..tn.tensors().len())
-            .map(|tid| ContractionIndex::Pair(0, tid))
-            .collect_vec();
-        let tn = contract_tensor_network(tn, &opt_path);
-        let tn = perm.apply(tn);
-        let resulting_state = tn.tensor_data();
+        let resulting_state = contract_tn(tn, perm);
 
         let expected = TensorData::new_from_data(
             &[2, 2, 2],
@@ -251,6 +252,44 @@ mod tests {
                 Complex64::new(0.0, -0.09564366568448116),
                 Complex64::new(-0.024421837348497916, 0.0),
                 Complex64::new(0.0, 0.0036909997130494475),
+                Complex64::new(-0.03678688170631573, 0.0),
+                Complex64::new(0.0, -0.24340376901515096),
+            ],
+            None,
+        );
+        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+    }
+
+    #[test]
+    fn statevector_order_two_fixed_qubits() {
+        let circuit = odd_test_circuit();
+        // 1*0 should get a vec with amplitudes |100> and |110>
+        let (tn, perm) = circuit.into_amplitude_network("1*0");
+        let resulting_state = contract_tn(tn, perm);
+
+        let expected = TensorData::new_from_data(
+            &[2],
+            vec![
+                Complex64::new(-0.024421837348497916, 0.0),
+                Complex64::new(-0.03678688170631573, 0.0),
+            ],
+            None,
+        );
+        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+    }
+
+    #[test]
+    fn statevector_order_one_fixed_qubit() {
+        let circuit = odd_test_circuit();
+        // *1* should get a vec with amplitudes |010>, |011>, |110>, |111>
+        let (tn, perm) = circuit.into_amplitude_network("*1*");
+        let resulting_state = contract_tn(tn, perm);
+
+        let expected = TensorData::new_from_data(
+            &[2, 2],
+            vec![
+                Complex64::new(-0.014455126269118733, 0.0),
+                Complex64::new(0.0, -0.09564366568448116),
                 Complex64::new(-0.03678688170631573, 0.0),
                 Complex64::new(0.0, -0.24340376901515096),
             ],
