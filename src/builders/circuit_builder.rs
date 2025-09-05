@@ -32,7 +32,7 @@ impl QuantumRegister<'_> {
     }
 
     /// Returns the qubit at a given index.
-    pub fn qubit(&self, index: usize) -> Qubit {
+    pub fn qubit(&self, index: usize) -> Qubit<'_> {
         assert!(index < self.size);
         Qubit {
             index: self.base + index,
@@ -41,7 +41,7 @@ impl QuantumRegister<'_> {
     }
 
     /// Returns an iterator over all qubits in this register.
-    pub fn qubits(&self) -> impl Iterator<Item = Qubit> {
+    pub fn qubits(&self) -> impl Iterator<Item = Qubit<'_>> {
         (self.base..self.base + self.size).map(|i| Qubit {
             index: i,
             phantom: PhantomData,
