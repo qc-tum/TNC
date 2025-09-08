@@ -21,8 +21,9 @@ use crate::qasm::generated::qasm2parser::{LiteralExpressionContextAttrs, Qasm2Pa
 use crate::qasm::generated::qasm2parservisitor::Qasm2ParserVisitorCompat;
 use crate::qasm::utils::cast;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 enum ReturnVal {
+    #[default]
     None,
     Int(u32),
     Arg(Argument),
@@ -32,12 +33,6 @@ enum ReturnVal {
     ExpressionList(Vec<Expr>),
     Statement(Box<Statement>),
     Program(Program),
-}
-
-impl Default for ReturnVal {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 /// A visitor to build an AST from QASM2 code.
