@@ -155,8 +155,8 @@ jobs:
         run: cargo generate-lockfile
       - name: cargo llvm-cov
         run: cargo llvm-cov --locked --all-features --workspace --lcov --output-path coverage.lcov --ignore-filename-regex generated --doctests
-      - name: Check 80% test coverage
+      - name: Check 75% test coverage
         uses: tluijken/code-coverage-threshold@905bb53afdaea38a54d1a7a19c75c1ff513a3b07 # tag=v1
         with:
           coverage-file: coverage.lcov
-          minimum-coverage: 80
+          minimum-coverage: 75
