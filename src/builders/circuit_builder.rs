@@ -150,6 +150,11 @@ impl Circuit {
         TensorData::new_from_data(&[2], vec![Complex64::ZERO, Complex64::ONE], None)
     }
 
+    /// The Z gate.
+    fn z() -> TensorData {
+        TensorData::Gate((String::from("z"), vec![], false))
+    }
+
     /// Creates a new edge id.
     fn new_edge(&mut self) -> usize {
         let edge = self.next_edge;
@@ -264,13 +269,66 @@ impl Circuit {
         let qubits = self.num_qubits();
         self.into_amplitude_network(&"*".repeat(qubits))
     }
+
+    /// Creates the adjoint tensor of a given tensor. This not only modifies the
+    /// data, but also the order of legs and the bond_dims vec. The legs of the new
+    /// tensor are offset by `leg_offset`.
+    fn tensor_adjoint(tensor: &Tensor, leg_offset: usize) -> Tensor {
+        // Transpose legs and shape of tensor
+        let half = tensor.legs().len() / 2;
+        let legs = tensor.legs()[half..]
+            .iter()
+            .chain(&tensor.legs()[..half])
+            .map(|l| l + leg_offset)
+            .collect();
+        let bond_dims = tensor.bond_dims()[half..]
+            .iter()
+            .chain(&tensor.bond_dims()[..half])
+            .copied()
+            .collect();
+
+        // Take actual adjoint of tensor data
+        let data = tensor.tensor_data().clone();
+        let data = data.adjoint();
+
+        let mut adjoint = Tensor::new(legs, bond_dims);
+        adjoint.set_tensor_data(data);
+        adjoint
+    }
+
+    /// Converts the circuit to a tensor network that computes the expectation value
+    /// with respect to standard observables (`Z`) on all qubits.
+    ///
+    /// The tensor network is roughly twice the size of the circuit, as it needs to
+    /// compute the adjoint of the circuit as well.
+    pub fn into_expectation_value_network(mut self) -> Tensor {
+        let offset = self.next_edge;
+        self.tensors.reserve(self.tensors.len() + self.num_qubits());
+
+        // Add the mirrored tensor network
+        let mut adjoint_tensors = Vec::with_capacity(self.tensors.len());
+        for tensor in &self.tensors {
+            let adjoint = Self::tensor_adjoint(tensor, offset);
+            adjoint_tensors.push(adjoint);
+        }
+        self.tensors.append(&mut adjoint_tensors);
+
+        // Add the layer of observables
+        for e in self.open_edges {
+            let mut t = Tensor::new_from_const(vec![e, e + offset], 2);
+            t.set_tensor_data(Self::z());
+            self.tensors.push(t);
+        }
+
+        Tensor::new_composite(self.tensors)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use std::f64::consts::FRAC_1_SQRT_2;
+    use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_3, FRAC_PI_4};
 
     use float_cmp::assert_approx_eq;
     use num_complex::Complex64;
@@ -300,12 +358,12 @@ mod tests {
     }
 
     #[test]
-    fn hadmards_amplitude() {
+    fn hadamards_amplitude() {
         let qubits = 5;
         let mut circuit = Circuit::default();
         let qr = circuit.allocate_register(qubits);
         for q in qr.qubits() {
-            circuit.append_gate(TensorData::Gate((String::from("h"), vec![], true)), &[q]);
+            circuit.append_gate(TensorData::Gate((String::from("h"), vec![], false)), &[q]);
         }
         let (tensor_network, permutor) = circuit.into_amplitude_network("00000");
         assert!(permutor.is_empty());
@@ -320,6 +378,37 @@ mod tests {
         tn_ref.set_tensor_data(TensorData::new_from_data(
             &[],
             vec![Complex64::new(FRAC_1_SQRT_2.powi(qubits as i32), 0.0)],
+            None,
+        ));
+
+        assert_approx_eq!(&Tensor, &result, &tn_ref);
+    }
+
+    #[test]
+    fn rx_expectation_value() {
+        let qubits = 2;
+        let mut circuit = Circuit::default();
+        let qr = circuit.allocate_register(qubits);
+        circuit.append_gate(
+            TensorData::Gate((String::from("rx"), vec![FRAC_PI_4], false)),
+            &[qr.qubit(0)],
+        );
+        circuit.append_gate(
+            TensorData::Gate((String::from("rx"), vec![FRAC_PI_3], false)),
+            &[qr.qubit(1)],
+        );
+        let tensor_network = circuit.into_expectation_value_network();
+
+        let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
+        opt.optimize_path();
+        let path = opt.get_best_replace_path();
+
+        let result = contract_tensor_network(tensor_network, &path);
+
+        let mut tn_ref = Tensor::default();
+        tn_ref.set_tensor_data(TensorData::new_from_data(
+            &[],
+            vec![Complex64::new(FRAC_1_SQRT_2 * 0.5, 0.0)],
             None,
         ));
 
