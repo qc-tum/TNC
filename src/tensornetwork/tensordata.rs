@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tetra::{Layout, Tensor as DataTensor};
 
 use crate::{
-    gates::{load_gate, load_gate_adjoint},
+    gates::{load_gate, load_gate_adjoint, matrix_adjoint_inplace},
     io::load_data,
 };
 
@@ -18,7 +18,7 @@ pub enum TensorData {
     #[default]
     Uncontracted,
     /// The data is loaded from a HDF5 file.
-    File(PathBuf),
+    File((PathBuf, bool)),
     /// A quantum gate. The name must be registered in the gates module.
     Gate((String, Vec<f64>, bool)),
     /// A raw vec of complex numbers.
@@ -40,7 +40,13 @@ impl TensorData {
     pub fn into_data(self) -> DataTensor {
         match self {
             TensorData::Uncontracted => panic!("Cannot convert uncontracted tensor to data"),
-            TensorData::File(filename) => load_data(filename).unwrap(),
+            TensorData::File((filename, adjoint)) => {
+                let mut data = load_data(filename).unwrap();
+                if adjoint {
+                    matrix_adjoint_inplace(&mut data);
+                }
+                data
+            }
             TensorData::Gate((gatename, angles, adjoint)) => {
                 if adjoint {
                     load_gate_adjoint(&gatename, &angles)
@@ -49,6 +55,19 @@ impl TensorData {
                 }
             }
             TensorData::Matrix(tensor) => tensor,
+        }
+    }
+
+    /// Returns the adjoint of this data.
+    pub fn adjoint(self) -> Self {
+        match self {
+            TensorData::Uncontracted => TensorData::Uncontracted,
+            TensorData::File((filename, adjoint)) => TensorData::File((filename, !adjoint)),
+            TensorData::Gate((name, params, adjoint)) => TensorData::Gate((name, params, !adjoint)),
+            TensorData::Matrix(mut tensor) => {
+                matrix_adjoint_inplace(&mut tensor);
+                TensorData::Matrix(tensor)
+            }
         }
     }
 }
