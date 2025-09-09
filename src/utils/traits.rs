@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::fmt::Debug;
 use std::{
     collections::HashMap,
@@ -23,7 +24,16 @@ where
 {
     #[inline]
     fn insert_new(&mut self, key: K, value: V) {
-        self.try_insert(key, value).unwrap();
+        match self.entry(key) {
+            Entry::Occupied(occupied_entry) => panic!(
+                "can not insert value {value:?}, because there is already an entry ({:?}, {:?})",
+                occupied_entry.key(),
+                occupied_entry.get()
+            ),
+            Entry::Vacant(vacant_entry) => {
+                vacant_entry.insert(value);
+            }
+        }
     }
 }
 
@@ -55,9 +65,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "called `Result::unwrap()` on an `Err` value: OccupiedError { key: 1, old_value: 2, new_value: 4, .. }"
-    )]
+    #[should_panic(expected = "can not insert value 4, because there is already an entry (1, 2)")]
     fn test_insert_new_panic() {
         let mut hm = FxHashMap::default();
         hm.insert_new(1, 2);
