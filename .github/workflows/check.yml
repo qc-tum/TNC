@@ -37,17 +37,17 @@ jobs:
         run: cargo fmt --check
   clippy:
     runs-on: ubuntu-latest
-    name: clippy (nightly)
+    name: clippy (stable)
     steps:
       - name: Install system requirements
         run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
-      - name: Install nightly
+      - name: Install stable
         uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
         with:
-          toolchain: nightly
+          toolchain: stable
           components: clippy
       - name: cargo clippy
         run: cargo clippy --all-features --all-targets
@@ -89,17 +89,17 @@ jobs:
     # cargo-hack checks combinations of feature flags to ensure that features are all additive
     # which is required for feature unification
     runs-on: ubuntu-latest
-    name: features (nightly)
+    name: feature-combinations (stable)
     steps:
       - name: Install system requirements
         run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
-      - name: Install nightly
+      - name: Install stable
         uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
         with:
-          toolchain: nightly
+          toolchain: stable
       - name: cargo install cargo-hack
         uses: taiki-e/install-action@c0dee14250395ae6b1754a99f67c1d693138b102 # tag=v2.58.30
         with:

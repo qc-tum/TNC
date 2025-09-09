@@ -19,7 +19,7 @@ name: test
 jobs:
   required:
     runs-on: ubuntu-latest
-    name: test (nightly)
+    name: test (stable)
     env:
       OMPI_MCA_rmaps_base_oversubscribe: true
     steps:
@@ -34,10 +34,10 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
-      - name: Install nightly
+      - name: Install stable
         uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
         with:
-          toolchain: nightly
+          toolchain: stable
       - name: cargo generate-lockfile
         # enable this ci template to run regardless of whether the lockfile is checked in or not
         if: hashFiles('Cargo.lock') == ''
@@ -72,7 +72,7 @@ jobs:
     # https://github.com/jonhoo/fantoccini/blob/fde336472b712bc7ebf5b4e772023a7ba71b2262/Cargo.toml#L47-L49.
     # This action is run on ubuntu with the stable toolchain, as it is not expected to fail
     runs-on: ubuntu-latest
-    name: minimal-versions (nightly)
+    name: minimal-versions (stable)
     env:
       OMPI_MCA_rmaps_base_oversubscribe: true
     steps:
@@ -87,10 +87,16 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
-      - name: Install nightly
+      - name: Install stable
+        uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
+        with:
+          toolchain: stable  
+      - name: Install nightly for -Zdirect-minimal-versions
         uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
         with:
           toolchain: nightly
+      - name: rustup default stable
+        run: rustup default stable
       - name: cargo update -Zdirect-minimal-versions
         run: cargo +nightly update -Zdirect-minimal-versions
       - name: cargo test
@@ -126,7 +132,7 @@ jobs:
     # use llvm-cov to build and collect coverage and outputs in a format that
     # is compatible with https://github.com/marketplace/actions/code-coverage-summary.
     runs-on: ubuntu-latest
-    name: coverage (nightly)
+    name: coverage (stable)
     env:
       OMPI_MCA_rmaps_base_oversubscribe: true
     steps:
@@ -141,10 +147,10 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
-      - name: Install nightly
+      - name: Install stable
         uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
         with:
-          toolchain: nightly
+          toolchain: stable
           components: llvm-tools-preview
       - name: cargo install cargo-llvm-cov
         uses: taiki-e/install-action@c0dee14250395ae6b1754a99f67c1d693138b102 # tag=v2.58.30

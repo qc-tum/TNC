@@ -14,16 +14,17 @@ name: docs
 jobs:
   build:
     runs-on: ubuntu-latest
+    name: build (stable)
     steps:
       - name: Install system requirements
         run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
         with:
           submodules: true
-      - name: Install nightly
+      - name: Install stable
         uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
         with:
-          toolchain: nightly
+          toolchain: stable
       - name: cargo doc --no-deps
         run: cargo doc --no-deps
       - name: Add redirect
