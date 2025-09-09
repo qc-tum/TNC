@@ -563,11 +563,24 @@ impl BitXorAssign<&Tensor> for Tensor {
 mod tests {
     use super::*;
 
-    use std::{assert_matches::assert_matches, iter::zip};
+    use std::iter::zip;
 
     use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::tensordata::TensorData;
+
+    macro_rules! assert_matches {
+        ($left:expr, $pattern:pat) => {
+            match $left {
+                $pattern => (),
+                _ => panic!(
+                    "Expected pattern {} but got {:?}",
+                    stringify!($pattern),
+                    $left
+                ),
+            }
+        };
+    }
 
     #[test]
     fn test_empty_tensor() {
