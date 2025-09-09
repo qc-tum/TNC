@@ -25,12 +25,6 @@ The following Python packages have to be installed:
 pip install cotengra kahypar optuna
 ```
 
-Finally, the crate currently requires the nightly toolchain.
-To tell Rust to use nightly for this library, run from anywhere inside the library directory the following:
-```shell
-rustup override set nightly
-```
-
 ### Features
 - `cotengra`: Enables Rust bindings to the tree annealing, tree reconfiguration and tree tempering methods of cotengra
 
@@ -40,7 +34,6 @@ rustup override set nightly
 use std::fs;
 
 use mpi::{topology::SimpleCommunicator, traits::Communicator};
-use num_complex::Complex64;
 use tnc::{
     contractionpath::paths::{
         cotengrust::{Cotengrust, OptMethod},
@@ -57,7 +50,6 @@ use tnc::{
             find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
         },
         tensor::Tensor,
-        tensordata::TensorData,
     },
 };
 
@@ -88,21 +80,8 @@ fn main() {
 
 fn read_qasm(file: &str) -> Tensor {
     let source = fs::read_to_string(file).unwrap();
-    let (mut tensor, open_legs) = create_tensornetwork(source);
-
-    // Add bras to each open leg to compute a single amplitude
-    for leg in open_legs {
-        // Create a new tensor with a single leg of dimension 2
-        let mut bra = Tensor::new_from_const(vec![leg], 2);
-        // Set the actual data of the tensor
-        bra.set_tensor_data(TensorData::new_from_data(
-            &[2],
-            vec![Complex64::ONE, Complex64::ZERO],
-            None,
-        ));
-        // Add the bra to our tensor network
-        tensor.push_tensor(bra);
-    }
+    let circuit = create_tensornetwork(source);
+    let tensor = circuit.into_expectation_value_network();
     tensor
 }
 
