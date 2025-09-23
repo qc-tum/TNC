@@ -31,6 +31,7 @@ lazy_static! {
         gates.insert(Box::new(Rz) as _);
         gates.insert(Box::new(Cx) as _);
         gates.insert(Box::new(Cz) as _);
+        gates.insert(Box::new(Cp) as _);
         gates.insert(Box::new(Iswap) as _);
         gates.insert(Box::new(Fsim) as _);
         RwLock::new(gates)
@@ -515,6 +516,36 @@ impl Gate for Cz {
     }
 }
 
+/// The controlled Phase gate.
+struct Cp;
+impl Gate for Cp {
+    fn name(&self) -> &str {
+        "cp"
+    }
+
+    fn compute(&self, angles: &[f64]) -> DataTensor {
+        let [theta] = angles else {
+            panic!("Expected 1 angle, got {}", angles.len())
+        };
+        let z = Complex64::ZERO;
+        let o = Complex64::ONE;
+        let e = (Complex64::I * theta).exp();
+        #[rustfmt::skip]
+        let data = vec![
+            o, z, z, z,
+            z, o, z, z,
+            z, z, o, z,
+            z, z, z, e,
+        ];
+        DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+    }
+
+    fn adjoint(&self, angles: &[f64]) -> DataTensor {
+        // symmetric
+        self.compute(&angles.iter().map(|&x| -x).collect_vec())
+    }
+}
+
 /// The iSWAP gate.
 struct Iswap;
 impl Gate for Iswap {
@@ -601,8 +632,14 @@ mod tests {
 
     #[test]
     fn test_custom_adjoint_impls() {
-        let gate_params =
-            FxHashMap::from_iter([("u", 3), ("rx", 1), ("ry", 1), ("rz", 1), ("fsim", 2)]);
+        let gate_params = FxHashMap::from_iter([
+            ("u", 3),
+            ("rx", 1),
+            ("ry", 1),
+            ("rz", 1),
+            ("cp", 1),
+            ("fsim", 2),
+        ]);
         let rng = StdRng::seed_from_u64(42);
         let dist = Uniform::new(-PI, PI);
         let rng_iter = &mut dist.sample_iter(rng);
