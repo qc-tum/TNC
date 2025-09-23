@@ -31,6 +31,7 @@ lazy_static! {
         gates.insert(Box::new(Rz) as _);
         gates.insert(Box::new(Cx) as _);
         gates.insert(Box::new(Cz) as _);
+        gates.insert(Box::new(Cp) as _);
         gates.insert(Box::new(Iswap) as _);
         gates.insert(Box::new(Fsim) as _);
         RwLock::new(gates)
@@ -99,6 +100,14 @@ pub(crate) fn matrix_adjoint_inplace(data: &mut DataTensor) {
     data.conjugate();
 }
 
+/// Checks the slice has the requested number of elements or panics.
+#[inline]
+fn unpack_angles<const N: usize>(angles: &[f64]) -> [f64; N] {
+    angles
+        .try_into()
+        .unwrap_or_else(|_| panic!("Expected {N} angles, but got {}.", angles.len()))
+}
+
 /// A quantum gate.
 pub trait Gate: Send + Sync {
     /// Returns the name of the gate.
@@ -145,7 +154,7 @@ impl Gate for X {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
+        let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         #[rustfmt::skip]
@@ -170,7 +179,7 @@ impl Gate for Y {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
+        let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let i = Complex64::I;
         #[rustfmt::skip]
@@ -195,7 +204,7 @@ impl Gate for Z {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
+        let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         #[rustfmt::skip]
@@ -220,7 +229,7 @@ impl Gate for H {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
+        let [] = unpack_angles(angles);
         let h = Complex64::new(FRAC_1_SQRT_2, 0.0);
         #[rustfmt::skip]
         let data = vec![
@@ -244,7 +253,7 @@ impl Gate for T {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
+        let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         let t = Complex64::new(FRAC_1_SQRT_2, FRAC_1_SQRT_2);
@@ -272,9 +281,7 @@ impl Gate for U {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        let [theta, phi, lambda] = angles else {
-            panic!("Expected 3 angles, got {}", angles.len())
-        };
+        let [theta, phi, lambda] = unpack_angles(angles);
         let (sin, cos) = (theta / 2.0).sin_cos();
         let data = vec![
             Complex64::new(cos, 0.0),
@@ -287,9 +294,7 @@ impl Gate for U {
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
         // This explicit implementation is ~30% faster
-        let [theta, phi, lambda] = angles else {
-            panic!("Expected 3 angles, got {}", angles.len())
-        };
+        let [theta, phi, lambda] = unpack_angles(angles);
         let (sin, cos) = (theta / 2.0).sin_cos();
         let data = vec![
             Complex64::new(cos, 0.0),
@@ -309,7 +314,7 @@ impl Gate for Sx {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
+        let [] = unpack_angles(angles);
         let a = Complex64::new(0.5, 0.5);
         let b = Complex64::new(0.5, -0.5);
         #[rustfmt::skip]
@@ -336,7 +341,7 @@ impl Gate for Sy {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
+        let [] = unpack_angles(angles);
         let a = Complex64::new(0.5, 0.5);
         let b = Complex64::new(-0.5, -0.5);
         #[rustfmt::skip]
@@ -356,7 +361,7 @@ impl Gate for Sz {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
+        let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         let i = Complex64::I;
@@ -384,9 +389,7 @@ impl Gate for Rx {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        let [theta] = angles else {
-            panic!("Expected 1 angle, got {}", angles.len())
-        };
+        let [theta] = unpack_angles(angles);
         let (sin, cos) = (theta / 2.0).sin_cos();
         let o = Complex64::ONE;
         let i = Complex64::I;
@@ -412,9 +415,7 @@ impl Gate for Ry {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        let [theta] = angles else {
-            panic!("Expected 1 angle, got {}", angles.len())
-        };
+        let [theta] = unpack_angles(angles);
         let (sin, cos) = (theta / 2.0).sin_cos();
         let o = Complex64::ONE;
 
@@ -440,10 +441,7 @@ impl Gate for Rz {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        let [theta] = angles else {
-            panic!("Expected 1 angle, got {}", angles.len())
-        };
-
+        let [theta] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let i = Complex64::I;
 
@@ -469,7 +467,7 @@ impl Gate for Cx {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
+        let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         #[rustfmt::skip]
@@ -496,7 +494,7 @@ impl Gate for Cz {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
+        let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         #[rustfmt::skip]
@@ -515,6 +513,34 @@ impl Gate for Cz {
     }
 }
 
+/// The controlled Phase gate.
+struct Cp;
+impl Gate for Cp {
+    fn name(&self) -> &str {
+        "cp"
+    }
+
+    fn compute(&self, angles: &[f64]) -> DataTensor {
+        let [theta] = unpack_angles(angles);
+        let z = Complex64::ZERO;
+        let o = Complex64::ONE;
+        let e = (Complex64::I * theta).exp();
+        #[rustfmt::skip]
+        let data = vec![
+            o, z, z, z,
+            z, o, z, z,
+            z, z, o, z,
+            z, z, z, e,
+        ];
+        DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+    }
+
+    fn adjoint(&self, angles: &[f64]) -> DataTensor {
+        // symmetric
+        self.compute(&angles.iter().map(|&x| -x).collect_vec())
+    }
+}
+
 /// The iSWAP gate.
 struct Iswap;
 impl Gate for Iswap {
@@ -523,7 +549,7 @@ impl Gate for Iswap {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        assert!(angles.is_empty());
+        let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         let i = Complex64::I;
@@ -553,9 +579,7 @@ impl Gate for Fsim {
     }
 
     fn compute(&self, angles: &[f64]) -> DataTensor {
-        let [theta, phi] = angles else {
-            panic!("Expected 2 angles, got {}", angles.len())
-        };
+        let [theta, phi] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         let a = Complex64::new(theta.cos(), 0.0);
@@ -600,9 +624,21 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Expected 0 angles, but got 2.")]
+    fn too_many_angles() {
+        let [] = unpack_angles(&[2.0, 4.0]);
+    }
+
+    #[test]
     fn test_custom_adjoint_impls() {
-        let gate_params =
-            FxHashMap::from_iter([("u", 3), ("rx", 1), ("ry", 1), ("rz", 1), ("fsim", 2)]);
+        let gate_params = FxHashMap::from_iter([
+            ("u", 3),
+            ("rx", 1),
+            ("ry", 1),
+            ("rz", 1),
+            ("cp", 1),
+            ("fsim", 2),
+        ]);
         let rng = StdRng::seed_from_u64(42);
         let dist = Uniform::new(-PI, PI);
         let rng_iter = &mut dist.sample_iter(rng);
