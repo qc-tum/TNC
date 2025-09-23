@@ -10,7 +10,9 @@ static COMMUNITY_FINDING_CONFIG: &CStr = include_cstr!("km1_kKaHyPar_sea20.ini")
 
 /// Different strategies for partitioning a tensor network.
 pub enum PartitioningStrategy {
+    /// Uses the min cut heuristic.
     MinCut,
+    /// Uses the community finding heuristic.
     CommunityFinding,
     /// A custom `KaHyPar` configuration loaded from an INI file.
     Custom(PathBuf),

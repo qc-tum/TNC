@@ -42,12 +42,12 @@ pub struct DendogramSettings {
 
 #[derive(Debug)]
 pub struct DendogramEntry {
-    pub id: usize,
-    pub x: f64,
-    pub y: f64,
-    pub cost: f64,
-    pub color: String,
-    pub children: Option<(usize, usize)>,
+    pub(crate) id: usize,
+    pub(crate) x: f64,
+    pub(crate) y: f64,
+    pub(crate) cost: f64,
+    pub(crate) color: String,
+    pub(crate) children: Option<(usize, usize)>,
 }
 
 pub fn to_dendogram_format(

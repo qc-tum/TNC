@@ -2,7 +2,8 @@ use std::cmp::Ordering;
 
 use float_cmp::approx_eq;
 
-/// Struct to store contraction candidate information when searching for optimal contraction path.
+/// Struct to store contraction candidate information when searching for optimal
+/// contraction path.
 #[derive(Clone, Debug)]
 pub(crate) struct Candidate {
     pub flop_cost: f64,

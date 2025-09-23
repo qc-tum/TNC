@@ -1,14 +1,31 @@
 use serde::{Deserialize, Serialize};
 
+/// Unique index of a leg.
 pub type EdgeIndex = usize;
+
+/// Index of a tensor in a tensor network.
 pub type TensorIndex = usize;
 
+/// Element of a contraction path.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ContractionIndex {
+    /// A top-level contraction between two tensors, with the result replacing the
+    /// left tensor.
     Pair(TensorIndex, TensorIndex),
+    /// A nested contraction path for the specified composite tensor. The composite
+    /// tensor is replaced with the tensor resulting from contracting the composite
+    /// tensor with the given path.
     Path(TensorIndex, Vec<ContractionIndex>),
 }
 
+/// Macro to create (nested) contraction paths, assuming the left tensor is replaced
+/// in each contraction.
+///
+/// For instance, `path![(0, 1), (2, [(0, 2), (0, 1)]), (0, 2)]` creates a nested
+/// contraction path that
+/// - contracts tensors 0 and 1, replacing tensor 0 with the result
+/// - recursively contracts the composite tensor 2 with the contraction path `[(0, 2), (0, 1)]`
+/// - contracts tensors 0 and (now contracted) tensor 2, replacing tensor 0 with the result
 #[macro_export]
 macro_rules! path {
     ($(($index:expr $(,$tokens:tt)*)),*) => {

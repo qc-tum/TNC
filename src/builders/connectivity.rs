@@ -3,6 +3,7 @@ use itertools::Itertools;
 /// Struct that defines connectivity of IBM device.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Connectivity {
+    /// The coupling graph of the device.
     pub connectivity: Vec<(usize, usize)>,
     name: ConnectivityLayout,
 }
@@ -14,16 +15,14 @@ pub enum ConnectivityLayout {
     Eagle,
     Osprey,
     Sycamore,
+    /// All-to-all connectivity with the given number of qubits.
     All(usize),
+    /// Line topology with the given number of qubits.
     Line(usize),
 }
 
 impl Connectivity {
     /// Create a new connectivity layout instance.
-    ///
-    /// # Arguments
-    ///
-    /// * `str` - &str name of IBM device
     ///
     /// # Examples
     /// ```

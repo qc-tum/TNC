@@ -56,15 +56,18 @@ pub struct HyperOptions {
 }
 
 impl HyperOptions {
+    /// Creates the default HyperOptimizer options.
     pub fn new() -> Self {
         HyperOptions::default()
     }
 
+    /// Sets the `max_time` argument for the HyperOptimizer.
     pub fn with_max_time(mut self, time: &Duration) -> Self {
         self.max_time = Some(time.as_secs());
         self
     }
 
+    /// Sets the `max_repeats` argument for the HyperOptimizer.
     pub fn with_max_repeats(mut self, repeats: usize) -> Self {
         self.max_repeats = Some(repeats);
         self

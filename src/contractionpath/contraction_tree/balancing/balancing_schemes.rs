@@ -7,6 +7,7 @@ use crate::contractionpath::contraction_tree::{
 };
 use crate::tensornetwork::tensor::Tensor;
 
+/// The scheme used for greedy balancing of partitions.
 #[derive(Debug, Clone, Copy)]
 pub enum BalancingScheme {
     /// Moves a tensor from the slowest subtree to the fastest subtree each time.

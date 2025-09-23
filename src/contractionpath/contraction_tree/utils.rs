@@ -15,7 +15,8 @@ use crate::{
     types::ContractionIndex,
 };
 
-/// Identifies the contraction path designated by subtree rooted at `node_id` in contraction tree. Allows for Tensor to have a different structure than
+/// Identifies the contraction path designated by subtree rooted at `node_id` in
+/// contraction tree. Allows for Tensor to have a different structure than
 /// ContractionTree as long as `tensor_index` in ContractionTree match the Tensor
 pub(super) fn subtree_tensor_network(
     node_id: usize,
@@ -52,7 +53,9 @@ pub(super) fn subtree_tensor_network(
     (local_tensors, local_contraction_path)
 }
 
-/// Generates a local contraction path for a subtree in a ContractionTree, returns the local contraction path with tree node indices, the local contraction path with local indexing and the cost of contracting.
+/// Generates a local contraction path for a subtree in a ContractionTree, returns
+/// the local contraction path with tree node indices, the local contraction path
+/// with local indexing and the cost of contracting.
 pub(super) fn subtree_contraction_path(
     subtree_leaf_nodes: &[usize],
     contraction_tree: &ContractionTree,

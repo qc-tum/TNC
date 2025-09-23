@@ -16,6 +16,8 @@ pub struct Node {
     left_child: WeakNodeRef,
     right_child: WeakNodeRef,
     parent: WeakNodeRef,
+    /// Hierarchical index to a tensor in a tensor network. For non-leaf nodes, this
+    /// is `None`.
     tensor_index: Option<Vec<usize>>,
 }
 

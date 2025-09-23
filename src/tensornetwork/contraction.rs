@@ -12,11 +12,11 @@ use crate::{
 /// # Examples
 /// ```
 /// # use tnc::{
-///     contractionpath::paths::{branchbound::BranchBound, CostType, OptimizePath},
-///     builders::sycamore_circuit::sycamore_circuit,
-///     tensornetwork::tensor::Tensor,
-///     tensornetwork::contraction::contract_tensor_network,
-/// };
+/// #   contractionpath::paths::{branchbound::BranchBound, CostType, OptimizePath},
+/// #   builders::sycamore_circuit::sycamore_circuit,
+/// #   tensornetwork::tensor::Tensor,
+/// #   tensornetwork::contraction::contract_tensor_network,
+/// # };
 /// # use rand::rngs::StdRng;
 /// # use rand::SeedableRng;
 /// let mut r = StdRng::seed_from_u64(42);
@@ -51,7 +51,7 @@ pub fn contract_tensor_network(mut tn: Tensor, contract_path: &[ContractionIndex
 }
 
 pub(crate) trait TensorContraction {
-    /// Contracts two tensors
+    /// Contracts two tensors.
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize);
 }
 

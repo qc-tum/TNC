@@ -29,13 +29,13 @@ where
 {
     /// If not None, randomly chooses from top `usize` options. Random choice is
     /// weighted by objective outcome.
-    pub random_balance: Option<(usize, R)>,
-    pub rebalance_depth: usize,
-    pub iterations: usize,
-    pub objective_function: fn(&Tensor, &Tensor) -> f64,
-    pub communication_scheme: CommunicationScheme,
-    pub balancing_scheme: BalancingScheme,
-    pub memory_limit: Option<f64>,
+    random_balance: Option<(usize, R)>,
+    rebalance_depth: usize,
+    iterations: usize,
+    objective_function: fn(&Tensor, &Tensor) -> f64,
+    communication_scheme: CommunicationScheme,
+    balancing_scheme: BalancingScheme,
+    memory_limit: Option<f64>,
 }
 
 impl BalanceSettings<StdRng> {
@@ -85,7 +85,7 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct PartitionData {
+pub(crate) struct PartitionData {
     pub id: usize,
     pub flop_cost: f64,
     pub mem_cost: f64,
@@ -101,7 +101,7 @@ pub fn balance_partitions_iter<R>(
     rng: &mut R,
 ) -> (usize, Tensor, Vec<ContractionIndex>, Vec<(f64, f64)>)
 where
-    R: Rng + Clone,
+    R: Rng,
 {
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor_network, path);
 

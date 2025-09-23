@@ -17,7 +17,7 @@ pub mod import;
 mod node;
 mod utils;
 
-/// Struct representing the full contraction path of a given Tensor object
+/// Struct representing the full contraction path of a given [`Tensor`] object.
 #[derive(Default, Debug, Clone)]
 pub struct ContractionTree {
     nodes: FxHashMap<usize, NodeRef>,
@@ -26,11 +26,13 @@ pub struct ContractionTree {
 }
 
 impl ContractionTree {
+    /// Returns a reference to the node with the given `node_id`.
     pub fn node(&self, node_id: usize) -> Ref<'_, Node> {
         let borrow = &self.nodes[&node_id];
         borrow.as_ref().borrow()
     }
 
+    /// Returns the node id of the root node, if any.
     pub fn root_id(&self) -> Option<usize> {
         self.root.upgrade().map(|node| node.borrow().id())
     }

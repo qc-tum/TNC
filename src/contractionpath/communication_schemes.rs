@@ -15,6 +15,8 @@ use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use crate::tensornetwork::tensor::Tensor;
 use crate::types::ContractionIndex;
 
+/// The scheme used to find a contraction path for the final fan-in of tensors
+/// between MPI ranks.
 #[derive(Debug, Copy, Clone)]
 pub enum CommunicationScheme {
     /// Uses Greedy scheme to find contraction path for communication
