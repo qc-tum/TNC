@@ -29,7 +29,7 @@ jobs:
         with:
           submodules: true
       - name: Install stable
-        uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # tag=v1.15.1
         with:
           toolchain: stable
           components: rustfmt
@@ -45,7 +45,7 @@ jobs:
         with:
           submodules: true
       - name: Install stable
-        uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # tag=v1.15.1
         with:
           toolchain: stable
           components: clippy
@@ -59,7 +59,7 @@ jobs:
   #       with:
   #         submodules: true
   #     - name: Install stable
-  #       uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
+  #       uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # tag=v1.15.1
   #       with:
   #         toolchain: stable
   #         components: rustfmt
@@ -78,7 +78,7 @@ jobs:
         with:
           submodules: true
       - name: Install nightly
-        uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # tag=v1.15.1
         with:
           toolchain: nightly
       - name: Install cargo-docs-rs
@@ -97,7 +97,7 @@ jobs:
         with:
           submodules: true
       - name: Install stable
-        uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # tag=v1.15.1
         with:
           toolchain: stable
       - name: cargo install cargo-hack
@@ -124,7 +124,7 @@ jobs:
         with:
           submodules: true
       - name: Install ${{ matrix.msrv }}
-        uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # tag=v1.14.1
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # tag=v1.15.1
         with:
           toolchain: ${{ matrix.msrv }}
       - name: cargo +${{ matrix.msrv }} check
