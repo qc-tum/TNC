@@ -1,3 +1,5 @@
+//! Building a tensor network from a quantum circuit.
+
 use std::marker::PhantomData;
 
 use itertools::Itertools;
@@ -163,6 +165,15 @@ impl Circuit {
     }
 
     /// Returns the total number of qubits allocated in this circuit.
+    ///
+    /// # Examples
+    /// ```
+    /// # use tnc::builders::circuit_builder::Circuit;
+    /// let mut circuit = Circuit::default();
+    /// let q1 = circuit.allocate_register(2);
+    /// let q2 = circuit.allocate_register(3);
+    /// assert_eq!(circuit.num_qubits(), 5);
+    /// ```
     #[inline]
     pub fn num_qubits(&self) -> usize {
         self.open_edges.len()

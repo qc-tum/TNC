@@ -1,3 +1,8 @@
+//! Functionality to export a contraction tree to a dendogram in a PDF via LaTeX.
+//!
+//! This code was written quick-and-dirty and might be removed or reworked in the
+//! future.
+
 use std::{
     fs,
     process::{Command, Stdio},

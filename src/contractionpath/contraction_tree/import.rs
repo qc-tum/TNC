@@ -1,3 +1,12 @@
+//! Functionality to import the logs of an MPI run to produce a dendogram of the
+//! actual contraction timings.
+//!
+//! Requires to run the code with log level DEBUG. Writing the logs asynchronously
+//! should hopefully reduce the performance impact of the extended logging.
+//!
+//! This code was written quick-and-dirty and might be removed or reworked in the
+//! future.
+
 use std::{fs, rc::Rc};
 
 use chrono::{DateTime, Utc};

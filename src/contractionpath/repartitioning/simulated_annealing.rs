@@ -1,3 +1,5 @@
+//! Repartitioning using simulated annealing algorithms.
+
 use std::{
     iter::zip,
     time::{Duration, Instant},

@@ -1,3 +1,5 @@
+//! Functionality for greedy balancing of tensor network partitions.
+
 use core::f64;
 use std::rc::Rc;
 
@@ -93,6 +95,7 @@ pub(crate) struct PartitionData {
     pub local_tensor: Tensor,
 }
 
+/// Balances a partitioned tensor network to greedily optimize for a given objective.
 pub fn balance_partitions_iter<R>(
     tensor_network: &Tensor,
     path: &[ContractionIndex],

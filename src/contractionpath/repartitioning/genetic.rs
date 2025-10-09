@@ -1,3 +1,5 @@
+//! Repartitioning using a genetic algorithm.
+
 use genetic_algorithm::{
     crossover::CrossoverUniform,
     fitness::{Fitness, FitnessChromosome, FitnessOrdering, FitnessValue},

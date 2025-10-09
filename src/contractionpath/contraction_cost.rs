@@ -1,3 +1,6 @@
+//! Different methods to compute the computational and memory cost of contraction
+//! paths.
+
 use num_complex::Complex64;
 
 use crate::tensornetwork::tensor::Tensor;

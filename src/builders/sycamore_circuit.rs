@@ -1,3 +1,5 @@
+//! Generating a tensor network similar to the Sycamore circuits.
+
 use std::f64::consts::{FRAC_PI_2, FRAC_PI_6};
 
 use rand::{seq::SliceRandom, Rng};
@@ -11,7 +13,9 @@ use crate::{
     tensornetwork::{tensor::Tensor, tensordata::TensorData},
 };
 
-/// Creates a new tensor network based on the Sycamore circuit. The `depth` is the
+/// Creates a new tensor network based on the Sycamore circuit.
+///
+/// The `depth` is the
 /// number of rounds, where one round consists of a layer of single-qubit gates
 /// followed by a layer of two-qubit gates. The start and end states are random
 /// product states.
