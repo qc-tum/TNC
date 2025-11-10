@@ -57,7 +57,8 @@ impl<'a> Cotengrust<'a> {
             OptMethod::Greedy => optimize_greedy_rust(
                 inputs,
                 output,
-                &size_dict,
+                size_dict,
+                None,
                 None,
                 None,
                 Some(42),
@@ -68,8 +69,9 @@ impl<'a> Cotengrust<'a> {
                 optimize_random_greedy_rust(
                     inputs,
                     output,
-                    &size_dict,
+                    size_dict,
                     ntrials,
+                    None,
                     None,
                     None,
                     Some(42),
@@ -79,7 +81,7 @@ impl<'a> Cotengrust<'a> {
                 .0
             }
             OptMethod::Optimal => {
-                optimize_optimal_rust(inputs, output, &size_dict, None, None, None, false, true)
+                optimize_optimal_rust(inputs, output, size_dict, None, None, None, false, true)
             }
         };
 
