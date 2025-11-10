@@ -2605,7 +2605,7 @@ dependencies = [
  "float-cmp",
  "genetic_algorithm",
  "hdf5-metno",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "jemallocator",
  "kahypar",
  "lazy_static",
