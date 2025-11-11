@@ -44,7 +44,7 @@ jemallocator = "0.5.4"
 
 [dev-dependencies]
 mpi-test = { git = "https://github.com/Ectras/mpi-test.git" }
-flexi_logger = { version = "0.29.6", features = ["kv", "json", "async"] }
+flexi_logger = { version = "0.31.7", features = ["kv", "json", "async"] }
 clap = { version = "4.5.28", features = ["derive"] }
 flate2 = "1.1.1"
 
