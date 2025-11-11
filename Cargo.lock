@@ -209,9 +209,9 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-version = "0.71.1"
+version = "0.72.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f58bf3d7db68cfbac37cfc485a8d711e87e064c3d0fe0435b92f7a407f9d6b3"
+checksum = "993776b509cfb49c750f11b8f07a46fa23e0a1386ffc01fb1e7d343efc387895"
 dependencies = [
  "bitflags 2.9.1",
  "cexpr",
@@ -332,12 +332,9 @@ dependencies = [
 
 [[package]]
 name = "cblas-sys"
-version = "0.1.4"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6feecd82cce51b0204cf063f0041d69f24ce83f680d87514b004248e7b0fa65"
-dependencies = [
- "libc",
-]
+checksum = "7211d558677a4f41a6c0815295cff14d798209b631d8390586efc2f6b98b0f16"
 
 [[package]]
 name = "cc"
@@ -963,7 +960,7 @@ dependencies = [
 [[package]]
 name = "hptt"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#1a668015a7986ba69202b75156343f8b57d3037b"
+source = "git+https://github.com/Ectras/rust-hptt.git#0f22892bc0b7b65cf1495d2997fa8ca1d501e59a"
 dependencies = [
  "hptt-sys",
  "num-complex",
@@ -973,9 +970,9 @@ dependencies = [
 [[package]]
 name = "hptt-sys"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#1a668015a7986ba69202b75156343f8b57d3037b"
+source = "git+https://github.com/Ectras/rust-hptt.git#0f22892bc0b7b65cf1495d2997fa8ca1d501e59a"
 dependencies = [
- "bindgen 0.71.1",
+ "bindgen 0.72.1",
  "cmake",
  "doxygen-rs",
  "openmp-sys",
@@ -1270,9 +1267,9 @@ dependencies = [
 
 [[package]]
 name = "lapack"
-version = "0.19.0"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad676a6b4df7e76a9fd80a0c50c619a3948d6105b62a0ab135f064d99c51d207"
+checksum = "508f7f48955e5e4ec3feb771a4d981c6e59ff2400d750cf41733a3350fdb2dc4"
 dependencies = [
  "lapack-sys",
  "libc",
@@ -1281,9 +1278,9 @@ dependencies = [
 
 [[package]]
 name = "lapack-sys"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "447f56c85fb410a7a3d36701b2153c1018b1d2b908c5fbaf01c1b04fac33bcbe"
+checksum = "314b879030845b68571809a6978e52d3b67ac5fba07e77b1b317b484092e2fb5"
 dependencies = [
  "libc",
 ]
@@ -2518,7 +2515,7 @@ checksum = "e502f78cdbb8ba4718f566c418c52bc729126ffd16baee5baa718cf25dd5a69a"
 [[package]]
 name = "tetra"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/tetra.git#45bf8e00525d941aef53f667de724336bbbb9ea3"
+source = "git+https://github.com/Ectras/tetra.git#75a3814f4cd84adf787c9b4b317cf71f8b27f98b"
 dependencies = [
  "bytemuck",
  "cblas-sys",
