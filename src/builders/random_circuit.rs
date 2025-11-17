@@ -1,6 +1,6 @@
 use itertools::Itertools;
-use rand::distributions::Bernoulli;
-use rand::seq::SliceRandom;
+use rand::distr::Bernoulli;
+use rand::seq::IndexedRandom;
 use rand::Rng;
 use rustc_hash::FxHashMap;
 
@@ -94,7 +94,7 @@ where
     R: Rng + ?Sized,
 {
     let observable_locations = (0..qubits)
-        .filter(|_| rng.gen_bool(observable_probability))
+        .filter(|_| rng.random_bool(observable_probability))
         .collect();
 
     random_circuit_with_set_observable(
@@ -276,7 +276,7 @@ mod tests {
 
     use std::iter::zip;
 
-    use rand::thread_rng;
+    use rand::rng;
 
     use crate::builders::connectivity::ConnectivityLayout;
     use crate::tensornetwork::tensor::Tensor;
@@ -289,7 +289,7 @@ mod tests {
         let two_qubit_probability = 1f64;
         let observable_probability = 1f64;
         // results should be independent of rng used.
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let connectivity = ConnectivityLayout::Line(size);
         let circuit = random_circuit_with_observable(
             size,
@@ -358,7 +358,7 @@ mod tests {
         let two_qubit_probability = 1f64;
         let observable_location = vec![2];
         // results should be independent of rng used.
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let connectivity = ConnectivityLayout::Line(size);
         let circuit = random_circuit_with_set_observable(
             size,

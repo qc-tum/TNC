@@ -606,7 +606,7 @@ mod tests {
     use std::f64::consts::PI;
 
     use float_cmp::assert_approx_eq;
-    use rand::{distributions::Uniform, prelude::Distribution, rngs::StdRng, SeedableRng};
+    use rand::{distr::Uniform, prelude::Distribution, rngs::StdRng, SeedableRng};
     use rustc_hash::FxHashMap;
 
     use super::*;
@@ -640,7 +640,7 @@ mod tests {
             ("fsim", 2),
         ]);
         let rng = StdRng::seed_from_u64(42);
-        let dist = Uniform::new(-PI, PI);
+        let dist = Uniform::new(-PI, PI).unwrap();
         let rng_iter = &mut dist.sample_iter(rng);
 
         for gate in GATES.read().unwrap().iter() {

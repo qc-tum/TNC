@@ -102,7 +102,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         let total_seconds = self.max_time.as_secs_f64();
         let mut temperature = self.initial_temperature;
         let mut rngs = (0..self.n_trials)
-            .map(|_| StdRng::seed_from_u64(rng.gen()))
+            .map(|_| StdRng::seed_from_u64(rng.random()))
             .collect_vec();
         let end_time = Instant::now() + self.max_time;
         loop {
@@ -119,7 +119,7 @@ impl<'a> SimulatedAnnealingOptimizer {
 
                         let diff = (score / trial_score).log2();
                         let acceptance_probability = (-diff / temperature).exp();
-                        let random_value = rng.gen();
+                        let random_value = rng.random();
 
                         if acceptance_probability >= random_value {
                             trial_solution = solution;
@@ -180,10 +180,10 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
         mut current_solution: Self::SolutionType,
         rng: &mut R,
     ) -> Self::SolutionType {
-        let tensor_index = rng.gen_range(0..current_solution.len());
+        let tensor_index = rng.random_range(0..current_solution.len());
         let current_partition = current_solution[tensor_index];
         let new_partition = loop {
-            let b = rng.gen_range(0..self.num_partitions);
+            let b = rng.random_range(0..self.num_partitions);
             if b != current_partition {
                 break b;
             }
@@ -248,11 +248,11 @@ impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
             // No viable partitions, return the current solution
             return (partitioning, contraction_paths);
         }
-        let trial = rng.gen_range(0..viable_partitions.len());
+        let trial = rng.random_range(0..viable_partitions.len());
         let source_partition = viable_partitions[trial];
 
         // Select random tensor contraction in source partition
-        let pair_index = rng.gen_range(0..contraction_paths[source_partition].len() - 1);
+        let pair_index = rng.random_range(0..contraction_paths[source_partition].len() - 1);
         let ContractionIndex::Pair(i, j) = contraction_paths[source_partition][pair_index] else {
             panic!("Partitioned contractions should not contain Path elements")
         };
@@ -286,7 +286,7 @@ impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
 
         // Select random target partition
         let target_partition = loop {
-            let b = rng.gen_range(0..self.num_partitions);
+            let b = rng.random_range(0..self.num_partitions);
             if b != source_partition {
                 break b;
             }
@@ -363,7 +363,7 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
         rng: &mut R,
     ) -> Self::SolutionType {
         let (mut partitioning, mut partition_tensors) = current_solution;
-        let tensor_index = rng.gen_range(0..partitioning.len());
+        let tensor_index = rng.random_range(0..partitioning.len());
         let shifted_tensor = self.tensor.tensor(tensor_index);
         let source_partition = partitioning[tensor_index];
 
@@ -450,11 +450,11 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
             // No viable partitions, return the current solution
             return (partitioning, partition_tensors, contraction_paths);
         }
-        let trial = rng.gen_range(0..viable_partitions.len());
+        let trial = rng.random_range(0..viable_partitions.len());
         let source_partition = viable_partitions[trial];
 
         // Select random tensor contraction in source partition
-        let pair_index = rng.gen_range(0..contraction_paths[source_partition].len() - 1);
+        let pair_index = rng.random_range(0..contraction_paths[source_partition].len() - 1);
         let ContractionIndex::Pair(i, j) = contraction_paths[source_partition][pair_index] else {
             panic!("Partitioned contractions should not contain Path elements")
         };

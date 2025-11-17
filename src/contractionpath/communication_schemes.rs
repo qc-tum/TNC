@@ -1,7 +1,7 @@
 use std::fmt;
 
 use itertools::Itertools;
-use rand::distributions::Uniform;
+use rand::distr::Uniform;
 use rand::Rng;
 use rustc_hash::FxHashMap;
 
@@ -112,7 +112,7 @@ where
         .map(|(_, v)| *v)
         .collect::<Vec<_>>();
     for _ in 0..20 {
-        let imbalance = rng.sample(Uniform::new(0.01, 0.5));
+        let imbalance = rng.sample(Uniform::new(0.01, 0.5).unwrap());
         let path = tensor_bipartition(&tensors, imbalance);
         let (flops, _) = communication_path_cost(
             children_tensors,

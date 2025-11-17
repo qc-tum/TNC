@@ -5,7 +5,8 @@ use std::rc::Rc;
 
 use itertools::Itertools;
 use log::debug;
-use rand::{rngs::StdRng, seq::SliceRandom, Rng};
+use rand::seq::IndexedRandom;
+use rand::{rngs::StdRng, Rng};
 use rustc_hash::FxHashMap;
 
 use crate::contractionpath::communication_schemes::CommunicationScheme;
