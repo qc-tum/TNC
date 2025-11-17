@@ -107,8 +107,8 @@ mod tests {
     use ndarray::array;
     use num_complex::Complex64;
     use rand::{
-        distributions::{Alphanumeric, DistString},
-        thread_rng,
+        distr::{Alphanumeric, SampleString},
+        rng,
     };
     use tetra::Tensor as DataTensor;
 
@@ -119,7 +119,7 @@ mod tests {
     /// This method is taken from the hdf5 crate integration tests:
     /// <https://github.com/aldanor/hdf5-rust/blob/694e900972fbf5ffbdd1a2294f57a2cc3a91c994/hdf5/tests/common/util.rs#L7>.
     fn new_in_memory_file() -> Result<File> {
-        let random_filename = Alphanumeric.sample_string(&mut thread_rng(), 8);
+        let random_filename = Alphanumeric.sample_string(&mut rng(), 8);
         File::with_options()
             .with_access_plist(|p| p.core_filebacked(false))
             .create(random_filename)

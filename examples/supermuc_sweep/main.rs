@@ -14,7 +14,7 @@ use log::info;
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::{Communicator, CommunicatorCollectives};
 use protocol::Protocol;
-use rand::distributions::Standard;
+use rand::distr::StandardUniform;
 use rand::rngs::StdRng;
 use rand::{Rng, RngCore, SeedableRng};
 use results::{OptimizationResult, RunResult, Writer};
@@ -164,7 +164,7 @@ fn main() {
         let file = &files[file_index];
         let file_hash = hash_str(file.file_name().unwrap().to_str().unwrap());
         let rng = StdRng::seed_from_u64(file_hash);
-        let seed = rng.sample_iter(Standard).nth(seed_index).unwrap();
+        let seed = rng.sample_iter(StandardUniform).nth(seed_index).unwrap();
         let file = file.to_str().unwrap();
         let num_partitions = if method.uses_partitions() {
             num_partitions

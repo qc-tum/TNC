@@ -2,7 +2,7 @@
 
 use std::f64::consts::{FRAC_PI_2, FRAC_PI_6};
 
-use rand::{seq::SliceRandom, Rng};
+use rand::{seq::IndexedRandom, Rng};
 use rustc_hash::FxHashMap;
 
 use crate::{

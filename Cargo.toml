@@ -19,7 +19,7 @@ mpi = { version = "0.8.0", features = ["complex", "derive"] }
 hdf5-metno = { version = "0.10.1", features = ["complex"] }
 itertools = "0.14.0"
 num-complex = "0.4.6"
-rand = "0.8.5"
+rand = "0.9.2"
 antlr-rust = "0.3.0-beta"
 float-cmp = "0.10.0"
 tetra = { git = "https://github.com/Ectras/tetra.git", features = ["serde"] }

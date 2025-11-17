@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use num_complex::Complex64;
-use rand::distributions::Uniform;
+use rand::distr::Uniform;
 use rand::Rng;
 use tetra::Tensor as DataTensor;
 
@@ -30,7 +30,10 @@ where
         0.5
     };
 
-    let ranges = dims.iter().map(|i| Uniform::new(0, *i)).collect_vec();
+    let ranges = dims
+        .iter()
+        .map(|i| Uniform::new(0, *i).unwrap())
+        .collect_vec();
     let size = dims.iter().product::<usize>();
     let mut tensor = DataTensor::new(dims);
 
@@ -40,7 +43,7 @@ where
         for r in &ranges {
             loc.push(rng.sample(r));
         }
-        let val = Complex64::new(rng.gen(), rng.gen());
+        let val = Complex64::new(rng.random(), rng.random());
         tensor.set(&loc, val);
         loc.clear();
         nnz += 1;
@@ -60,5 +63,5 @@ where
 /// ```
 #[must_use]
 pub fn random_sparse_tensor_data(shape: &[usize], sparsity: Option<f32>) -> TensorData {
-    random_sparse_tensor_data_with_rng(shape, sparsity, &mut rand::thread_rng())
+    random_sparse_tensor_data_with_rng(shape, sparsity, &mut rand::rng())
 }
