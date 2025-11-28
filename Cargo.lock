@@ -885,18 +885,17 @@ dependencies = [
 
 [[package]]
 name = "hdf5-metno"
-version = "0.10.1"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72f8592329337a96c802cccdbd11fe5f9476cb940d5a88dcca729a2ecf82e1c9"
+checksum = "9a6c90397db1fe43273705a49b49e0595bd0d49f4aac990b116103ae5bf52961"
 dependencies = [
  "bitflags 2.9.1",
  "cfg-if",
  "hdf5-metno-derive",
  "hdf5-metno-sys",
  "hdf5-metno-types",
- "lazy_static",
  "libc",
- "ndarray 0.16.1",
+ "ndarray",
  "paste",
 ]
 
@@ -1486,21 +1485,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a198f9589efc03f544388dfc4a19fe8af4323662b62f598b8dcfdac62c14771c"
 dependencies = [
  "byteorder",
-]
-
-[[package]]
-name = "ndarray"
-version = "0.16.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "882ed72dce9365842bf196bdeedf5055305f11fc8c03dee7bb0194a6cad34841"
-dependencies = [
- "matrixmultiply",
- "num-complex",
- "num-integer",
- "num-traits",
- "portable-atomic",
- "portable-atomic-util",
- "rawpointer",
 ]
 
 [[package]]
@@ -2624,7 +2608,7 @@ dependencies = [
  "log",
  "mpi",
  "mpi-test",
- "ndarray 0.17.1",
+ "ndarray",
  "num-complex",
  "ordered-float",
  "permutation",
