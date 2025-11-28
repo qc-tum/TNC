@@ -1473,7 +1473,7 @@ dependencies = [
 [[package]]
 name = "mpi-test"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/mpi-test.git#a5a83a4dbcc2ac78640a65dc1ad4dfc2908bb42a"
+source = "git+https://github.com/Ectras/mpi-test.git#9141fe4764028cbc32aa4588537a10aed9e86fd0"
 dependencies = [
  "quote",
  "syn",
