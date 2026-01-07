@@ -19,10 +19,19 @@ Those can be installed with
 sudo apt install libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
 ```
 
-Additionally, to run the `HyperOptimizer` of cotengra, Python is required.
-The following Python packages have to be installed:
+Additionally, to run the `HyperOptimizer` of [cotengra](https://github.com/jcmgray/cotengra), Python is required.
+The following Python packages have to be installed (in a virtual environment if preferred):
 ```shell
 pip install cotengra kahypar optuna
+```
+
+The library can be added to an existing Rust project with e.g.
+```shell
+cargo add --git https://github.com/qc-tum/TNC.git --features cotengra tnc
+```
+or you can run the examples of this library by e.g.
+```shell
+cargo run --release --example basic_usage
 ```
 
 ### Features
