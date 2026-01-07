@@ -18,6 +18,7 @@ Those can be installed with
 ```shell
 sudo apt install libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
 ```
+Furthermore, for building the library, `cmake` and a C++ compiler must be installed on the system.
 
 Additionally, to run the `HyperOptimizer` of [cotengra](https://github.com/jcmgray/cotengra), Python is required.
 The following Python packages have to be installed (in a virtual environment if preferred):
