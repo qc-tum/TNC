@@ -8,8 +8,13 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::tensornetwork::tensordata::TensorData;
-use crate::types::{EdgeIndex, TensorIndex};
 use crate::utils::datastructures::UnionFind;
+
+/// Unique index of a leg.
+pub type EdgeIndex = usize;
+
+/// Index of a tensor in a tensor network.
+pub type TensorIndex = usize;
 
 /// Abstract representation of a tensor.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]

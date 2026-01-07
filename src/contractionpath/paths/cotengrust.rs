@@ -6,9 +6,8 @@ use rustc_hash::FxHashMap;
 
 use crate::contractionpath::contraction_cost::contract_path_cost;
 use crate::contractionpath::paths::OptimizePath;
-use crate::contractionpath::ssa_replace_ordering;
+use crate::contractionpath::{ssa_replace_ordering, ContractionIndex};
 use crate::tensornetwork::tensor::Tensor;
-use crate::types::ContractionIndex;
 
 /// The optimization method to use.
 #[derive(Debug, Clone)]

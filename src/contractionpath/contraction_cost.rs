@@ -3,8 +3,10 @@
 
 use num_complex::Complex64;
 
-use crate::tensornetwork::tensor::Tensor;
-use crate::types::{ContractionIndex, EdgeIndex};
+use crate::{
+    contractionpath::ContractionIndex,
+    tensornetwork::tensor::{EdgeIndex, Tensor},
+};
 
 /// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
 /// objects. Considers cost of complex operations.

@@ -12,9 +12,9 @@ use crate::{
             cotengrust::{Cotengrust, OptMethod},
             OptimizePath,
         },
+        ContractionIndex,
     },
     tensornetwork::{partitioning::partition_tensor_network, tensor::Tensor},
-    types::ContractionIndex,
 };
 
 pub mod genetic;

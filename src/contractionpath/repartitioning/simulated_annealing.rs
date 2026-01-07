@@ -20,9 +20,9 @@ use crate::{
             OptimizePath,
         },
         repartitioning::compute_solution,
+        ContractionIndex,
     },
     tensornetwork::tensor::Tensor,
-    types::ContractionIndex,
 };
 
 type ScoreType = NotNan<f64>;

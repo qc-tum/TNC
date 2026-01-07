@@ -9,11 +9,11 @@ use crate::contractionpath::contraction_cost::communication_path_cost;
 use crate::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
 use crate::contractionpath::paths::{CostType, OptimizePath};
+use crate::contractionpath::ContractionIndex;
 use crate::pair;
 use crate::tensornetwork::partitioning::communication_partitioning;
 use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use crate::tensornetwork::tensor::Tensor;
-use crate::types::ContractionIndex;
 
 /// The scheme used to find a contraction path for the final fan-in of tensors
 /// between MPI ranks.

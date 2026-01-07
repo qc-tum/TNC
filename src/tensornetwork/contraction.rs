@@ -2,8 +2,8 @@ use log::debug;
 use tetra::contract;
 
 use crate::{
+    contractionpath::ContractionIndex,
     tensornetwork::{tensor::Tensor, tensordata::TensorData},
-    types::ContractionIndex,
 };
 
 /// Fully contracts `tn` based on the given `contract_path` using ReplaceLeft format.

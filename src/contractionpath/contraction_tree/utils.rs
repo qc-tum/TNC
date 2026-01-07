@@ -9,10 +9,10 @@ use crate::{
             cotengrust::{Cotengrust, OptMethod},
             OptimizePath,
         },
+        ContractionIndex,
     },
     pair,
     tensornetwork::tensor::Tensor,
-    types::ContractionIndex,
 };
 
 /// Identifies the contraction path designated by subtree rooted at `node_id` in
@@ -136,7 +136,7 @@ mod tests {
 
     use rustc_hash::FxHashMap;
 
-    use crate::{path, types::EdgeIndex};
+    use crate::{path, tensornetwork::tensor::EdgeIndex};
 
     fn setup_complex() -> (Tensor, Vec<ContractionIndex>, FxHashMap<EdgeIndex, u64>) {
         let bond_dims = FxHashMap::from_iter([

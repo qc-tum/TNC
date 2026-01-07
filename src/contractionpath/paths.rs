@@ -1,6 +1,6 @@
 //! Contraction path finders.
 
-use crate::types::ContractionIndex;
+use crate::contractionpath::ContractionIndex;
 
 pub mod branchbound;
 pub mod cotengrust;

@@ -50,10 +50,12 @@ mod tests {
 
     use crate::{
         builders::circuit_builder::Permutor,
+        contractionpath::ContractionIndex,
         tensornetwork::{
-            contraction::contract_tensor_network, tensor::Tensor, tensordata::TensorData,
+            contraction::contract_tensor_network,
+            tensor::{EdgeIndex, Tensor, TensorIndex},
+            tensordata::TensorData,
         },
-        types::{ContractionIndex, EdgeIndex, TensorIndex},
     };
 
     /// Returns whether the edge connects the two tensors.

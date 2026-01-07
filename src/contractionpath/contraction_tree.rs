@@ -7,9 +7,9 @@ use crate::contractionpath::contraction_tree::node::{
     child_node, parent_node, Node, NodeRef, WeakNodeRef,
 };
 use crate::contractionpath::paths::validate_path;
+use crate::contractionpath::ContractionIndex;
 use crate::pair;
 use crate::tensornetwork::tensor::Tensor;
-use crate::types::ContractionIndex;
 
 pub mod balancing;
 pub mod export;
@@ -503,8 +503,7 @@ mod tests {
     use crate::contractionpath::contraction_tree::{ContractionTree, Node};
     use crate::contractionpath::ssa_replace_ordering;
     use crate::path;
-    use crate::tensornetwork::tensor::Tensor;
-    use crate::types::{ContractionIndex, EdgeIndex};
+    use crate::tensornetwork::tensor::{EdgeIndex, Tensor};
 
     fn setup_simple() -> (Tensor, Vec<ContractionIndex>, FxHashMap<EdgeIndex, u64>) {
         let bond_dims =

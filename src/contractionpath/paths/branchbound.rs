@@ -8,10 +8,9 @@ use crate::{
         candidates::Candidate,
         contraction_cost::{contract_cost_tensors, contract_size_tensors},
         paths::{CostType, OptimizePath},
-        ssa_ordering, ssa_replace_ordering,
+        ssa_ordering, ssa_replace_ordering, ContractionIndex,
     },
     tensornetwork::tensor::Tensor,
-    types::ContractionIndex,
     utils::traits::HashMapInsertNew,
 };
 

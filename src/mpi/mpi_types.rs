@@ -1,7 +1,7 @@
 use mpi::{traits::Equivalence, Rank};
 use serde::{Deserialize, Serialize};
 
-use crate::types::TensorIndex;
+use crate::tensornetwork::tensor::TensorIndex;
 
 /// A bidirectional (1:1) mapping between MPI ranks and composite tensors.
 ///

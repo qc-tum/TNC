@@ -6,9 +6,9 @@ use itertools::Itertools;
 use num_complex::Complex64;
 use permutation::Permutation;
 
-use crate::{
-    tensornetwork::{tensor::Tensor, tensordata::TensorData},
-    types::EdgeIndex,
+use crate::tensornetwork::{
+    tensor::{EdgeIndex, Tensor},
+    tensordata::TensorData,
 };
 
 /// A quantum register, i.e., an array of qubits. Similar to the Qiskit / QASM

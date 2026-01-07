@@ -35,6 +35,7 @@ use tnc::contractionpath::repartitioning::simulated_annealing::{
     NaivePartitioningModel,
 };
 use tnc::contractionpath::repartitioning::{compute_solution, simulated_annealing};
+use tnc::contractionpath::ContractionIndex;
 use tnc::mpi::communication::{
     broadcast_path, broadcast_serializing, extract_communication_path,
     intermediate_reduce_tensor_network, scatter_tensor_network,
@@ -44,7 +45,6 @@ use tnc::tensornetwork::contraction::contract_tensor_network;
 use tnc::tensornetwork::partitioning::find_partitioning;
 use tnc::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use tnc::tensornetwork::tensor::Tensor;
-use tnc::types::ContractionIndex;
 use utils::{hash_str, parse_range_list, setup_logging_mpi};
 
 mod cli;

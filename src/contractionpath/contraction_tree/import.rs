@@ -14,12 +14,14 @@ use itertools::Itertools;
 use regex::RegexSet;
 use rustc_hash::FxHashMap;
 
-use crate::contractionpath::contraction_tree::{
-    export::{to_pdf, DendogramEntry, COLORS, COMMUNICATION_COLOR},
-    node::{child_node, parent_node, NodeRef},
-    ContractionTree,
+use crate::contractionpath::{
+    contraction_tree::{
+        export::{to_pdf, DendogramEntry, COLORS, COMMUNICATION_COLOR},
+        node::{child_node, parent_node, NodeRef},
+        ContractionTree,
+    },
+    ContractionIndex,
 };
-use crate::types::ContractionIndex;
 use crate::utils::traits::HashMapInsertNew;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

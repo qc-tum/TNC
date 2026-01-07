@@ -181,8 +181,7 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
-    use crate::tensornetwork::tensor::Tensor;
-    use crate::types::EdgeIndex;
+    use crate::tensornetwork::tensor::{EdgeIndex, Tensor};
 
     fn setup_complex() -> (Tensor, FxHashMap<EdgeIndex, u64>) {
         let bond_dims = FxHashMap::from_iter([

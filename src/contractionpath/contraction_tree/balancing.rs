@@ -17,9 +17,9 @@ use crate::contractionpath::contraction_tree::{
     ContractionTree,
 };
 use crate::contractionpath::paths::validate_path;
+use crate::contractionpath::ContractionIndex;
 use crate::mpi::communication::extract_communication_path;
 use crate::tensornetwork::tensor::Tensor;
-use crate::types::ContractionIndex;
 
 mod balancing_schemes;
 

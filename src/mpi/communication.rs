@@ -3,11 +3,11 @@ use mpi::topology::{Process, SimpleCommunicator};
 use mpi::traits::{BufferMut, Communicator, Destination, Root, Source};
 use mpi::Rank;
 
+use crate::contractionpath::ContractionIndex;
 use crate::mpi::mpi_types::{MessageBinaryBlob, RankTensorMapping};
 use crate::mpi::serialization::{deserialize, deserialize_tensor, serialize, serialize_tensor};
 use crate::tensornetwork::contraction::contract_tensor_network;
 use crate::tensornetwork::tensor::Tensor;
-use crate::types::ContractionIndex;
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
 /// receivers, `data` can just be an empty vector.

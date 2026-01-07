@@ -6,10 +6,9 @@ use crate::{
     contractionpath::{
         contraction_cost::contract_path_cost,
         paths::{CostType, OptimizePath},
-        ssa_replace_ordering,
+        ssa_replace_ordering, ContractionIndex,
     },
     tensornetwork::tensor::Tensor,
-    types::ContractionIndex,
 };
 
 /// Creates an interface to `rustengra` an interface to access `Cotengra` methods in
