@@ -26,7 +26,7 @@ tetra = { git = "https://github.com/Ectras/tetra.git", features = ["serde"] }
 kahypar = { git = "https://github.com/Ectras/rust-kahypar" }
 permutation = "0.4.1"
 serde = { version = "1.0.218", features = ["derive"] }
-bincode = { version = "2.0.1", features = ["serde"] }
+postcard = { version = "1.1.3", default-features = false, features = ["use-std"] }
 lazy_static = "1.5.0"
 log = { version = "0.4.22", features = ["kv_std", "kv_serde"] }
 rustc-hash = "2.1.1"
@@ -43,6 +43,7 @@ serde-pickle = "1.2.0"
 jemallocator = "0.5.4"
 
 [dev-dependencies]
+bincode = { version = "2.0.1", features = ["serde"] }
 mpi-test = { git = "https://github.com/Ectras/mpi-test.git" }
 flexi_logger = { version = "0.31.7", features = ["kv", "json", "async"] }
 clap = { version = "4.5.28", features = ["derive"] }

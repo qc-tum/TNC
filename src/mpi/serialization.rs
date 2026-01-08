@@ -1,41 +1,28 @@
-use bincode::{
-    config::{self, Configuration},
-    enc::write::SizeWriter,
-    serde::{
-        decode_from_slice, decode_from_std_read, encode_into_std_write, encode_into_writer,
-        encode_to_vec,
-    },
-};
-
 use crate::{mpi::mpi_types::MessageBinaryBlob, tensornetwork::tensor::Tensor};
-
-static BINCODE_CONFIG: Configuration = config::standard();
 
 /// Serializes data to a byte array.
 pub fn serialize<S>(value: &S) -> Vec<u8>
 where
     S: serde::Serialize,
 {
-    encode_to_vec(value, BINCODE_CONFIG).unwrap()
+    postcard::to_stdvec(value).unwrap()
 }
 
 /// Serializes data into a writer.
-pub fn serialize_into<W, S>(mut writer: W, value: &S)
+fn serialize_into<W, S>(mut writer: W, value: &S)
 where
     W: std::io::Write,
     S: serde::Serialize,
 {
-    encode_into_std_write(value, &mut writer, BINCODE_CONFIG).unwrap();
+    postcard::to_io(value, &mut writer).unwrap();
 }
 
 /// Returns the serialized size of the data (i.e., the number of bytes).
-pub fn serialized_size<S>(value: &S) -> usize
+fn serialized_size<S>(value: &S) -> usize
 where
     S: serde::Serialize,
 {
-    let mut size_writer = SizeWriter::default();
-    encode_into_writer(value, &mut size_writer, BINCODE_CONFIG).unwrap();
-    size_writer.bytes_written
+    postcard::experimental::serialized_size(value).unwrap()
 }
 
 /// Deserializes data from a byte array.
@@ -43,18 +30,7 @@ pub fn deserialize<D>(data: &[u8]) -> D
 where
     D: serde::de::DeserializeOwned,
 {
-    decode_from_slice(data, BINCODE_CONFIG)
-        .map(|(data, _size)| data)
-        .unwrap()
-}
-
-/// Deserializes data from a reader.
-pub fn deserialize_from<R, D>(mut reader: R) -> D
-where
-    R: std::io::Read,
-    D: serde::de::DeserializeOwned,
-{
-    decode_from_std_read(&mut reader, BINCODE_CONFIG).unwrap()
+    postcard::from_bytes(data).unwrap()
 }
 
 /// Serializes `tensor` (and its child tensors if any) into a vector of binary blobs.
@@ -99,7 +75,7 @@ pub fn deserialize_tensor(data: &[MessageBinaryBlob]) -> Tensor {
         unsafe { std::slice::from_raw_parts(data.as_ptr().cast::<u8>(), size_in_bytes) };
 
     // Deserialize the tensor
-    deserialize_from(read_buffer)
+    deserialize(read_buffer)
 }
 
 #[cfg(test)]
