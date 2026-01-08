@@ -43,16 +43,5 @@ serde-pickle = "1.2.0"
 jemallocator = "0.5.4"
 
 [dev-dependencies]
-bincode = { version = "2.0.1", features = ["serde"] }
 mpi-test = { git = "https://github.com/Ectras/mpi-test.git" }
 flexi_logger = { version = "0.31.7", features = ["kv", "json", "async"] }
-clap = { version = "4.5.28", features = ["derive"] }
-flate2 = "1.1.1"
-
-[[example]]
-name = "supermuc_sweep"
-required-features = ["cotengra"]
-
-[profile.release]
-codegen-units = 1
-lto = true

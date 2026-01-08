@@ -1,3 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["tnc"]
+members = ["benchmark","tnc"]
+
+[profile.release.benchmark]
+codegen-units = 1
+lto = true
