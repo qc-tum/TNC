@@ -1,3 +1,8 @@
+extern crate jemallocator;
+
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 use std::fs::{self};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -6,10 +11,10 @@ use std::time::{Duration, Instant};
 
 use clap::Parser;
 use cli::{Cli, Mode};
+use flate2::Compression;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
-use flate2::Compression;
-use itertools::{iproduct, Itertools};
+use itertools::{Itertools, iproduct};
 use log::info;
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::{Communicator, CommunicatorCollectives};
@@ -18,12 +23,13 @@ use rand::distr::StandardUniform;
 use rand::rngs::StdRng;
 use rand::{Rng, RngCore, SeedableRng};
 use results::{OptimizationResult, RunResult, Writer};
+use tnc::contractionpath::ContractionIndex;
 use tnc::contractionpath::communication_schemes::CommunicationScheme;
 use tnc::contractionpath::contraction_cost::{
     communication_path_cost, compute_memory_requirements, contract_size_tensors_exact,
 };
 use tnc::contractionpath::contraction_tree::balancing::{
-    balance_partitions_iter, BalanceSettings, BalancingScheme,
+    BalanceSettings, BalancingScheme, balance_partitions_iter,
 };
 use tnc::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use tnc::contractionpath::paths::hyperoptimization::{HyperOptions, Hyperoptimizer};
@@ -35,7 +41,6 @@ use tnc::contractionpath::repartitioning::simulated_annealing::{
     NaivePartitioningModel,
 };
 use tnc::contractionpath::repartitioning::{compute_solution, simulated_annealing};
-use tnc::contractionpath::ContractionIndex;
 use tnc::mpi::communication::{
     broadcast_path, broadcast_serializing, extract_communication_path,
     intermediate_reduce_tensor_network, scatter_tensor_network,
