@@ -1,3 +1,7 @@
+//! This crate is used to run benchmarks of the methods in the tnc crate. It is
+//! mainly used for research, but might be a good example of the use of the tnc
+//! library.
+
 extern crate jemallocator;
 
 #[global_allocator]
