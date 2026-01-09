@@ -32,7 +32,7 @@ cargo add --git https://github.com/qc-tum/TNC.git --features cotengra tnc
 ```
 or you can run the examples of this library by e.g.
 ```shell
-cargo run --release --example basic_usage
+cargo run --example local_contraction
 ```
 
 ### Features
