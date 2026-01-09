@@ -82,12 +82,6 @@ impl<'a> IntoIterator for &'a RankTensorMapping {
 #[repr(transparent)]
 pub struct MessageBinaryBlob([u8; 192]);
 
-impl Default for MessageBinaryBlob {
-    fn default() -> Self {
-        Self([0; 192])
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
