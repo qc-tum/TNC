@@ -6,7 +6,7 @@
 pub mod builders;
 pub mod contractionpath;
 pub mod gates;
-pub mod io;
+pub mod hdf5;
 pub mod mpi;
 pub mod qasm;
 pub mod tensornetwork;

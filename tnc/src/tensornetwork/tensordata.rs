@@ -7,7 +7,7 @@ use tetra::{Layout, Tensor as DataTensor};
 
 use crate::{
     gates::{load_gate, load_gate_adjoint, matrix_adjoint_inplace},
-    io::load_data,
+    hdf5::load_data,
 };
 
 /// The data of a tensor.
