@@ -1,3 +1,8 @@
+extern crate jemallocator;
+
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 use std::fs::{self};
 use std::path::PathBuf;
 use std::rc::Rc;
