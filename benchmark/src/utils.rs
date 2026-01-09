@@ -3,7 +3,7 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
 };
 
-use flexi_logger::{Duplicate, FileSpec, Logger, json_format};
+use flexi_logger::{json_format, Duplicate, FileSpec, Logger};
 use itertools::Itertools;
 use log::LevelFilter;
 use mpi::Rank;
