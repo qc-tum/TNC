@@ -63,10 +63,10 @@ const TIME_LIMIT: Duration = Duration::from_secs(10 * 60);
 fn read_circuit(file: &str) -> Tensor {
     static LAST_RETURN: Mutex<Option<(String, Tensor)>> = Mutex::new(None);
     let mut last_values = LAST_RETURN.lock().unwrap();
-    if let Some((arg, out)) = &*last_values
-        && arg == file
-    {
-        return out.clone();
+    if let Some((arg, out)) = &*last_values {
+        if arg == file {
+            return out.clone();
+        }
     }
     let source = fs::read_to_string(file).unwrap();
     let circuit = create_tensornetwork(source);
@@ -243,10 +243,10 @@ fn read_from_cache(directory: &str, key: &str) -> (Tensor, Vec<ContractionIndex>
 fn serial_cost(tensor: &Tensor, file: &str) -> (f64, f64) {
     static LAST_RETURN: Mutex<Option<(String, (f64, f64))>> = Mutex::new(None);
     let mut last_values = LAST_RETURN.lock().unwrap();
-    if let Some((arg, out)) = &*last_values
-        && arg == file
-    {
-        return *out;
+    if let Some((arg, out)) = &*last_values {
+        if arg == file {
+            return *out;
+        }
     }
     let mut opt = Cotengrust::new(tensor, OptMethod::Greedy);
     opt.optimize_path();
