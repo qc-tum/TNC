@@ -83,8 +83,8 @@ jobs:
           toolchain: nightly
       - name: Install cargo-docs-rs
         uses: dtolnay/install@982daea0f5d846abc3c83e01a6a1d73c040047c1 # branch=cargo-docs-rs
-      - name: cargo docs-rs
-        run: cargo docs-rs
+      - name: cargo docs-rs tnc
+        run: cargo docs-rs -p tnc
   hack:
     # cargo-hack checks combinations of feature flags to ensure that features are all additive
     # which is required for feature unification
