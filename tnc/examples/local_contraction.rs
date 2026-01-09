@@ -6,7 +6,7 @@ use tnc::{
         cotengrust::{Cotengrust, OptMethod},
         OptimizePath,
     },
-    qasm::create_tensornetwork,
+    qasm::import_qasm,
     tensornetwork::contraction::contract_tensor_network,
 };
 
@@ -23,7 +23,7 @@ cx q[1], q[2];
 ";
 
     // Create a Circuit instance out of the code
-    let circuit = create_tensornetwork(code);
+    let circuit = import_qasm(code);
 
     // Create a tensor network that computes the full state vector.
     // This also returns a permutator which we need to apply to the final tensor to

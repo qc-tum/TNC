@@ -1,16 +1,15 @@
 use crate::builders::circuit_builder::Circuit;
 use crate::qasm::{
-    ast::Visitor, expression_folder::ExpressionFolder, gate_inliner::GateInliner,
-    include_resolver::expand_includes, parser::parse, tn_creator::TensorNetworkCreator,
+    ast::Visitor, circuit_creator::CircuitCreator, expression_folder::ExpressionFolder,
+    gate_inliner::GateInliner, include_resolver::expand_includes, parser::parse,
 };
 
-/// Creates a tensor network from QASM2 code.
+/// Creates a [`Circuit`] from OpenQASM2 code.
 ///
-/// All gates are inlined up to the known gates defined in [`crate::gates`]. Since
-/// all qubits are initialized to zero, this method adds a tensor for all initial
-/// states. The tensor network is not closed, i.e. for each wire in the circuit there
-/// is an unbounded leg.
-pub fn create_tensornetwork<S>(code: S) -> Circuit
+/// All gates are inlined up to the known gates defined in [`crate::gates`]. All
+/// qubits are initialized to zero. Note that not all QASM instructions are
+/// supported, such as `measure` or `if`.
+pub fn import_qasm<S>(code: S) -> Circuit
 where
     S: Into<String>,
 {
@@ -33,9 +32,9 @@ where
     let mut expression_folder = ExpressionFolder;
     expression_folder.visit_program(&mut program);
 
-    // Create the tensornetwork
-    let mut tn_creator = TensorNetworkCreator;
-    tn_creator.create_tensornetwork(&program)
+    // Create the circuit
+    let mut circuit_creator = CircuitCreator;
+    circuit_creator.create_circuit(&program)
 }
 
 #[cfg(test)]
@@ -117,7 +116,7 @@ mod tests {
         h q[0];
         cx q[0], q[1];
         ";
-        let circuit = create_tensornetwork(code);
+        let circuit = import_qasm(code);
         let (tn, _) = circuit.into_statevector_network();
 
         let (kets, single_qubit_gates, two_qubit_gates) = get_quantum_tensors(&tn);
@@ -179,7 +178,7 @@ mod tests {
         h q[0];
         cx q[0], q[1];
         ";
-        let circuit = create_tensornetwork(code);
+        let circuit = import_qasm(code);
         let (tn, perm) = circuit.into_statevector_network();
         let resulting_state = contract_tn(tn, perm);
 
@@ -209,7 +208,7 @@ mod tests {
         x q[0];
         myswap q[1], q[0];
         ";
-        let circuit = create_tensornetwork(code);
+        let circuit = import_qasm(code);
         let (tn, perm) = circuit.into_statevector_network();
         let resulting_state = contract_tn(tn, perm);
 
@@ -236,7 +235,7 @@ mod tests {
         rx(0.3) q[2];
         cx q[0], q[1];
         cx q[1], q[2];";
-        create_tensornetwork(code)
+        import_qasm(code)
     }
 
     #[test]

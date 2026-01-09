@@ -45,7 +45,7 @@ use tnc::mpi::communication::{
     broadcast_path, broadcast_serializing, extract_communication_path,
     intermediate_reduce_tensor_network, scatter_tensor_network,
 };
-use tnc::qasm::create_tensornetwork;
+use tnc::qasm::import_qasm;
 use tnc::tensornetwork::contraction::contract_tensor_network;
 use tnc::tensornetwork::partitioning::find_partitioning;
 use tnc::tensornetwork::partitioning::partition_config::PartitioningStrategy;
@@ -69,7 +69,7 @@ fn read_circuit(file: &str) -> Tensor {
         }
     }
     let source = fs::read_to_string(file).unwrap();
-    let circuit = create_tensornetwork(source);
+    let circuit = import_qasm(source);
     let qubits = circuit.num_qubits();
     let (tensor, _) = circuit.into_amplitude_network(&"0".repeat(qubits));
 

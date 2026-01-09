@@ -6,11 +6,11 @@ use crate::qasm::ast::{Argument, Program, Statement};
 use crate::tensornetwork::tensordata::TensorData;
 use crate::utils::traits::HashMapInsertNew;
 
-/// Struct to create a tensor network from an QASM2 AST.
+/// Struct to create a circuit from a QASM2 AST.
 #[derive(Debug)]
-pub struct TensorNetworkCreator;
+pub struct CircuitCreator;
 
-impl TensorNetworkCreator {
+impl CircuitCreator {
     /// Given the quantum arguments to a gate call, applies the broadcast rules and
     /// returns the list of quantum arguments for each single call.
     fn broadcast(
@@ -57,9 +57,9 @@ impl TensorNetworkCreator {
         }
     }
 
-    /// Creates a tensor network from the AST. Assumes that all gate calls
-    /// have been inlined and all expressions have been simplified to literals.
-    pub fn create_tensornetwork(&mut self, program: &Program) -> Circuit {
+    /// Creates a circuit from the AST. Assumes that all gate calls have been inlined
+    /// and all expressions have been evaluated to literals.
+    pub fn create_circuit(&mut self, program: &Program) -> Circuit {
         let mut circuit = Circuit::default();
         let mut registers = FxHashMap::default();
 
@@ -135,23 +135,23 @@ mod tests {
         let b_broadcast_args = &[a1.clone(), b.clone()];
         let both_broadcast_args = &[a, b];
 
-        let no_broadcast_calls = TensorNetworkCreator::broadcast(no_broadcast_args, &registers);
+        let no_broadcast_calls = CircuitCreator::broadcast(no_broadcast_args, &registers);
         assert_eq!(no_broadcast_calls.len(), 1);
         assert_eq!(no_broadcast_calls[0], no_broadcast_args);
 
-        let a_broadcast_calls = TensorNetworkCreator::broadcast(a_broadcast_args, &registers);
+        let a_broadcast_calls = CircuitCreator::broadcast(a_broadcast_args, &registers);
         assert_eq!(a_broadcast_calls.len(), 3);
         assert_eq!(a_broadcast_calls[0], vec![a0.clone(), b0.clone()]);
         assert_eq!(a_broadcast_calls[1], vec![a1.clone(), b0.clone()]);
         assert_eq!(a_broadcast_calls[2], vec![a2.clone(), b0.clone()]);
 
-        let b_broadcast_calls = TensorNetworkCreator::broadcast(b_broadcast_args, &registers);
+        let b_broadcast_calls = CircuitCreator::broadcast(b_broadcast_args, &registers);
         assert_eq!(b_broadcast_calls.len(), 3);
         assert_eq!(b_broadcast_calls[0], vec![a1.clone(), b0.clone()]);
         assert_eq!(b_broadcast_calls[1], vec![a1.clone(), b1.clone()]);
         assert_eq!(b_broadcast_calls[2], vec![a1.clone(), b2.clone()]);
 
-        let both_broadcast_calls = TensorNetworkCreator::broadcast(both_broadcast_args, &registers);
+        let both_broadcast_calls = CircuitCreator::broadcast(both_broadcast_args, &registers);
         assert_eq!(both_broadcast_calls.len(), 3);
         assert_eq!(both_broadcast_calls[0], vec![a0, b0]);
         assert_eq!(both_broadcast_calls[1], vec![a1, b1]);
@@ -170,11 +170,11 @@ mod tests {
         let no_broadcast_args = slice::from_ref(&a1);
         let broadcast_args = slice::from_ref(&a);
 
-        let no_broadcast_calls = TensorNetworkCreator::broadcast(no_broadcast_args, &registers);
+        let no_broadcast_calls = CircuitCreator::broadcast(no_broadcast_args, &registers);
         assert_eq!(no_broadcast_calls.len(), 1);
         assert_eq!(no_broadcast_calls[0], no_broadcast_args);
 
-        let broadcast_calls = TensorNetworkCreator::broadcast(broadcast_args, &registers);
+        let broadcast_calls = CircuitCreator::broadcast(broadcast_args, &registers);
         assert_eq!(broadcast_calls.len(), 2);
         assert_eq!(broadcast_calls[0], vec![a0]);
         assert_eq!(broadcast_calls[1], vec![a1]);
