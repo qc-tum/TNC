@@ -85,7 +85,7 @@ impl Permutor {
     /// Permutates the tensor according to the stored permutation.
     pub fn apply(&self, tensor: Tensor) -> Tensor {
         assert!(tensor.is_leaf());
-        if self.is_empty() {
+        if self.is_identity() {
             return tensor;
         }
 
@@ -113,10 +113,10 @@ impl Permutor {
         }
     }
 
-    /// Returns whether the permutor is empty, in which case it won't have any
+    /// Returns whether the permutor is identity, in which case it won't have any
     /// effect.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub fn is_identity(&self) -> bool {
         self.target_leg_order.is_empty()
     }
 
@@ -377,7 +377,7 @@ mod tests {
             circuit.append_gate(TensorData::Gate((String::from("h"), vec![], false)), &[q]);
         }
         let (tensor_network, permutor) = circuit.into_amplitude_network("00000");
-        assert!(permutor.is_empty());
+        assert!(permutor.is_identity());
 
         let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
         opt.optimize_path();
