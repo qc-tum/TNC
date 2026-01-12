@@ -231,7 +231,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.12.1",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -1003,7 +1003,7 @@ dependencies = [
 [[package]]
 name = "hptt"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#caf7a0a23d4c71d66c99558c22b6fdf897e4f1f6"
+source = "git+https://github.com/Ectras/rust-hptt.git#b20fdfe2a003fd91ece1d8063ab921d1e770db23"
 dependencies = [
  "hptt-sys",
  "num-complex",
@@ -1013,7 +1013,7 @@ dependencies = [
 [[package]]
 name = "hptt-sys"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#caf7a0a23d4c71d66c99558c22b6fdf897e4f1f6"
+source = "git+https://github.com/Ectras/rust-hptt.git#b20fdfe2a003fd91ece1d8063ab921d1e770db23"
 dependencies = [
  "bindgen 0.72.1",
  "cmake",
@@ -2588,7 +2588,7 @@ checksum = "e502f78cdbb8ba4718f566c418c52bc729126ffd16baee5baa718cf25dd5a69a"
 [[package]]
 name = "tetra"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/tetra.git#7161b0a5b54251c4d650b56bce0060ae30fb02dd"
+source = "git+https://github.com/Ectras/tetra.git#6c5278f395a15e0803e65c046823cb2a5d5fc144"
 dependencies = [
  "bytemuck",
  "cblas-sys",
