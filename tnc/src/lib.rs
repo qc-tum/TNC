@@ -3,6 +3,7 @@
 //! The partitionings can then be contracted in parallel on a distributed-memory system, as common in high-performance computing.
 //! Local contractions on a single system are also possible.
 
+pub mod _tutorial;
 pub mod builders;
 pub mod contractionpath;
 pub mod gates;
