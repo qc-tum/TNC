@@ -7,14 +7,14 @@ use crate::{
     contractionpath::{
         candidates::Candidate,
         contraction_cost::{contract_op_cost_tensors, contract_size_tensors},
-        paths::{CostType, OptimizePath},
+        paths::{CostType, FindPath},
         ssa_ordering, ssa_replace_ordering, ContractionIndex,
     },
     tensornetwork::tensor::Tensor,
     utils::traits::HashMapInsertNew,
 };
 
-/// A struct with an [`OptimizePath`] implementation that explores possible pair contractions in a depth-first manner.
+/// A struct with an [`FindPath`] implementation that explores possible pair contractions in a depth-first manner.
 pub struct WeightedBranchBound<'a> {
     tn: &'a Tensor,
     nbranch: Option<usize>,
@@ -168,8 +168,8 @@ impl<'a> WeightedBranchBound<'a> {
     }
 }
 
-impl OptimizePath for WeightedBranchBound<'_> {
-    fn optimize_path(&mut self) {
+impl FindPath for WeightedBranchBound<'_> {
+    fn find_path(&mut self) {
         if self.tn.is_leaf() {
             return;
         }
@@ -194,7 +194,7 @@ impl OptimizePath for WeightedBranchBound<'_> {
                     self.comm_cache.clone(),
                     self.minimize,
                 );
-                bb.optimize_path();
+                bb.find_path();
                 sub_tensor_contraction
                     .push(ContractionIndex::Path(index, bb.get_best_path().clone()));
                 tensor = tensor.external_tensor();
@@ -231,7 +231,7 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::contractionpath::paths::CostType;
-    use crate::contractionpath::paths::OptimizePath;
+    use crate::contractionpath::paths::FindPath;
     use crate::path;
     use crate::tensornetwork::tensor::Tensor;
 
@@ -280,7 +280,7 @@ mod tests {
     fn test_contract_order_simple() {
         let (tn, latency_costs) = setup_simple();
         let mut opt = WeightedBranchBound::new(&tn, None, 20., latency_costs, CostType::Flops);
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.best_flops, 640.);
         assert_eq!(opt.best_size, 538.);
@@ -292,7 +292,7 @@ mod tests {
     fn test_contract_order_complex() {
         let (tn, latency_costs) = setup_complex();
         let mut opt = WeightedBranchBound::new(&tn, None, 20., latency_costs, CostType::Flops);
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.best_flops, 265230.);
         assert_eq!(opt.best_size, 89478.);

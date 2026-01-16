@@ -60,7 +60,7 @@ macro_rules! pair {
 /// the output to strictly obey an SSA format.
 ///
 /// # Arguments
-/// * `path` - Output path as `&[(usize, usize, usize)]` after an `optimize_path` call.
+/// * `path` - Output path as `&[(usize, usize, usize)]` after an `find_path` call.
 /// * `n` - Number of initial input tensors.
 ///
 /// # Returns

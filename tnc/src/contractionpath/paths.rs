@@ -12,12 +12,11 @@ pub mod tree_reconfiguration;
 #[cfg(feature = "cotengra")]
 pub mod tree_tempering;
 pub mod weighted_branchbound;
-//pub mod parallel_greedy;
 
 /// An optimizer for finding a contraction path.
-pub trait OptimizePath {
+pub trait FindPath {
     /// Finds a contraction path.
-    fn optimize_path(&mut self);
+    fn find_path(&mut self);
 
     /// Returns the best found contraction path in SSA format.
     fn get_best_path(&self) -> &Vec<ContractionIndex>;

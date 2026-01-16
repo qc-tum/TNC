@@ -5,7 +5,7 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
 use crate::contractionpath::contraction_cost::contract_path_cost;
-use crate::contractionpath::paths::OptimizePath;
+use crate::contractionpath::paths::FindPath;
 use crate::contractionpath::{ssa_replace_ordering, ContractionIndex};
 use crate::tensornetwork::tensor::Tensor;
 
@@ -119,8 +119,8 @@ fn tensor_legs_to_digit(
     (new_inputs, new_output, new_size_dict)
 }
 
-impl OptimizePath for Cotengrust<'_> {
-    fn optimize_path(&mut self) {
+impl FindPath for Cotengrust<'_> {
+    fn find_path(&mut self) {
         // Handle nested tensors first
         let mut inputs = self.tensor.tensors().clone();
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
@@ -236,7 +236,7 @@ mod tests {
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
         let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.get_best_flops(), 600.);
         assert_eq!(opt.get_best_size(), 538.);
@@ -248,7 +248,7 @@ mod tests {
     fn test_contract_order_greedy_simple_inner() {
         let tn = setup_simple_inner_product();
         let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.get_best_flops(), 228.);
         assert_eq!(opt.get_best_size(), 121.);
@@ -260,7 +260,7 @@ mod tests {
     fn test_contract_order_greedy_simple_outer() {
         let tn = setup_simple_outer_product();
         let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.get_best_flops(), 16.);
         assert_eq!(opt.get_best_size(), 19.);
@@ -272,7 +272,7 @@ mod tests {
     fn test_contract_order_greedy_complex_outer() {
         let tn = setup_complex_outer_product();
         let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.get_best_flops(), 10.);
         assert_eq!(opt.get_best_size(), 11.);
@@ -284,7 +284,7 @@ mod tests {
     fn test_contract_order_greedy_complex() {
         let tn = setup_complex();
         let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.get_best_flops(), 529815.);
         assert_eq!(opt.get_best_size(), 89478.);

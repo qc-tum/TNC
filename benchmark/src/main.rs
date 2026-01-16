@@ -38,7 +38,7 @@ use tnc::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use tnc::contractionpath::paths::hyperoptimization::{HyperOptions, Hyperoptimizer};
 use tnc::contractionpath::paths::tree_annealing::TreeAnnealing;
 use tnc::contractionpath::paths::tree_tempering::TreeTempering;
-use tnc::contractionpath::paths::{CostType, OptimizePath};
+use tnc::contractionpath::paths::{CostType, FindPath};
 use tnc::contractionpath::repartitioning::simulated_annealing::{
     IntermediatePartitioningModel, LeafPartitioningModel, NaiveIntermediatePartitioningModel,
     NaivePartitioningModel,
@@ -253,7 +253,7 @@ fn serial_cost(tensor: &Tensor, file: &str) -> (f64, f64) {
         }
     }
     let mut opt = Cotengrust::new(tensor, OptMethod::Greedy);
-    opt.optimize_path();
+    opt.find_path();
     let cost = opt.get_best_flops();
     let memory = compute_memory_requirements(
         tensor.tensors(),
@@ -762,7 +762,7 @@ impl MethodRun for CotengraTempering {
     ) -> (Tensor, Vec<ContractionIndex>, f64, f64) {
         let seed = rng.next_u64();
         let mut tree = TreeTempering::new(tensor, Some(seed), CostType::Flops, Some(300));
-        tree.optimize_path();
+        tree.find_path();
         let best_path = tree.get_best_replace_path();
 
         let (parallel_flops, _) =
@@ -797,7 +797,7 @@ impl MethodRun for CotengraAnneal {
         let seed = rng.next_u64();
         let mut tree =
             TreeAnnealing::new(tensor, Some(seed), CostType::Flops, Some(300), Some(100));
-        tree.optimize_path();
+        tree.find_path();
         let best_path = tree.get_best_replace_path();
 
         let (parallel_flops, _) =
@@ -835,7 +835,7 @@ impl MethodRun for CotengraHyper {
                 .with_max_time(&TIME_LIMIT)
                 .with_max_repeats(100_000),
         );
-        tree.optimize_path();
+        tree.find_path();
         let best_path = tree.get_best_replace_path();
 
         let (parallel_flops, _) =

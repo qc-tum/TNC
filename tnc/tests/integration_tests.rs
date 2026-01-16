@@ -6,7 +6,7 @@ use tnc::{
     builders::{connectivity::ConnectivityLayout, random_circuit::random_circuit},
     contractionpath::paths::{
         cotengrust::{Cotengrust, OptMethod},
-        OptimizePath,
+        FindPath,
     },
     mpi::communication::{
         broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
@@ -30,14 +30,14 @@ fn test_partitioned_contraction_random() {
     let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Eagle);
     let ref_tn = r_tn.clone();
     let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::RandomGreedy(10));
-    ref_opt.optimize_path();
+    ref_opt.find_path();
     let ref_path = ref_opt.get_best_replace_path();
     let ref_result = contract_tensor_network(ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
     let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
     let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::RandomGreedy(10));
-    opt.optimize_path();
+    opt.find_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
     assert_approx_eq!(&Tensor, &ref_result, &result);
@@ -51,14 +51,14 @@ fn test_partitioned_contraction() {
     let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Osprey);
     let ref_tn = r_tn.clone();
     let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::Greedy);
-    ref_opt.optimize_path();
+    ref_opt.find_path();
     let ref_path = ref_opt.get_best_replace_path();
     let ref_result = contract_tensor_network(ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
     let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
     let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-    opt.optimize_path();
+    opt.find_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
     assert_approx_eq!(&Tensor, &ref_result, &result);
@@ -72,14 +72,14 @@ fn test_partitioned_contraction_mixed() {
     let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Condor);
     let ref_tn = r_tn.clone();
     let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::Greedy);
-    ref_opt.optimize_path();
+    ref_opt.find_path();
     let ref_path = ref_opt.get_best_replace_path();
     let ref_result = contract_tensor_network(ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
     let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
     let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::RandomGreedy(15));
-    opt.optimize_path();
+    opt.find_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
     assert_approx_eq!(&Tensor, &ref_result, &result);
@@ -102,7 +102,7 @@ fn test_partitioned_contraction_need_mpi() {
         let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
         let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
         let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-        opt.optimize_path();
+        opt.find_path();
         let path = opt.get_best_replace_path();
         (ref_tn, partitioned_tn, path)
     } else {
@@ -124,7 +124,7 @@ fn test_partitioned_contraction_need_mpi() {
 
     if rank == 0 {
         let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::RandomGreedy(10));
-        ref_opt.optimize_path();
+        ref_opt.find_path();
         let ref_path = ref_opt.get_best_replace_path();
 
         let ref_tn = contract_tensor_network(ref_tn, &ref_path);

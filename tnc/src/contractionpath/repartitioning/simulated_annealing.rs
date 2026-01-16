@@ -17,7 +17,7 @@ use crate::{
         contraction_cost::{compute_memory_requirements, contract_size_tensors_exact},
         paths::{
             cotengrust::{Cotengrust, OptMethod},
-            OptimizePath,
+            FindPath,
         },
         repartitioning::compute_solution,
         ContractionIndex,
@@ -309,12 +309,12 @@ impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
         }
 
         let mut from_opt = Cotengrust::new(&from_tensor, OptMethod::Greedy);
-        from_opt.optimize_path();
+        from_opt.find_path();
         let from_path = from_opt.get_best_replace_path();
         contraction_paths[source_partition] = from_path;
 
         let mut to_opt = Cotengrust::new(&to_tensor, OptMethod::Greedy);
-        to_opt.optimize_path();
+        to_opt.find_path();
         let to_path = to_opt.get_best_replace_path();
         contraction_paths[target_partition] = to_path;
 
@@ -528,12 +528,12 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         }
 
         let mut from_opt = Cotengrust::new(&from_tensor, OptMethod::Greedy);
-        from_opt.optimize_path();
+        from_opt.find_path();
         let from_path = from_opt.get_best_replace_path();
         contraction_paths[source_partition] = from_path;
 
         let mut to_opt = Cotengrust::new(&to_tensor, OptMethod::Greedy);
-        to_opt.optimize_path();
+        to_opt.find_path();
         let to_path = to_opt.get_best_replace_path();
         contraction_paths[target_partition] = to_path;
 

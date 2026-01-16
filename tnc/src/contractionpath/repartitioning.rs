@@ -10,7 +10,7 @@ use crate::{
         contraction_cost::{communication_path_op_costs, contract_path_cost},
         paths::{
             cotengrust::{Cotengrust, OptMethod},
-            OptimizePath,
+            FindPath,
         },
         ContractionIndex,
     },
@@ -36,7 +36,7 @@ where
 
     // Find contraction path
     let mut greedy = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-    greedy.optimize_path();
+    greedy.find_path();
     let path = greedy.get_best_replace_path();
 
     // Store the local paths (and costs)

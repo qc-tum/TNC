@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 use crate::contractionpath::contraction_cost::communication_path_cost;
 use crate::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
-use crate::contractionpath::paths::{CostType, OptimizePath};
+use crate::contractionpath::paths::{CostType, FindPath};
 use crate::contractionpath::ContractionIndex;
 use crate::pair;
 use crate::tensornetwork::partitioning::communication_partitioning;
@@ -82,7 +82,7 @@ fn greedy(
 ) -> Vec<ContractionIndex> {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
     let mut opt = Cotengrust::new(&communication_tensors, OptMethod::Greedy);
-    opt.optimize_path();
+    opt.find_path();
     opt.get_best_replace_path()
 }
 
@@ -156,7 +156,7 @@ fn weighted_branchbound(
         latency_map.clone(),
         CostType::Flops,
     );
-    opt.optimize_path();
+    opt.find_path();
     opt.get_best_replace_path()
 }
 
@@ -171,7 +171,7 @@ fn branchbound(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
         latency_map,
         CostType::Flops,
     );
-    opt.optimize_path();
+    opt.find_path();
     opt.get_best_replace_path()
 }
 
@@ -251,7 +251,7 @@ fn random_greedy(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
     let mut opt = Cotengrust::new(&communication_tensors, OptMethod::RandomGreedy(100));
-    opt.optimize_path();
+    opt.find_path();
     opt.get_best_replace_path()
 }
 

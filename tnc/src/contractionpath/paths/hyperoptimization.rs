@@ -12,7 +12,7 @@ use serde_pickle::{DeOptions, SerOptions};
 use crate::{
     contractionpath::{
         contraction_cost::contract_path_cost,
-        paths::{CostType, OptimizePath},
+        paths::{CostType, FindPath},
         ssa_replace_ordering, ContractionIndex,
     },
     tensornetwork::tensor::Tensor,
@@ -139,8 +139,8 @@ fn tensor_legs_to_chars(
     (new_inputs, new_output, new_size_dict)
 }
 
-impl OptimizePath for Hyperoptimizer<'_> {
-    fn optimize_path(&mut self) {
+impl FindPath for Hyperoptimizer<'_> {
+    fn find_path(&mut self) {
         let (inputs, outputs, size_dict) =
             tensor_legs_to_chars(self.tensor.tensors(), &self.tensor.external_tensor());
 
@@ -184,7 +184,7 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::paths::{CostType, OptimizePath},
+        contractionpath::paths::{CostType, FindPath},
         path,
         tensornetwork::tensor::Tensor,
     };
@@ -232,7 +232,7 @@ mod tests {
             CostType::Flops,
             HyperOptions::new().with_max_time(&Duration::from_secs(25)),
         );
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.best_flops, 600.);
         assert_eq!(opt.best_size, 538.);
@@ -248,7 +248,7 @@ mod tests {
             CostType::Flops,
             HyperOptions::new().with_max_time(&Duration::from_secs(45)),
         );
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.best_flops, 529815.);
         assert_eq!(opt.best_size, 89478.);

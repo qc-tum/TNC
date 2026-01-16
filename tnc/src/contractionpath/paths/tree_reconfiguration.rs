@@ -7,7 +7,7 @@ use rustengra::{
 use crate::{
     contractionpath::{
         contraction_cost::contract_path_cost,
-        paths::{CostType, OptimizePath},
+        paths::{CostType, FindPath},
         ssa_replace_ordering, ContractionIndex,
     },
     tensornetwork::tensor::Tensor,
@@ -44,8 +44,8 @@ impl<'a> TreeReconfigure<'a> {
     }
 }
 
-impl OptimizePath for TreeReconfigure<'_> {
-    fn optimize_path(&mut self) {
+impl FindPath for TreeReconfigure<'_> {
+    fn find_path(&mut self) {
         // Map tensors to legs
         let inputs = self
             .tensor
@@ -106,7 +106,7 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::paths::{CostType, OptimizePath},
+        contractionpath::paths::{CostType, FindPath},
         path,
         tensornetwork::tensor::Tensor,
     };
@@ -150,7 +150,7 @@ mod tests {
     fn test_tree_contract_order_simple() {
         let tn = setup_simple();
         let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.best_flops, 600.);
         assert_eq!(opt.best_size, 538.);
@@ -162,7 +162,7 @@ mod tests {
     fn test_tree_contract_order_complex() {
         let tn = setup_complex();
         let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.best_flops, 332685.);
         assert_eq!(opt.best_size, 89478.);

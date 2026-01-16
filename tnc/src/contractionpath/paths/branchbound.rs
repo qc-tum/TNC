@@ -7,14 +7,14 @@ use crate::{
     contractionpath::{
         candidates::Candidate,
         contraction_cost::{contract_cost_tensors, contract_size_tensors},
-        paths::{CostType, OptimizePath},
+        paths::{CostType, FindPath},
         ssa_ordering, ssa_replace_ordering, ContractionIndex,
     },
     tensornetwork::tensor::Tensor,
     utils::traits::HashMapInsertNew,
 };
 
-/// A struct with an [`OptimizePath`] implementation that explores possible pair contractions in a depth-first manner.
+/// A struct with an [`FindPath`] implementation that explores possible pair contractions in a depth-first manner.
 pub struct BranchBound<'a> {
     tn: &'a Tensor,
     nbranch: Option<usize>,
@@ -174,8 +174,8 @@ impl<'a> BranchBound<'a> {
     }
 }
 
-impl OptimizePath for BranchBound<'_> {
-    fn optimize_path(&mut self) {
+impl FindPath for BranchBound<'_> {
+    fn find_path(&mut self) {
         if self.tn.is_leaf() {
             return;
         }
@@ -195,7 +195,7 @@ impl OptimizePath for BranchBound<'_> {
                     self.cutoff_flops_factor,
                     self.minimize,
                 );
-                bb.optimize_path();
+                bb.find_path();
                 sub_tensor_contraction
                     .push(ContractionIndex::Path(index, bb.get_best_path().clone()));
                 tensor = tensor.external_tensor();
@@ -235,7 +235,7 @@ mod tests {
 
     use rustc_hash::FxHashMap;
 
-    use crate::contractionpath::paths::{CostType, OptimizePath};
+    use crate::contractionpath::paths::{CostType, FindPath};
     use crate::path;
     use crate::tensornetwork::tensor::Tensor;
 
@@ -278,7 +278,7 @@ mod tests {
     fn test_contract_order_simple() {
         let tn = setup_simple();
         let mut opt = BranchBound::new(&tn, None, 20., CostType::Flops);
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.best_flops, 4540.);
         assert_eq!(opt.best_size, 538.);
@@ -290,7 +290,7 @@ mod tests {
     fn test_contract_order_complex() {
         let tn = setup_complex();
         let mut opt = BranchBound::new(&tn, None, 20., CostType::Flops);
-        opt.optimize_path();
+        opt.find_path();
 
         assert_eq!(opt.best_flops, 2654474.);
         assert_eq!(opt.best_size, 89478.);

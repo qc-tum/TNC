@@ -9,7 +9,7 @@ use tnc::{
         },
         paths::{
             cotengrust::{Cotengrust, OptMethod},
-            OptimizePath,
+            FindPath,
         },
     },
     tensornetwork::partitioning::{
@@ -25,7 +25,7 @@ fn main() {
     let partitioned_tn = partition_tensor_network(tensor, &partitioning);
     let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
 
-    opt.optimize_path();
+    opt.find_path();
     let path = opt.get_best_replace_path();
 
     let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);

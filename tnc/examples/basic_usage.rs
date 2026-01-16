@@ -10,7 +10,7 @@ use tnc::contractionpath::contraction_cost::contract_cost_tensors;
 use tnc::contractionpath::contraction_tree::export::{to_dendogram_format, to_pdf};
 use tnc::contractionpath::contraction_tree::ContractionTree;
 use tnc::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
-use tnc::contractionpath::paths::OptimizePath;
+use tnc::contractionpath::paths::FindPath;
 use tnc::mpi::communication::{
     broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
     scatter_tensor_network,
@@ -73,7 +73,7 @@ fn main() {
         };
 
         let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-        opt.optimize_path();
+        opt.find_path();
         let path = opt.get_best_replace_path();
         debug!(path:serde; "Found contraction path");
 

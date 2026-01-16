@@ -47,7 +47,7 @@ use mpi::{topology::SimpleCommunicator, traits::Communicator};
 use tnc::{
     contractionpath::paths::{
         cotengrust::{Cotengrust, OptMethod},
-        OptimizePath,
+        FindPath,
     },
     mpi::communication::{
         broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
@@ -99,7 +99,7 @@ fn read_qasm(file: &str) -> Tensor {
 fn local_contraction(tensor: Tensor) -> Tensor {
     // Find a contraction path for the whole network
     let mut opt = Cotengrust::new(&tensor, OptMethod::Greedy);
-    opt.optimize_path();
+    opt.find_path();
     let contract_path = opt.get_best_replace_path();
 
     // Contract the whole tensor network on this single node
@@ -119,7 +119,7 @@ fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor
 
         // Find a contraction path for the individual partitions and the final fan-in
         let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-        opt.optimize_path();
+        opt.find_path();
         let path = opt.get_best_replace_path();
 
         (partitioned_tn, path)

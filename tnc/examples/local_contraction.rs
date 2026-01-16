@@ -4,7 +4,7 @@
 use tnc::{
     contractionpath::paths::{
         cotengrust::{Cotengrust, OptMethod},
-        OptimizePath,
+        FindPath,
     },
     qasm::import_qasm,
     tensornetwork::contraction::contract_tensor_network,
@@ -33,7 +33,7 @@ cx q[1], q[2];
     // Find a contraction path to contract the tensor network.
     // We use a greedy path finder here.
     let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
-    opt.optimize_path();
+    opt.find_path();
     let path = opt.get_best_replace_path();
 
     // Contract the tensor network locally
