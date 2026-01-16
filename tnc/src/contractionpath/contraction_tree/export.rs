@@ -11,12 +11,9 @@ use std::{
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
-use crate::contractionpath::{
-    contraction_tree::{
-        import::{CommunicationEvent, Direction},
-        ContractionTree,
-    },
-    ContractionIndex,
+use crate::contractionpath::contraction_tree::{
+    import::{CommunicationEvent, Direction},
+    ContractionTree,
 };
 use crate::tensornetwork::tensor::Tensor;
 use crate::utils::traits::HashMapInsertNew;
@@ -72,7 +69,6 @@ pub fn to_dendogram_format(
 
     let root_id = contraction_tree.root_id().unwrap();
     let path = contraction_tree.to_flat_contraction_path(root_id, false);
-    let mut path_iter = path.iter();
 
     let partition_nodes = contraction_tree.partitions.get(&1).unwrap();
     let partitions = partition_nodes
@@ -191,7 +187,7 @@ pub fn to_dendogram_format(
         intermediate_tensors.insert_new(parent_id, parent_tensor);
     };
 
-    while let Some(ContractionIndex::Pair(i, j)) = path_iter.next() {
+    for (i, j) in &path {
         update(i, j, &mut dendogram_entries, &mut id_to_partition);
     }
 
@@ -362,7 +358,7 @@ pub fn to_dendogram(
     };
     let mut node_iter = path.iter().peekable();
 
-    while let Some(ContractionIndex::Pair(i, j)) = node_iter.next() {
+    while let Some((i, j)) = node_iter.next() {
         if node_iter.peek().is_none() {
             plot(i, j, true);
         } else {

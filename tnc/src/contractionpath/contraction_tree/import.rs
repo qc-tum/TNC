@@ -14,13 +14,10 @@ use itertools::Itertools;
 use regex::RegexSet;
 use rustc_hash::FxHashMap;
 
-use crate::contractionpath::{
-    contraction_tree::{
-        export::{to_pdf, DendogramEntry, COLORS, COMMUNICATION_COLOR},
-        node::{child_node, parent_node, NodeRef},
-        ContractionTree,
-    },
-    ContractionIndex,
+use crate::contractionpath::contraction_tree::{
+    export::{to_pdf, DendogramEntry, COLORS, COMMUNICATION_COLOR},
+    node::{child_node, parent_node, NodeRef},
+    ContractionTree,
 };
 use crate::utils::traits::HashMapInsertNew;
 
@@ -51,50 +48,48 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
     let mut next_x = 0f64;
     let mut tensor_x_position = FxHashMap::default();
 
-    for contraction_index in &flat_contraction_path {
-        if let ContractionIndex::Pair(i, j) = contraction_index {
-            if contraction_tree.node(*i).is_leaf() {
-                tensor_x_position.insert_new(*i, next_x);
-                dendogram_entries.push(DendogramEntry {
-                    id: *i,
-                    x: tensor_x_position[i],
-                    y: 0f64,
-                    cost: 0f64,
-                    color: tensor_color[i].clone(),
-                    children: None,
-                });
-                next_x += 1f64;
-            }
+    for (i, j) in &flat_contraction_path {
+        if contraction_tree.node(*i).is_leaf() {
+            tensor_x_position.insert_new(*i, next_x);
+            dendogram_entries.push(DendogramEntry {
+                id: *i,
+                x: tensor_x_position[i],
+                y: 0f64,
+                cost: 0f64,
+                color: tensor_color[i].clone(),
+                children: None,
+            });
+            next_x += 1f64;
+        }
 
-            if contraction_tree.node(*j).is_leaf() {
-                tensor_x_position.insert_new(*j, next_x);
-                dendogram_entries.push(DendogramEntry {
-                    id: *j,
-                    x: tensor_x_position[j],
-                    y: 0f64,
-                    cost: 0f64,
-                    color: tensor_color[j].clone(),
-                    children: None,
-                });
-                next_x += 1f64;
-            }
+        if contraction_tree.node(*j).is_leaf() {
+            tensor_x_position.insert_new(*j, next_x);
+            dendogram_entries.push(DendogramEntry {
+                id: *j,
+                x: tensor_x_position[j],
+                y: 0f64,
+                cost: 0f64,
+                color: tensor_color[j].clone(),
+                children: None,
+            });
+            next_x += 1f64;
+        }
 
-            let x1 = tensor_x_position[i];
-            let x2 = tensor_x_position[j];
-            let new_x = (x1 + x2) / 2.;
-            if let Some(parent_id) = contraction_tree.node(*i).parent_id() {
-                let y = tensor_position[&parent_id];
-                let color = tensor_color[&parent_id].clone();
-                dendogram_entries.push(DendogramEntry {
-                    id: parent_id,
-                    x: new_x,
-                    y,
-                    cost: y,
-                    color,
-                    children: Some((*i, *j)),
-                });
-                tensor_x_position.insert_new(parent_id, new_x);
-            }
+        let x1 = tensor_x_position[i];
+        let x2 = tensor_x_position[j];
+        let new_x = (x1 + x2) / 2.;
+        if let Some(parent_id) = contraction_tree.node(*i).parent_id() {
+            let y = tensor_position[&parent_id];
+            let color = tensor_color[&parent_id].clone();
+            dendogram_entries.push(DendogramEntry {
+                id: parent_id,
+                x: new_x,
+                y,
+                cost: y,
+                color,
+                children: Some((*i, *j)),
+            });
+            tensor_x_position.insert_new(parent_id, new_x);
         }
     }
 

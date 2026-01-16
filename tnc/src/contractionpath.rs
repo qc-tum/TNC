@@ -11,46 +11,154 @@ pub mod contraction_tree;
 pub mod paths;
 pub mod repartitioning;
 
-/// Element of a contraction path.
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ContractionIndex {
-    /// A top-level contraction between two tensors, with the result replacing the
-    /// left tensor.
-    Pair(TensorIndex, TensorIndex),
-    /// A nested contraction path for the specified composite tensor. The composite
-    /// tensor is replaced with the tensor resulting from contracting the composite
-    /// tensor with the given path.
-    Path(TensorIndex, Vec<ContractionIndex>),
+/// A simple, flat contraction path. If you only need a reference, prefer
+/// [`SimplePathRef`].
+pub type SimplePath = Vec<(TensorIndex, TensorIndex)>;
+
+/// Reference to a [`SimplePath`].
+pub type SimplePathRef<'a> = &'a [(TensorIndex, TensorIndex)];
+
+/// A (possibly nested) contraction path. It specifies the overall contraction path
+/// to contract a tensor network, but also allows to specify additional contraction
+/// paths for each tensor, in order to deal with composite tensors that have to be
+/// contracted first.
+#[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ContractionPath {
+    /// Nested contraction paths for composite tensors.
+    pub nested: FxHashMap<TensorIndex, ContractionPath>,
+    /// The top-level contraction path for the tensor network itself.
+    pub toplevel: SimplePath,
+}
+
+impl ContractionPath {
+    /// Creates a contraction path with nested paths.
+    #[inline]
+    pub fn nested(
+        nested: Vec<(TensorIndex, ContractionPath)>,
+        toplevel: Vec<(TensorIndex, TensorIndex)>,
+    ) -> Self {
+        Self {
+            nested: FxHashMap::from_iter(nested),
+            toplevel,
+        }
+    }
+
+    /// Creates a plain contraction path without nested paths.
+    ///
+    /// # Examples
+    /// ```
+    /// # use tnc::contractionpath::{ContractionPath, SimplePath};
+    /// let path: SimplePath = vec![(0, 1), (0, 2), (0, 3)];
+    /// let contraction_path = ContractionPath::simple(path.clone());
+    /// assert!(contraction_path.is_simple());
+    /// assert_eq!(contraction_path.toplevel, path);
+    /// ```
+    #[inline]
+    pub fn simple(path: SimplePath) -> Self {
+        Self {
+            nested: FxHashMap::default(),
+            toplevel: path,
+        }
+    }
+
+    /// Creates a contraction path from a single contraction of two tensors.
+    ///
+    /// # Examples
+    /// ```
+    /// # use tnc::contractionpath::ContractionPath;
+    /// let contraction_path = ContractionPath::single(0, 1);
+    /// assert!(contraction_path.is_simple());
+    /// assert_eq!(contraction_path.toplevel, vec![(0, 1)]);
+    /// ```
+    #[inline]
+    pub fn single(a: TensorIndex, b: TensorIndex) -> Self {
+        Self::simple(vec![(a, b)])
+    }
+
+    /// The length of the contraction path, that is, the number of top-level
+    /// contractions.
+    ///
+    /// # Examples
+    /// ```
+    /// # use tnc::contractionpath::ContractionPath;
+    /// let contraction_path = ContractionPath::simple(vec![(0, 1), (0, 2), (0, 3)]);
+    /// assert_eq!(contraction_path.len(), 3);
+    /// ```
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.toplevel.len()
+    }
+
+    /// Whether there are any top-level contractions in this contraction path.
+    ///
+    /// # Examples
+    /// ```
+    /// # use tnc::contractionpath::ContractionPath;
+    /// assert!(ContractionPath::default().is_empty());
+    /// assert!(!ContractionPath::simple(vec![(0, 1)]).is_empty());
+    /// ```
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.toplevel.is_empty()
+    }
+
+    /// Returns whether this path has no nested paths.
+    ///
+    /// # Examples
+    /// ```
+    /// # use tnc::contractionpath::ContractionPath;
+    /// # use tnc::path;
+    /// let simple_path = path![(0, 1), (0, 2), (0, 3)];
+    /// assert!(simple_path.is_simple());
+    /// let nested_path = path![{(2, [(0, 2), (0, 1)])}, (0, 1), (0, 2)];
+    /// assert!(!nested_path.is_simple());
+    /// ```
+    #[inline]
+    pub fn is_simple(&self) -> bool {
+        self.nested.is_empty()
+    }
+
+    /// Converts this path to its toplevel component.
+    ///
+    /// # Panics
+    /// - Panics when this path has nested components
+    ///
+    /// # Examples
+    /// ```
+    /// # use tnc::contractionpath::ContractionPath;
+    /// # use tnc::path;
+    /// let contractions = vec![(0, 1), (0, 2), (0, 3)];
+    /// let simple_path = ContractionPath::simple(contractions.clone());
+    /// assert_eq!(simple_path.into_simple(), contractions);
+    /// ```
+    #[inline]
+    pub fn into_simple(self) -> SimplePath {
+        assert!(self.is_simple());
+        self.toplevel
+    }
 }
 
 /// Macro to create (nested) contraction paths, assuming the left tensor is replaced
 /// in each contraction.
 ///
-/// For instance, `path![(0, 1), (2, [(0, 2), (0, 1)]), (0, 2)]` creates a nested
+/// For instance, `path![{(2, [(0, 2), (0, 1)])}, (0, 1), (0, 2)]` creates a nested
 /// contraction path that
-/// - contracts tensors 0 and 1, replacing tensor 0 with the result
 /// - recursively contracts the composite tensor 2 with the contraction path `[(0, 2), (0, 1)]`
+/// - contracts tensors 0 and 1, replacing tensor 0 with the result
 /// - contracts tensors 0 and (now contracted) tensor 2, replacing tensor 0 with the result
 #[macro_export]
 macro_rules! path {
-    ($(($index:expr $(,$tokens:tt)*)),*) => {
-        &[$(path![$index $(,$tokens)*]),*]
+    [] => {
+        $crate::contractionpath::ContractionPath::default()
     };
-    ($index:expr, []) => {
-        $crate::contractionpath::ContractionIndex::Path($index, vec![])
+    [$( ($t0:expr, $t1:expr) ),*] => {
+        $crate::contractionpath::ContractionPath::simple(vec![$( ($t0, $t1) ),*])
     };
-    ($index:expr, [$($tokens:tt),+]) => {
-        $crate::contractionpath::ContractionIndex::Path($index, path![$($tokens),+].to_vec())
-    };
-    ($e:expr, $p:expr) => {
-        $crate::contractionpath::ContractionIndex::Pair($e, $p)
-    };
-}
-
-#[macro_export]
-macro_rules! pair {
-    ($e:expr, $p:expr) => {
-        $crate::contractionpath::ContractionIndex::Pair($e, $p)
+    [ { $( ( $index:expr, [ $( $tok:tt )* ] ) ),* $(,)? } $(, ($t0:expr, $t1:expr) )* ] => {
+        $crate::contractionpath::ContractionPath::nested(
+            vec![ $( ($index, path![ $( $tok )* ]) ),* ],
+            vec![ $( ($t0, $t1) ),* ]
+        )
     };
 }
 
@@ -65,7 +173,7 @@ macro_rules! pair {
 ///
 /// # Returns
 /// Identical path using SSA format
-fn ssa_ordering(path: &[(usize, usize, usize)], mut n: usize) -> Vec<ContractionIndex> {
+fn ssa_ordering(path: &[(usize, usize, usize)], mut n: usize) -> ContractionPath {
     let mut ssa_path = Vec::with_capacity(path.len());
     let mut hs = FxHashMap::with_capacity(path.len());
     let path_len = n;
@@ -74,42 +182,34 @@ fn ssa_ordering(path: &[(usize, usize, usize)], mut n: usize) -> Vec<Contraction
         let t2 = if *u2 >= path_len { hs[u2] } else { *u2 };
         hs.entry(*u3).or_insert(n);
         n += 1;
-        ssa_path.push(pair!(t1, t2));
+        ssa_path.push((t1, t2));
     }
-    ssa_path
+    ContractionPath::simple(ssa_path)
 }
 
-/// Accepts a contraction `path` that is in SSA format (with `n` being the number of
-/// initial input tensors) and returns a contraction path assuming that all
-/// contracted tensors replace the left input tensor and no tensor is popped.
-pub(super) fn ssa_replace_ordering(
-    path: &[ContractionIndex],
-    mut n: usize,
-) -> Vec<ContractionIndex> {
-    let mut replace_path = Vec::with_capacity(path.len());
-    let mut hs = FxHashMap::with_capacity(path.len());
-    for tup in path {
-        match tup {
-            ContractionIndex::Pair(t0, t1) => {
-                let new_t0 = *hs.get(t0).unwrap_or(t0);
-                let new_t1 = *hs.get(t1).unwrap_or(t1);
+/// Accepts a contraction `path` that is in SSA format and returns a contraction path
+/// assuming that all contracted tensors replace the left input tensor and no tensor
+/// is popped.
+pub(super) fn ssa_replace_ordering(path: &ContractionPath) -> ContractionPath {
+    let nested = path
+        .nested
+        .iter()
+        .map(|(index, local_path)| (*index, ssa_replace_ordering(local_path)))
+        .collect();
 
-                hs.insert_new(n, new_t0);
-                replace_path.push(pair!(new_t0, new_t1));
-                n += 1;
-            }
-            ContractionIndex::Path(index, path) => {
-                let k = path
-                    .iter()
-                    .filter(|n| matches!(n, ContractionIndex::Pair(_, _)))
-                    .count()
-                    + 1;
-                let ssa_path = ssa_replace_ordering(path, k);
-                replace_path.push(ContractionIndex::Path(*index, ssa_path));
-            }
-        }
+    let mut hs = FxHashMap::with_capacity(path.len());
+    let mut toplevel = Vec::with_capacity(path.len());
+    let mut n = path.len() + 1;
+    for (t0, t1) in &path.toplevel {
+        let new_t0 = *hs.get(t0).unwrap_or(t0);
+        let new_t1 = *hs.get(t1).unwrap_or(t1);
+
+        hs.insert_new(n, new_t0);
+        toplevel.push((new_t0, new_t1));
+        n += 1;
     }
-    replace_path
+
+    ContractionPath { nested, toplevel }
 }
 
 #[cfg(test)]
@@ -119,15 +219,11 @@ mod tests {
     #[test]
     fn test_path_simple_macro() {
         assert_eq!(
-            path![(0, 1), (2, [(1, 2), (1, 3)]), (2, [])],
-            &[
-                ContractionIndex::Pair(0, 1),
-                ContractionIndex::Path(
-                    2,
-                    vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
-                ),
-                ContractionIndex::Path(2, vec![]),
-            ]
+            path![{ (2, [(1, 2), (1, 3)]) }, (0, 1)],
+            ContractionPath {
+                nested: FxHashMap::from_iter([(2, ContractionPath::simple(vec![(1, 2), (1, 3)]))]),
+                toplevel: vec![(0, 1)]
+            }
         );
     }
 
@@ -135,47 +231,34 @@ mod tests {
     fn test_path_macro() {
         assert_eq!(
             path![
-                (0, 1),
+                {
                 (2, [(1, 2), (1, 3)]),
-                (4, [(2, [(1, 2), (1, 3)]), (1, 3)]),
+                (4, [{(2, [(1, 2), (1, 3)])}, (1, 3)]),
                 (5, [(1, 2), (1, 3)]),
-                (0, 2),
-                (6, []),
                 (3, [(4, 1), (3, 4), (3, 5)]),
+                },
+                (0, 1),
+                (0, 2),
                 (0, 3)
             ],
-            &[
-                ContractionIndex::Pair(0, 1),
-                ContractionIndex::Path(
-                    2,
-                    vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
-                ),
-                ContractionIndex::Path(
-                    4,
-                    vec![
-                        ContractionIndex::Path(
-                            2,
-                            vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
-                        ),
-                        ContractionIndex::Pair(1, 3)
-                    ]
-                ),
-                ContractionIndex::Path(
-                    5,
-                    vec![ContractionIndex::Pair(1, 2), ContractionIndex::Pair(1, 3)]
-                ),
-                ContractionIndex::Pair(0, 2),
-                ContractionIndex::Path(6, vec![]),
-                ContractionIndex::Path(
-                    3,
-                    vec![
-                        ContractionIndex::Pair(4, 1),
-                        ContractionIndex::Pair(3, 4),
-                        ContractionIndex::Pair(3, 5)
-                    ]
-                ),
-                ContractionIndex::Pair(0, 3),
-            ]
+            ContractionPath {
+                nested: FxHashMap::from_iter([
+                    (2, ContractionPath::simple(vec![(1, 2), (1, 3)])),
+                    (3, ContractionPath::simple(vec![(4, 1), (3, 4), (3, 5)])),
+                    (
+                        4,
+                        ContractionPath {
+                            nested: FxHashMap::from_iter([(
+                                2,
+                                ContractionPath::simple(vec![(1, 2), (1, 3)])
+                            )]),
+                            toplevel: vec![(1, 3)]
+                        }
+                    ),
+                    (5, ContractionPath::simple(vec![(1, 2), (1, 3)]))
+                ]),
+                toplevel: vec![(0, 1), (0, 2), (0, 3)]
+            }
         );
     }
 
@@ -200,7 +283,7 @@ mod tests {
     #[test]
     fn test_ssa_replace_ordering() {
         let path = path![(0, 3), (1, 2), (6, 4), (5, 7), (9, 8), (11, 10)];
-        let new_path = ssa_replace_ordering(path, 7);
+        let new_path = ssa_replace_ordering(&path);
 
         assert_eq!(
             new_path,
@@ -211,25 +294,29 @@ mod tests {
     #[test]
     fn test_ssa_replace_ordering_nested() {
         let path = path![
-            (0, 3),
+            {
             (1, [(2, 1), (0, 3)]),
+            (6, [(0, 2), (1, 3), (4, 5)])
+            },
+            (0, 3),
             (1, 2),
-            (6, [(0, 2), (1, 3), (4, 5)]),
             (6, 4),
             (5, 7),
             (9, 8),
             (11, 10)
         ];
 
-        let new_path = ssa_replace_ordering(path, 7);
+        let new_path = ssa_replace_ordering(&path);
 
         assert_eq!(
             new_path,
             path![
-                (0, 3),
+                {
                 (1, [(2, 1), (0, 2)]),
+                (6, [(0, 2), (1, 3), (0, 1)])
+                },
+                (0, 3),
                 (1, 2),
-                (6, [(0, 2), (1, 3), (0, 1)]),
                 (6, 4),
                 (5, 0),
                 (6, 1),

@@ -3,7 +3,7 @@ use mpi::topology::{Process, SimpleCommunicator};
 use mpi::traits::{BufferMut, Communicator, Destination, Root, Source};
 use mpi::Rank;
 
-use crate::contractionpath::ContractionIndex;
+use crate::contractionpath::{ContractionPath, SimplePath, SimplePathRef};
 use crate::mpi::mpi_types::{MessageBinaryBlob, RankTensorMapping};
 use crate::mpi::serialization::{deserialize, deserialize_tensor, serialize, serialize_tensor};
 use crate::tensornetwork::contraction::contract_tensor_network;
@@ -27,18 +27,9 @@ where
     root.broadcast_into(data);
 }
 
-/// Extracts the communication path from the total contraction path.
-#[must_use]
-pub fn extract_communication_path(path: &[ContractionIndex]) -> Vec<ContractionIndex> {
-    path.iter()
-        .filter(|a| matches!(a, ContractionIndex::Pair(_, _)))
-        .cloned()
-        .collect()
-}
-
 /// Broadcast a contraction index `path` from `root` to all processes in `world`. For
 /// the receivers, `path` can just be an empty slice.
-pub fn broadcast_path(path: &mut Vec<ContractionIndex>, root: &Process) {
+pub fn broadcast_path(path: &mut SimplePath, root: &Process) {
     // Serialize path
     let mut data = if root.is_self() {
         serialize(&path)
@@ -95,29 +86,24 @@ fn receive_tensor(sender: Rank, world: &SimpleCommunicator) -> Tensor {
 
 /// Determines the tensor mapping for the given contraction `path`.
 /// Also returns the number of used ranks.
-fn get_tensor_mapping(path: &[ContractionIndex], size: Rank) -> RankTensorMapping {
+fn get_tensor_mapping(path: &ContractionPath, size: Rank) -> RankTensorMapping {
     let mut tensor_mapping = RankTensorMapping::with_capacity(size as usize);
 
-    let Some(last) = path.last() else {
+    let Some((final_tensor, _)) = path.toplevel.last() else {
         // Empty path
         return tensor_mapping;
-    };
-    let &ContractionIndex::Pair(final_tensor, _) = last else {
-        panic!("Last part of path should be a pair")
     };
 
     // Reserve rank 0 for the final tensor
     let mut used_ranks = 1;
-    for pair in path {
-        if let ContractionIndex::Path(i, _) = pair {
-            if *i == final_tensor {
-                // Assign the final tensor to rank 0
-                tensor_mapping.insert(0, *i);
-            } else {
-                // Assign the next available rank to tensor `i`
-                tensor_mapping.insert(used_ranks, *i);
-                used_ranks += 1;
-            }
+    for index in path.nested.keys() {
+        if index == final_tensor {
+            // Assign the final tensor to rank 0
+            tensor_mapping.insert(0, *index);
+        } else {
+            // Assign the next available rank to tensor `index`
+            tensor_mapping.insert(used_ranks, *index);
+            used_ranks += 1;
         }
     }
     assert!(
@@ -137,11 +123,11 @@ pub struct Communication {
 /// Distributes the partitioned tensor network to the various processes via MPI.
 pub fn scatter_tensor_network(
     r_tn: &Tensor,
-    path: &[ContractionIndex],
+    path: &ContractionPath,
     rank: Rank,
     size: Rank,
     world: &SimpleCommunicator,
-) -> (Tensor, Vec<ContractionIndex>, Communication) {
+) -> (Tensor, ContractionPath, Communication) {
     debug!(rank, size; "Scattering tensor network");
     let root = world.process_at_rank(0);
 
@@ -161,17 +147,15 @@ pub fn scatter_tensor_network(
     let local_path = if rank == 0 {
         debug!("Sending local paths");
         let mut local_path = None;
-        for contraction_path in path {
-            if let ContractionIndex::Path(i, local) = contraction_path {
-                let target_rank = tensor_mapping.rank(*i);
-                if target_rank == 0 {
-                    // This is the path for the root, no need to send it
-                    local_path = Some(local.clone());
-                    continue;
-                }
-
-                world.process_at_rank(target_rank).send(&serialize(&local));
+        for (i, local) in &path.nested {
+            let target_rank = tensor_mapping.rank(*i);
+            if target_rank == 0 {
+                // This is the path for the root, no need to send it
+                local_path = Some(local.clone());
+                continue;
             }
+
+            world.process_at_rank(target_rank).send(&serialize(&local));
         }
         local_path.unwrap()
     } else if is_tensor_owner {
@@ -213,7 +197,7 @@ pub fn scatter_tensor_network(
 /// Assumes that `path` is a valid contraction path.
 pub fn intermediate_reduce_tensor_network(
     local_tn: &mut Tensor,
-    path: &[ContractionIndex],
+    path: SimplePathRef,
     rank: Rank,
     world: &SimpleCommunicator,
     communication: &Communication,
@@ -222,34 +206,28 @@ pub fn intermediate_reduce_tensor_network(
     assert!(local_tn.is_leaf());
 
     let mut final_rank = 0;
-    for pair in path {
-        match pair {
-            ContractionIndex::Pair(x, y) => {
-                let receiver = communication.tensor_mapping.rank(*x);
-                let sender = communication.tensor_mapping.rank(*y);
-                final_rank = receiver;
-                if receiver == rank {
-                    // Receive tensor
-                    debug!(sender; "Start receiving tensor");
-                    let received_tensor = receive_tensor(sender, world);
-                    debug!(sender; "Finish receiving tensor");
+    for (x, y) in path {
+        let receiver = communication.tensor_mapping.rank(*x);
+        let sender = communication.tensor_mapping.rank(*y);
+        final_rank = receiver;
+        if receiver == rank {
+            // Receive tensor
+            debug!(sender; "Start receiving tensor");
+            let received_tensor = receive_tensor(sender, world);
+            debug!(sender; "Finish receiving tensor");
 
-                    // Add local tensor and received tensor into a new tensor network
-                    let tensor_network =
-                        Tensor::new_composite(vec![std::mem::take(local_tn), received_tensor]);
+            // Add local tensor and received tensor into a new tensor network
+            let tensor_network =
+                Tensor::new_composite(vec![std::mem::take(local_tn), received_tensor]);
 
-                    // Contract tensors
-                    let result =
-                        contract_tensor_network(tensor_network, &[ContractionIndex::Pair(0, 1)]);
-                    *local_tn = result;
-                }
-                if sender == rank {
-                    debug!(receiver; "Start sending tensor");
-                    send_tensor(local_tn, receiver, world);
-                    debug!(receiver; "Finish sending tensor");
-                }
-            }
-            ContractionIndex::Path(..) => panic!("Requires pair"),
+            // Contract tensors
+            let result = contract_tensor_network(tensor_network, &ContractionPath::single(0, 1));
+            *local_tn = result;
+        }
+        if sender == rank {
+            debug!(receiver; "Start sending tensor");
+            send_tensor(local_tn, receiver, world);
+            debug!(receiver; "Finish sending tensor");
         }
     }
 
@@ -291,7 +269,7 @@ mod tests {
         let root_process = world.process_at_rank(0);
         let max = usize::MAX;
 
-        let ref_contraction_indices = path![
+        let ref_contraction_indices = vec![
             (0, 4),
             (1, 5),
             (2, 16),
@@ -303,9 +281,8 @@ mod tests {
             (2, 72),
             (23, 3),
             (40, 5),
-            (2, 26)
-        ]
-        .to_vec();
+            (2, 26),
+        ];
 
         let mut contraction_indices = if rank == 0 {
             ref_contraction_indices.clone()
@@ -320,14 +297,16 @@ mod tests {
     #[test]
     fn test_tensor_mapping() {
         let path = path![
+            {
             (0, [(0, 2), (0, 1)]),
-            (2, [(0, 1)]),
             (1, [(0, 1), (0, 1)]),
+            (2, [(0, 1)])
+            },
             (0, 2),
             (0, 1)
         ];
 
-        let tensor_mapping = get_tensor_mapping(path, 4);
+        let tensor_mapping = get_tensor_mapping(&path, 4);
 
         assert_eq!(tensor_mapping.len(), 3);
         assert_eq!(tensor_mapping.rank(0), 0);

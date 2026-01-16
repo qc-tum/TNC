@@ -1,6 +1,6 @@
 //! Contraction path finders.
 
-use crate::contractionpath::ContractionIndex;
+use crate::contractionpath::ContractionPath;
 
 pub mod branchbound;
 pub mod cotengrust;
@@ -19,10 +19,10 @@ pub trait FindPath {
     fn find_path(&mut self);
 
     /// Returns the best found contraction path in SSA format.
-    fn get_best_path(&self) -> &Vec<ContractionIndex>;
+    fn get_best_path(&self) -> &ContractionPath;
 
     /// Returns the best found contraction path in ReplaceLeft format.
-    fn get_best_replace_path(&self) -> Vec<ContractionIndex>;
+    fn get_best_replace_path(&self) -> ContractionPath;
 
     /// Returns the total op count of the best path found.
     fn get_best_flops(&self) -> f64;
@@ -40,21 +40,18 @@ pub enum CostType {
     Size,
 }
 
-pub(crate) fn validate_path(path: &[ContractionIndex]) {
+pub(crate) fn validate_path(path: &ContractionPath) {
     let mut contracted = Vec::<usize>::new();
-    for index in path {
-        match index {
-            ContractionIndex::Pair(u, v) => {
-                assert!(
-                    !contracted.contains(u),
-                    "Contracting already contracted tensors: {u:?}, path: {path:?}"
-                );
-                contracted.push(*v);
-            }
-            ContractionIndex::Path(_, path) => {
-                validate_path(path);
-            }
-        }
+    for nested in path.nested.values() {
+        validate_path(nested);
+    }
+
+    for (u, v) in &path.toplevel {
+        assert!(
+            !contracted.contains(u),
+            "Contracting already contracted tensors: {u:?}, path: {path:?}"
+        );
+        contracted.push(*v);
     }
 }
 
@@ -66,10 +63,10 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "Contracting already contracted tensors: 1, path: [Pair(0, 1), Pair(1, 2)]"
+        expected = "Contracting already contracted tensors: 1, path: ContractionPath { nested: {}, toplevel: [(0, 1), (1, 2)] }"
     )]
     fn test_validate_paths() {
         let invalid_path = path![(0, 1), (1, 2)];
-        validate_path(invalid_path);
+        validate_path(&invalid_path);
     }
 }

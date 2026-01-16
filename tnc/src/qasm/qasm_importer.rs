@@ -44,12 +44,11 @@ mod tests {
     use std::f64::consts::FRAC_1_SQRT_2;
 
     use float_cmp::assert_approx_eq;
-    use itertools::Itertools;
     use num_complex::{c64, Complex64};
 
     use crate::{
         builders::circuit_builder::Permutor,
-        contractionpath::ContractionIndex,
+        contractionpath::ContractionPath,
         tensornetwork::{
             contraction::contract_tensor_network,
             tensor::{EdgeIndex, Tensor, TensorIndex},
@@ -162,9 +161,8 @@ mod tests {
     /// Contracts the tensor network with an arbitrary contraction order, then
     /// returns the correctly permuted tensor data.
     fn contract_tn(tn: Tensor, perm: Permutor) -> TensorData {
-        let opt_path = (1..tn.tensors().len())
-            .map(|tid| ContractionIndex::Pair(0, tid))
-            .collect_vec();
+        let opt_path =
+            ContractionPath::simple((1..tn.tensors().len()).map(|tid| (0, tid)).collect());
         let tn = contract_tensor_network(tn, &opt_path);
         let mut tn = perm.apply(tn);
         std::mem::take(&mut tn.tensordata)

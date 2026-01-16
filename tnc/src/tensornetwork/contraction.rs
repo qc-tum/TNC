@@ -2,7 +2,7 @@ use log::debug;
 use tetra::contract;
 
 use crate::{
-    contractionpath::ContractionIndex,
+    contractionpath::ContractionPath,
     tensornetwork::{tensor::Tensor, tensordata::TensorData},
 };
 
@@ -26,21 +26,21 @@ use crate::{
 /// let opt_path = opt.get_best_replace_path();
 /// let result = contract_tensor_network(r_tn, &opt_path);
 /// ```
-pub fn contract_tensor_network(mut tn: Tensor, contract_path: &[ContractionIndex]) -> Tensor {
+pub fn contract_tensor_network(mut tn: Tensor, contract_path: &ContractionPath) -> Tensor {
     debug!(len = tn.tensors().len(); "Start contracting tensor network");
-    for contract_index in contract_path {
-        match contract_index {
-            ContractionIndex::Pair(i, j) => {
-                debug!(i, j; "Contracting tensors");
-                tn.contract_tensors(*i, *j);
-                debug!(i, j; "Finished contracting tensors");
-            }
-            ContractionIndex::Path(i, inner_contract_path) => {
-                let composite = std::mem::take(&mut tn.tensors[*i]);
-                let contracted = contract_tensor_network(composite, inner_contract_path);
-                tn.tensors[*i] = contracted;
-            }
-        }
+
+    // Contract child composite tensors first
+    for (index, inner_path) in &contract_path.nested {
+        let composite = std::mem::take(&mut tn.tensors[*index]);
+        let contracted = contract_tensor_network(composite, inner_path);
+        tn.tensors[*index] = contracted;
+    }
+
+    // Contract all leaf tensors
+    for (i, j) in &contract_path.toplevel {
+        debug!(i, j; "Contracting tensors");
+        tn.contract_tensors(*i, *j);
+        debug!(i, j; "Finished contracting tensors");
     }
     debug!("Completed tensor network contraction");
 
@@ -218,7 +218,7 @@ mod tests {
         let tn = Tensor::new_composite(vec![t1, t2, t3]);
         let contract_path = path![(0, 1), (0, 2)];
 
-        let result = contract_tensor_network(tn, contract_path);
+        let result = contract_tensor_network(tn, &contract_path);
         assert_approx_eq!(&Tensor, &result, &tout, epsilon = 1e-14);
     }
 
@@ -258,7 +258,7 @@ mod tests {
             None,
         ));
 
-        let result = contract_tensor_network(t3, contract_path);
+        let result = contract_tensor_network(t3, &contract_path);
         assert_approx_eq!(&Tensor, &result, &tn_ref);
     }
 }
