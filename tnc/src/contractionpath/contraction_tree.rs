@@ -1,14 +1,14 @@
 use std::cell::Ref;
 use std::rc::Rc;
 
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
 use crate::contractionpath::contraction_tree::node::{
     child_node, parent_node, Node, NodeRef, WeakNodeRef,
 };
 use crate::contractionpath::paths::validate_path;
-use crate::contractionpath::ContractionIndex;
-use crate::pair;
+use crate::contractionpath::{ContractionPath, SimplePath, SimplePathRef};
 use crate::tensornetwork::tensor::Tensor;
 
 pub mod balancing;
@@ -45,7 +45,7 @@ impl ContractionTree {
     /// `path`.
     fn from_contraction_path_recurse(
         tensor: &Tensor,
-        path: &[ContractionIndex],
+        path: &ContractionPath,
         nodes: &mut FxHashMap<usize, NodeRef>,
         partitions: &mut FxHashMap<usize, Vec<usize>>,
         prefix: &[usize],
@@ -53,20 +53,18 @@ impl ContractionTree {
         let mut scratch = FxHashMap::default();
 
         // Obtain tree structure from composite tensors
-        for contr in path {
-            if let ContractionIndex::Path(path_id, path) = contr {
-                let composite_tensor = tensor.tensor(*path_id);
-                let mut new_prefix = prefix.to_owned();
-                new_prefix.push(*path_id);
-                Self::from_contraction_path_recurse(
-                    composite_tensor,
-                    path,
-                    nodes,
-                    partitions,
-                    &new_prefix,
-                );
-                scratch.insert(*path_id, Rc::clone(&nodes[&(nodes.len() - 1)]));
-            }
+        for (path_id, path) in path.nested.iter().sorted_by_key(|&(path_id, _)| *path_id) {
+            let composite_tensor = tensor.tensor(*path_id);
+            let mut new_prefix = prefix.to_owned();
+            new_prefix.push(*path_id);
+            Self::from_contraction_path_recurse(
+                composite_tensor,
+                path,
+                nodes,
+                partitions,
+                &new_prefix,
+            );
+            scratch.insert(*path_id, Rc::clone(&nodes[&(nodes.len() - 1)]));
         }
 
         // Add nodes for leaf tensors
@@ -81,16 +79,14 @@ impl ContractionTree {
         }
 
         // Build tree based on contraction path
-        for contr in path {
-            if let ContractionIndex::Pair(i_path, j_path) = contr {
-                let i = &scratch[i_path];
-                let j = &scratch[j_path];
-                let parent = parent_node(nodes.len(), i, j);
+        for (i_path, j_path) in &path.toplevel {
+            let i = &scratch[i_path];
+            let j = &scratch[j_path];
+            let parent = parent_node(nodes.len(), i, j);
 
-                scratch.insert(*i_path, Rc::clone(&parent));
-                nodes.insert(nodes.len(), parent);
-                scratch.remove(j_path);
-            }
+            scratch.insert(*i_path, Rc::clone(&parent));
+            nodes.insert(nodes.len(), parent);
+            scratch.remove(j_path);
         }
         partitions
             .entry(prefix.len())
@@ -102,11 +98,11 @@ impl ContractionTree {
     /// represents all intermediate tensors and costs of given contraction path and
     /// tensor network.
     #[must_use]
-    pub fn from_contraction_path(tensor: &Tensor, path: &[ContractionIndex]) -> Self {
+    pub fn from_contraction_path(tensor: &Tensor, path: &ContractionPath) -> Self {
         validate_path(path);
         let mut nodes = FxHashMap::default();
         let mut partitions = FxHashMap::default();
-        Self::from_contraction_path_recurse(tensor, path, &mut nodes, &mut partitions, &Vec::new());
+        Self::from_contraction_path_recurse(tensor, path, &mut nodes, &mut partitions, &[]);
         let root = Rc::downgrade(&nodes[&(nodes.len() - 1)]);
         Self {
             nodes,
@@ -168,7 +164,7 @@ impl ContractionTree {
     /// The ContractionTree should already contain the leaf nodes of the
     pub(crate) fn add_path_as_subtree(
         &mut self,
-        path: &[ContractionIndex],
+        path: &ContractionPath,
         parent_id: usize,
         leaf_tensor_indices: &[usize],
     ) -> usize {
@@ -185,31 +181,31 @@ impl ContractionTree {
         }
 
         // Generate intermediate tensors by looping over contraction operations, fill and update scratch as needed.
-        for contr in path {
-            if let ContractionIndex::Pair(i_path, j_path) = contr {
-                // Always keep track of latest added tensor. Last index will be the root of the subtree.
-                index = self.next_id(index);
-                let i = &scratch[i_path];
-                let j = &scratch[j_path];
+        assert!(
+            path.is_simple(),
+            "Constructor not implemented for nested Tensors"
+        );
+        for (i_path, j_path) in &path.toplevel {
+            // Always keep track of latest added tensor. Last index will be the root of the subtree.
+            index = self.next_id(index);
+            let i = &scratch[i_path];
+            let j = &scratch[j_path];
 
-                // Ensure that we are not reusing nodes that are already in another contraction path
-                assert!(
-                    i.borrow().parent_id().is_none(),
-                    "Tensor {i_path} is already used in another contraction"
-                );
-                assert!(
-                    j.borrow().parent_id().is_none(),
-                    "Tensor {j_path} is already used in another contraction"
-                );
+            // Ensure that we are not reusing nodes that are already in another contraction path
+            assert!(
+                i.borrow().parent_id().is_none(),
+                "Tensor {i_path} is already used in another contraction"
+            );
+            assert!(
+                j.borrow().parent_id().is_none(),
+                "Tensor {j_path} is already used in another contraction"
+            );
 
-                let parent = parent_node(index, i, j);
-                scratch.insert(*i_path, Rc::clone(&parent));
-                scratch.remove(j_path);
-                // Ensure that intermediate tensor information is stored in internal HashMap for reference
-                self.nodes.insert(index, parent);
-            } else {
-                panic!("Constructor not implemented for nested Tensors")
-            }
+            let parent = parent_node(index, i, j);
+            scratch.insert(*i_path, Rc::clone(&parent));
+            scratch.remove(j_path);
+            // Ensure that intermediate tensor information is stored in internal HashMap for reference
+            self.nodes.insert(index, parent);
         }
 
         // Add the root of the subtree to the indicated node `parent_id` in larger contraction tree.
@@ -237,7 +233,7 @@ impl ContractionTree {
     fn replace_communication_path(
         &mut self,
         partition_ids: Vec<usize>,
-        communication_path: &[ContractionIndex],
+        communication_path: SimplePathRef,
     ) {
         // Remove all nodes involved in communication path
         self.remove_communication_path(&partition_ids);
@@ -245,17 +241,15 @@ impl ContractionTree {
         // Rebuild the communication-part of the tree
         let mut communication_ids = partition_ids;
         let mut next_id = self.next_id(0);
-        for contraction_index in communication_path {
-            if let ContractionIndex::Pair(i, j) = contraction_index {
-                let left_child = communication_ids[*i];
-                let right_child = communication_ids[*j];
-                let new_parent =
-                    parent_node(next_id, &self.nodes[&left_child], &self.nodes[&right_child]);
-                self.nodes.insert(next_id, new_parent);
+        for (i, j) in communication_path {
+            let left_child = communication_ids[*i];
+            let right_child = communication_ids[*j];
+            let new_parent =
+                parent_node(next_id, &self.nodes[&left_child], &self.nodes[&right_child]);
+            self.nodes.insert(next_id, new_parent);
 
-                communication_ids[*i] = next_id;
-                next_id = self.next_id(next_id);
-            }
+            communication_ids[*i] = next_id;
+            next_id = self.next_id(next_id);
         }
 
         // Update root
@@ -321,11 +315,7 @@ impl ContractionTree {
     /// * `node` - pointer to Node object
     /// * `path` - vec to store contraction path in
     /// * `replace` - if set to `true` returns replace path, otherwise, returns in SSA format
-    fn to_contraction_path_recurse(
-        node: &Node,
-        path: &mut Vec<ContractionIndex>,
-        replace: bool,
-    ) -> usize {
+    fn to_contraction_path_recurse(node: &Node, path: &mut SimplePath, replace: bool) -> usize {
         if node.is_leaf() {
             return node.id();
         }
@@ -345,7 +335,7 @@ impl ContractionTree {
         }
 
         // Add pair to path
-        path.push(pair!(t1_id, t2_id));
+        path.push((t1_id, t2_id));
 
         // Return id of contracted tensor
         if replace {
@@ -359,7 +349,7 @@ impl ContractionTree {
     /// # Arguments
     /// * `node` - pointer to Node object
     /// * `replace` - if set to `true` returns replace path, otherwise, returns in SSA format
-    pub fn to_flat_contraction_path(&self, node_id: usize, replace: bool) -> Vec<ContractionIndex> {
+    pub fn to_flat_contraction_path(&self, node_id: usize, replace: bool) -> SimplePath {
         let node = self.node(node_id);
         let mut path = Vec::new();
         Self::to_contraction_path_recurse(&node, &mut path, replace);
@@ -505,7 +495,7 @@ mod tests {
     use crate::path;
     use crate::tensornetwork::tensor::{EdgeIndex, Tensor};
 
-    fn setup_simple() -> (Tensor, Vec<ContractionIndex>, FxHashMap<EdgeIndex, u64>) {
+    fn setup_simple() -> (Tensor, ContractionPath, FxHashMap<EdgeIndex, u64>) {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
         (
@@ -514,12 +504,12 @@ mod tests {
                 Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
                 Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
             ]),
-            path![(0, 1), (2, 0)].to_vec(),
+            path![(0, 1), (2, 0)],
             bond_dims,
         )
     }
 
-    fn setup_complex() -> (Tensor, Vec<ContractionIndex>, FxHashMap<EdgeIndex, u64>) {
+    fn setup_complex() -> (Tensor, ContractionPath, FxHashMap<EdgeIndex, u64>) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -542,12 +532,12 @@ mod tests {
                 Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
                 Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
             ]),
-            path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
+            path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)],
             bond_dims,
         )
     }
 
-    fn setup_unbalanced() -> (Tensor, Vec<ContractionIndex>) {
+    fn setup_unbalanced() -> (Tensor, ContractionPath) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -571,11 +561,11 @@ mod tests {
                 Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
                 Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
             ]),
-            path![(0, 1), (2, 0), (3, 2), (4, 3), (5, 4)].to_vec(),
+            path![(0, 1), (2, 0), (3, 2), (4, 3), (5, 4)],
         )
     }
 
-    fn setup_nested() -> (Tensor, Vec<ContractionIndex>) {
+    fn setup_nested() -> (Tensor, ContractionPath) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -604,11 +594,11 @@ mod tests {
         let tensor_network = Tensor::new_composite(vec![t01, t23, t45]);
         (
             tensor_network,
-            path![(0, [(0, 1)]), (1, [(0, 1)]), (2, [(0, 1)]), (0, 1), (0, 2)].to_vec(),
+            path![{(0, [(0, 1)]), (1, [(0, 1)]), (2, [(0, 1)])}, (0, 1), (0, 2)],
         )
     }
 
-    fn setup_double_nested() -> (Tensor, Vec<ContractionIndex>) {
+    fn setup_double_nested() -> (Tensor, ContractionPath) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -639,11 +629,12 @@ mod tests {
         (
             tensor_network,
             path![
-                (0, [(0, [(0, 1)]), (0, 1)]),
-                (1, [(0, [(0, 1)]), (0, 1)]),
+                {
+                (0, [{(0, [(0, 1)])}, (0, 1)]),
+                (1, [{(0, [(0, 1)])}, (0, 1)]),
+                },
                 (0, 1)
-            ]
-            .to_vec(),
+            ],
         )
     }
 
@@ -944,7 +935,7 @@ mod tests {
         let (tensor, ref_path, _) = setup_simple();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let path = tree.to_flat_contraction_path(4, false);
-        let path = ssa_replace_ordering(&path, 3);
+        let path = ssa_replace_ordering(&ContractionPath::simple(path));
         assert_eq!(path, ref_path);
     }
 
@@ -953,7 +944,7 @@ mod tests {
         let (tensor, ref_path, _) = setup_complex();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let path = tree.to_flat_contraction_path(10, false);
-        let path = ssa_replace_ordering(&path, 6);
+        let path = ssa_replace_ordering(&ContractionPath::simple(path));
         assert_eq!(path, ref_path);
     }
 
@@ -962,7 +953,7 @@ mod tests {
         let (tensor, ref_path) = setup_unbalanced();
         let tree = ContractionTree::from_contraction_path(&tensor, &ref_path);
         let path = tree.to_flat_contraction_path(10, false);
-        let path = ssa_replace_ordering(&path, 6);
+        let path = ssa_replace_ordering(&ContractionPath::simple(path));
         assert_eq!(path, ref_path);
     }
 
@@ -1079,7 +1070,7 @@ mod tests {
         complex_tree.remove_subtree(9);
         let new_path = path![(4, 2), (4, 3)];
 
-        complex_tree.add_path_as_subtree(new_path, 10, &[3, 4, 2]);
+        complex_tree.add_path_as_subtree(&new_path, 10, &[3, 4, 2]);
 
         let ContractionTree { nodes, root, .. } = complex_tree;
 
@@ -1116,7 +1107,7 @@ mod tests {
         complex_tree.remove_subtree(8);
         let new_path = path![(4, 2), (4, 3)];
 
-        complex_tree.add_path_as_subtree(new_path, 9, &[3, 4, 2]);
+        complex_tree.add_path_as_subtree(&new_path, 9, &[3, 4, 2]);
     }
 
     #[test]
@@ -1135,7 +1126,7 @@ mod tests {
         let (tensor, path) = setup_nested();
         let mut complex_tree = ContractionTree::from_contraction_path(&tensor, &path);
         let partition_ids = vec![2, 5, 8];
-        complex_tree.replace_communication_path(partition_ids, path![(0, 2), (1, 0)]);
+        complex_tree.replace_communication_path(partition_ids, &[(0, 2), (1, 0)]);
 
         let ContractionTree { nodes, root, .. } = complex_tree;
 

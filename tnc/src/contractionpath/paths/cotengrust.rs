@@ -6,11 +6,11 @@ use rustc_hash::FxHashMap;
 
 use crate::contractionpath::contraction_cost::contract_path_cost;
 use crate::contractionpath::paths::FindPath;
-use crate::contractionpath::{ssa_replace_ordering, ContractionIndex};
+use crate::contractionpath::{ssa_replace_ordering, ContractionPath, SimplePath};
 use crate::tensornetwork::tensor::Tensor;
 
 /// The optimization method to use.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OptMethod {
     /// Searches for the optimal path, quite slow.
     Optimal,
@@ -24,7 +24,7 @@ pub enum OptMethod {
 #[derive(Debug, Clone)]
 pub struct Cotengrust<'a> {
     tensor: &'a Tensor,
-    best_path: Vec<ContractionIndex>,
+    best_path: ContractionPath,
     best_flops: f64,
     best_size: f64,
     opt_method: OptMethod,
@@ -36,16 +36,18 @@ impl<'a> Cotengrust<'a> {
         Self {
             tensor,
             opt_method,
-            best_path: Vec::new(),
+            best_path: ContractionPath::default(),
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
         }
     }
 
-    fn optimize_single(&self, inputs: &[Tensor], output: &Tensor) -> Vec<ContractionIndex> {
+    /// Finds a contraction path for a "classical" tensor network, i.e. the inputs
+    /// are all leaf tensors.
+    fn optimize_single(&self, inputs: &[Tensor], output: &Tensor) -> SimplePath {
         // Check if the inputs are empty (cotengrust does not handle this gracefully)
         if inputs.is_empty() {
-            return Vec::new();
+            return SimplePath::default();
         }
 
         // Convert the inputs to the cotengra format
@@ -90,7 +92,7 @@ impl<'a> Cotengrust<'a> {
                 let [a, b] = pair[..] else {
                     panic!("Expected two indices in contraction path pair")
                 };
-                ContractionIndex::Pair(a as _, b as _)
+                (a as _, b as _)
             })
             .collect_vec()
     }
@@ -122,20 +124,24 @@ fn tensor_legs_to_digit(
 impl FindPath for Cotengrust<'_> {
     fn find_path(&mut self) {
         // Handle nested tensors first
+        let mut nested_paths = FxHashMap::default();
         let mut inputs = self.tensor.tensors().clone();
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.is_composite() {
-                let external_tensor = input_tensor.external_tensor();
-                let path = self.optimize_single(input_tensor.tensors(), &external_tensor);
-                self.best_path.push(ContractionIndex::Path(index, path));
-                *input_tensor = external_tensor;
+                let mut ct = Cotengrust::new(input_tensor, self.opt_method);
+                ct.find_path();
+                nested_paths.insert(index, ct.get_best_path().clone());
+                *input_tensor = input_tensor.external_tensor();
             }
         }
 
         // Now handle the outer tensor
         let external_tensor = self.tensor.external_tensor();
-        let mut outer_path = self.optimize_single(&inputs, &external_tensor);
-        self.best_path.append(&mut outer_path);
+        let outer_path = self.optimize_single(&inputs, &external_tensor);
+        self.best_path = ContractionPath {
+            nested: nested_paths,
+            toplevel: outer_path,
+        };
 
         // Compute the cost
         let (op_cost, mem_cost) =
@@ -144,12 +150,12 @@ impl FindPath for Cotengrust<'_> {
         self.best_flops = op_cost;
     }
 
-    fn get_best_path(&self) -> &Vec<ContractionIndex> {
+    fn get_best_path(&self) -> &ContractionPath {
         &self.best_path
     }
 
-    fn get_best_replace_path(&self) -> Vec<ContractionIndex> {
-        ssa_replace_ordering(&self.best_path, self.tensor.tensors().len())
+    fn get_best_replace_path(&self) -> ContractionPath {
+        ssa_replace_ordering(&self.best_path)
     }
 
     fn get_best_flops(&self) -> f64 {
@@ -240,7 +246,7 @@ mod tests {
 
         assert_eq!(opt.get_best_flops(), 600.);
         assert_eq!(opt.get_best_size(), 538.);
-        assert_eq!(opt.get_best_path(), path![(0, 1), (3, 2)]);
+        assert_eq!(opt.get_best_path(), &path![(0, 1), (3, 2)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
     }
 
@@ -252,7 +258,7 @@ mod tests {
 
         assert_eq!(opt.get_best_flops(), 228.);
         assert_eq!(opt.get_best_size(), 121.);
-        assert_eq!(opt.get_best_path(), path![(0, 1), (2, 3), (4, 5)]);
+        assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3), (4, 5)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
     }
 
@@ -264,7 +270,7 @@ mod tests {
 
         assert_eq!(opt.get_best_flops(), 16.);
         assert_eq!(opt.get_best_size(), 19.);
-        assert_eq!(opt.get_best_path(), path![(2, 1), (0, 3)]);
+        assert_eq!(opt.get_best_path(), &path![(2, 1), (0, 3)]);
         assert_eq!(opt.get_best_replace_path(), path![(2, 1), (0, 2)]);
     }
 
@@ -276,7 +282,7 @@ mod tests {
 
         assert_eq!(opt.get_best_flops(), 10.);
         assert_eq!(opt.get_best_size(), 11.);
-        assert_eq!(opt.get_best_path(), path![(0, 1), (2, 3), (5, 4)]);
+        assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3), (5, 4)]);
         assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (2, 0)]);
     }
 
@@ -290,7 +296,7 @@ mod tests {
         assert_eq!(opt.get_best_size(), 89478.);
         assert_eq!(
             opt.get_best_path(),
-            path![(1, 5), (3, 4), (6, 0), (7, 2), (9, 8)]
+            &path![(1, 5), (3, 4), (6, 0), (7, 2), (9, 8)]
         );
         assert_eq!(
             opt.get_best_replace_path(),

@@ -697,15 +697,17 @@ mod tests {
         ]);
 
         let contraction_path = path![
+            {
             (0, [(0, 1)]),
             (1, [(0, 1), (0, 2)]),
             (2, [(0, 3), (2, 1), (0, 2)]),
+            },
             (0, 1),
             (0, 2)
         ];
 
         (
-            ContractionTree::from_contraction_path(&tensor15, contraction_path),
+            ContractionTree::from_contraction_path(&tensor15, &contraction_path),
             tensor15,
         )
     }

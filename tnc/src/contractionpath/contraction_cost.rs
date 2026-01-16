@@ -4,7 +4,7 @@
 use num_complex::Complex64;
 
 use crate::{
-    contractionpath::ContractionIndex,
+    contractionpath::{ContractionPath, SimplePathRef},
     tensornetwork::tensor::{EdgeIndex, Tensor},
 };
 
@@ -145,7 +145,7 @@ pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor) -> f64 {
 #[inline]
 pub fn contract_path_cost(
     inputs: &[Tensor],
-    contract_path: &[ContractionIndex],
+    contract_path: &ContractionPath,
     only_count_ops: bool,
 ) -> (f64, f64) {
     let cost_function = if only_count_ops {
@@ -165,7 +165,7 @@ pub fn contract_path_cost(
 /// * `cost_function` - Function to calculate cost of contracting two tensors
 fn contract_path_custom_cost(
     inputs: &[Tensor],
-    contract_path: &[ContractionIndex],
+    contract_path: &ContractionPath,
     cost_function: fn(&Tensor, &Tensor) -> f64,
     size_function: fn(&Tensor, &Tensor) -> f64,
 ) -> (f64, f64) {
@@ -173,27 +173,20 @@ fn contract_path_custom_cost(
     let mut mem_cost = 0f64;
     let mut inputs = inputs.to_vec();
 
-    for index in contract_path {
-        match index {
-            ContractionIndex::Pair(i, j) => {
-                op_cost += cost_function(&inputs[*i], &inputs[*j]);
-                let ij = &inputs[*i] ^ &inputs[*j];
-                let new_mem_cost = size_function(&inputs[*i], &inputs[*j]);
-                mem_cost = mem_cost.max(new_mem_cost);
-                inputs[*i] = ij;
-            }
-            ContractionIndex::Path(i, ref path) => {
-                let costs = contract_path_custom_cost(
-                    inputs[*i].tensors(),
-                    path,
-                    cost_function,
-                    size_function,
-                );
-                op_cost += costs.0;
-                mem_cost = mem_cost.max(costs.1);
-                inputs[*i] = inputs[*i].external_tensor();
-            }
-        }
+    for (i, path) in &contract_path.nested {
+        let costs =
+            contract_path_custom_cost(inputs[*i].tensors(), path, cost_function, size_function);
+        op_cost += costs.0;
+        mem_cost = mem_cost.max(costs.1);
+        inputs[*i] = inputs[*i].external_tensor();
+    }
+
+    for &(i, j) in &contract_path.toplevel {
+        op_cost += cost_function(&inputs[i], &inputs[j]);
+        let ij = &inputs[i] ^ &inputs[j];
+        let new_mem_cost = size_function(&inputs[i], &inputs[j]);
+        mem_cost = mem_cost.max(new_mem_cost);
+        inputs[i] = ij;
     }
 
     (op_cost, mem_cost)
@@ -204,7 +197,7 @@ fn contract_path_custom_cost(
 #[inline]
 pub fn communication_path_op_costs(
     inputs: &[Tensor],
-    contract_path: &[ContractionIndex],
+    contract_path: SimplePathRef,
     only_count_ops: bool,
     tensor_cost: Option<&[f64]>,
 ) -> ((f64, f64), f64) {
@@ -226,7 +219,7 @@ pub fn communication_path_op_costs(
 /// * `tensor_costs` - Initial cost for each tensor
 pub fn communication_path_cost(
     inputs: &[Tensor],
-    contract_path: &[ContractionIndex],
+    contract_path: SimplePathRef,
     only_count_ops: bool,
     only_critical_path: bool,
     tensor_cost: Option<&[f64]>,
@@ -265,7 +258,7 @@ pub fn communication_path_cost(
 /// * `tensor_costs` - Initial cost for each tensor
 fn communication_path_custom_cost(
     inputs: &[Tensor],
-    contract_path: &[ContractionIndex],
+    contract_path: SimplePathRef,
     cost_function: fn(&Tensor, &Tensor) -> f64,
     only_critical_path: bool,
     tensor_cost: &[f64],
@@ -275,25 +268,18 @@ fn communication_path_custom_cost(
     let mut inputs = inputs.to_vec();
     let mut tensor_cost = tensor_cost.to_vec();
 
-    for index in contract_path {
-        match *index {
-            ContractionIndex::Pair(i, j) => {
-                let ij = &inputs[i] ^ &inputs[j];
-                let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
-                mem_cost = mem_cost.max(new_mem_cost);
+    for &(i, j) in contract_path {
+        let ij = &inputs[i] ^ &inputs[j];
+        let new_mem_cost = contract_size_tensors(&inputs[i], &inputs[j]);
+        mem_cost = mem_cost.max(new_mem_cost);
 
-                op_cost = if only_critical_path {
-                    cost_function(&inputs[i], &inputs[j]) + tensor_cost[i].max(tensor_cost[j])
-                } else {
-                    cost_function(&inputs[i], &inputs[j]) + tensor_cost[i] + tensor_cost[j]
-                };
-                tensor_cost[i] = op_cost;
-                inputs[i] = ij;
-            }
-            ContractionIndex::Path(..) => {
-                panic!("Nested paths not supported for contracting communication path");
-            }
-        }
+        op_cost = if only_critical_path {
+            cost_function(&inputs[i], &inputs[j]) + tensor_cost[i].max(tensor_cost[j])
+        } else {
+            cost_function(&inputs[i], &inputs[j]) + tensor_cost[i] + tensor_cost[j]
+        };
+        tensor_cost[i] = op_cost;
+        inputs[i] = ij;
     }
 
     (op_cost, mem_cost)
@@ -309,7 +295,7 @@ fn communication_path_custom_cost(
 #[inline]
 pub fn compute_memory_requirements(
     inputs: &[Tensor],
-    contract_path: &[ContractionIndex],
+    contract_path: &ContractionPath,
     memory_estimator: fn(&Tensor, &Tensor) -> f64,
 ) -> f64 {
     fn id(_: &Tensor, _: &Tensor) -> f64 {
@@ -380,10 +366,10 @@ mod tests {
     #[test]
     fn test_contract_path_cost() {
         let tn = setup_simple();
-        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 1), (0, 2)], false);
+        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), &path![(0, 1), (0, 2)], false);
         assert_eq!(op_cost, 4540.);
         assert_eq!(mem_cost, 538.);
-        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 2), (0, 1)], false);
+        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), &path![(0, 2), (0, 1)], false);
         assert_eq!(op_cost, 49296.);
         assert_eq!(mem_cost, 1176.);
     }
@@ -393,7 +379,7 @@ mod tests {
         let tn = setup_complex();
         let (op_cost, mem_cost) = contract_path_cost(
             tn.tensors(),
-            path![(0, [(0, 1), (0, 2)]), (1, [(0, 1)]), (0, 1)],
+            &path![{(0, [(0, 1), (0, 2)]), (1, [(0, 1)])}, (0, 1)],
             false,
         );
         assert_eq!(op_cost, 11188.);
@@ -403,10 +389,10 @@ mod tests {
     #[test]
     fn test_contract_path_cost_only_ops() {
         let tn = setup_simple();
-        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 1), (0, 2)], true);
+        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), &path![(0, 1), (0, 2)], true);
         assert_eq!(op_cost, 600.);
         assert_eq!(mem_cost, 538.);
-        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), path![(0, 2), (0, 1)], true);
+        let (op_cost, mem_cost) = contract_path_cost(tn.tensors(), &path![(0, 2), (0, 1)], true);
         assert_eq!(op_cost, 6336.);
         assert_eq!(mem_cost, 1176.);
     }
@@ -416,7 +402,7 @@ mod tests {
         let tn = setup_complex();
         let (op_cost, mem_cost) = contract_path_cost(
             tn.tensors(),
-            path![(0, [(0, 1), (0, 2)]), (1, [(0, 1)]), (0, 1)],
+            &path![{(0, [(0, 1), (0, 2)]), (1, [(0, 1)])}, (0, 1)],
             true,
         );
         assert_eq!(op_cost, 1464.);
@@ -426,13 +412,8 @@ mod tests {
     #[test]
     fn test_communication_path_cost_only_ops() {
         let tn = setup_parallel();
-        let (op_cost, mem_cost) = communication_path_cost(
-            tn.tensors(),
-            path![(0, 1), (2, 3), (0, 2)],
-            true,
-            true,
-            None,
-        );
+        let (op_cost, mem_cost) =
+            communication_path_cost(tn.tensors(), &[(0, 1), (2, 3), (0, 2)], true, true, None);
         assert_eq!(op_cost, 490.);
         assert_eq!(mem_cost, 538.);
     }
@@ -440,13 +421,8 @@ mod tests {
     #[test]
     fn test_communication_path_cost() {
         let tn = setup_parallel();
-        let (op_cost, mem_cost) = communication_path_cost(
-            tn.tensors(),
-            path![(0, 1), (2, 3), (0, 1)],
-            false,
-            true,
-            None,
-        );
+        let (op_cost, mem_cost) =
+            communication_path_cost(tn.tensors(), &[(0, 1), (2, 3), (0, 1)], false, true, None);
         assert_eq!(op_cost, 7564.);
         assert_eq!(mem_cost, 538.);
     }
@@ -457,7 +433,7 @@ mod tests {
         let tensor_cost = vec![20., 30., 80., 10.];
         let (op_cost, mem_cost) = communication_path_cost(
             tn.tensors(),
-            path![(0, 1), (2, 3), (0, 2)],
+            &[(0, 1), (2, 3), (0, 2)],
             true,
             true,
             Some(&tensor_cost),
@@ -472,7 +448,7 @@ mod tests {
         let tensor_cost = vec![20., 30., 80., 10.];
         let (op_cost, mem_cost) = communication_path_cost(
             tn.tensors(),
-            path![(0, 1), (2, 3), (0, 1)],
+            &[(0, 1), (2, 3), (0, 1)],
             false,
             true,
             Some(&tensor_cost),

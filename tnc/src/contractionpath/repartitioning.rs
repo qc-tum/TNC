@@ -12,7 +12,7 @@ use crate::{
             cotengrust::{Cotengrust, OptMethod},
             FindPath,
         },
-        ContractionIndex,
+        ContractionPath,
     },
     tensornetwork::{partitioning::partition_tensor_network, tensor::Tensor},
 };
@@ -27,7 +27,7 @@ pub fn compute_solution<R>(
     partitioning: &[usize],
     communication_scheme: CommunicationScheme,
     rng: Option<&mut R>,
-) -> (Tensor, Vec<ContractionIndex>, f64, f64)
+) -> (Tensor, ContractionPath, f64, f64)
 where
     R: ?Sized + Rng,
 {
@@ -42,14 +42,10 @@ where
     // Store the local paths (and costs)
     let mut latency_map =
         FxHashMap::from_iter((0..partitioned_tn.tensors().len()).map(|i| (i, 0.0)));
-    let mut final_path = Vec::with_capacity(tensor.tensors().len());
-    for p in path {
-        if let ContractionIndex::Path(i, local_path) = p {
-            let (local_cost, _) =
-                contract_path_cost(partitioned_tn.tensor(i).tensors(), &local_path, true);
-            latency_map.insert(i, local_cost);
-            final_path.push(ContractionIndex::Path(i, local_path));
-        }
+    for (i, local_path) in &path.nested {
+        let (local_cost, _) =
+            contract_path_cost(partitioned_tn.tensor(*i).tensors(), local_path, true);
+        latency_map.insert(*i, local_cost);
     }
 
     // Find communication path separately
@@ -58,7 +54,7 @@ where
         .iter()
         .map(Tensor::external_tensor)
         .collect_vec();
-    let mut communication_path =
+    let communication_path =
         communication_scheme.communication_path(&children_tensors, &latency_map, rng);
     let tensor_costs = (0..children_tensors.len())
         .map(|i| latency_map[&i])
@@ -71,7 +67,10 @@ where
     );
 
     // Add the communication path to the local paths
-    final_path.append(&mut communication_path);
+    let final_path = ContractionPath {
+        nested: path.nested,
+        toplevel: communication_path,
+    };
 
     (partitioned_tn, final_path, parallel_cost, sum_cost)
 }

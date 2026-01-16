@@ -8,7 +8,7 @@ use crate::{
     contractionpath::{
         contraction_cost::contract_path_cost,
         paths::{CostType, FindPath},
-        ssa_replace_ordering, ContractionIndex,
+        ssa_replace_ordering, ContractionPath,
     },
     tensornetwork::tensor::Tensor,
 };
@@ -20,7 +20,7 @@ pub struct TreeTempering<'a> {
     numiter: Option<usize>,
     best_flops: f64,
     best_size: f64,
-    best_path: Vec<ContractionIndex>,
+    best_path: ContractionPath,
     seed: Option<u64>,
 }
 
@@ -42,7 +42,7 @@ impl<'a> TreeTempering<'a> {
             numiter,
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
-            best_path: vec![],
+            best_path: ContractionPath::default(),
             seed,
         }
     }
@@ -74,10 +74,7 @@ impl FindPath for TreeTempering<'_> {
 
         let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
 
-        self.best_path = best_path
-            .iter()
-            .map(|(i, j)| ContractionIndex::Pair(*i, *j))
-            .collect_vec();
+        self.best_path = ContractionPath::simple(best_path);
 
         let (op_cost, mem_cost) =
             contract_path_cost(self.tensor.tensors(), &self.get_best_replace_path(), true);
@@ -94,12 +91,12 @@ impl FindPath for TreeTempering<'_> {
         self.best_size
     }
 
-    fn get_best_path(&self) -> &Vec<ContractionIndex> {
+    fn get_best_path(&self) -> &ContractionPath {
         &self.best_path
     }
 
-    fn get_best_replace_path(&self) -> Vec<ContractionIndex> {
-        ssa_replace_ordering(&self.best_path, self.tensor.tensors().len())
+    fn get_best_replace_path(&self) -> ContractionPath {
+        ssa_replace_ordering(&self.best_path)
     }
 }
 

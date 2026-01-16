@@ -8,7 +8,7 @@ use crate::{
         candidates::Candidate,
         contraction_cost::{contract_cost_tensors, contract_size_tensors},
         paths::{CostType, FindPath},
-        ssa_ordering, ssa_replace_ordering, ContractionIndex,
+        ssa_ordering, ssa_replace_ordering, ContractionPath,
     },
     tensornetwork::tensor::Tensor,
     utils::traits::HashMapInsertNew,
@@ -22,7 +22,7 @@ pub struct BranchBound<'a> {
     minimize: CostType,
     best_flops: f64,
     best_size: f64,
-    best_path: Vec<ContractionIndex>,
+    best_path: ContractionPath,
     best_progress: FxHashMap<usize, f64>,
     result_cache: FxHashMap<(usize, usize), usize>,
     flop_cache: FxHashMap<usize, f64>,
@@ -44,7 +44,7 @@ impl<'a> BranchBound<'a> {
             minimize,
             best_flops: f64::INFINITY,
             best_size: f64::INFINITY,
-            best_path: Vec::new(),
+            best_path: ContractionPath::default(),
             best_progress: FxHashMap::default(),
             result_cache: FxHashMap::default(),
             flop_cache: FxHashMap::default(),
@@ -184,7 +184,7 @@ impl FindPath for BranchBound<'_> {
         self.size_cache.clear();
         self.result_cache.clear();
         self.tensor_cache.clear();
-        let mut sub_tensor_contraction = Vec::new();
+        let mut nested_paths = FxHashMap::default();
         // Get the initial space requirements for uncontracted tensors
         for (index, mut tensor) in tensors.into_iter().enumerate() {
             // Check that tensor has sub-tensors and doesn't have external legs set
@@ -196,8 +196,7 @@ impl FindPath for BranchBound<'_> {
                     self.minimize,
                 );
                 bb.find_path();
-                sub_tensor_contraction
-                    .push(ContractionIndex::Path(index, bb.get_best_path().clone()));
+                nested_paths.insert(index, bb.get_best_path().clone());
                 tensor = tensor.external_tensor();
             }
             self.size_cache
@@ -208,8 +207,10 @@ impl FindPath for BranchBound<'_> {
         }
         let remaining = (0..self.tn.tensors().len()).collect_vec();
         self.branch_iterate(&[], &remaining, 0f64, 0f64);
-        sub_tensor_contraction.extend_from_slice(&self.best_path);
-        self.best_path = sub_tensor_contraction;
+        self.best_path = ContractionPath {
+            nested: nested_paths,
+            toplevel: std::mem::take(&mut self.best_path).into_simple(),
+        };
     }
 
     fn get_best_flops(&self) -> f64 {
@@ -220,12 +221,12 @@ impl FindPath for BranchBound<'_> {
         self.best_size
     }
 
-    fn get_best_path(&self) -> &Vec<ContractionIndex> {
+    fn get_best_path(&self) -> &ContractionPath {
         &self.best_path
     }
 
-    fn get_best_replace_path(&self) -> Vec<ContractionIndex> {
-        ssa_replace_ordering(&self.best_path, self.tn.tensors().len())
+    fn get_best_replace_path(&self) -> ContractionPath {
+        ssa_replace_ordering(&self.best_path)
     }
 }
 

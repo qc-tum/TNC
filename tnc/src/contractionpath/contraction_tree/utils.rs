@@ -9,9 +9,8 @@ use crate::{
             cotengrust::{Cotengrust, OptMethod},
             FindPath,
         },
-        ContractionIndex,
+        ContractionPath, SimplePath,
     },
-    pair,
     tensornetwork::tensor::Tensor,
 };
 
@@ -22,7 +21,7 @@ pub(super) fn subtree_tensor_network(
     node_id: usize,
     contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
-) -> (Vec<Tensor>, Vec<ContractionIndex>) {
+) -> (Vec<Tensor>, SimplePath) {
     let leaf_ids = contraction_tree.leaf_ids(node_id);
     let local_tensors = leaf_ids
         .iter()
@@ -41,13 +40,7 @@ pub(super) fn subtree_tensor_network(
 
     let local_contraction_path = contraction_path
         .into_iter()
-        .map(|e| {
-            if let ContractionIndex::Pair(a, b) = e {
-                ContractionIndex::Pair(local_mapping[&a], local_mapping[&b])
-            } else {
-                panic!("No recursive path from flat contraction path!");
-            }
-        })
+        .map(|(a, b)| (local_mapping[&a], local_mapping[&b]))
         .collect_vec();
 
     (local_tensors, local_contraction_path)
@@ -60,7 +53,7 @@ pub(super) fn subtree_contraction_path(
     subtree_leaf_nodes: &[usize],
     contraction_tree: &ContractionTree,
     tensor_network: &Tensor,
-) -> (Vec<ContractionIndex>, Vec<ContractionIndex>, f64, f64) {
+) -> (SimplePath, SimplePath, f64, f64) {
     // Obtain the flattened list of Tensors corresponding to `indices`. Introduces a new indexing to find the replace contraction path.
     let tensors = subtree_leaf_nodes
         .iter()
@@ -78,16 +71,11 @@ pub(super) fn subtree_contraction_path(
     opt.find_path();
 
     let smaller_path_new_index = opt.get_best_replace_path();
+    let smaller_path_new_index = smaller_path_new_index.into_simple();
 
     let smaller_path_node_index = smaller_path_new_index
         .iter()
-        .map(|e| {
-            if let ContractionIndex::Pair(v1, v2) = e {
-                pair!(subtree_leaf_nodes[*v1], subtree_leaf_nodes[*v2])
-            } else {
-                panic!("Should only produce Pairs!")
-            }
-        })
+        .map(|(v1, v2)| (subtree_leaf_nodes[*v1], subtree_leaf_nodes[*v2]))
         .collect_vec();
 
     (
@@ -113,8 +101,11 @@ pub(super) fn characterize_partition(
             let (local_tensors, local_contraction_path) =
                 subtree_tensor_network(*child, contraction_tree, tensor_network);
 
-            let (flop_cost, mem_cost) =
-                contract_path_cost(&local_tensors, &local_contraction_path, true);
+            let (flop_cost, mem_cost) = contract_path_cost(
+                &local_tensors,
+                &ContractionPath::simple(local_contraction_path.clone()),
+                true,
+            );
             PartitionData {
                 id: *child,
                 flop_cost,
@@ -138,7 +129,7 @@ mod tests {
 
     use crate::{path, tensornetwork::tensor::EdgeIndex};
 
-    fn setup_complex() -> (Tensor, Vec<ContractionIndex>, FxHashMap<EdgeIndex, u64>) {
+    fn setup_complex() -> (Tensor, ContractionPath, FxHashMap<EdgeIndex, u64>) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -161,12 +152,12 @@ mod tests {
                 Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
                 Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
             ]),
-            path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
+            path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)],
             bond_dims,
         )
     }
 
-    fn setup_double_nested() -> (Tensor, Vec<ContractionIndex>) {
+    fn setup_double_nested() -> (Tensor, ContractionPath) {
         let bond_dims = FxHashMap::from_iter([
             (0, 1),
             (1, 2),
@@ -197,15 +188,16 @@ mod tests {
         (
             tensor_network,
             path![
-                (0, [(0, [(0, 1)]), (0, 1)]),
-                (1, [(0, [(0, 1)]), (0, 1)]),
+                {
+                (0, [{(0, [(0, 1)])}, (0, 1)]),
+                (1, [{(0, [(0, 1)])}, (0, 1)]),
+                },
                 (0, 1)
-            ]
-            .to_vec(),
+            ],
         )
     }
 
-    fn setup_nested() -> (Tensor, Vec<ContractionIndex>, FxHashMap<EdgeIndex, u64>) {
+    fn setup_nested() -> (Tensor, ContractionPath, FxHashMap<EdgeIndex, u64>) {
         let bond_dims = FxHashMap::from_iter([
             (0, 4),
             (1, 6),
@@ -234,13 +226,14 @@ mod tests {
         (
             tensor_network,
             path![
+                {
                 (0, [(0, 1), (0, 2)]),
                 (1, [(0, 1), (0, 2)]),
                 (2, [(0, 1)]),
+                },
                 (0, 1),
                 (0, 2)
-            ]
-            .to_vec(),
+            ],
             bond_dims,
         )
     }
@@ -258,18 +251,12 @@ mod tests {
         let (tree_contraction_path, local_contraction_path, flop_cost, mem_cost) =
             subtree_contraction_path(&subtree_leaf_nodes, &contraction_tree, &tensor);
 
-        assert_eq!(
-            tree_contraction_path,
-            path![(0, 1), (0, 3), (0, 5)].to_vec(),
-        );
+        assert_eq!(tree_contraction_path, vec![(0, 1), (0, 3), (0, 5)]);
 
-        assert_eq!(
-            local_contraction_path,
-            path![(0, 1), (0, 2), (0, 3)].to_vec(),
-        );
+        assert_eq!(local_contraction_path, vec![(0, 1), (0, 2), (0, 3)]);
 
         assert_eq!(flop_cost, 8100.); // 120 + 420 + 7560
-        assert_eq!(mem_cost, 1794.); // 84 + 630 +1080
+        assert_eq!(mem_cost, 1794.); // 84 + 630 + 1080
     }
 
     #[test]
@@ -292,7 +279,7 @@ mod tests {
             assert_eq!(tensor.legs(), ref_tensor.legs());
         }
 
-        assert_eq!(contraction_path, path![(1, 2), (0, 1)]);
+        assert_eq!(contraction_path, vec![(1, 2), (0, 1)]);
 
         let node_id = 9;
         let (subtree_tensors, contraction_path) =
@@ -303,7 +290,7 @@ mod tests {
             assert_eq!(tensor.legs(), ref_tensor.legs());
         }
 
-        assert_eq!(contraction_path, path![(1, 2), (0, 1)]);
+        assert_eq!(contraction_path, vec![(1, 2), (0, 1)]);
     }
 
     impl PartialEq for PartitionData {
@@ -327,21 +314,21 @@ mod tests {
                 id: 4,
                 flop_cost: 84., // (0, 1, 2) + (1, 2, 3) = 84
                 mem_cost: 44.,  // (0, 1) + (0, 2) + (0, 1, 2) = 44
-                contraction: path![(0, 1), (0, 2)].to_vec(),
+                contraction: vec![(0, 1), (0, 2)],
                 local_tensor: Tensor::new_from_map(vec![1, 2, 3], &bond_dims),
             },
             PartitionData {
                 id: 9,
                 flop_cost: 3456., // (1, 2, 3, 4, 5, 8) + (1, 2, 3, 4, 5, 7, 8) = 3456
                 mem_cost: 864.,   // (1, 2, 3, 4, 5, 8) + (4, 7, 8) + (1, 2, 3, 5) = 864
-                contraction: path![(0, 1), (0, 2)].to_vec(),
+                contraction: vec![(0, 1), (0, 2)],
                 local_tensor: Tensor::new_from_map(vec![2, 1, 3, 5, 7], &bond_dims),
             },
             PartitionData {
                 id: 12,
                 flop_cost: 140., // (5, 6, 7) = 140
                 mem_cost: 167.,  // (5, 6, 7) + (6) + (5, 7) = 167
-                contraction: path![(0, 1)].to_vec(),
+                contraction: vec![(0, 1)],
                 local_tensor: Tensor::new_from_map(vec![5, 7], &bond_dims),
             },
         ];

@@ -12,8 +12,7 @@ use tnc::contractionpath::contraction_tree::ContractionTree;
 use tnc::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use tnc::contractionpath::paths::FindPath;
 use tnc::mpi::communication::{
-    broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
-    scatter_tensor_network,
+    broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
 };
 use tnc::tensornetwork::contraction::contract_tensor_network;
 use tnc::tensornetwork::partitioning::partition_config::PartitioningStrategy;
@@ -93,7 +92,7 @@ fn main() {
         local_tn = contract_tensor_network(local_tn, &local_path);
 
         let mut communication_path = if rank == 0 {
-            extract_communication_path(&path)
+            path.toplevel
         } else {
             Default::default()
         };

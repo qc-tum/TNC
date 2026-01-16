@@ -17,9 +17,8 @@ use crate::contractionpath::contraction_tree::{
     ContractionTree,
 };
 use crate::contractionpath::paths::validate_path;
-use crate::contractionpath::ContractionIndex;
-use crate::mpi::communication::extract_communication_path;
-use crate::tensornetwork::tensor::Tensor;
+use crate::contractionpath::{ContractionPath, SimplePath};
+use crate::tensornetwork::tensor::{Tensor, TensorIndex};
 
 mod balancing_schemes;
 
@@ -92,24 +91,23 @@ pub(crate) struct PartitionData {
     pub id: usize,
     pub flop_cost: f64,
     pub mem_cost: f64,
-    pub contraction: Vec<ContractionIndex>,
+    pub contraction: SimplePath,
     pub local_tensor: Tensor,
 }
 
 /// Balances a partitioned tensor network to greedily optimize for a given objective.
 pub fn balance_partitions_iter<R>(
     tensor_network: &Tensor,
-    path: &[ContractionIndex],
+    path: &ContractionPath,
     mut balance_settings: BalanceSettings<R>,
     dendogram_settings: Option<&DendogramSettings>,
     rng: &mut R,
-) -> (usize, Tensor, Vec<ContractionIndex>, Vec<(f64, f64)>)
+) -> (usize, Tensor, ContractionPath, Vec<(f64, f64)>)
 where
     R: Rng,
 {
     let mut contraction_tree = ContractionTree::from_contraction_path(tensor_network, path);
 
-    let communication_path = extract_communication_path(path);
     let BalanceSettings {
         rebalance_depth,
         iterations,
@@ -138,7 +136,7 @@ where
 
     let ((mut best_cost, sum_cost), _) = communication_path_op_costs(
         &partition_tensors,
-        &communication_path,
+        &path.toplevel,
         true,
         Some(&partition_costs),
     );
@@ -156,7 +154,7 @@ where
         debug!("Balancing iteration {iteration} with balancing scheme {balancing_scheme:?}, communication scheme {communication_scheme:?}");
 
         // Balances and updates partitions
-        let (mut intermediate_path, new_tensor_network) = balance_partitions(
+        let (nested_paths, new_tensor_network) = balance_partitions(
             &mut partition_data,
             &mut contraction_tree,
             tensor_network,
@@ -164,8 +162,7 @@ where
             iteration,
         );
 
-        assert_eq!(intermediate_path.len(), partition_number, "Tensors lost!");
-        validate_path(&intermediate_path);
+        assert_eq!(nested_paths.len(), partition_number, "Tensors lost!");
 
         // Ensures that children tensors are mapped to their respective partition costs
         // Communication costs include intermediate costs
@@ -195,7 +192,11 @@ where
             Some(&partition_costs),
         );
 
-        intermediate_path.extend(communication_path);
+        let new_path = ContractionPath {
+            nested: nested_paths,
+            toplevel: path.toplevel.clone(),
+        };
+        validate_path(&new_path);
 
         max_costs.push((flop_cost, sum_cost));
         if memory_limit.is_some_and(|limit| mem_cost > limit) {
@@ -205,7 +206,7 @@ where
             best_cost = flop_cost;
             best_iteration = iteration;
             best_tn = new_tensor_network;
-            best_contraction_path = intermediate_path;
+            best_contraction_path = new_path;
         }
         print_dendogram(
             dendogram_settings,
@@ -244,7 +245,7 @@ fn communicate_partitions<R>(
     tensor_network: &Tensor,
     balance_settings: &BalanceSettings<R>,
     rng: Option<&mut R>,
-) -> Vec<ContractionIndex>
+) -> SimplePath
 where
     R: Rng,
 {
@@ -278,7 +279,7 @@ fn balance_partitions<R>(
     tensor_network: &Tensor,
     balance_settings: &mut BalanceSettings<R>,
     iteration: usize,
-) -> (Vec<ContractionIndex>, Tensor)
+) -> (FxHashMap<TensorIndex, ContractionPath>, Tensor)
 where
     R: Rng,
 {
@@ -458,7 +459,7 @@ where
          }| { cost_a.total_cmp(cost_b) },
     );
 
-    let mut rebalanced_path = Vec::new();
+    let mut rebalanced_paths = FxHashMap::default();
     let (partition_tensors, partition_ids): (Vec<_>, Vec<_>) = partition_data
         .iter()
         .enumerate()
@@ -471,7 +472,7 @@ where
                     ..
                 },
             )| {
-                rebalanced_path.push(ContractionIndex::Path(i, subtree_contraction.clone()));
+                rebalanced_paths.insert(i, ContractionPath::simple(subtree_contraction.clone()));
                 let mut child_tensor = Tensor::default();
                 let leaf_ids = contraction_tree.leaf_ids(*id);
                 let leaf_tensors = leaf_ids
@@ -497,7 +498,7 @@ where
 
     let mut updated_tn = Tensor::default();
     updated_tn.push_tensors(partition_tensors);
-    (rebalanced_path, updated_tn)
+    (rebalanced_paths, updated_tn)
 }
 
 /// Takes two hashmaps that contain node information. Identifies which pair of nodes from larger and smaller hashmaps maximizes the greedy cost function and returns the node from the `larger_subtree_nodes`.
@@ -549,16 +550,7 @@ fn shift_node_between_subtrees(
     smaller_subtree_id: usize,
     rebalanced_nodes: Vec<usize>,
     tensor_network: &Tensor,
-) -> (
-    usize,
-    Vec<ContractionIndex>,
-    f64,
-    f64,
-    usize,
-    Vec<ContractionIndex>,
-    f64,
-    f64,
-) {
+) -> (usize, SimplePath, f64, f64, usize, SimplePath, f64, f64) {
     // Obtain parents of the two subtrees that are being updated.
     let larger_subtree_parent_id = contraction_tree
         .node(larger_subtree_id)
@@ -613,7 +605,7 @@ fn shift_node_between_subtrees(
         larger_subtree_leaf_nodes[0]
     } else {
         contraction_tree.add_path_as_subtree(
-            &updated_larger_path,
+            &ContractionPath::simple(updated_larger_path),
             larger_subtree_parent_id,
             &larger_subtree_leaf_nodes,
         )
@@ -623,7 +615,7 @@ fn shift_node_between_subtrees(
     contraction_tree.remove_subtree(smaller_subtree_id);
     // Add new subtree, keep track of updated root id
     let new_smaller_subtree_id = contraction_tree.add_path_as_subtree(
-        &updated_smaller_path,
+        &ContractionPath::simple(updated_smaller_path),
         smaller_subtree_parent_id,
         &smaller_subtree_leaf_nodes,
     );
@@ -689,7 +681,7 @@ mod tests {
                 Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
                 Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
             ]),
-            path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)].to_vec(),
+            path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)],
         );
         (
             ContractionTree::from_contraction_path(&tensor, &contraction_path),

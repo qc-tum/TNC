@@ -9,8 +9,7 @@ use tnc::{
         FindPath,
     },
     mpi::communication::{
-        broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
-        scatter_tensor_network,
+        broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
     },
     tensornetwork::{
         contraction::contract_tensor_network,
@@ -114,7 +113,7 @@ fn test_partitioned_contraction_need_mpi() {
     local_tn = contract_tensor_network(local_tn, &local_path);
 
     let mut communication_path = if rank == 0 {
-        extract_communication_path(&path)
+        path.toplevel
     } else {
         Default::default()
     };

@@ -20,7 +20,7 @@ use crate::{
             FindPath,
         },
         repartitioning::compute_solution,
-        ContractionIndex,
+        SimplePath,
     },
     tensornetwork::tensor::Tensor,
 };
@@ -222,7 +222,7 @@ pub struct NaiveIntermediatePartitioningModel<'a> {
 }
 
 impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
-    type SolutionType = (Vec<usize>, Vec<Vec<ContractionIndex>>);
+    type SolutionType = (Vec<usize>, Vec<SimplePath>);
 
     fn generate_trial_solution<R: Rng>(
         &self,
@@ -253,20 +253,15 @@ impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
 
         // Select random tensor contraction in source partition
         let pair_index = rng.random_range(0..contraction_paths[source_partition].len() - 1);
-        let ContractionIndex::Pair(i, j) = contraction_paths[source_partition][pair_index] else {
-            panic!("Partitioned contractions should not contain Path elements")
-        };
+        let (i, j) = contraction_paths[source_partition][pair_index];
         let mut tensor_leaves = FxHashSet::from_iter([i, j]);
 
         // Gather all tensors that contribute to the selected contraction
-        for contraction in contraction_paths[source_partition]
+        for (i, j) in contraction_paths[source_partition]
             .iter()
             .take(pair_index)
             .rev()
         {
-            let ContractionIndex::Pair(i, j) = contraction else {
-                panic!("Expected pair")
-            };
             if tensor_leaves.contains(i) {
                 tensor_leaves.insert(*j);
             }
@@ -311,12 +306,12 @@ impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
         let mut from_opt = Cotengrust::new(&from_tensor, OptMethod::Greedy);
         from_opt.find_path();
         let from_path = from_opt.get_best_replace_path();
-        contraction_paths[source_partition] = from_path;
+        contraction_paths[source_partition] = from_path.into_simple();
 
         let mut to_opt = Cotengrust::new(&to_tensor, OptMethod::Greedy);
         to_opt.find_path();
         let to_path = to_opt.get_best_replace_path();
-        contraction_paths[target_partition] = to_path;
+        contraction_paths[target_partition] = to_path.into_simple();
 
         (partitioning, contraction_paths)
     }
@@ -424,7 +419,7 @@ pub struct IntermediatePartitioningModel<'a> {
 }
 
 impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
-    type SolutionType = (Vec<usize>, Vec<Tensor>, Vec<Vec<ContractionIndex>>);
+    type SolutionType = (Vec<usize>, Vec<Tensor>, Vec<SimplePath>);
 
     fn generate_trial_solution<R: Rng>(
         &self,
@@ -455,20 +450,15 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
 
         // Select random tensor contraction in source partition
         let pair_index = rng.random_range(0..contraction_paths[source_partition].len() - 1);
-        let ContractionIndex::Pair(i, j) = contraction_paths[source_partition][pair_index] else {
-            panic!("Partitioned contractions should not contain Path elements")
-        };
+        let (i, j) = contraction_paths[source_partition][pair_index];
         let mut tensor_leaves = FxHashSet::from_iter([i, j]);
 
         // Gather all tensors that contribute to the selected contraction
-        for contraction in contraction_paths[source_partition]
+        for (i, j) in contraction_paths[source_partition]
             .iter()
             .take(pair_index)
             .rev()
         {
-            let ContractionIndex::Pair(i, j) = contraction else {
-                panic!("Expected pair")
-            };
             if tensor_leaves.contains(i) {
                 tensor_leaves.insert(*j);
             }
@@ -530,12 +520,12 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         let mut from_opt = Cotengrust::new(&from_tensor, OptMethod::Greedy);
         from_opt.find_path();
         let from_path = from_opt.get_best_replace_path();
-        contraction_paths[source_partition] = from_path;
+        contraction_paths[source_partition] = from_path.into_simple();
 
         let mut to_opt = Cotengrust::new(&to_tensor, OptMethod::Greedy);
         to_opt.find_path();
         let to_path = to_opt.get_best_replace_path();
-        contraction_paths[target_partition] = to_path;
+        contraction_paths[target_partition] = to_path.into_simple();
 
         (partitioning, partition_tensors, contraction_paths)
     }

@@ -9,8 +9,7 @@ use crate::contractionpath::contraction_cost::communication_path_cost;
 use crate::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
 use crate::contractionpath::paths::{CostType, FindPath};
-use crate::contractionpath::ContractionIndex;
-use crate::pair;
+use crate::contractionpath::SimplePath;
 use crate::tensornetwork::partitioning::communication_partitioning;
 use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use crate::tensornetwork::tensor::Tensor;
@@ -53,7 +52,7 @@ impl CommunicationScheme {
         children_tensors: &[Tensor],
         latency_map: &FxHashMap<usize, f64>,
         rng: Option<&mut R>,
-    ) -> Vec<ContractionIndex>
+    ) -> SimplePath
     where
         R: ?Sized + Rng,
     {
@@ -76,20 +75,14 @@ impl CommunicationScheme {
     }
 }
 
-fn greedy(
-    children_tensors: &[Tensor],
-    _latency_map: &FxHashMap<usize, f64>,
-) -> Vec<ContractionIndex> {
+fn greedy(children_tensors: &[Tensor], _latency_map: &FxHashMap<usize, f64>) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
     let mut opt = Cotengrust::new(&communication_tensors, OptMethod::Greedy);
     opt.find_path();
-    opt.get_best_replace_path()
+    opt.get_best_replace_path().into_simple()
 }
 
-fn bipartition(
-    children_tensors: &[Tensor],
-    _latency_map: &FxHashMap<usize, f64>,
-) -> Vec<ContractionIndex> {
+fn bipartition(children_tensors: &[Tensor], _latency_map: &FxHashMap<usize, f64>) -> SimplePath {
     let children_tensors = children_tensors.iter().cloned().enumerate().collect_vec();
     let imbalance = 0.03;
     tensor_bipartition(&children_tensors, imbalance)
@@ -99,7 +92,7 @@ fn bipartition_sweep<R>(
     children_tensors: &[Tensor],
     latency_map: &FxHashMap<usize, f64>,
     rng: &mut R,
-) -> Vec<ContractionIndex>
+) -> SimplePath
 where
     R: ?Sized + Rng,
 {
@@ -129,24 +122,10 @@ where
     best_path
 }
 
-// pub(crate) fn bipartition_k_sweep(
-//     children_tensors: &[Tensor],
-//     latency_map: &FxHashMap<usize, f64>,
-// ) -> Vec<ContractionIndex> {
-//     let children_tensors = children_tensors.iter().cloned().enumerate().collect_vec();
-//     let imbalance = 0.03;
-//     let k = children_tensors.len();
-
-//     for i in 0..50 {
-//         let imbalance = 0.01 * i as f64;
-//         tensor_bipartition(&children_tensors, imbalance);
-//     }
-// }
-
 fn weighted_branchbound(
     children_tensors: &[Tensor],
     latency_map: &FxHashMap<usize, f64>,
-) -> Vec<ContractionIndex> {
+) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
     let mut opt = WeightedBranchBound::new(
@@ -157,10 +136,10 @@ fn weighted_branchbound(
         CostType::Flops,
     );
     opt.find_path();
-    opt.get_best_replace_path()
+    opt.get_best_replace_path().into_simple()
 }
 
-fn branchbound(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
+fn branchbound(children_tensors: &[Tensor]) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
     let latency_map = FxHashMap::from_iter((0..children_tensors.len()).map(|i| (i, 0.0)));
 
@@ -172,7 +151,7 @@ fn branchbound(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
         CostType::Flops,
     );
     opt.find_path();
-    opt.get_best_replace_path()
+    opt.get_best_replace_path().into_simple()
 }
 
 /// Uses recursive bipartitioning to identify a communication scheme for final tensors
@@ -180,7 +159,7 @@ fn branchbound(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
 fn tensor_bipartition_recursive(
     children_tensor: &[(usize, Tensor)],
     imbalance: f64,
-) -> (usize, Tensor, Vec<ContractionIndex>) {
+) -> (usize, Tensor, SimplePath) {
     let k = 2;
     let min = true;
 
@@ -203,7 +182,7 @@ fn tensor_bipartition_recursive(
         };
         let tensor = &children_tensor[0].1 ^ &children_tensor[1].1;
 
-        return (t1, tensor, vec![pair!(t1, t2)]);
+        return (t1, tensor, vec![(t1, t2)]);
     }
 
     let partitioning = communication_partitioning(
@@ -233,26 +212,23 @@ fn tensor_bipartition_recursive(
         (id_1, id_2)
     };
 
-    contraction_1.push(pair!(id_1, id_2));
+    contraction_1.push((id_1, id_2));
     (id_1, tensor, contraction_1)
 }
 
 /// Repeatedly bipartitions tensor network to obtain communication scheme
 /// Assumes that all tensors contracted do so in parallel
-fn tensor_bipartition(
-    children_tensor: &[(usize, Tensor)],
-    imbalance: f64,
-) -> Vec<ContractionIndex> {
+fn tensor_bipartition(children_tensor: &[(usize, Tensor)], imbalance: f64) -> SimplePath {
     let (_, _, contraction_path) = tensor_bipartition_recursive(children_tensor, imbalance);
     contraction_path
 }
 
-fn random_greedy(children_tensors: &[Tensor]) -> Vec<ContractionIndex> {
+fn random_greedy(children_tensors: &[Tensor]) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
     let mut opt = Cotengrust::new(&communication_tensors, OptMethod::RandomGreedy(100));
     opt.find_path();
-    opt.get_best_replace_path()
+    opt.get_best_replace_path().into_simple()
 }
 
 #[cfg(test)]
@@ -263,8 +239,7 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::contraction_cost::communication_path_cost, path,
-        tensornetwork::tensor::Tensor,
+        contractionpath::contraction_cost::communication_path_cost, tensornetwork::tensor::Tensor,
     };
 
     fn setup_simple_partition_data() -> FxHashMap<usize, f64> {
@@ -290,7 +265,7 @@ mod tests {
         let latency_map = setup_simple_partition_data();
         let communication_scheme = greedy(&tensors, &latency_map);
 
-        assert_eq!(&communication_scheme, path![(0, 1), (0, 2)]);
+        assert_eq!(&communication_scheme, &[(0, 1), (0, 2)]);
         let tensor_costs = (0..tensors.len()).map(|i| latency_map[&i]).collect_vec();
         let (flop_cost, mem_cost) = communication_path_cost(
             &tensors,
@@ -310,7 +285,7 @@ mod tests {
 
         let communication_scheme = weighted_branchbound(&tensors, &latency_map);
 
-        assert_eq!(&communication_scheme, path![(1, 0), (2, 1)]);
+        assert_eq!(&communication_scheme, &[(1, 0), (2, 1)]);
         // Flop Cost: (1, 0) = 32 , Tensor cost = 40, Total = 72
         // Flop Cost: (2, 1) = 32, Tensor cost = 50
         // max(72, 50) + 32 = 104
@@ -335,7 +310,7 @@ mod tests {
 
         let communication_scheme = bipartition(&tensors, &latency_map);
 
-        assert_eq!(&communication_scheme, path![(2, 1), (2, 0)]);
+        assert_eq!(&communication_scheme, &[(2, 1), (2, 0)]);
 
         // Flop Cost: (2, 1) = 128, Tensor cost = 50, Total = 178
         // Flop Cost: (2, 0) = 32 , Tensor cost = 40
