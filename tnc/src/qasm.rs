@@ -1,4 +1,5 @@
-//! Import utilities for OpenQASM 2 code.
+//! Import utilities for [OpenQASM 2](https://arxiv.org/pdf/1707.03429) code, a
+//! textual format for describing quantum circuits.
 
 mod ast;
 mod circuit_creator;

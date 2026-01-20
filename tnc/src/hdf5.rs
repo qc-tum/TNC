@@ -1,4 +1,4 @@
-//! ### Import and export of tensors or tensor networks as HDF5 files:
+//! Import and export of tensors or tensor networks as HDF5 files.
 //!
 //! The files follow this structure:
 //! ```text

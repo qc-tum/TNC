@@ -1,3 +1,5 @@
+//! Functionality to partition composite tensors (i.e., tensor networks) into
+//! multiple tensor networks.
 use std::iter::zip;
 
 use itertools::Itertools;

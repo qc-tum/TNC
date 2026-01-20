@@ -1,3 +1,4 @@
+//! Functionality to contract tensor networks.
 use log::debug;
 use tetra::contract;
 
