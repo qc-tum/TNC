@@ -77,7 +77,7 @@ pub fn logs_to_pdf(filename: &str, suffix: &str, ranks: usize, output: &str) {
 
         let x1 = tensor_x_position[i];
         let x2 = tensor_x_position[j];
-        let new_x = (x1 + x2) / 2.;
+        let new_x = f64::midpoint(x1, x2);
         if let Some(parent_id) = contraction_tree.node(*i).parent_id() {
             let y = tensor_position[&parent_id];
             let color = tensor_color[&parent_id].clone();
@@ -197,7 +197,7 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
                     (timestamp2 - logging_start).num_microseconds().unwrap() as f64,
                 ),
             );
-        };
+        }
 
         let recv_timestamps = communication_logging.remove(&(Direction::Recv, *rank1, *rank2));
         if let Some((timestamp1, timestamp2)) = recv_timestamps {
@@ -212,7 +212,7 @@ pub fn logs_to_tree(filename: &str, suffix: &str, ranks: usize) -> LogsToTreeRes
                     (timestamp2 - logging_start).num_microseconds().unwrap() as f64,
                 ),
             );
-        };
+        }
 
         let new_node_ref = parent_node(tensor_count, &left_child, &right_child);
 

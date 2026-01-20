@@ -174,10 +174,11 @@ pub fn to_dendogram_format(
                 communication_color.clone()
             }
         };
-        node_to_position.insert_new(parent_id, ((x1 + x2) / 2., parent_cost));
+        let midx = f64::midpoint(x1, x2);
+        node_to_position.insert_new(parent_id, (midx, parent_cost));
         dendogram_entries.push(DendogramEntry {
             id: parent_id,
-            x: (x1 + x2) / 2.,
+            x: midx,
             y: 0f64,
             cost: parent_cost,
             color,
@@ -340,12 +341,13 @@ pub fn to_dendogram(
             parent_cost -= child_cost;
         }
         let scaled_height = parent_cost / scaling_factor * height;
-        node_to_position.insert_new(parent_id, ((x1 + x2) / 2., scaled_height));
+        let midx = f64::midpoint(x1, x2);
+        node_to_position.insert_new(parent_id, (midx, scaled_height));
         tikz_picture.push_str(&format!(
             r#"    \node[label={{[shift={{(-0.4,-0.1)}}]{}}}, label=below:{{{parent_id}}}] at ({}, {scaled_height}) ({parent_id}) {{}};
 "#,
             tree_weights[&parent_id],
-            (x1 + x2) / 2.,
+            midx,
         ));
         tikz_picture.push_str(&format!(
             r#"    \path[draw] ({node_1_id}.center) -- ({x1}, {scaled_height}) -- ({parent_id}.center);

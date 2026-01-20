@@ -28,9 +28,9 @@ pub fn setup_logging_mpi(rank: Rank) {
 pub fn parse_range_list(entries: &[String]) -> HashSet<usize> {
     let mut out = HashSet::new();
     for entry in entries {
-        if entry.contains("-") {
+        if entry.contains('-') {
             // An inclusive range
-            let parts = entry.split("-").collect_vec();
+            let parts = entry.split('-').collect_vec();
             assert_eq!(parts.len(), 2);
             let start = parts[0].parse().unwrap();
             let end = parts[1].parse().unwrap();

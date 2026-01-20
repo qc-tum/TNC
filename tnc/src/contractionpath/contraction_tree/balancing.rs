@@ -436,13 +436,13 @@ where
         {
             if *id == shifted_from_id {
                 *id = larger_id;
-                *subtree_contraction = larger_contraction.clone();
+                subtree_contraction.clone_from(&larger_contraction);
                 *flop_cost = larger_subtree_flop_cost;
                 *mem_cost = larger_subtree_mem_cost;
                 *local_tensor = larger_tensor.clone();
             } else if *id == shifted_to_id {
                 *id = smaller_id;
-                *subtree_contraction = smaller_contraction.clone();
+                subtree_contraction.clone_from(&smaller_contraction);
                 *flop_cost = smaller_subtree_flop_cost;
                 *mem_cost = smaller_subtree_mem_cost;
                 *local_tensor = smaller_tensor.clone();
@@ -481,7 +481,7 @@ where
                         let nested_indices = contraction_tree
                             .node(*node_id)
                             .tensor_index()
-                            .clone()
+                            .cloned()
                             .unwrap();
                         tensor_network.nested_tensor(&nested_indices).clone()
                     })
@@ -692,7 +692,7 @@ mod tests {
     #[test]
     fn test_shift_leaf_node_between_subtrees() {
         let (mut tree, tensor) = setup_complex();
-        tree.partitions.entry(1).or_insert(vec![9, 7]);
+        tree.partitions.entry(1).or_insert_with(|| vec![9, 7]);
         shift_node_between_subtrees(&mut tree, 1, 9, 7, vec![3], &tensor);
 
         let ContractionTree { nodes, root, .. } = tree;
@@ -725,7 +725,7 @@ mod tests {
     #[test]
     fn test_shift_subtree_between_subtrees() {
         let (mut tree, tensor) = setup_complex();
-        tree.partitions.entry(1).or_insert(vec![9, 7]);
+        tree.partitions.entry(1).or_insert_with(|| vec![9, 7]);
         shift_node_between_subtrees(&mut tree, 1, 9, 7, vec![2, 3], &tensor);
 
         let ContractionTree { nodes, root, .. } = tree;

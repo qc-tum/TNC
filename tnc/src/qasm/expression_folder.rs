@@ -51,8 +51,8 @@ mod tests {
         // Check modified AST
         if let Statement::GateCall(data) = gc {
             assert_eq!(data.args.len(), 2);
-            assert_eq!(data.args[0], Expr::Float((2 + 3) as f64 * 4.0));
-            assert_eq!(data.args[1], Expr::Int(-2 + 2));
+            assert_eq!(data.args[0], Expr::Float(20.0));
+            assert_eq!(data.args[1], Expr::Int(0));
         } else {
             panic!("Expected a gate call");
         }

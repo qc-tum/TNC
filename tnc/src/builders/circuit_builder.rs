@@ -281,8 +281,8 @@ impl Circuit {
         self.into_amplitude_network(&"*".repeat(qubits))
     }
 
-    /// Creates the adjoint tensor of a given tensor. This not only modifies the
-    /// data, but also the order of legs and the bond_dims vec. The legs of the new
+    /// Creates the adjoint tensor of a given `tensor`. This not only modifies the
+    /// data, but also the order of legs and the bond dims vec. The legs of the new
     /// tensor are offset by `leg_offset`.
     fn tensor_adjoint(tensor: &Tensor, leg_offset: usize) -> Tensor {
         // Transpose legs and shape of tensor

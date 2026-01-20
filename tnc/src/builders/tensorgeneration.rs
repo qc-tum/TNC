@@ -21,7 +21,7 @@ pub fn random_sparse_tensor_data_with_rng<R>(
     rng: &mut R,
 ) -> TensorData
 where
-    R: Rng + ?Sized,
+    R: Rng,
 {
     let sparsity = if let Some(sparsity) = sparsity {
         assert!((0.0..=1.0).contains(&sparsity));

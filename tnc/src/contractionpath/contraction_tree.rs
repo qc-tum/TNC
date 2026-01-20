@@ -393,7 +393,7 @@ fn populate_subtree_tensor_map_recursive(
     let node = contraction_tree.node(node_id);
 
     if node.is_leaf() {
-        let tensor_index = node.tensor_index().as_ref().unwrap();
+        let tensor_index = node.tensor_index().unwrap();
         let t = tensor_network.nested_tensor(tensor_index);
         node_tensor_map.insert(node.id(), t.clone());
         (t.clone(), 0)

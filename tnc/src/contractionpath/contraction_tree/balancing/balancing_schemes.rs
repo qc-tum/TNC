@@ -37,7 +37,7 @@ pub enum BalancingScheme {
         /// tensors between partitions. A value of `Some(1)` allows intermediate tensors
         /// that are a product of at most 1 contraction process. Using the value of
         /// `Some(0)` is then equivalent to the `Tensors` method. Setting it to `None`
-        /// imposes no height limit.`
+        /// imposes no height limit.
         height_limit: Option<usize>,
     },
 

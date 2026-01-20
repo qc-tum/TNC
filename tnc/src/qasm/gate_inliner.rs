@@ -131,7 +131,7 @@ impl GateInliner {
                 Change::Replace(idx, body) => {
                     statements.splice(idx..=idx, body);
                 }
-            };
+            }
         }
     }
 

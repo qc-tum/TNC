@@ -23,7 +23,7 @@ use crate::{
 /// For more details on the circuit, see <https://arxiv.org/abs/1910.11333>.
 pub fn sycamore_circuit<R>(qubits: usize, depth: usize, rng: &mut R) -> Tensor
 where
-    R: ?Sized + Rng,
+    R: Rng,
 {
     let mut rounds = [
         sycamore_a, sycamore_b, sycamore_c, sycamore_d, sycamore_c, sycamore_d, sycamore_a,

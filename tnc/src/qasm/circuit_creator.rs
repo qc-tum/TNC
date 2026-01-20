@@ -59,7 +59,7 @@ impl CircuitCreator {
 
     /// Creates a circuit from the AST. Assumes that all gate calls have been inlined
     /// and all expressions have been evaluated to literals.
-    pub fn create_circuit(&mut self, program: &Program) -> Circuit {
+    pub fn create_circuit(&self, program: &Program) -> Circuit {
         let mut circuit = Circuit::default();
         let mut registers = FxHashMap::default();
 

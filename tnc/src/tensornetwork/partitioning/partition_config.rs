@@ -21,13 +21,13 @@ pub enum PartitioningStrategy {
 impl PartitioningStrategy {
     pub(super) fn apply(self, context: &mut KaHyParContext) {
         match self {
-            PartitioningStrategy::MinCut => {
+            Self::MinCut => {
                 context.configure_from_str(MIN_CUT_CONFIG);
             }
-            PartitioningStrategy::CommunityFinding => {
+            Self::CommunityFinding => {
                 context.configure_from_str(COMMUNITY_FINDING_CONFIG);
             }
-            PartitioningStrategy::Custom(path) => {
+            Self::Custom(path) => {
                 context
                     .configure_from_file(CString::new(path.to_str().unwrap()).unwrap().as_c_str());
             }

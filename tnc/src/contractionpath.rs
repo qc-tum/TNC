@@ -18,10 +18,11 @@ pub type SimplePath = Vec<(TensorIndex, TensorIndex)>;
 /// Reference to a [`SimplePath`].
 pub type SimplePathRef<'a> = &'a [(TensorIndex, TensorIndex)];
 
-/// A (possibly nested) contraction path. It specifies the overall contraction path
-/// to contract a tensor network, but also allows to specify additional contraction
-/// paths for each tensor, in order to deal with composite tensors that have to be
-/// contracted first.
+/// A (possibly nested) contraction path.
+///
+/// It specifies the overall contraction path to contract a tensor network, but also
+/// allows to specify additional contraction paths for each tensor, in order to deal
+/// with composite tensors that have to be contracted first.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ContractionPath {
     /// Nested contraction paths for composite tensors.

@@ -59,7 +59,7 @@ impl FindPath for TreeAnnealing<'_> {
             .map(|tensor| tensor.legs().clone())
             .collect_vec();
         let outputs = self.tensor.external_tensor();
-        let size_dict = self.tensor.tensors().iter().map(|t| t.edges()).fold(
+        let size_dict = self.tensor.tensors().iter().map(Tensor::edges).fold(
             FxHashMap::default(),
             |mut acc, edges| {
                 acc.extend(edges);

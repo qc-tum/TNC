@@ -35,14 +35,14 @@ pub enum CommunicationScheme {
 impl fmt::Display for CommunicationScheme {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let comm_str = match self {
-            CommunicationScheme::Greedy => "greedy",
-            CommunicationScheme::RandomGreedy => "random_greedy",
-            CommunicationScheme::Bipartition => "bipartition",
-            CommunicationScheme::BipartitionSweep => "bipartition_sweep",
-            CommunicationScheme::WeightedBranchBound => "weightedbranchbound",
-            CommunicationScheme::BranchBound => "branchbound",
+            Self::Greedy => "greedy",
+            Self::RandomGreedy => "random_greedy",
+            Self::Bipartition => "bipartition",
+            Self::BipartitionSweep => "bipartition_sweep",
+            Self::WeightedBranchBound => "weightedbranchbound",
+            Self::BranchBound => "branchbound",
         };
-        write!(f, "{}", comm_str)
+        f.write_str(comm_str)
     }
 }
 
@@ -54,23 +54,21 @@ impl CommunicationScheme {
         rng: Option<&mut R>,
     ) -> SimplePath
     where
-        R: ?Sized + Rng,
+        R: Rng,
     {
         match self {
-            CommunicationScheme::Greedy => greedy(children_tensors, latency_map),
-            CommunicationScheme::RandomGreedy => random_greedy(children_tensors),
-            CommunicationScheme::Bipartition => bipartition(children_tensors, latency_map),
-            CommunicationScheme::BipartitionSweep => {
+            Self::Greedy => greedy(children_tensors, latency_map),
+            Self::RandomGreedy => random_greedy(children_tensors),
+            Self::Bipartition => bipartition(children_tensors, latency_map),
+            Self::BipartitionSweep => {
                 let Some(rng) = rng else {
                     panic!("BipartitionSweep requires a random number generator")
                 };
                 bipartition_sweep(children_tensors, latency_map, rng)
             }
 
-            CommunicationScheme::WeightedBranchBound => {
-                weighted_branchbound(children_tensors, latency_map)
-            }
-            CommunicationScheme::BranchBound => branchbound(children_tensors),
+            Self::WeightedBranchBound => weighted_branchbound(children_tensors, latency_map),
+            Self::BranchBound => branchbound(children_tensors),
         }
     }
 }
@@ -94,7 +92,7 @@ fn bipartition_sweep<R>(
     rng: &mut R,
 ) -> SimplePath
 where
-    R: ?Sized + Rng,
+    R: Rng,
 {
     let tensors = children_tensors.iter().cloned().enumerate().collect_vec();
     let mut best_flops = f64::INFINITY;
@@ -141,7 +139,7 @@ fn weighted_branchbound(
 
 fn branchbound(children_tensors: &[Tensor]) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
-    let latency_map = FxHashMap::from_iter((0..children_tensors.len()).map(|i| (i, 0.0)));
+    let latency_map = (0..children_tensors.len()).map(|i| (i, 0.0)).collect();
 
     let mut opt = WeightedBranchBound::new(
         &communication_tensors,

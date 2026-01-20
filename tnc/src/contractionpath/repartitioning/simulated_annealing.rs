@@ -157,7 +157,7 @@ impl<'a> SimulatedAnnealingOptimizer {
             }
             let remaining_time = (end_time - now).as_secs_f64();
             let progress = 1.0 - remaining_time / total_seconds;
-            temperature = 2.0f64.powf(linear_interpolation(log_start, log_end, progress));
+            temperature = linear_interpolation(log_start, log_end, progress).exp2();
         }
 
         (best_solution, best_score)

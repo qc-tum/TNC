@@ -167,7 +167,7 @@ fn main() {
         .enumerate()
         .filter(|(i, _)| includes.is_empty() || includes.contains(i))
         .filter(|(i, _)| !excludes.contains(i))
-        .filter(|(i, _)| !past_protocol.contains(i))
+        .filter(|(i, _)| !past_protocol.contains(*i))
     {
         let (file_index, seed_index, num_partitions, method) = scenario;
         let file = &files[file_index];
@@ -658,7 +658,7 @@ impl MethodRun for Iad {
             },
             (
                 initial_partitioning.to_vec(),
-                intermediate_tensors.to_vec(),
+                intermediate_tensors.clone(),
                 initial_contractions,
             ),
             rng,

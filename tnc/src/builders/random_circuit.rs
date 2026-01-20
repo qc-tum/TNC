@@ -21,9 +21,11 @@ macro_rules! fsim {
     };
 }
 
-/// Creates a random circuit with `rounds` many rounds of single and two qubit gate
-/// layers. Places the gates with the given probabilities and only on qubit pairs
-/// specified by the `connectivity`.
+/// Creates a random circuit.
+///
+/// The circuit has `rounds` many rounds of single and two qubit gate layers. Gates
+/// are placed with the given probabilities and only on qubit pairs specified by the
+/// `connectivity`.
 pub fn random_circuit<R>(
     qubits: usize,
     rounds: usize,
@@ -33,7 +35,7 @@ pub fn random_circuit<R>(
     connectivity: ConnectivityLayout,
 ) -> Tensor
 where
-    R: Rng + ?Sized,
+    R: Rng,
 {
     let single_qubit_gates = [
         TensorData::Gate((String::from("sx"), Vec::new(), false)),
@@ -77,10 +79,12 @@ where
     circuit.into_amplitude_network(&"0".repeat(qubits)).0
 }
 
-/// Creates a random circuit with `rounds` many rounds of single and two qubit gate
-/// layers, then a layer of random observables followed by the same single and two
-/// qubit gate layers mirrored. The gates are placed with the given probabilities and
-/// only on qubit pairs specified by the `connectivity`.
+/// Creates a random circuit.
+///
+/// The circuit has `rounds` many rounds of single and two qubit gate layers, then a
+/// layer of random observables followed by the same single and two qubit gate layers
+/// mirrored. Gates are placed with the given probabilities and only on qubit pairs
+/// specified by the `connectivity`.
 pub fn random_circuit_with_observable<R>(
     qubits: usize,
     round: usize,
@@ -91,18 +95,18 @@ pub fn random_circuit_with_observable<R>(
     connectivity: ConnectivityLayout,
 ) -> Tensor
 where
-    R: Rng + ?Sized,
+    R: Rng,
 {
     let observable_locations = (0..qubits)
         .filter(|_| rng.random_bool(observable_probability))
-        .collect();
+        .collect_vec();
 
     random_circuit_with_set_observable(
         qubits,
         round,
         single_qubit_probability,
         two_qubit_probability,
-        observable_locations,
+        &observable_locations,
         rng,
         connectivity,
     )
@@ -118,12 +122,12 @@ pub fn random_circuit_with_set_observable<R>(
     round: usize,
     single_qubit_probability: f64,
     two_qubit_probability: f64,
-    observable_location: Vec<usize>,
+    observable_location: &[usize],
     rng: &mut R,
     connectivity: ConnectivityLayout,
 ) -> Tensor
 where
-    R: Rng + ?Sized,
+    R: Rng,
 {
     let single_qubit_gates = [
         (
@@ -356,7 +360,7 @@ mod tests {
         let rounds = 3;
         let single_qubit_probability = 1f64;
         let two_qubit_probability = 1f64;
-        let observable_location = vec![2];
+        let observable_location = &[2];
         // results should be independent of rng used.
         let mut rng = rng();
         let connectivity = ConnectivityLayout::Line(size);

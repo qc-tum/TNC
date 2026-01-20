@@ -21,7 +21,7 @@ impl Protocol {
     /// Reads a protocol from a file. Converts all `Trying` entries to `Error`, because
     /// they failed to finish.
     pub fn from_file(file: fs::File) -> Self {
-        let mut protocol: Protocol = serde_json::from_reader(file).unwrap();
+        let mut protocol: Self = serde_json::from_reader(file).unwrap();
         protocol.0.iter_mut().for_each(|entry| {
             if let LogEntry::Trying(id) = entry {
                 *entry = LogEntry::Error(*id);
@@ -38,10 +38,9 @@ impl Protocol {
     }
 
     /// Checks if the protocol contains a run with the given ID (Done or Error).
-    pub fn contains(&self, id: &usize) -> bool {
+    pub fn contains(&self, id: usize) -> bool {
         self.0.iter().any(|entry| match entry {
-            LogEntry::Done(x) => x == id,
-            LogEntry::Error(x) => x == id,
+            LogEntry::Done(x) | LogEntry::Error(x) => *x == id,
             LogEntry::Trying(_) => panic!("Trying entry should not be in the protocol"),
         })
     }

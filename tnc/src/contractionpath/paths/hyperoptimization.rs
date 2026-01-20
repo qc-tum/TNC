@@ -44,9 +44,11 @@ impl<'a> Hyperoptimizer<'a> {
     }
 }
 
-/// The keyword options for the cotengra Hyperoptimizer. Unassigned options will not
-/// be passed to the function and hence the Python default values will be used.
-/// Please see the cotengra documentation for details on the parameters.
+/// The keyword options for the cotengra Hyperoptimizer.
+///
+/// Unassigned options will not be passed to the function and hence the Python
+/// default values will be used. Please see the cotengra documentation for details on
+/// the parameters.
 #[derive(Serialize, Default)]
 pub struct HyperOptions {
     max_time: Option<u64>,
@@ -56,7 +58,7 @@ pub struct HyperOptions {
 impl HyperOptions {
     /// Creates the default HyperOptimizer options.
     pub fn new() -> Self {
-        HyperOptions::default()
+        Self::default()
     }
 
     /// Sets the `max_time` argument for the HyperOptimizer.

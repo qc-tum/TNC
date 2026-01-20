@@ -33,7 +33,7 @@ where
     expression_folder.visit_program(&mut program);
 
     // Create the circuit
-    let mut circuit_creator = CircuitCreator;
+    let circuit_creator = CircuitCreator;
     circuit_creator.create_circuit(&program)
 }
 
@@ -160,7 +160,7 @@ mod tests {
 
     /// Contracts the tensor network with an arbitrary contraction order, then
     /// returns the correctly permuted tensor data.
-    fn contract_tn(tn: Tensor, perm: Permutor) -> TensorData {
+    fn contract_tn(tn: Tensor, perm: &Permutor) -> TensorData {
         let opt_path =
             ContractionPath::simple((1..tn.tensors().len()).map(|tid| (0, tid)).collect());
         let tn = contract_tensor_network(tn, &opt_path);
@@ -178,7 +178,7 @@ mod tests {
         ";
         let circuit = import_qasm(code);
         let (tn, perm) = circuit.into_statevector_network();
-        let resulting_state = contract_tn(tn, perm);
+        let resulting_state = contract_tn(tn, &perm);
 
         let expected = TensorData::new_from_data(
             &[2, 2],
@@ -208,7 +208,7 @@ mod tests {
         ";
         let circuit = import_qasm(code);
         let (tn, perm) = circuit.into_statevector_network();
-        let resulting_state = contract_tn(tn, perm);
+        let resulting_state = contract_tn(tn, &perm);
 
         let expected = TensorData::new_from_data(
             &[2, 2],
@@ -240,7 +240,7 @@ mod tests {
     fn statevector_order() {
         let circuit = odd_test_circuit();
         let (tn, perm) = circuit.into_statevector_network();
-        let resulting_state = contract_tn(tn, perm);
+        let resulting_state = contract_tn(tn, &perm);
 
         let expected = TensorData::new_from_data(
             &[2, 2, 2],
@@ -264,7 +264,7 @@ mod tests {
         let circuit = odd_test_circuit();
         // 1*0 should get a vec with amplitudes |100> and |110>
         let (tn, perm) = circuit.into_amplitude_network("1*0");
-        let resulting_state = contract_tn(tn, perm);
+        let resulting_state = contract_tn(tn, &perm);
 
         let expected = TensorData::new_from_data(
             &[2],
@@ -282,7 +282,7 @@ mod tests {
         let circuit = odd_test_circuit();
         // *1* should get a vec with amplitudes |010>, |011>, |110>, |111>
         let (tn, perm) = circuit.into_amplitude_network("*1*");
-        let resulting_state = contract_tn(tn, perm);
+        let resulting_state = contract_tn(tn, &perm);
 
         let expected = TensorData::new_from_data(
             &[2, 2],

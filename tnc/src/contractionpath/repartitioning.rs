@@ -29,7 +29,7 @@ pub fn compute_solution<R>(
     rng: Option<&mut R>,
 ) -> (Tensor, ContractionPath, f64, f64)
 where
-    R: ?Sized + Rng,
+    R: Rng,
 {
     // Partition the tensor network with the proposed solution
     let partitioned_tn = partition_tensor_network(tensor.clone(), partitioning);

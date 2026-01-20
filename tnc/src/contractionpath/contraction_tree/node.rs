@@ -54,8 +54,8 @@ impl Node {
         self.right_child.upgrade()
     }
 
-    pub fn tensor_index(&self) -> &Option<Vec<usize>> {
-        &self.tensor_index
+    pub fn tensor_index(&self) -> Option<&Vec<usize>> {
+        self.tensor_index.as_ref()
     }
 
     pub const fn id(&self) -> usize {
@@ -161,6 +161,6 @@ mod tests {
         assert_eq!(
             "Node { id: 5, left_child: Some(0), right_child: Some(1), parent: None, tensor_index: None }",
             node_borrow.to_string()
-        )
+        );
     }
 }
