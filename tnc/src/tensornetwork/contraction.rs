@@ -51,7 +51,7 @@ pub fn contract_tensor_network(mut tn: Tensor, contract_path: &ContractionPath) 
     tn.tensors.pop().unwrap_or(tn)
 }
 
-pub(crate) trait TensorContraction {
+trait TensorContraction {
     /// Contracts two tensors.
     fn contract_tensors(&mut self, tensor_a_loc: usize, tensor_b_loc: usize);
 }
