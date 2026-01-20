@@ -12,7 +12,7 @@ Local contractions on a single system are also possible.
 
 ## Crate
 
-### Installation
+### Requirements
 The library requires a few dependencies to be installed on the system.
 Those can be installed with
 ```shell
@@ -26,6 +26,7 @@ The following Python packages have to be installed (in a virtual environment if 
 pip install cotengra kahypar optuna
 ```
 
+### Usage
 The library can be added to an existing Rust project with e.g.
 ```shell
 cargo add --git https://github.com/qc-tum/TNC.git --features cotengra tnc
@@ -37,6 +38,12 @@ cargo run --example local_contraction
 
 ### Features
 - `cotengra`: Enables Rust bindings to the tree annealing, tree reconfiguration and tree tempering methods of cotengra
+
+## Getting started
+
+To familiarize yourself with the code, it is recommended to look at the examples and the documentation.
+Some aspects of the library are also covered in more detail in the [Tutorial](https://qc-tum.github.io/TNC/tnc/_tutorial/index.html).
+If you want to contribute, please take a loot at the Contribution guide.
 
 ## Example
 
