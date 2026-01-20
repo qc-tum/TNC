@@ -45,8 +45,7 @@ fn main() {
 fn read_qasm(file: &str) -> Tensor {
     let source = fs::read_to_string(file).unwrap();
     let circuit = import_qasm(source);
-    let tensor = circuit.into_expectation_value_network();
-    tensor
+    circuit.into_expectation_value_network()
 }
 
 fn local_contraction(tensor: Tensor) -> Tensor {
@@ -81,7 +80,7 @@ fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor
 
     // Distribute partitions to ranks
     let (mut local_tn, local_path, comm) =
-        scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
+        scatter_tensor_network(&partitioned_tn, &path, rank, size, world);
 
     // Contract the partitions on each rank
     local_tn = contract_tensor_network(local_tn, &local_path);
@@ -96,7 +95,7 @@ fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor
 
     // Perform the final fan-in, sending tensors between ranks and contracting them
     // until there is only the final tensor left, which will end up on rank 0.
-    intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world, &comm);
+    intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, world, &comm);
 
     local_tn
 }
