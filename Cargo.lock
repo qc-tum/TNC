@@ -2674,7 +2674,6 @@ dependencies = [
  "hdf5-metno",
  "itertools 0.14.0",
  "kahypar",
- "lazy_static",
  "log",
  "mpi",
  "mpi-test",

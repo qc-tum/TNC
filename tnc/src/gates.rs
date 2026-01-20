@@ -4,39 +4,36 @@ use std::{
     borrow::Borrow,
     f64::consts::FRAC_1_SQRT_2,
     hash::{Hash, Hasher},
-    sync::RwLock,
+    sync::{LazyLock, RwLock},
 };
 
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use num_complex::Complex64;
 use permutation::Permutation;
 use rustc_hash::FxHashSet;
 use tetra::Tensor as DataTensor;
 
-lazy_static! {
-    static ref GATES: RwLock<FxHashSet<Box<dyn Gate>>> = {
-        let mut gates = FxHashSet::default();
-        gates.insert(Box::new(X) as _);
-        gates.insert(Box::new(Y) as _);
-        gates.insert(Box::new(Z) as _);
-        gates.insert(Box::new(H) as _);
-        gates.insert(Box::new(T) as _);
-        gates.insert(Box::new(U) as _);
-        gates.insert(Box::new(Sx) as _);
-        gates.insert(Box::new(Sy) as _);
-        gates.insert(Box::new(Sz) as _);
-        gates.insert(Box::new(Rx) as _);
-        gates.insert(Box::new(Ry) as _);
-        gates.insert(Box::new(Rz) as _);
-        gates.insert(Box::new(Cx) as _);
-        gates.insert(Box::new(Cz) as _);
-        gates.insert(Box::new(Cp) as _);
-        gates.insert(Box::new(Iswap) as _);
-        gates.insert(Box::new(Fsim) as _);
-        RwLock::new(gates)
-    };
-}
+static GATES: LazyLock<RwLock<FxHashSet<Box<dyn Gate>>>> = LazyLock::new(|| {
+    let mut gates = FxHashSet::default();
+    gates.insert(Box::new(X) as _);
+    gates.insert(Box::new(Y) as _);
+    gates.insert(Box::new(Z) as _);
+    gates.insert(Box::new(H) as _);
+    gates.insert(Box::new(T) as _);
+    gates.insert(Box::new(U) as _);
+    gates.insert(Box::new(Sx) as _);
+    gates.insert(Box::new(Sy) as _);
+    gates.insert(Box::new(Sz) as _);
+    gates.insert(Box::new(Rx) as _);
+    gates.insert(Box::new(Ry) as _);
+    gates.insert(Box::new(Rz) as _);
+    gates.insert(Box::new(Cx) as _);
+    gates.insert(Box::new(Cz) as _);
+    gates.insert(Box::new(Cp) as _);
+    gates.insert(Box::new(Iswap) as _);
+    gates.insert(Box::new(Fsim) as _);
+    RwLock::new(gates)
+});
 
 /// Registers a gate definition to resolve a gate name to a gate implementation.
 pub fn register_gate(gate: Box<dyn Gate>) {
