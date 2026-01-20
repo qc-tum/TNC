@@ -41,112 +41,52 @@ cargo run --example local_contraction
 ## Example
 
 ```rust
-use std::fs;
-
-use mpi::{topology::SimpleCommunicator, traits::Communicator};
 use tnc::{
     contractionpath::paths::{
         cotengrust::{Cotengrust, OptMethod},
         FindPath,
     },
-    mpi::communication::{
-        broadcast_path, extract_communication_path, intermediate_reduce_tensor_network,
-        scatter_tensor_network,
-    },
-    qasm::create_tensornetwork,
-    tensornetwork::{
-        contraction::contract_tensor_network,
-        partitioning::{
-            find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
-        },
-        tensor::Tensor,
-    },
+    qasm::import_qasm,
+    tensornetwork::contraction::contract_tensor_network,
 };
 
-
 fn main() {
-    // Read from file
-    let tensor = read_qasm("foo.qasm");
+    // The QASM code prepares a GHZ state
+    let code = "\
+OPENQASM 2.0;
+include \"qelib1.inc\";
 
-    // Set up MPI
-    let universe = mpi::initialize().unwrap();
-    let world = universe.world();
-    let rank = world.rank();
-    let size = world.size();
+qreg q[3];
+h q[0];
+cx q[0], q[1];
+cx q[1], q[2];
+";
 
-    // Perform the contraction
-    let result = if size == 1 {
-        local_contraction(tensor)
-    } else {
-        distributed_contraction(tensor, &world)
-    };
+    // Create a Circuit instance out of the code
+    let circuit = import_qasm(code);
 
-    // Print the result
-    if rank == 0 {
-        println!("{result:?}");
-    }
-}
+    // Create a tensor network that computes the full state vector.
+    // This also returns a permutator which we need to apply to the final tensor to
+    // make sure the entries are in the expected order.
+    let (tensor_network, permutator) = circuit.into_statevector_network();
 
-
-fn read_qasm(file: &str) -> Tensor {
-    let source = fs::read_to_string(file).unwrap();
-    let circuit = create_tensornetwork(source);
-    let tensor = circuit.into_expectation_value_network();
-    tensor
-}
-
-
-fn local_contraction(tensor: Tensor) -> Tensor {
-    // Find a contraction path for the whole network
-    let mut opt = Cotengrust::new(&tensor, OptMethod::Greedy);
+    // Find a contraction path to contract the tensor network.
+    // We use a greedy path finder here.
+    let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
     opt.find_path();
-    let contract_path = opt.get_best_replace_path();
+    let path = opt.get_best_replace_path();
 
-    // Contract the whole tensor network on this single node
-    contract_tensor_network(tensor, &contract_path)
-}
+    // Contract the tensor network locally
+    let final_tensor = contract_tensor_network(tensor_network, &path);
 
+    // Apply the permutator to make sure the data is in the expected order
+    let statevector = permutator.apply(final_tensor);
 
-fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor {
-    let rank = world.rank();
-    let size = world.size();
-    let root = world.process_at_rank(0);
+    // Get the data vector. Don't worry, the clone does not clone the data itself.
+    let data = statevector.tensor_data().clone().into_data();
 
-    let (partitioned_tn, path) = if rank == 0 {
-        // Find a partitioning for the tensor network
-        let partitioning = find_partitioning(&tensor, size, PartitioningStrategy::MinCut, true);
-        let partitioned_tn = partition_tensor_network(tensor, &partitioning);
-
-        // Find a contraction path for the individual partitions and the final fan-in
-        let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-        opt.find_path();
-        let path = opt.get_best_replace_path();
-
-        (partitioned_tn, path)
-    } else {
-        Default::default()
-    };
-
-    // Distribute partitions to ranks
-    let (mut local_tn, local_path, comm) =
-        scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
-
-    // Contract the partitions on each rank
-    local_tn = contract_tensor_network(local_tn, &local_path);
-
-    // Get the part of the path that describes the final fan-in between ranks
-    let mut communication_path = if rank == 0 {
-        extract_communication_path(&path)
-    } else {
-        Default::default()
-    };
-    broadcast_path(&mut communication_path, &root);
-
-    // Perform the final fan-in, sending tensors between ranks and contracting them
-    // until there is only the final tensor left, which will end up on rank 0.
-    intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world, &comm);
-
-    local_tn
+    // Print the data
+    println!("Resulting statevector is: {:?}", data.elements());
 }
 ```
 

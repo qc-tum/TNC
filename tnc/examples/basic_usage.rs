@@ -1,111 +1,102 @@
-use flexi_logger::{json_format, Duplicate, FileSpec, Logger};
-use log::{debug, info, LevelFilter};
-use mpi::traits::Communicator;
-use mpi::Rank;
-use rand::rngs::StdRng;
-use rand::SeedableRng;
-use tnc::builders::connectivity::ConnectivityLayout;
-use tnc::builders::random_circuit::random_circuit;
-use tnc::contractionpath::contraction_cost::contract_cost_tensors;
-use tnc::contractionpath::contraction_tree::export::{to_dendogram_format, to_pdf};
-use tnc::contractionpath::contraction_tree::ContractionTree;
-use tnc::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
-use tnc::contractionpath::paths::FindPath;
-use tnc::mpi::communication::{
-    broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
+use std::fs;
+
+use mpi::{topology::SimpleCommunicator, traits::Communicator};
+use tnc::{
+    contractionpath::paths::{
+        cotengrust::{Cotengrust, OptMethod},
+        FindPath,
+    },
+    mpi::communication::{
+        broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
+    },
+    qasm::import_qasm,
+    tensornetwork::{
+        contraction::contract_tensor_network,
+        partitioning::{
+            find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
+        },
+        tensor::Tensor,
+    },
 };
-use tnc::tensornetwork::contraction::contract_tensor_network;
-use tnc::tensornetwork::partitioning::partition_config::PartitioningStrategy;
-use tnc::tensornetwork::partitioning::{find_partitioning, partition_tensor_network};
 
-/// Sets up logging for rank `rank`. Each rank logs to a separate file and to stdout.
-fn setup_logging_mpi(rank: Rank) {
-    let _logger = Logger::with(LevelFilter::Debug)
-        .format(json_format)
-        .log_to_file(
-            FileSpec::default()
-                .discriminant(format!("rank{rank}"))
-                .suppress_timestamp()
-                .suffix("log.json"),
-        )
-        .duplicate_to_stdout(Duplicate::Info)
-        .start()
-        .unwrap();
-}
-
-// Run with at least 2 processes
 fn main() {
-    let mut rng = StdRng::seed_from_u64(23);
+    // Read from file
+    let tensor = read_qasm("foo.qasm");
+
+    // Set up MPI
     let universe = mpi::initialize().unwrap();
     let world = universe.world();
-    let size = world.size();
     let rank = world.rank();
+    let size = world.size();
+
+    // Perform the contraction
+    let result = if size == 1 {
+        local_contraction(tensor)
+    } else {
+        distributed_contraction(tensor, &world)
+    };
+
+    // Print the result
+    if rank == 0 {
+        println!("{result:?}");
+    }
+}
+
+fn read_qasm(file: &str) -> Tensor {
+    let source = fs::read_to_string(file).unwrap();
+    let circuit = import_qasm(source);
+    let tensor = circuit.into_expectation_value_network();
+    tensor
+}
+
+fn local_contraction(tensor: Tensor) -> Tensor {
+    // Find a contraction path for the whole network
+    let mut opt = Cotengrust::new(&tensor, OptMethod::Greedy);
+    opt.find_path();
+    let contract_path = opt.get_best_replace_path();
+
+    // Contract the whole tensor network on this single node
+    contract_tensor_network(tensor, &contract_path)
+}
+
+fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor {
+    let rank = world.rank();
+    let size = world.size();
     let root = world.process_at_rank(0);
-    setup_logging_mpi(rank);
-    info!(rank, size; "Logging setup");
 
-    let seed = 23;
-    let qubits = 5;
-    let depth = 30;
-    let single_qubit_probability = 0.4;
-    let two_qubit_probability = 0.4;
-    let connectivity = ConnectivityLayout::Osprey;
-    info!(seed, qubits, depth, single_qubit_probability, two_qubit_probability, connectivity:?; "Configuration set");
-
-    // Setup tensor network
     let (partitioned_tn, path) = if rank == 0 {
-        let r_tn = random_circuit(
-            qubits,
-            depth,
-            single_qubit_probability,
-            two_qubit_probability,
-            &mut rng,
-            connectivity,
-        );
+        // Find a partitioning for the tensor network
+        let partitioning = find_partitioning(&tensor, size, PartitioningStrategy::MinCut, true);
+        let partitioned_tn = partition_tensor_network(tensor, &partitioning);
 
-        let partitioned_tn = if size > 1 {
-            let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
-            debug!(partitioning:serde; "Partitioning created");
-            partition_tensor_network(r_tn, &partitioning)
-        } else {
-            r_tn
-        };
-
+        // Find a contraction path for the individual partitions and the final fan-in
         let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
         opt.find_path();
         let path = opt.get_best_replace_path();
-        debug!(path:serde; "Found contraction path");
 
-        let contraction_tree = ContractionTree::from_contraction_path(&partitioned_tn, &path);
-        let dendogram_entries =
-            to_dendogram_format(&contraction_tree, &partitioned_tn, contract_cost_tensors);
-        to_pdf("from_path", &dendogram_entries, None);
         (partitioned_tn, path)
     } else {
         Default::default()
     };
 
-    // Distribute tensor network and contract
-    let local_tn = if size > 1 {
-        let (mut local_tn, local_path, comm) =
-            scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
-        local_tn = contract_tensor_network(local_tn, &local_path);
+    // Distribute partitions to ranks
+    let (mut local_tn, local_path, comm) =
+        scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
 
-        let mut communication_path = if rank == 0 {
-            path.toplevel
-        } else {
-            Default::default()
-        };
-        broadcast_path(&mut communication_path, &root);
+    // Contract the partitions on each rank
+    local_tn = contract_tensor_network(local_tn, &local_path);
 
-        intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world, &comm);
-        local_tn
+    // Get the part of the path that describes the final fan-in between ranks
+    let mut communication_path = if rank == 0 {
+        path.toplevel
     } else {
-        contract_tensor_network(partitioned_tn, &path)
+        Default::default()
     };
+    broadcast_path(&mut communication_path, &root);
 
-    // Print the result
-    if rank == 0 {
-        info!("{local_tn:?}");
-    }
+    // Perform the final fan-in, sending tensors between ranks and contracting them
+    // until there is only the final tensor left, which will end up on rank 0.
+    intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world, &comm);
+
+    local_tn
 }
