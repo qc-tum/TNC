@@ -1,4 +1,18 @@
-//! Import and export of tensors or tensor networks as HDF5 files.
+//! ### Import and export of tensors or tensor networks as HDF5 files:
+//!
+//! The files follow this structure:
+//! ```text
+//! tensors/
+//!     tensor: n-dimensional dataset
+//!         attrs:
+//!             - bids
+//!             - tids
+//! ```
+//!  There is a single `tensors/` group containing multiple tensor datasets. Each
+//! `tensor` is a flattened tensor with dimensions `shape`. The `tid` is the unique
+//! positive integer used to identify each tensor, with the output tensor, identified
+//! by `-1`, containing output bond dimensions and no tensor data. The `bids` are a
+//! list of integers corresponding to the bond ids of in each tensor.
 
 use std::path::Path;
 
