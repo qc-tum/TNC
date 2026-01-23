@@ -16,17 +16,21 @@ pub type EdgeIndex = usize;
 /// Index of a tensor in a tensor network.
 pub type TensorIndex = usize;
 
-/// Abstract representation of a tensor.
+/// Abstract representation of a tensor. Can be a *composite* tensor (that is, a
+/// tensor network) or a *leaf* tensor.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Tensor {
     /// The inner tensors that make up this tensor. If non-empty, this tensor is
     /// called a *composite* tensor.
     pub(crate) tensors: Vec<Tensor>,
 
-    /// The legs of the tensor. Each leg is an index to an edge.
+    /// The legs of the tensor. Each leg should have a unique id. Connected tensors
+    /// are recognized by having at least one leg id in common.
     pub(crate) legs: Vec<EdgeIndex>,
 
-    /// The bond dimensions, same length as `legs`.
+    /// The bond dimensions of the legs, same length and order as `legs`. It is
+    /// assumed (but not checked!) that the bond dimensions of different tensors that
+    /// connect to the same leg match.
     pub(crate) bond_dims: Vec<u64>,
 
     /// The data of the tensor.
