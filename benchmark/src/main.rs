@@ -723,7 +723,6 @@ impl MethodRun for GreedyBalance {
                 &initial_partitioned_tensor,
                 &initial_contraction_path,
                 balance_settings,
-                None,
                 rng,
             );
         let (parallel_flops, sum_flops) = max_costs[best_iteration];

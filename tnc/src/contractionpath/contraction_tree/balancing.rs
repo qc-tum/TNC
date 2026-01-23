@@ -12,7 +12,6 @@ use rustc_hash::FxHashMap;
 use crate::contractionpath::communication_schemes::CommunicationScheme;
 use crate::contractionpath::contraction_cost::communication_path_op_costs;
 use crate::contractionpath::contraction_tree::{
-    export::{to_dendogram_format, to_pdf, DendogramSettings},
     utils::{characterize_partition, subtree_contraction_path},
     ContractionTree,
 };
@@ -100,7 +99,6 @@ pub fn balance_partitions_iter<R>(
     tensor_network: &Tensor,
     path: &ContractionPath,
     mut balance_settings: BalanceSettings<R>,
-    dendogram_settings: Option<&DendogramSettings>,
     rng: &mut R,
 ) -> (usize, Tensor, ContractionPath, Vec<(f64, f64)>)
 where
@@ -143,8 +141,6 @@ where
 
     let mut max_costs = Vec::with_capacity(iterations + 1);
     max_costs.push((best_cost, sum_cost));
-
-    print_dendogram(dendogram_settings, &contraction_tree, tensor_network, 0);
 
     let mut best_iteration = 0;
     let mut best_contraction_path = path.to_owned();
@@ -208,35 +204,9 @@ where
             best_tn = new_tensor_network;
             best_contraction_path = new_path;
         }
-        print_dendogram(
-            dendogram_settings,
-            &contraction_tree,
-            tensor_network,
-            iteration,
-        );
     }
 
     (best_iteration, best_tn, best_contraction_path, max_costs)
-}
-
-fn print_dendogram(
-    dendogram_settings: Option<&DendogramSettings>,
-    contraction_tree: &ContractionTree,
-    tensor_network: &Tensor,
-    iteration: usize,
-) {
-    if let Some(settings) = dendogram_settings {
-        let dendogram_entries = to_dendogram_format(
-            contraction_tree,
-            tensor_network,
-            settings.objective_function,
-        );
-        to_pdf(
-            &format!("{}_{}", settings.output_file, iteration),
-            &dendogram_entries,
-            None,
-        );
-    }
 }
 
 fn communicate_partitions<R>(

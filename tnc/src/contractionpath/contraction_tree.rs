@@ -12,8 +12,6 @@ use crate::contractionpath::{ContractionPath, SimplePath, SimplePathRef};
 use crate::tensornetwork::tensor::Tensor;
 
 pub mod balancing;
-pub mod export;
-pub mod import;
 mod node;
 mod utils;
 
