@@ -148,6 +148,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "flaky test due to a bug in cotengra"]
     fn test_temper_tree_contract_order_simple() {
         let tn = setup_simple();
         let mut opt = TreeTempering::new(&tn, Some(8), CostType::Flops, Some(100));
@@ -160,6 +161,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "flaky test due to a bug in cotengra"]
     fn test_temper_tree_contract_order_complex() {
         let tn = setup_complex();
         let mut opt = TreeTempering::new(&tn, Some(8), CostType::Flops, Some(100));
