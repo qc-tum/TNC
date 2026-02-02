@@ -1,5 +1,5 @@
 /target
-src/qasm/.antlr
+.antlr/
 /.vscode
 
 *.pdf
