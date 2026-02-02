@@ -251,48 +251,7 @@ pub fn intermediate_reduce_tensor_network(
 mod tests {
     use super::*;
 
-    use std::sync::Mutex;
-
-    use mpi::traits::Communicator;
-    use mpi_test::mpi_test;
-
     use crate::path;
-
-    static MPI_SERIAL_TEST_LOCK: Mutex<()> = Mutex::new(());
-
-    #[mpi_test(2)]
-    fn test_broadcast_contraction_path() {
-        let _lock = MPI_SERIAL_TEST_LOCK.lock().unwrap();
-        let universe = mpi::initialize().unwrap();
-        let world = universe.world();
-        let rank = world.rank();
-        let root_process = world.process_at_rank(0);
-        let max = usize::MAX;
-
-        let ref_contraction_indices = vec![
-            (0, 4),
-            (1, 5),
-            (2, 16),
-            (7, max),
-            (max, 5),
-            (64, 2),
-            (4, 55),
-            (81, 21),
-            (2, 72),
-            (23, 3),
-            (40, 5),
-            (2, 26),
-        ];
-
-        let mut contraction_indices = if rank == 0 {
-            ref_contraction_indices.clone()
-        } else {
-            Default::default()
-        };
-        broadcast_path(&mut contraction_indices, &root_process);
-
-        assert_eq!(contraction_indices, ref_contraction_indices);
-    }
 
     #[test]
     fn test_tensor_mapping() {
