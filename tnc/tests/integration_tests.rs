@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use float_cmp::assert_approx_eq;
 use mpi::traits::Communicator;
 use mpi_test::mpi_test;
@@ -22,8 +20,6 @@ use tnc::{
         tensordata::TensorData,
     },
 };
-
-static MPI_SERIAL_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 #[test]
 fn test_partitioned_contraction_random() {
@@ -90,7 +86,6 @@ fn test_partitioned_contraction_mixed() {
 
 #[mpi_test(2)]
 fn test_broadcast_contraction_path() {
-    let _lock = MPI_SERIAL_TEST_LOCK.lock().unwrap();
     let universe = mpi::initialize().unwrap();
     let world = universe.world();
     let rank = world.rank();
@@ -124,7 +119,6 @@ fn test_broadcast_contraction_path() {
 
 #[mpi_test(4)]
 fn test_partitioned_contraction_need_mpi() {
-    let _lock = MPI_SERIAL_TEST_LOCK.lock().unwrap();
     let mut rng = StdRng::seed_from_u64(23);
 
     let universe = mpi::initialize().unwrap();
