@@ -84,6 +84,39 @@ fn test_partitioned_contraction_mixed() {
     assert_approx_eq!(&Tensor, &ref_result, &result);
 }
 
+#[mpi_test(2)]
+fn test_broadcast_contraction_path() {
+    let universe = mpi::initialize().unwrap();
+    let world = universe.world();
+    let rank = world.rank();
+    let root_process = world.process_at_rank(0);
+    let max = usize::MAX;
+
+    let ref_contraction_indices = vec![
+        (0, 4),
+        (1, 5),
+        (2, 16),
+        (7, max),
+        (max, 5),
+        (64, 2),
+        (4, 55),
+        (81, 21),
+        (2, 72),
+        (23, 3),
+        (40, 5),
+        (2, 26),
+    ];
+
+    let mut contraction_indices = if rank == 0 {
+        ref_contraction_indices.clone()
+    } else {
+        Default::default()
+    };
+    broadcast_path(&mut contraction_indices, &root_process);
+
+    assert_eq!(contraction_indices, ref_contraction_indices);
+}
+
 #[mpi_test(4)]
 fn test_partitioned_contraction_need_mpi() {
     let mut rng = StdRng::seed_from_u64(23);
