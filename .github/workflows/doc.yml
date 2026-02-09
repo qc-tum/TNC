@@ -17,7 +17,9 @@ jobs:
     name: build (stable)
     steps:
       - name: Install system requirements
-        run: sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
         with:
           submodules: true
