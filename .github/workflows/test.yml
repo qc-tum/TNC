@@ -115,6 +115,7 @@ jobs:
         os: [macos-latest]
     env:
       HDF5_DIR: /opt/homebrew/opt/hdf5
+      BOOST_DIR: /opt/homebrew/opt/boost
     steps:
       # if your project needs OpenSSL, uncomment this to fix Windows builds.
       # it's commented out by default as the install command takes 5-10m.
