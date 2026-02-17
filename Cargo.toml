@@ -1,3 +1,4 @@
 [workspace]
 resolver = "2"
-members = ["benchmark","tnc"]
+members = ["benchmark", "tnc"]
+default-members = ["tnc"]
