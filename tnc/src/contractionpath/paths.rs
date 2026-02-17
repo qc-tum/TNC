@@ -4,6 +4,7 @@ use crate::contractionpath::ContractionPath;
 
 pub mod branchbound;
 pub mod cotengrust;
+#[cfg(feature = "cotengra")]
 pub mod hyperoptimization;
 #[cfg(feature = "cotengra")]
 pub mod tree_annealing;
