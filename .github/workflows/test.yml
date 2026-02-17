@@ -113,6 +113,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest]
+    env:
+      HDF5_DIR: /opt/homebrew/opt/hdf5
     steps:
       # if your project needs OpenSSL, uncomment this to fix Windows builds.
       # it's commented out by default as the install command takes 5-10m.
@@ -122,8 +124,7 @@ jobs:
       #   if: runner.os == 'Windows'
       - name: Install system requirements
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
+          brew install hdf5 openmpi boost
       - name: Install python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # tag=v6.2.0
         with:
