@@ -13,6 +13,7 @@ rust-version = "1.85"
 
 [features]
 cotengra = ["dep:rustengra"]
+mkl = ["tetra/mkl"]
 
 [dependencies]
 mpi = { version = "0.8.1", features = ["complex", "derive"] }

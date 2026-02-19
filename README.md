@@ -38,6 +38,7 @@ cargo run --example local_contraction
 
 ### Features
 - `cotengra`: Enables Rust bindings to the tree annealing, tree reconfiguration and tree tempering methods of cotengra
+- `mkl`: Uses the MKL library for performing the tensor contractions.
 
 ## Getting started
 
