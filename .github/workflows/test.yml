@@ -105,33 +105,46 @@ jobs:
         run: cargo +nightly update -Zdirect-minimal-versions
       - name: cargo test
         run: cargo test --locked --all-features --all-targets
-  # os-check:
-  #   # run cargo test on mac and windows
-  #   runs-on: ${{ matrix.os }}
-  #   name: test (stable, ${{ matrix.os }})
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os: [macos-latest, windows-latest]
-  #   steps:
-  #     # if your project needs OpenSSL, uncomment this to fix Windows builds.
-  #     # it's commented out by default as the install command takes 5-10m.
-  #     # - run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
-  #     #   if: runner.os == 'Windows'
-  #     # - run: vcpkg install openssl:x64-windows-static-md
-  #     #   if: runner.os == 'Windows'
-  #     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
-  #       with:
-  #         submodules: true
-  #     - name: Install stable
-  #       uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # tag=v1.15.2
-  #       with:
-  #         toolchain: stable
-  #     - name: cargo generate-lockfile
-  #       if: hashFiles('Cargo.lock') == ''
-  #       run: cargo generate-lockfile
-  #     - name: cargo test
-  #       run: cargo test --locked --all-features --all-targets
+  os-check:
+    # run cargo test on mac and windows
+    runs-on: ${{ matrix.os }}
+    name: test (stable, ${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+    env:
+      HDF5_DIR: /opt/homebrew/opt/hdf5
+      BOOST_DIR: /opt/homebrew/opt/boost
+      PRTE_MCA_rmaps_default_mapping_policy: ":oversubscribe"
+    steps:
+      # if your project needs OpenSSL, uncomment this to fix Windows builds.
+      # it's commented out by default as the install command takes 5-10m.
+      # - run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+      #   if: runner.os == 'Windows'
+      # - run: vcpkg install openssl:x64-windows-static-md
+      #   if: runner.os == 'Windows'
+      - name: Install system requirements
+        run: |
+          brew install hdf5 openmpi boost
+      - name: Install python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # tag=v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Install python dependencies
+        run: pip install cotengra kahypar optuna
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
+        with:
+          submodules: true
+      - name: Install stable
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # tag=v1.15.2
+        with:
+          toolchain: stable
+      - name: cargo generate-lockfile
+        if: hashFiles('Cargo.lock') == ''
+        run: cargo generate-lockfile
+      - name: cargo test
+        run: cargo test --locked --features cotengra --all-targets
   coverage:
     # use llvm-cov to build and collect coverage and outputs in a format that
     # is compatible with https://github.com/marketplace/actions/code-coverage-summary.
