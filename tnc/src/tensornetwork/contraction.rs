@@ -13,7 +13,7 @@ use crate::{
 /// # Examples
 /// ```
 /// # use tnc::{
-/// #   contractionpath::paths::{branchbound::BranchBound, CostType, FindPath},
+/// #   contractionpath::paths::{cotengrust::{Cotengrust, OptMethod}, FindPath},
 /// #   builders::sycamore_circuit::sycamore_circuit,
 /// #   tensornetwork::tensor::Tensor,
 /// #   tensornetwork::contraction::contract_tensor_network,
@@ -21,8 +21,8 @@ use crate::{
 /// # use rand::rngs::StdRng;
 /// # use rand::SeedableRng;
 /// let mut r = StdRng::seed_from_u64(42);
-/// let mut r_tn = sycamore_circuit(2, 1, &mut r);
-/// let mut opt = BranchBound::new(&r_tn, None, 20., CostType::Flops);
+/// let mut r_tn = sycamore_circuit(2, 1, &mut r).into_expectation_value_network();
+/// let mut opt = Cotengrust::new(&r_tn, OptMethod::Greedy);
 /// opt.find_path();
 /// let opt_path = opt.get_best_replace_path();
 /// let result = contract_tensor_network(r_tn, &opt_path);

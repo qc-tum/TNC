@@ -1,30 +1,33 @@
-//! Generating a tensor network similar to the Sycamore circuits.
+//! Generating circuits similar to the Sycamore circuits.
 
 use std::f64::consts::{FRAC_PI_2, FRAC_PI_6};
 
 use rand::{seq::IndexedRandom, Rng};
-use rustc_hash::FxHashMap;
 
 use crate::{
     builders::{
+        circuit_builder::Circuit,
         connectivity::{sycamore_a, sycamore_b, sycamore_c, sycamore_d},
-        tensorgeneration::random_sparse_tensor_data_with_rng,
     },
-    tensornetwork::{tensor::Tensor, tensordata::TensorData},
+    tensornetwork::tensordata::TensorData,
 };
 
-/// Creates a new tensor network based on the Sycamore circuit.
+/// Creates a circuit based on the Sycamore circuit scheme.
 ///
-/// The `depth` is the
-/// number of rounds, where one round consists of a layer of single-qubit gates
-/// followed by a layer of two-qubit gates. The start and end states are random
-/// product states.
+/// The `depth` is the number of rounds, where one round consists of a layer of
+/// single-qubit gates followed by a layer of two-qubit gates. The circuit is
+/// initialized in the |0> state.
 ///
 /// For more details on the circuit, see <https://arxiv.org/abs/1910.11333>.
-pub fn sycamore_circuit<R>(qubits: usize, depth: usize, rng: &mut R) -> Tensor
+pub fn sycamore_circuit<R>(qubits: usize, depth: usize, rng: &mut R) -> Circuit
 where
     R: Rng,
 {
+    // TODO: if we generalize the connection patterns, we can allow arbitrary sizes here
+    assert!(
+        qubits <= 49,
+        "Currently only supports circuits of size equal to the original Sycamore experiment"
+    );
     let mut rounds = [
         sycamore_a, sycamore_b, sycamore_c, sycamore_d, sycamore_c, sycamore_d, sycamore_a,
         sycamore_b,
@@ -39,71 +42,33 @@ where
     let two_qubit_gate =
         TensorData::Gate((String::from("fsim"), vec![FRAC_PI_2, FRAC_PI_6], false));
 
-    // Initialize tensornetwork of size `usize`
-    let mut circuit_tn = Tensor::default();
-    let mut next_edge = qubits;
-    let mut open_edges = FxHashMap::default();
+    // Initialize circuit
+    let mut circuit = Circuit::default();
+    let qreg = circuit.allocate_register(qubits);
 
-    // set up initial state
-    let mut initial_state = Vec::with_capacity(qubits);
-    for i in 0..qubits {
-        let mut new_state = Tensor::new_from_const(vec![i], 2);
-        new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng));
-        open_edges.insert(i, i);
-        initial_state.push(new_state);
-    }
-    circuit_tn.push_tensors(initial_state);
-
-    let mut intermediate_gates = Vec::new();
-    for _ in 0..depth {
+    // Add interleaved layers of random single-qubit gates and two-qubit gates
+    for round in 0..=depth {
+        // Add single-qubit gate layer
         for i in 0..qubits {
-            // Placing of random single qubit gate
-            let mut new_tensor = Tensor::new_from_const(vec![open_edges[&i], next_edge], 2);
-            new_tensor.set_tensor_data(single_qubit_gates.choose(rng).unwrap().clone());
-            intermediate_gates.push(new_tensor);
-            open_edges.insert(i, next_edge);
-            next_edge += 1;
+            let gate = single_qubit_gates.choose(rng).unwrap().clone();
+            circuit.append_gate(gate, &[qreg.qubit(i)]);
         }
 
-        let layer = rounds.next().unwrap()();
-        for (i, j) in layer {
-            if i > qubits || j > qubits {
-                continue;
+        // In the last round, we only have a final single-qubit layer.
+        if round < depth {
+            // Add two-qubit gates with round-specific connectivity.
+            let layer = rounds.next().unwrap()();
+            for (i, j) in layer {
+                if i > qubits || j > qubits {
+                    continue;
+                }
+                let i = i - 1;
+                let j = j - 1;
+                circuit.append_gate(two_qubit_gate.clone(), &[qreg.qubit(i), qreg.qubit(j)]);
             }
-            let i = i - 1;
-            let j = j - 1;
-            let mut new_tensor = Tensor::new_from_const(
-                vec![open_edges[&i], open_edges[&j], next_edge, next_edge + 1],
-                2,
-            );
-            new_tensor.set_tensor_data(two_qubit_gate.clone());
-            intermediate_gates.push(new_tensor);
-            open_edges.insert(i, next_edge);
-            open_edges.insert(j, next_edge + 1);
-            next_edge += 2;
         }
     }
-
-    for i in 0..qubits {
-        // Placing of random single qubit gate
-        let mut new_tensor = Tensor::new_from_const(vec![open_edges[&i], next_edge], 2);
-        new_tensor.set_tensor_data(single_qubit_gates.choose(rng).unwrap().clone());
-        intermediate_gates.push(new_tensor);
-        open_edges.insert(i, next_edge);
-        next_edge += 1;
-    }
-    circuit_tn.push_tensors(intermediate_gates);
-
-    // set up final state
-    let mut final_state = Vec::with_capacity(qubits);
-    for i in 0..qubits {
-        let mut new_state = Tensor::new_from_const(vec![open_edges[&i]], 2);
-        new_state.set_tensor_data(random_sparse_tensor_data_with_rng(&[2], Some(1f32), rng));
-        final_state.push(new_state);
-    }
-    circuit_tn.push_tensors(final_state);
-
-    circuit_tn
+    circuit
 }
 
 #[cfg(test)]
@@ -116,7 +81,8 @@ mod tests {
     #[test]
     fn small_sycamore() {
         let mut rng = StdRng::seed_from_u64(42);
-        let tn = sycamore_circuit(3, 3, &mut rng);
+        let circuit = sycamore_circuit(3, 3, &mut rng);
+        let (tn, _) = circuit.into_amplitude_network(&"0".repeat(3));
 
         let rank_counts = tn.tensors().iter().counts_by(|t| t.legs().len());
         assert_eq!(rank_counts.len(), 3);
