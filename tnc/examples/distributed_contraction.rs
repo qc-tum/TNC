@@ -27,14 +27,9 @@ fn main() {
     let universe = mpi::initialize().unwrap();
     let world = universe.world();
     let rank = world.rank();
-    let size = world.size();
 
     // Perform the contraction
-    let result = if size == 1 {
-        local_contraction(tensor)
-    } else {
-        distributed_contraction(tensor, &world)
-    };
+    let result = distributed_contraction(tensor, &world);
 
     // Print the result
     if rank == 0 {
@@ -46,16 +41,6 @@ fn read_qasm(file: &str) -> Tensor {
     let source = fs::read_to_string(file).unwrap();
     let circuit = import_qasm(source);
     circuit.into_expectation_value_network()
-}
-
-fn local_contraction(tensor: Tensor) -> Tensor {
-    // Find a contraction path for the whole network
-    let mut opt = Cotengrust::new(&tensor, OptMethod::Greedy);
-    opt.find_path();
-    let contract_path = opt.get_best_replace_path();
-
-    // Contract the whole tensor network on this single node
-    contract_tensor_network(tensor, &contract_path)
 }
 
 fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor {
@@ -78,20 +63,20 @@ fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor
         Default::default()
     };
 
-    // Distribute partitions to ranks
+    // Distribute the part of the path that describes the final fan-in between ranks
+    let mut communication_path = if rank == 0 {
+        path.toplevel.clone()
+    } else {
+        Default::default()
+    };
+    broadcast_path(&mut communication_path, &root);
+
+    // Distribute the partitions to the ranks
     let (mut local_tn, local_path, comm) =
         scatter_tensor_network(&partitioned_tn, &path, rank, size, world);
 
     // Contract the partitions on each rank
     local_tn = contract_tensor_network(local_tn, &local_path);
-
-    // Get the part of the path that describes the final fan-in between ranks
-    let mut communication_path = if rank == 0 {
-        path.toplevel
-    } else {
-        Default::default()
-    };
-    broadcast_path(&mut communication_path, &root);
 
     // Perform the final fan-in, sending tensors between ranks and contracting them
     // until there is only the final tensor left, which will end up on rank 0.
