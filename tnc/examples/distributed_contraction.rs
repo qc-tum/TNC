@@ -1,7 +1,7 @@
-use std::fs;
-
 use mpi::{topology::SimpleCommunicator, traits::Communicator};
+use rand::{rngs::StdRng, SeedableRng};
 use tnc::{
+    builders::sycamore_circuit::sycamore_circuit,
     contractionpath::paths::{
         cotengrust::{Cotengrust, OptMethod},
         FindPath,
@@ -9,7 +9,6 @@ use tnc::{
     mpi::communication::{
         broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
     },
-    qasm::import_qasm,
     tensornetwork::{
         contraction::contract_tensor_network,
         partitioning::{
@@ -21,7 +20,13 @@ use tnc::{
 
 fn main() {
     // Read from file
-    let tensor = read_qasm("foo.qasm");
+    let qubits = 10;
+    let mut rng = StdRng::seed_from_u64(0);
+    let circuit = sycamore_circuit(qubits, 10, &mut rng);
+    let (tensor, perm) = circuit.into_amplitude_network(&"0".repeat(qubits));
+
+    // The result will be a scalar, so no permutation is required
+    assert!(perm.is_identity());
 
     // Set up MPI
     let universe = mpi::initialize().unwrap();
@@ -35,12 +40,6 @@ fn main() {
     if rank == 0 {
         println!("{result:?}");
     }
-}
-
-fn read_qasm(file: &str) -> Tensor {
-    let source = fs::read_to_string(file).unwrap();
-    let circuit = import_qasm(source);
-    circuit.into_expectation_value_network()
 }
 
 fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor {
