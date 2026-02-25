@@ -1,7 +1,9 @@
 [![check](https://github.com/qc-tum/TNC/actions/workflows/check.yml/badge.svg)](https://github.com/qc-tum/TNC/actions/workflows/check.yml)
 [![test](https://github.com/qc-tum/TNC/actions/workflows/test.yml/badge.svg)](https://github.com/qc-tum/TNC/actions/workflows/test.yml)
 
-[**Documentation**](https://qc-tum.github.io/TNC/)
+[Documentation]
+[Tutorial]
+[Examples]
 
 # Tensornetwork Contraction Library
 
@@ -42,9 +44,9 @@ cargo run --example local_contraction
 
 ## Getting started
 
-To familiarize yourself with the code, it is recommended to look at the examples and the documentation.
-Some aspects of the library are also covered in more detail in the [Tutorial](https://qc-tum.github.io/TNC/tnc/_tutorial/index.html).
-If you want to contribute, please take a loot at the Contribution guide.
+To familiarize yourself with the code, it is recommended to look at the [Examples] and the [Documentation].
+Some aspects of the library are also covered in more detail in the [Tutorial].
+If you want to contribute, please take a loot at the [Contribution guide](https://github.com/qc-tum/TNC/blob/main/CONTRIBUTING.md).
 
 ## Example
 
@@ -100,3 +102,7 @@ cx q[1], q[2];
 
 ## Publications
 - <i>Optimizing Tensor Network Partitioning using Simulated Annealing</i>, Geiger et al. (2025): <https://arxiv.org/abs/2507.20667>
+
+[Examples]: https://github.com/qc-tum/TNC/tree/main/tnc/examples
+[Documentation]: https://qc-tum.github.io/TNC/
+[Tutorial]: https://qc-tum.github.io/TNC/tnc/_tutorial/index.html
