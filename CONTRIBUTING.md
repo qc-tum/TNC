@@ -18,7 +18,7 @@ If you want to contribute code through a PR, here are some guidelines:
 - The CI must pass for PRs to be merged
 
 ## Getting started
-- Clone the porject
+- Clone the project
 - Install the required dependencies as described in the README
 - Run `cargo build` to ensure everything works
 - Do your changes and check with `cargo test` that the tests still pass
