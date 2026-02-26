@@ -1,3 +1,6 @@
+//! Find and evaluate the cost of contraction paths. Also contains functionality for
+//! rebalancing of partitioned tensor networks.
+
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 

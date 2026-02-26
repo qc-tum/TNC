@@ -5,9 +5,13 @@
 //! (e.g. using `cargo build -r`) and then execute the binary found in the `target`
 //! folder using an MPI launcher (such as `mpirun`). For example:
 //! ```shell
-//! cargo build -r --example basic_usage
-//! mpirun -n 4 target/release/examples/basic_usage
+//! cargo build -r --example distributed_contraction
+//! mpirun -n 4 target/release/examples/distributed_contraction
 //! ```
+//! This command runs the executable on 4 nodes in parallel. While the nodes could be
+//! on the same physical device, this would make memory limitations even more severe.
+//! Instead, you usually want to do this with distributed nodes, where each node has
+//! its own memory.
 //!
 //! ## Parallelization
 //!
