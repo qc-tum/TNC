@@ -24,7 +24,7 @@ jobs:
         with:
           submodules: true
       - name: Install stable
-        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c # tag=v1.15.2
+        uses: actions-rust-lang/setup-rust-toolchain@a0b538fa0b742a6aa35d6e2c169b4bd06d225a98 # tag=v1.15.3
         with:
           toolchain: stable
       - name: cargo doc --no-deps
