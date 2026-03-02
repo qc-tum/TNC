@@ -64,43 +64,17 @@ fn rebalance(
     rng: &mut StdRng,
     communication_scheme: CommunicationScheme,
 ) -> Vec<usize> {
-    // Unfortunately, the simulated annealing algorithm needs a few things:
-    // The partition tensors and some initial contraction paths for each partition.
-    // Here, we recompute these things, but in practice, you might already have them
-    // (for example, from the cost computation of the naive partitioning).
-
-    // Partition the tensor
-    let partitioned_tn = partition_tensor_network(tensor.clone(), initial_partitioning);
-
-    // Get the partition tensors
-    let partition_tensors = partitioned_tn
-        .tensors()
-        .iter()
-        .map(Tensor::external_tensor)
-        .collect::<Vec<_>>();
-
-    // Find a contraction path for the partitioned tensor network
-    let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-    opt.find_path();
-    let path = opt.get_best_replace_path();
-
-    // Collect the contractions path for each partition
-    let initial_contraction_paths = (0..partition_tensors.len())
-        .map(|i| path.nested[&i].clone().into_simple())
-        .collect::<Vec<_>>();
+    let model = IntermediatePartitioningModel {
+        tensor,
+        communication_scheme,
+        memory_limit: None,
+    };
+    let initial_solution = model.compute_initial_solution(initial_partitioning, None);
 
     // Run the rebalancing
     let (solution, _) = simulated_annealing::balance_partitions(
-        IntermediatePartitioningModel {
-            tensor,
-            communication_scheme,
-            memory_limit: None,
-        },
-        (
-            initial_partitioning.to_vec(),
-            partition_tensors,
-            initial_contraction_paths,
-        ),
+        model,
+        initial_solution,
         rng,
         Duration::from_secs(20),
     );

@@ -22,7 +22,7 @@ use crate::{
         repartitioning::compute_solution,
         SimplePath,
     },
-    tensornetwork::tensor::Tensor,
+    tensornetwork::{partitioning::partition_tensor_network, tensor::Tensor},
 };
 
 type ScoreType = NotNan<f64>;
@@ -417,6 +417,45 @@ pub struct IntermediatePartitioningModel<'a> {
     pub tensor: &'a Tensor,
     pub communication_scheme: CommunicationScheme,
     pub memory_limit: Option<f64>,
+}
+
+impl IntermediatePartitioningModel<'_> {
+    pub fn compute_initial_solution(
+        &self,
+        initial_partitioning: &[usize],
+        initial_contraction_paths: Option<Vec<SimplePath>>,
+    ) -> <IntermediatePartitioningModel<'_> as OptModel>::SolutionType {
+        let partitioned_tn = partition_tensor_network(self.tensor.clone(), initial_partitioning);
+
+        // Get the partition tensors
+        let partition_tensors = partitioned_tn
+            .tensors()
+            .iter()
+            .map(Tensor::external_tensor)
+            .collect_vec();
+
+        let contraction_paths = initial_contraction_paths.unwrap_or_else(|| {
+            // Find contraction paths using Greedy
+            partitioned_tn
+                .tensors()
+                .iter()
+                .map(|t| {
+                    // Find path for this partition
+                    let mut opt = Cotengrust::new(t, OptMethod::Greedy);
+                    opt.find_path();
+                    let path = opt.get_best_replace_path();
+                    path.into_simple()
+                })
+                .collect()
+        });
+
+        // Find a contraction path for the partitioned tensor network
+        (
+            initial_partitioning.to_vec(),
+            partition_tensors,
+            contraction_paths,
+        )
+    }
 }
 
 impl OptModel for IntermediatePartitioningModel<'_> {
