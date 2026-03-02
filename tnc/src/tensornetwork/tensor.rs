@@ -360,7 +360,7 @@ impl Tensor {
         let num_tensors = self.tensors.len();
         let mut uf = UnionFind::new(num_tensors);
 
-        for t1_id in 0..num_tensors - 1 {
+        for t1_id in 0..num_tensors {
             for t2_id in (t1_id + 1)..num_tensors {
                 let t1 = &self.tensors[t1_id];
                 let t2 = &self.tensors[t2_id];
