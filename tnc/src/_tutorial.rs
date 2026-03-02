@@ -8,7 +8,8 @@
 //! module docstrings). Accordingly, code examples in the tutorials are not executed
 //! and therefore run the risk of quickly becoming outdated.
 pub mod constructing_tns;
-pub mod hpc_overview;
+pub mod parallelization;
 pub mod partitioning;
 pub mod pathfinding_and_contraction;
+pub mod running_on_hpc;
 pub mod tensors_structure;

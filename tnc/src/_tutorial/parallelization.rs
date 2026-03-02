@@ -1,19 +1,4 @@
-//! # High-Performance Computing (HPC)
-//!
-//! The library can run on multiple connected compute nodes such as in a HPC setting.
-//! It uses MPI for communication between nodes. To run the code with MPI, compile it
-//! (e.g. using `cargo build -r`) and then execute the binary found in the `target`
-//! folder using an MPI launcher (such as `mpirun`). For example:
-//! ```shell
-//! cargo build -r --example distributed_contraction
-//! mpirun -n 4 target/release/examples/distributed_contraction
-//! ```
-//! This command runs the executable on 4 nodes in parallel. While the nodes could be
-//! on the same physical device, this would make memory limitations even more severe.
-//! Instead, you usually want to do this with distributed nodes, where each node has
-//! its own memory.
-//!
-//! ## Parallelization
+//! # Parallelization
 //!
 //! ### Distributed memory parallelism
 //! The parallelization strategy currently is partitioning: Given a tensor network,
@@ -47,6 +32,5 @@
 use crate::contractionpath::contraction_cost;
 use crate::mpi::communication::scatter_tensor_network;
 use crate::tensornetwork::partitioning::find_partitioning;
-use crate::tensornetwork::tensor::Tensor;
 
 pub use crate::_tutorial as table_of_contents;

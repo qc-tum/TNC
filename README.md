@@ -12,7 +12,7 @@ To this end, it ships multiple methods to partition a tensor network for lowest 
 The partitionings can then be contracted in parallel on a distributed-memory system, as common in high-performance computing.
 Local contractions on a single system are also possible.
 
-## Crate
+## Installation
 
 ### Requirements
 The library requires a few dependencies to be installed on the system.
