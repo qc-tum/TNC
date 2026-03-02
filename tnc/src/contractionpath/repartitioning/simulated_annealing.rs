@@ -197,19 +197,20 @@ impl OptModel for NaivePartitioningModel<'_> {
         let (partitioned_tn, path, parallel_cost, _) =
             compute_solution(self.tensor, solution, self.communication_scheme, Some(rng));
 
-        // Compute memory usage
-        let mem = compute_memory_requirements(
-            partitioned_tn.tensors(),
-            &path,
-            contract_size_tensors_exact,
-        );
-
         // If the memory limit is exceeded, return infinity
-        if self.memory_limit.is_some_and(|limit| mem > limit) {
-            unsafe { NotNan::new_unchecked(f64::INFINITY) }
-        } else {
-            NotNan::new(parallel_cost).unwrap()
+        if let Some(limit) = self.memory_limit {
+            // Compute memory usage
+            let mem = compute_memory_requirements(
+                partitioned_tn.tensors(),
+                &path,
+                contract_size_tensors_exact,
+            );
+
+            if mem > limit {
+                return NotNan::new(f64::INFINITY).unwrap();
+            }
         }
+        NotNan::new(parallel_cost).unwrap()
     }
 }
 
@@ -325,19 +326,20 @@ impl OptModel for NaiveIntermediatePartitioningModel<'_> {
             Some(rng),
         );
 
-        // Compute memory usage
-        let mem = compute_memory_requirements(
-            partitioned_tn.tensors(),
-            &path,
-            contract_size_tensors_exact,
-        );
-
         // If the memory limit is exceeded, return infinity
-        if self.memory_limit.is_some_and(|limit| mem > limit) {
-            unsafe { NotNan::new_unchecked(f64::INFINITY) }
-        } else {
-            NotNan::new(parallel_cost).unwrap()
+        if let Some(limit) = self.memory_limit {
+            // Compute memory usage
+            let mem = compute_memory_requirements(
+                partitioned_tn.tensors(),
+                &path,
+                contract_size_tensors_exact,
+            );
+
+            if mem > limit {
+                return NotNan::new(f64::INFINITY).unwrap();
+            }
         }
+        NotNan::new(parallel_cost).unwrap()
     }
 }
 
@@ -394,19 +396,20 @@ impl OptModel for LeafPartitioningModel<'_> {
             Some(rng),
         );
 
-        // Compute memory usage
-        let mem = compute_memory_requirements(
-            partitioned_tn.tensors(),
-            &path,
-            contract_size_tensors_exact,
-        );
-
         // If the memory limit is exceeded, return infinity
-        if self.memory_limit.is_some_and(|limit| mem > limit) {
-            unsafe { NotNan::new_unchecked(f64::INFINITY) }
-        } else {
-            NotNan::new(parallel_cost).unwrap()
+        if let Some(limit) = self.memory_limit {
+            // Compute memory usage
+            let mem = compute_memory_requirements(
+                partitioned_tn.tensors(),
+                &path,
+                contract_size_tensors_exact,
+            );
+
+            if mem > limit {
+                return NotNan::new(f64::INFINITY).unwrap();
+            }
         }
+        NotNan::new(parallel_cost).unwrap()
     }
 }
 
@@ -539,19 +542,20 @@ impl OptModel for IntermediatePartitioningModel<'_> {
             Some(rng),
         );
 
-        // Compute memory usage
-        let mem = compute_memory_requirements(
-            partitioned_tn.tensors(),
-            &path,
-            contract_size_tensors_exact,
-        );
-
         // If the memory limit is exceeded, return infinity
-        if self.memory_limit.is_some_and(|limit| mem > limit) {
-            unsafe { NotNan::new_unchecked(f64::INFINITY) }
-        } else {
-            NotNan::new(parallel_cost).unwrap()
+        if let Some(limit) = self.memory_limit {
+            // Compute memory usage
+            let mem = compute_memory_requirements(
+                partitioned_tn.tensors(),
+                &path,
+                contract_size_tensors_exact,
+            );
+
+            if mem > limit {
+                return NotNan::new(f64::INFINITY).unwrap();
+            }
         }
+        NotNan::new(parallel_cost).unwrap()
     }
 }
 
