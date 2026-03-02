@@ -7,7 +7,7 @@ use std::{
 
 use itertools::Itertools;
 use ordered_float::NotNan;
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{rngs::StdRng, seq::IteratorRandom, Rng, SeedableRng};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 
@@ -233,7 +233,7 @@ impl OptModel for NaiveIntermediatePartitioningModel<'_> {
         let (mut partitioning, mut contraction_paths) = current_solution;
 
         // Select source partition (with more than one tensor)
-        let viable_partitions = contraction_paths
+        let source_partition = contraction_paths
             .iter()
             .enumerate()
             .filter_map(|(contraction_id, contraction)| {
@@ -243,14 +243,12 @@ impl OptModel for NaiveIntermediatePartitioningModel<'_> {
                     None
                 }
             })
-            .collect_vec();
+            .choose(rng);
 
-        if viable_partitions.is_empty() {
+        let Some(source_partition) = source_partition else {
             // No viable partitions, return the current solution
             return (partitioning, contraction_paths);
-        }
-        let trial = rng.random_range(0..viable_partitions.len());
-        let source_partition = viable_partitions[trial];
+        };
 
         // Select random tensor contraction in source partition
         let pair_index = rng.random_range(0..contraction_paths[source_partition].len() - 1);
@@ -432,7 +430,7 @@ impl OptModel for IntermediatePartitioningModel<'_> {
         let (mut partitioning, mut partition_tensors, mut contraction_paths) = current_solution;
 
         // Select source partition (with more than one tensor)
-        let viable_partitions = contraction_paths
+        let source_partition = contraction_paths
             .iter()
             .enumerate()
             .filter_map(|(contraction_id, contraction)| {
@@ -442,14 +440,12 @@ impl OptModel for IntermediatePartitioningModel<'_> {
                     None
                 }
             })
-            .collect_vec();
+            .choose(rng);
 
-        if viable_partitions.is_empty() {
+        let Some(source_partition) = source_partition else {
             // No viable partitions, return the current solution
             return (partitioning, partition_tensors, contraction_paths);
-        }
-        let trial = rng.random_range(0..viable_partitions.len());
-        let source_partition = viable_partitions[trial];
+        };
 
         // Select random tensor contraction in source partition
         let pair_index = rng.random_range(0..contraction_paths[source_partition].len() - 1);
