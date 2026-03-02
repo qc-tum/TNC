@@ -164,6 +164,37 @@ impl SimulatedAnnealingOptimizer {
     }
 }
 
+/// Common evaluation method for all simulated annealing methods.
+fn evaluate_partitioning<R>(
+    tensor: &Tensor,
+    partitioning: &[usize],
+    communication_scheme: CommunicationScheme,
+    memory_limit: Option<f64>,
+    rng: &mut R,
+) -> NotNan<f64>
+where
+    R: Rng,
+{
+    // Construct the tensor network and contraction path from the partitioning
+    let (partitioned_tn, path, parallel_cost, _) =
+        compute_solution(tensor, partitioning, communication_scheme, Some(rng));
+
+    // If the memory limit is exceeded, return infinity
+    if let Some(limit) = memory_limit {
+        // Compute memory usage
+        let mem = compute_memory_requirements(
+            partitioned_tn.tensors(),
+            &path,
+            contract_size_tensors_exact,
+        );
+
+        if mem > limit {
+            return NotNan::new(f64::INFINITY).unwrap();
+        }
+    }
+    NotNan::new(parallel_cost).unwrap()
+}
+
 /// A simulated annealing model that moves a random tensor between random partitions.
 pub struct NaivePartitioningModel<'a> {
     pub tensor: &'a Tensor,
@@ -193,24 +224,13 @@ impl OptModel for NaivePartitioningModel<'_> {
     }
 
     fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
-        // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, parallel_cost, _) =
-            compute_solution(self.tensor, solution, self.communication_scheme, Some(rng));
-
-        // If the memory limit is exceeded, return infinity
-        if let Some(limit) = self.memory_limit {
-            // Compute memory usage
-            let mem = compute_memory_requirements(
-                partitioned_tn.tensors(),
-                &path,
-                contract_size_tensors_exact,
-            );
-
-            if mem > limit {
-                return NotNan::new(f64::INFINITY).unwrap();
-            }
-        }
-        NotNan::new(parallel_cost).unwrap()
+        evaluate_partitioning(
+            self.tensor,
+            solution,
+            self.communication_scheme,
+            self.memory_limit,
+            rng,
+        )
     }
 }
 
@@ -316,28 +336,13 @@ impl OptModel for NaiveIntermediatePartitioningModel<'_> {
     }
 
     fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
-        // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, parallel_cost, _) = compute_solution(
+        evaluate_partitioning(
             self.tensor,
             &solution.0,
             self.communication_scheme,
-            Some(rng),
-        );
-
-        // If the memory limit is exceeded, return infinity
-        if let Some(limit) = self.memory_limit {
-            // Compute memory usage
-            let mem = compute_memory_requirements(
-                partitioned_tn.tensors(),
-                &path,
-                contract_size_tensors_exact,
-            );
-
-            if mem > limit {
-                return NotNan::new(f64::INFINITY).unwrap();
-            }
-        }
-        NotNan::new(parallel_cost).unwrap()
+            self.memory_limit,
+            rng,
+        )
     }
 }
 
@@ -386,28 +391,13 @@ impl OptModel for LeafPartitioningModel<'_> {
     }
 
     fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
-        // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, parallel_cost, _) = compute_solution(
+        evaluate_partitioning(
             self.tensor,
             &solution.0,
             self.communication_scheme,
-            Some(rng),
-        );
-
-        // If the memory limit is exceeded, return infinity
-        if let Some(limit) = self.memory_limit {
-            // Compute memory usage
-            let mem = compute_memory_requirements(
-                partitioned_tn.tensors(),
-                &path,
-                contract_size_tensors_exact,
-            );
-
-            if mem > limit {
-                return NotNan::new(f64::INFINITY).unwrap();
-            }
-        }
-        NotNan::new(parallel_cost).unwrap()
+            self.memory_limit,
+            rng,
+        )
     }
 }
 
@@ -569,28 +559,13 @@ impl OptModel for IntermediatePartitioningModel<'_> {
     }
 
     fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
-        // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, parallel_cost, _) = compute_solution(
+        evaluate_partitioning(
             self.tensor,
             &solution.0,
             self.communication_scheme,
-            Some(rng),
-        );
-
-        // If the memory limit is exceeded, return infinity
-        if let Some(limit) = self.memory_limit {
-            // Compute memory usage
-            let mem = compute_memory_requirements(
-                partitioned_tn.tensors(),
-                &path,
-                contract_size_tensors_exact,
-            );
-
-            if mem > limit {
-                return NotNan::new(f64::INFINITY).unwrap();
-            }
-        }
-        NotNan::new(parallel_cost).unwrap()
+            self.memory_limit,
+            rng,
+        )
     }
 }
 
