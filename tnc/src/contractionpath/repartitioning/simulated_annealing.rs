@@ -588,7 +588,7 @@ where
         initial_temperature: 2.0,
         final_temperature: 0.05,
     };
-    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, rng)
+    optimizer.optimize_with_temperature(&model, initial_solution, rng)
 }
 
 #[cfg(test)]
