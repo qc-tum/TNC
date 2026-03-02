@@ -7,7 +7,7 @@ use std::{
 
 use itertools::Itertools;
 use ordered_float::NotNan;
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{rngs::StdRng, seq::IteratorRandom, Rng, SeedableRng};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 
@@ -22,7 +22,7 @@ use crate::{
         repartitioning::compute_solution,
         SimplePath,
     },
-    tensornetwork::tensor::Tensor,
+    tensornetwork::{partitioning::partition_tensor_network, tensor::Tensor},
 };
 
 type ScoreType = NotNan<f64>;
@@ -32,7 +32,7 @@ type ScoreType = NotNan<f64>;
 const PROCESSING_THREADS: usize = 48;
 
 /// OptModel is a trait that defines requirements to be used with optimization algorithm
-pub trait OptModel<'a>: Sync + Send {
+pub trait OptModel: Sync + Send {
     /// Type of the Solution
     type SolutionType: Clone + Sync + Send;
 
@@ -73,7 +73,7 @@ fn linear_interpolation(start: f64, end: f64, t: f64) -> f64 {
     (end - start).mul_add(t, start)
 }
 
-impl<'a> SimulatedAnnealingOptimizer {
+impl SimulatedAnnealingOptimizer {
     /// Start optimization with given temperature range
     ///
     /// - `model` : the model to optimize
@@ -87,7 +87,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         rng: &mut R,
     ) -> (M::SolutionType, ScoreType)
     where
-        M: OptModel<'a>,
+        M: OptModel,
         R: Rng,
     {
         let mut current_score = model.evaluate(&initial_solution, rng);
@@ -164,6 +164,37 @@ impl<'a> SimulatedAnnealingOptimizer {
     }
 }
 
+/// Common evaluation method for all simulated annealing methods.
+fn evaluate_partitioning<R>(
+    tensor: &Tensor,
+    partitioning: &[usize],
+    communication_scheme: CommunicationScheme,
+    memory_limit: Option<f64>,
+    rng: &mut R,
+) -> NotNan<f64>
+where
+    R: Rng,
+{
+    // Construct the tensor network and contraction path from the partitioning
+    let (partitioned_tn, path, parallel_cost, _) =
+        compute_solution(tensor, partitioning, communication_scheme, Some(rng));
+
+    // If the memory limit is exceeded, return infinity
+    if let Some(limit) = memory_limit {
+        // Compute memory usage
+        let mem = compute_memory_requirements(
+            partitioned_tn.tensors(),
+            &path,
+            contract_size_tensors_exact,
+        );
+
+        if mem > limit {
+            return NotNan::new(f64::INFINITY).unwrap();
+        }
+    }
+    NotNan::new(parallel_cost).unwrap()
+}
+
 /// A simulated annealing model that moves a random tensor between random partitions.
 pub struct NaivePartitioningModel<'a> {
     pub tensor: &'a Tensor,
@@ -172,7 +203,7 @@ pub struct NaivePartitioningModel<'a> {
     pub memory_limit: Option<f64>,
 }
 
-impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
+impl OptModel for NaivePartitioningModel<'_> {
     type SolutionType = Vec<usize>;
 
     fn generate_trial_solution<R: Rng>(
@@ -193,23 +224,13 @@ impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
     }
 
     fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
-        // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, parallel_cost, _) =
-            compute_solution(self.tensor, solution, self.communication_scheme, Some(rng));
-
-        // Compute memory usage
-        let mem = compute_memory_requirements(
-            partitioned_tn.tensors(),
-            &path,
-            contract_size_tensors_exact,
-        );
-
-        // If the memory limit is exceeded, return infinity
-        if self.memory_limit.is_some_and(|limit| mem > limit) {
-            unsafe { NotNan::new_unchecked(f64::INFINITY) }
-        } else {
-            NotNan::new(parallel_cost).unwrap()
-        }
+        evaluate_partitioning(
+            self.tensor,
+            solution,
+            self.communication_scheme,
+            self.memory_limit,
+            rng,
+        )
     }
 }
 
@@ -221,7 +242,7 @@ pub struct NaiveIntermediatePartitioningModel<'a> {
     pub memory_limit: Option<f64>,
 }
 
-impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
+impl OptModel for NaiveIntermediatePartitioningModel<'_> {
     type SolutionType = (Vec<usize>, Vec<SimplePath>);
 
     fn generate_trial_solution<R: Rng>(
@@ -232,7 +253,7 @@ impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
         let (mut partitioning, mut contraction_paths) = current_solution;
 
         // Select source partition (with more than one tensor)
-        let viable_partitions = contraction_paths
+        let source_partition = contraction_paths
             .iter()
             .enumerate()
             .filter_map(|(contraction_id, contraction)| {
@@ -242,14 +263,12 @@ impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
                     None
                 }
             })
-            .collect_vec();
+            .choose(rng);
 
-        if viable_partitions.is_empty() {
+        let Some(source_partition) = source_partition else {
             // No viable partitions, return the current solution
             return (partitioning, contraction_paths);
-        }
-        let trial = rng.random_range(0..viable_partitions.len());
-        let source_partition = viable_partitions[trial];
+        };
 
         // Select random tensor contraction in source partition
         let pair_index = rng.random_range(0..contraction_paths[source_partition].len() - 1);
@@ -317,27 +336,13 @@ impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
     }
 
     fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
-        // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, parallel_cost, _) = compute_solution(
+        evaluate_partitioning(
             self.tensor,
             &solution.0,
             self.communication_scheme,
-            Some(rng),
-        );
-
-        // Compute memory usage
-        let mem = compute_memory_requirements(
-            partitioned_tn.tensors(),
-            &path,
-            contract_size_tensors_exact,
-        );
-
-        // If the memory limit is exceeded, return infinity
-        if self.memory_limit.is_some_and(|limit| mem > limit) {
-            unsafe { NotNan::new_unchecked(f64::INFINITY) }
-        } else {
-            NotNan::new(parallel_cost).unwrap()
-        }
+            self.memory_limit,
+            rng,
+        )
     }
 }
 
@@ -349,7 +354,7 @@ pub struct LeafPartitioningModel<'a> {
     pub memory_limit: Option<f64>,
 }
 
-impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
+impl OptModel for LeafPartitioningModel<'_> {
     type SolutionType = (Vec<usize>, Vec<Tensor>);
 
     fn generate_trial_solution<R: Rng>(
@@ -386,27 +391,13 @@ impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
     }
 
     fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
-        // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, parallel_cost, _) = compute_solution(
+        evaluate_partitioning(
             self.tensor,
             &solution.0,
             self.communication_scheme,
-            Some(rng),
-        );
-
-        // Compute memory usage
-        let mem = compute_memory_requirements(
-            partitioned_tn.tensors(),
-            &path,
-            contract_size_tensors_exact,
-        );
-
-        // If the memory limit is exceeded, return infinity
-        if self.memory_limit.is_some_and(|limit| mem > limit) {
-            unsafe { NotNan::new_unchecked(f64::INFINITY) }
-        } else {
-            NotNan::new(parallel_cost).unwrap()
-        }
+            self.memory_limit,
+            rng,
+        )
     }
 }
 
@@ -418,7 +409,46 @@ pub struct IntermediatePartitioningModel<'a> {
     pub memory_limit: Option<f64>,
 }
 
-impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
+impl IntermediatePartitioningModel<'_> {
+    pub fn compute_initial_solution(
+        &self,
+        initial_partitioning: &[usize],
+        initial_contraction_paths: Option<Vec<SimplePath>>,
+    ) -> <IntermediatePartitioningModel<'_> as OptModel>::SolutionType {
+        let partitioned_tn = partition_tensor_network(self.tensor.clone(), initial_partitioning);
+
+        // Get the partition tensors
+        let partition_tensors = partitioned_tn
+            .tensors()
+            .iter()
+            .map(Tensor::external_tensor)
+            .collect_vec();
+
+        let contraction_paths = initial_contraction_paths.unwrap_or_else(|| {
+            // Find contraction paths using Greedy
+            partitioned_tn
+                .tensors()
+                .iter()
+                .map(|t| {
+                    // Find path for this partition
+                    let mut opt = Cotengrust::new(t, OptMethod::Greedy);
+                    opt.find_path();
+                    let path = opt.get_best_replace_path();
+                    path.into_simple()
+                })
+                .collect()
+        });
+
+        // Find a contraction path for the partitioned tensor network
+        (
+            initial_partitioning.to_vec(),
+            partition_tensors,
+            contraction_paths,
+        )
+    }
+}
+
+impl OptModel for IntermediatePartitioningModel<'_> {
     type SolutionType = (Vec<usize>, Vec<Tensor>, Vec<SimplePath>);
 
     fn generate_trial_solution<R: Rng>(
@@ -429,7 +459,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
         let (mut partitioning, mut partition_tensors, mut contraction_paths) = current_solution;
 
         // Select source partition (with more than one tensor)
-        let viable_partitions = contraction_paths
+        let source_partition = contraction_paths
             .iter()
             .enumerate()
             .filter_map(|(contraction_id, contraction)| {
@@ -439,14 +469,12 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
                     None
                 }
             })
-            .collect_vec();
+            .choose(rng);
 
-        if viable_partitions.is_empty() {
+        let Some(source_partition) = source_partition else {
             // No viable partitions, return the current solution
             return (partitioning, partition_tensors, contraction_paths);
-        }
-        let trial = rng.random_range(0..viable_partitions.len());
-        let source_partition = viable_partitions[trial];
+        };
 
         // Select random tensor contraction in source partition
         let pair_index = rng.random_range(0..contraction_paths[source_partition].len() - 1);
@@ -531,32 +559,18 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
     }
 
     fn evaluate<R: Rng>(&self, solution: &Self::SolutionType, rng: &mut R) -> ScoreType {
-        // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, parallel_cost, _) = compute_solution(
+        evaluate_partitioning(
             self.tensor,
             &solution.0,
             self.communication_scheme,
-            Some(rng),
-        );
-
-        // Compute memory usage
-        let mem = compute_memory_requirements(
-            partitioned_tn.tensors(),
-            &path,
-            contract_size_tensors_exact,
-        );
-
-        // If the memory limit is exceeded, return infinity
-        if self.memory_limit.is_some_and(|limit| mem > limit) {
-            unsafe { NotNan::new_unchecked(f64::INFINITY) }
-        } else {
-            NotNan::new(parallel_cost).unwrap()
-        }
+            self.memory_limit,
+            rng,
+        )
     }
 }
 
 /// Runs simulated annealing to find a better partitioning.
-pub fn balance_partitions<'a, R, M>(
+pub fn balance_partitions<R, M>(
     model: M,
     initial_solution: M::SolutionType,
     rng: &mut R,
@@ -564,7 +578,7 @@ pub fn balance_partitions<'a, R, M>(
 ) -> (M::SolutionType, ScoreType)
 where
     R: Rng,
-    M: OptModel<'a>,
+    M: OptModel,
 {
     let optimizer = SimulatedAnnealingOptimizer {
         n_trials: PROCESSING_THREADS,
@@ -574,7 +588,7 @@ where
         initial_temperature: 2.0,
         final_temperature: 0.05,
     };
-    optimizer.optimize_with_temperature::<M, _>(&model, initial_solution, rng)
+    optimizer.optimize_with_temperature(&model, initial_solution, rng)
 }
 
 #[cfg(test)]
