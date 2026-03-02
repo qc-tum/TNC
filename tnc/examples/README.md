@@ -26,3 +26,12 @@ Local contraction of a tensor network on one machine.
 - Creates a tensor network that computes the state vector
 - Finds a contraction path
 - Contracts the tensor network locally (no MPI / distributed memory)
+
+### `repartitioning`
+Using the simulated annealing algorithm of the library to improve the initial partitioning of a tensor network for lower contraction cost.
+- Creates a small Sycamore-like circuit
+- Creates a tensor network that computes the expectation value
+- Finds a naive partitioning (using KaHyPar)
+- Computes the contraction cost when using this partitioning
+- Uses simulated annealing to find an improved partitioning
+- Computes again the contraction cost

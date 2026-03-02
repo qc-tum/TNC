@@ -19,7 +19,7 @@ use tnc::{
 };
 
 fn main() {
-    // Read from file
+    // Create a small Sycamore circuit
     let qubits = 10;
     let mut rng = StdRng::seed_from_u64(0);
     let circuit = sycamore_circuit(qubits, 10, &mut rng);
