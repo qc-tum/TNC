@@ -32,7 +32,7 @@ type ScoreType = NotNan<f64>;
 const PROCESSING_THREADS: usize = 48;
 
 /// OptModel is a trait that defines requirements to be used with optimization algorithm
-pub trait OptModel<'a>: Sync + Send {
+pub trait OptModel: Sync + Send {
     /// Type of the Solution
     type SolutionType: Clone + Sync + Send;
 
@@ -73,7 +73,7 @@ fn linear_interpolation(start: f64, end: f64, t: f64) -> f64 {
     (end - start).mul_add(t, start)
 }
 
-impl<'a> SimulatedAnnealingOptimizer {
+impl SimulatedAnnealingOptimizer {
     /// Start optimization with given temperature range
     ///
     /// - `model` : the model to optimize
@@ -87,7 +87,7 @@ impl<'a> SimulatedAnnealingOptimizer {
         rng: &mut R,
     ) -> (M::SolutionType, ScoreType)
     where
-        M: OptModel<'a>,
+        M: OptModel,
         R: Rng,
     {
         let mut current_score = model.evaluate(&initial_solution, rng);
@@ -172,7 +172,7 @@ pub struct NaivePartitioningModel<'a> {
     pub memory_limit: Option<f64>,
 }
 
-impl<'a> OptModel<'a> for NaivePartitioningModel<'a> {
+impl OptModel for NaivePartitioningModel<'_> {
     type SolutionType = Vec<usize>;
 
     fn generate_trial_solution<R: Rng>(
@@ -221,7 +221,7 @@ pub struct NaiveIntermediatePartitioningModel<'a> {
     pub memory_limit: Option<f64>,
 }
 
-impl<'a> OptModel<'a> for NaiveIntermediatePartitioningModel<'a> {
+impl OptModel for NaiveIntermediatePartitioningModel<'_> {
     type SolutionType = (Vec<usize>, Vec<SimplePath>);
 
     fn generate_trial_solution<R: Rng>(
@@ -349,7 +349,7 @@ pub struct LeafPartitioningModel<'a> {
     pub memory_limit: Option<f64>,
 }
 
-impl<'a> OptModel<'a> for LeafPartitioningModel<'a> {
+impl OptModel for LeafPartitioningModel<'_> {
     type SolutionType = (Vec<usize>, Vec<Tensor>);
 
     fn generate_trial_solution<R: Rng>(
@@ -418,7 +418,7 @@ pub struct IntermediatePartitioningModel<'a> {
     pub memory_limit: Option<f64>,
 }
 
-impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
+impl OptModel for IntermediatePartitioningModel<'_> {
     type SolutionType = (Vec<usize>, Vec<Tensor>, Vec<SimplePath>);
 
     fn generate_trial_solution<R: Rng>(
@@ -556,7 +556,7 @@ impl<'a> OptModel<'a> for IntermediatePartitioningModel<'a> {
 }
 
 /// Runs simulated annealing to find a better partitioning.
-pub fn balance_partitions<'a, R, M>(
+pub fn balance_partitions<R, M>(
     model: M,
     initial_solution: M::SolutionType,
     rng: &mut R,
@@ -564,7 +564,7 @@ pub fn balance_partitions<'a, R, M>(
 ) -> (M::SolutionType, ScoreType)
 where
     R: Rng,
-    M: OptModel<'a>,
+    M: OptModel,
 {
     let optimizer = SimulatedAnnealingOptimizer {
         n_trials: PROCESSING_THREADS,
