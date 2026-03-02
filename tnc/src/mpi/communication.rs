@@ -90,7 +90,8 @@ fn get_tensor_mapping(path: &ContractionPath, size: Rank) -> RankTensorMapping {
     let mut tensor_mapping = RankTensorMapping::with_capacity(size as usize);
 
     let Some((final_tensor, _)) = path.toplevel.last() else {
-        // Empty path
+        // Empty top level path -> at most one partition which should go to rank 0
+        tensor_mapping.insert(0, 0);
         return tensor_mapping;
     };
 
