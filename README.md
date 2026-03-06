@@ -36,14 +36,14 @@ use tnc::{
 fn main() {
     // The QASM code prepares a GHZ state
     let code = "\
-OPENQASM 2.0;
-include \"qelib1.inc\";
+    OPENQASM 2.0;
+    include \"qelib1.inc\";
 
-qreg q[3];
-h q[0];
-cx q[0], q[1];
-cx q[1], q[2];
-";
+    qreg q[3];
+    h q[0];
+    cx q[0], q[1];
+    cx q[1], q[2];
+    ";
 
     // Create a Circuit instance out of the code
     let circuit = import_qasm(code);
@@ -66,7 +66,7 @@ cx q[1], q[2];
     let statevector = permutator.apply(final_tensor);
 
     // Get the actual data.
-    let data = statevector.into_tensor_data().into_data();
+    let data = statevector.into_data().into_data();
 
     // Print the data
     println!("Resulting statevector is: {:?}", data);
