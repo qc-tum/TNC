@@ -1,4 +1,3 @@
-use std::hash::{Hash, Hasher};
 use std::iter::zip;
 use std::num::TryFromIntError;
 use std::ops::{BitAnd, BitOr, BitXor, BitXorAssign, Sub};
@@ -35,12 +34,6 @@ pub struct Tensor {
 
     /// The data of the tensor.
     pub(crate) tensordata: TensorData,
-}
-
-impl Hash for Tensor {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.legs.hash(state);
-    }
 }
 
 impl Tensor {
