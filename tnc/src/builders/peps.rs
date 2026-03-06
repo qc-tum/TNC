@@ -1,6 +1,6 @@
 use itertools::iproduct;
 
-use crate::tensornetwork::tensor::Tensor;
+use crate::tensornetwork::tensor::{CompositeTensor, LeafTensor};
 
 /// Generate the initial state for an `length` x `depth` PEPS.
 ///
@@ -11,23 +11,21 @@ use crate::tensornetwork::tensor::Tensor;
 /// * `virtual_dim` - virtual bond dimension between lattice sites in the PEPs
 ///
 /// # Returns
-/// [`Tensor`] of initial state of PEPS
-fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -> Tensor {
-    let mut pep = Tensor::default();
-
+/// [`CompositeTensor`] of initial state of PEPS
+fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -> CompositeTensor {
     let physical_up = length * depth;
     let virtual_vertical = (length - 1) * depth;
     let virtual_horizontal = (depth - 1) * length;
     let total_edges = physical_up + virtual_vertical + virtual_horizontal;
 
-    let mut tensors = vec![Tensor::default(); length * depth];
+    let mut tensors = vec![LeafTensor::default(); length * depth];
 
     // Consider the corners
-    tensors[0] = Tensor::new(
+    tensors[0] = LeafTensor::new(
         vec![0, physical_up, physical_up + virtual_vertical],
         vec![physical_dim, virtual_dim, virtual_dim],
     );
-    tensors[length - 1] = Tensor::new(
+    tensors[length - 1] = LeafTensor::new(
         vec![
             length - 1,
             physical_up + length - 2,
@@ -35,7 +33,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
         ],
         vec![physical_dim, virtual_dim, virtual_dim],
     );
-    tensors[length * (depth - 1)] = Tensor::new(
+    tensors[length * (depth - 1)] = LeafTensor::new(
         vec![
             length * (depth - 1),
             physical_up + (length - 1) * (depth - 1),
@@ -43,7 +41,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
         ],
         vec![physical_dim, virtual_dim, virtual_dim],
     );
-    tensors[length * depth - 1] = Tensor::new(
+    tensors[length * depth - 1] = LeafTensor::new(
         vec![
             length * depth - 1,
             physical_up + (length - 1) * depth - 1,
@@ -54,7 +52,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
 
     // Consider the horizontal edges
     for j in 1..(length - 1) {
-        tensors[j] = Tensor::new(
+        tensors[j] = LeafTensor::new(
             vec![
                 j,
                 physical_up + j - 1,
@@ -64,7 +62,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
             vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
         );
 
-        tensors[physical_up - j - 1] = Tensor::new(
+        tensors[physical_up - j - 1] = LeafTensor::new(
             vec![
                 physical_up - j - 1,
                 physical_up + virtual_vertical - j - 1,
@@ -77,7 +75,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
 
     // Consider the vertical edges
     for i in 1..(depth - 1) {
-        tensors[i * length] = Tensor::new(
+        tensors[i * length] = LeafTensor::new(
             vec![
                 i * length,
                 physical_up + i * (length - 1),
@@ -87,7 +85,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
             vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
         );
 
-        tensors[(i + 1) * length - 1] = Tensor::new(
+        tensors[(i + 1) * length - 1] = LeafTensor::new(
             vec![
                 (i + 1) * length - 1,
                 physical_up + (i + 1) * (length - 1) - 1,
@@ -101,7 +99,7 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
     // Consider the remaining bulk not on the edges
     for (i, j) in iproduct!(1..(depth - 1), 1..(length - 1)) {
         let index = i * length + j;
-        tensors[index] = Tensor::new(
+        tensors[index] = LeafTensor::new(
             vec![
                 index,
                 physical_up + i * (length - 1) + j - 1,
@@ -119,14 +117,13 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
         );
     }
 
-    pep.push_tensors(tensors);
-    pep
+    CompositeTensor::new(tensors)
 }
 
 /// Generate an intermediate PEP-operator an n x n PEPs with shared bond dimension of `dimension`.
 ///
 /// # Arguments
-/// * `peps` - mutable [`Tensor`] representing initial PEPS and successive PEPOs
+/// * `peps` - [`CompositeTensor`] representing initial PEPS and successive PEPOs
 /// * `length` - length of the PEPS
 /// * `depth` - depth of the PEPS
 /// * `layer` - layer of PEPO to be applied
@@ -134,15 +131,15 @@ fn peps_init(length: usize, depth: usize, physical_dim: u64, virtual_dim: u64) -
 /// * `virtual_dim` - virtual bond dimension between lattice sites in the PEPs
 ///
 /// # Returns
-/// Updated PEPS [`Tensor`] with `layer`th PEPO applied.
+/// Updated PEPS [`CompositeTensor`] with `layer`th PEPO applied.
 fn pepo(
-    mut peps: Tensor,
+    mut peps: CompositeTensor,
     length: usize,
     depth: usize,
     layer: usize,
     physical_dim: u64,
     virtual_dim: u64,
-) -> Tensor {
+) -> CompositeTensor {
     let physical_up = length * depth;
     let virtual_vertical = (length - 1) * depth;
     let virtual_horizontal = (depth - 1) * length;
@@ -150,10 +147,10 @@ fn pepo(
     let last = total_edges * layer;
     let start = total_edges * (layer + 1);
 
-    let mut tensors = vec![Tensor::default(); length * depth];
+    let mut tensors = vec![LeafTensor::default(); length * depth];
 
     // Consider the corners
-    tensors[0] = Tensor::new(
+    tensors[0] = LeafTensor::new(
         vec![
             last,
             start,
@@ -162,7 +159,7 @@ fn pepo(
         ],
         vec![physical_dim, physical_dim, virtual_dim, virtual_dim],
     );
-    tensors[length - 1] = Tensor::new(
+    tensors[length - 1] = LeafTensor::new(
         vec![
             last + length - 1,
             start + length - 1,
@@ -171,7 +168,7 @@ fn pepo(
         ],
         vec![physical_dim, physical_dim, virtual_dim, virtual_dim],
     );
-    tensors[length * (depth - 1)] = Tensor::new(
+    tensors[length * (depth - 1)] = LeafTensor::new(
         vec![
             last + length * (depth - 1),
             start + length * (depth - 1),
@@ -180,7 +177,7 @@ fn pepo(
         ],
         vec![physical_dim, physical_dim, virtual_dim, virtual_dim],
     );
-    tensors[length * depth - 1] = Tensor::new(
+    tensors[length * depth - 1] = LeafTensor::new(
         vec![
             last + length * depth - 1,
             start + length * depth - 1,
@@ -192,7 +189,7 @@ fn pepo(
 
     // Consider the horizontal edges
     for j in 1..(length - 1) {
-        tensors[j] = Tensor::new(
+        tensors[j] = LeafTensor::new(
             vec![
                 last + j,
                 start + j,
@@ -209,7 +206,7 @@ fn pepo(
             ],
         );
 
-        tensors[physical_up - j - 1] = Tensor::new(
+        tensors[physical_up - j - 1] = LeafTensor::new(
             vec![
                 last + physical_up - j - 1,
                 start + physical_up - j - 1,
@@ -229,7 +226,7 @@ fn pepo(
 
     // Consider the vertical edges
     for i in 1..(depth - 1) {
-        tensors[i * length] = Tensor::new(
+        tensors[i * length] = LeafTensor::new(
             vec![
                 last + i * length,
                 start + i * length,
@@ -246,7 +243,7 @@ fn pepo(
             ],
         );
 
-        tensors[(i + 1) * length - 1] = Tensor::new(
+        tensors[(i + 1) * length - 1] = LeafTensor::new(
             vec![
                 last + (i + 1) * length - 1,
                 start + (i + 1) * length - 1,
@@ -267,7 +264,7 @@ fn pepo(
     // Consider the remaining bulk not on the edges
     for (i, j) in iproduct!(1..(depth - 1), 1..(length - 1)) {
         let index = i * length + j;
-        tensors[index] = Tensor::new(
+        tensors[index] = LeafTensor::new(
             vec![
                 last + index,
                 start + index,
@@ -293,22 +290,22 @@ fn pepo(
 /// Applies the final state in a PEPS.
 ///
 /// # Arguments
-/// * `peps` - mutable [`Tensor`] representing initial PEPS and successive PEPOs
+/// * `peps` - [`CompositeTensor`] representing initial PEPS and successive PEPOs
 /// * `length` - length of the PEPS
 /// * `depth` - depth of the PEPS
 /// * `physical_dim` - physical dimension of the PEPs
 /// * `virtual_dim` - virtual bond dimension between lattice sites in the PEPs
 ///
 /// # Returns
-/// Updated PEPS [`Tensor`] with final PEPS applied
+/// Updated PEPS [`CompositeTensor`] with final PEPS applied
 fn peps_final(
-    mut peps: Tensor,
+    mut peps: CompositeTensor,
     length: usize,
     depth: usize,
     physical_dim: u64,
     virtual_dim: u64,
     layers: usize,
-) -> Tensor {
+) -> CompositeTensor {
     let physical_up = length * depth;
     let virtual_vertical = (length - 1) * depth;
     let virtual_horizontal = (depth - 1) * length;
@@ -317,14 +314,14 @@ fn peps_final(
     let start = total_edges * (layers + 1);
     total_edges -= physical_up;
 
-    let mut tensors = vec![Tensor::default(); length * depth];
+    let mut tensors = vec![LeafTensor::default(); length * depth];
 
     // Consider the corners
-    tensors[0] = Tensor::new(
+    tensors[0] = LeafTensor::new(
         vec![last, start, start + virtual_vertical],
         vec![physical_dim, virtual_dim, virtual_dim],
     );
-    tensors[length - 1] = Tensor::new(
+    tensors[length - 1] = LeafTensor::new(
         vec![
             last + length - 1,
             start + length - 2,
@@ -332,7 +329,7 @@ fn peps_final(
         ],
         vec![physical_dim, virtual_dim, virtual_dim],
     );
-    tensors[length * (depth - 1)] = Tensor::new(
+    tensors[length * (depth - 1)] = LeafTensor::new(
         vec![
             last + length * (depth - 1),
             start + (length - 1) * (depth - 1),
@@ -340,7 +337,7 @@ fn peps_final(
         ],
         vec![physical_dim, virtual_dim, virtual_dim],
     );
-    tensors[length * depth - 1] = Tensor::new(
+    tensors[length * depth - 1] = LeafTensor::new(
         vec![
             last + length * depth - 1,
             start + (length - 1) * depth - 1,
@@ -351,7 +348,7 @@ fn peps_final(
 
     // Consider the horizontal edges
     for j in 1..(length - 1) {
-        tensors[j] = Tensor::new(
+        tensors[j] = LeafTensor::new(
             vec![
                 last + j,
                 start + j - 1,
@@ -361,7 +358,7 @@ fn peps_final(
             vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
         );
 
-        tensors[physical_up - j - 1] = Tensor::new(
+        tensors[physical_up - j - 1] = LeafTensor::new(
             vec![
                 last + physical_up - j - 1,
                 start + virtual_vertical - j - 1,
@@ -374,7 +371,7 @@ fn peps_final(
 
     // Consider the vertical edges
     for i in 1..(depth - 1) {
-        tensors[i * length] = Tensor::new(
+        tensors[i * length] = LeafTensor::new(
             vec![
                 last + i * length,
                 start + i * (length - 1),
@@ -384,7 +381,7 @@ fn peps_final(
             vec![physical_dim, virtual_dim, virtual_dim, virtual_dim],
         );
 
-        tensors[(i + 1) * length - 1] = Tensor::new(
+        tensors[(i + 1) * length - 1] = LeafTensor::new(
             vec![
                 last + (i + 1) * length - 1,
                 start + (i + 1) * (length - 1) - 1,
@@ -398,7 +395,7 @@ fn peps_final(
     // Consider the remaining bulk not on the edges
     for (i, j) in iproduct!(1..(depth - 1), 1..(length - 1)) {
         let index = i * length + j;
-        tensors[index] = Tensor::new(
+        tensors[index] = LeafTensor::new(
             vec![
                 last + index,
                 start + i * (length - 1) + j - 1,
@@ -441,7 +438,7 @@ fn peps_final(
 /// * `layers` - number of operator layers in PEPS, 0 layers returns an inner product of two states.
 ///
 /// # Returns
-/// [`Tensor`] representing a PEPS.
+/// [`CompositeTensor`] representing a PEPS.
 ///
 /// # Panics
 /// Panics if `length < 2` or `depth < 2`.
@@ -452,7 +449,7 @@ pub fn peps(
     physical_dim: u64,
     virtual_dim: u64,
     layers: usize,
-) -> Tensor {
+) -> CompositeTensor {
     assert!(length > 1, "PEPS should have length greater than 1");
     assert!(depth > 1, "PEPS should have depth greater than 1");
     let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
@@ -469,8 +466,6 @@ mod tests {
     use std::iter::zip;
 
     use rustc_hash::FxHashMap;
-
-    use crate::tensornetwork::tensor::Tensor;
 
     #[test]
     fn test_pep_init() {
@@ -503,20 +498,22 @@ mod tests {
             (20, 10),
         ]);
         let tensors = vec![
-            Tensor::new_from_map(vec![0, 9, 15], &bond_dims),
-            Tensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
-            Tensor::new_from_map(vec![2, 10, 17], &bond_dims),
-            Tensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
-            Tensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
-            Tensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
-            Tensor::new_from_map(vec![6, 13, 18], &bond_dims),
-            Tensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
-            Tensor::new_from_map(vec![8, 14, 20], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 9, 15], &bond_dims),
+            LeafTensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
+            LeafTensor::new_from_map(vec![2, 10, 17], &bond_dims),
+            LeafTensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 13, 18], &bond_dims),
+            LeafTensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
+            LeafTensor::new_from_map(vec![8, 14, 20], &bond_dims),
         ];
-        let ref_tensor = Tensor::new_composite(tensors);
+        let ref_tensor = CompositeTensor::new(tensors);
 
         let new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
+            let t1 = t1.as_leaf().unwrap();
+            let t2 = t2.as_leaf().unwrap();
             assert_eq!(t1.legs(), t2.legs());
             assert_eq!(t1.bond_dims(), t2.bond_dims());
         }
@@ -575,26 +572,26 @@ mod tests {
             (41, 10),
         ]);
         let tensors = vec![
-            Tensor::new_from_map(vec![0, 9, 15], &bond_dims),
-            Tensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
-            Tensor::new_from_map(vec![2, 10, 17], &bond_dims),
-            Tensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
-            Tensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
-            Tensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
-            Tensor::new_from_map(vec![6, 13, 18], &bond_dims),
-            Tensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
-            Tensor::new_from_map(vec![8, 14, 20], &bond_dims),
-            Tensor::new_from_map(vec![0, 21, 30, 36], &bond_dims),
-            Tensor::new_from_map(vec![1, 22, 30, 31, 37], &bond_dims),
-            Tensor::new_from_map(vec![2, 23, 31, 38], &bond_dims),
-            Tensor::new_from_map(vec![3, 24, 32, 36, 39], &bond_dims),
-            Tensor::new_from_map(vec![4, 25, 32, 33, 37, 40], &bond_dims),
-            Tensor::new_from_map(vec![5, 26, 33, 38, 41], &bond_dims),
-            Tensor::new_from_map(vec![6, 27, 34, 39], &bond_dims),
-            Tensor::new_from_map(vec![7, 28, 34, 35, 40], &bond_dims),
-            Tensor::new_from_map(vec![8, 29, 35, 41], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 9, 15], &bond_dims),
+            LeafTensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
+            LeafTensor::new_from_map(vec![2, 10, 17], &bond_dims),
+            LeafTensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 13, 18], &bond_dims),
+            LeafTensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
+            LeafTensor::new_from_map(vec![8, 14, 20], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 21, 30, 36], &bond_dims),
+            LeafTensor::new_from_map(vec![1, 22, 30, 31, 37], &bond_dims),
+            LeafTensor::new_from_map(vec![2, 23, 31, 38], &bond_dims),
+            LeafTensor::new_from_map(vec![3, 24, 32, 36, 39], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 25, 32, 33, 37, 40], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 26, 33, 38, 41], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 27, 34, 39], &bond_dims),
+            LeafTensor::new_from_map(vec![7, 28, 34, 35, 40], &bond_dims),
+            LeafTensor::new_from_map(vec![8, 29, 35, 41], &bond_dims),
         ];
-        let ref_tensor = Tensor::new_composite(tensors);
+        let ref_tensor = CompositeTensor::new(tensors);
 
         let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for layer in 0..layers {
@@ -602,6 +599,8 @@ mod tests {
         }
 
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
+            let t1 = t1.as_leaf().unwrap();
+            let t2 = t2.as_leaf().unwrap();
             assert_eq!(t1.legs(), t2.legs());
             assert_eq!(t1.bond_dims(), t2.bond_dims());
         }
@@ -672,35 +671,35 @@ mod tests {
             (53, 10),
         ]);
         let tensors = vec![
-            Tensor::new_from_map(vec![0, 9, 15], &bond_dims),
-            Tensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
-            Tensor::new_from_map(vec![2, 10, 17], &bond_dims),
-            Tensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
-            Tensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
-            Tensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
-            Tensor::new_from_map(vec![6, 13, 18], &bond_dims),
-            Tensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
-            Tensor::new_from_map(vec![8, 14, 20], &bond_dims),
-            Tensor::new_from_map(vec![0, 21, 30, 36], &bond_dims),
-            Tensor::new_from_map(vec![1, 22, 30, 31, 37], &bond_dims),
-            Tensor::new_from_map(vec![2, 23, 31, 38], &bond_dims),
-            Tensor::new_from_map(vec![3, 24, 32, 36, 39], &bond_dims),
-            Tensor::new_from_map(vec![4, 25, 32, 33, 37, 40], &bond_dims),
-            Tensor::new_from_map(vec![5, 26, 33, 38, 41], &bond_dims),
-            Tensor::new_from_map(vec![6, 27, 34, 39], &bond_dims),
-            Tensor::new_from_map(vec![7, 28, 34, 35, 40], &bond_dims),
-            Tensor::new_from_map(vec![8, 29, 35, 41], &bond_dims),
-            Tensor::new_from_map(vec![21, 42, 48], &bond_dims),
-            Tensor::new_from_map(vec![22, 42, 43, 49], &bond_dims),
-            Tensor::new_from_map(vec![23, 43, 50], &bond_dims),
-            Tensor::new_from_map(vec![24, 44, 48, 51], &bond_dims),
-            Tensor::new_from_map(vec![25, 44, 45, 49, 52], &bond_dims),
-            Tensor::new_from_map(vec![26, 45, 50, 53], &bond_dims),
-            Tensor::new_from_map(vec![27, 46, 51], &bond_dims),
-            Tensor::new_from_map(vec![28, 46, 47, 52], &bond_dims),
-            Tensor::new_from_map(vec![29, 47, 53], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 9, 15], &bond_dims),
+            LeafTensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
+            LeafTensor::new_from_map(vec![2, 10, 17], &bond_dims),
+            LeafTensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 13, 18], &bond_dims),
+            LeafTensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
+            LeafTensor::new_from_map(vec![8, 14, 20], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 21, 30, 36], &bond_dims),
+            LeafTensor::new_from_map(vec![1, 22, 30, 31, 37], &bond_dims),
+            LeafTensor::new_from_map(vec![2, 23, 31, 38], &bond_dims),
+            LeafTensor::new_from_map(vec![3, 24, 32, 36, 39], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 25, 32, 33, 37, 40], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 26, 33, 38, 41], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 27, 34, 39], &bond_dims),
+            LeafTensor::new_from_map(vec![7, 28, 34, 35, 40], &bond_dims),
+            LeafTensor::new_from_map(vec![8, 29, 35, 41], &bond_dims),
+            LeafTensor::new_from_map(vec![21, 42, 48], &bond_dims),
+            LeafTensor::new_from_map(vec![22, 42, 43, 49], &bond_dims),
+            LeafTensor::new_from_map(vec![23, 43, 50], &bond_dims),
+            LeafTensor::new_from_map(vec![24, 44, 48, 51], &bond_dims),
+            LeafTensor::new_from_map(vec![25, 44, 45, 49, 52], &bond_dims),
+            LeafTensor::new_from_map(vec![26, 45, 50, 53], &bond_dims),
+            LeafTensor::new_from_map(vec![27, 46, 51], &bond_dims),
+            LeafTensor::new_from_map(vec![28, 46, 47, 52], &bond_dims),
+            LeafTensor::new_from_map(vec![29, 47, 53], &bond_dims),
         ];
-        let ref_tensor = Tensor::new_composite(tensors);
+        let ref_tensor = CompositeTensor::new(tensors);
 
         let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for layer in 0..layers {
@@ -708,6 +707,8 @@ mod tests {
         }
         let new_peps = peps_final(new_peps, length, depth, physical_dim, virtual_dim, layers);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
+            let t1 = t1.as_leaf().unwrap();
+            let t2 = t2.as_leaf().unwrap();
             assert_eq!(t1.legs(), t2.legs());
             assert_eq!(t1.bond_dims(), t2.bond_dims());
         }
@@ -778,38 +779,40 @@ mod tests {
             (53, 10),
         ]);
         let tensors = vec![
-            Tensor::new_from_map(vec![0, 9, 15], &bond_dims),
-            Tensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
-            Tensor::new_from_map(vec![2, 10, 17], &bond_dims),
-            Tensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
-            Tensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
-            Tensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
-            Tensor::new_from_map(vec![6, 13, 18], &bond_dims),
-            Tensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
-            Tensor::new_from_map(vec![8, 14, 20], &bond_dims),
-            Tensor::new_from_map(vec![0, 21, 30, 36], &bond_dims),
-            Tensor::new_from_map(vec![1, 22, 30, 31, 37], &bond_dims),
-            Tensor::new_from_map(vec![2, 23, 31, 38], &bond_dims),
-            Tensor::new_from_map(vec![3, 24, 32, 36, 39], &bond_dims),
-            Tensor::new_from_map(vec![4, 25, 32, 33, 37, 40], &bond_dims),
-            Tensor::new_from_map(vec![5, 26, 33, 38, 41], &bond_dims),
-            Tensor::new_from_map(vec![6, 27, 34, 39], &bond_dims),
-            Tensor::new_from_map(vec![7, 28, 34, 35, 40], &bond_dims),
-            Tensor::new_from_map(vec![8, 29, 35, 41], &bond_dims),
-            Tensor::new_from_map(vec![21, 42, 48], &bond_dims),
-            Tensor::new_from_map(vec![22, 42, 43, 49], &bond_dims),
-            Tensor::new_from_map(vec![23, 43, 50], &bond_dims),
-            Tensor::new_from_map(vec![24, 44, 48, 51], &bond_dims),
-            Tensor::new_from_map(vec![25, 44, 45, 49, 52], &bond_dims),
-            Tensor::new_from_map(vec![26, 45, 50, 53], &bond_dims),
-            Tensor::new_from_map(vec![27, 46, 51], &bond_dims),
-            Tensor::new_from_map(vec![28, 46, 47, 52], &bond_dims),
-            Tensor::new_from_map(vec![29, 47, 53], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 9, 15], &bond_dims),
+            LeafTensor::new_from_map(vec![1, 9, 10, 16], &bond_dims),
+            LeafTensor::new_from_map(vec![2, 10, 17], &bond_dims),
+            LeafTensor::new_from_map(vec![3, 11, 15, 18], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 11, 12, 16, 19], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 12, 17, 20], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 13, 18], &bond_dims),
+            LeafTensor::new_from_map(vec![7, 13, 14, 19], &bond_dims),
+            LeafTensor::new_from_map(vec![8, 14, 20], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 21, 30, 36], &bond_dims),
+            LeafTensor::new_from_map(vec![1, 22, 30, 31, 37], &bond_dims),
+            LeafTensor::new_from_map(vec![2, 23, 31, 38], &bond_dims),
+            LeafTensor::new_from_map(vec![3, 24, 32, 36, 39], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 25, 32, 33, 37, 40], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 26, 33, 38, 41], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 27, 34, 39], &bond_dims),
+            LeafTensor::new_from_map(vec![7, 28, 34, 35, 40], &bond_dims),
+            LeafTensor::new_from_map(vec![8, 29, 35, 41], &bond_dims),
+            LeafTensor::new_from_map(vec![21, 42, 48], &bond_dims),
+            LeafTensor::new_from_map(vec![22, 42, 43, 49], &bond_dims),
+            LeafTensor::new_from_map(vec![23, 43, 50], &bond_dims),
+            LeafTensor::new_from_map(vec![24, 44, 48, 51], &bond_dims),
+            LeafTensor::new_from_map(vec![25, 44, 45, 49, 52], &bond_dims),
+            LeafTensor::new_from_map(vec![26, 45, 50, 53], &bond_dims),
+            LeafTensor::new_from_map(vec![27, 46, 51], &bond_dims),
+            LeafTensor::new_from_map(vec![28, 46, 47, 52], &bond_dims),
+            LeafTensor::new_from_map(vec![29, 47, 53], &bond_dims),
         ];
-        let ref_tensor = Tensor::new_composite(tensors);
+        let ref_tensor = CompositeTensor::new(tensors);
 
         let new_peps = peps(length, depth, physical_dim, virtual_dim, layers);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
+            let t1 = t1.as_leaf().unwrap();
+            let t2 = t2.as_leaf().unwrap();
             assert_eq!(t1.legs(), t2.legs());
             assert_eq!(t1.bond_dims(), t2.bond_dims());
         }
@@ -838,16 +841,16 @@ mod tests {
             (11, 10),
         ]);
         let tensors = vec![
-            Tensor::new_from_map(vec![0, 4, 6], &bond_dims),
-            Tensor::new_from_map(vec![1, 4, 7], &bond_dims),
-            Tensor::new_from_map(vec![2, 5, 6], &bond_dims),
-            Tensor::new_from_map(vec![3, 5, 7], &bond_dims),
-            Tensor::new_from_map(vec![0, 8, 10], &bond_dims),
-            Tensor::new_from_map(vec![1, 8, 11], &bond_dims),
-            Tensor::new_from_map(vec![2, 9, 10], &bond_dims),
-            Tensor::new_from_map(vec![3, 9, 11], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 4, 6], &bond_dims),
+            LeafTensor::new_from_map(vec![1, 4, 7], &bond_dims),
+            LeafTensor::new_from_map(vec![2, 5, 6], &bond_dims),
+            LeafTensor::new_from_map(vec![3, 5, 7], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 8, 10], &bond_dims),
+            LeafTensor::new_from_map(vec![1, 8, 11], &bond_dims),
+            LeafTensor::new_from_map(vec![2, 9, 10], &bond_dims),
+            LeafTensor::new_from_map(vec![3, 9, 11], &bond_dims),
         ];
-        let ref_tensor = Tensor::new_composite(tensors);
+        let ref_tensor = CompositeTensor::new(tensors);
 
         let mut new_peps = peps_init(length, depth, physical_dim, virtual_dim);
         for layer in 0..layers {
@@ -855,6 +858,8 @@ mod tests {
         }
         let new_peps = peps_final(new_peps, length, depth, physical_dim, virtual_dim, layers);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
+            let t1 = t1.as_leaf().unwrap();
+            let t2 = t2.as_leaf().unwrap();
             assert_eq!(t1.legs(), t2.legs());
             assert_eq!(t1.bond_dims(), t2.bond_dims());
         }
@@ -871,13 +876,15 @@ mod tests {
 
         let bond_dims = FxHashMap::from_iter([(0, 4), (1, 4), (2, 10)]);
         let tensors = vec![
-            Tensor::new_from_map(vec![0, 2], &bond_dims),
-            Tensor::new_from_map(vec![1, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![1, 2], &bond_dims),
         ];
-        let ref_tensor = Tensor::new_composite(tensors);
+        let ref_tensor = CompositeTensor::new(tensors);
 
         let new_peps = peps(length, depth, physical_dim, virtual_dim, layers);
         for (t1, t2) in zip(new_peps.tensors().iter(), ref_tensor.tensors().iter()) {
+            let t1 = t1.as_leaf().unwrap();
+            let t2 = t2.as_leaf().unwrap();
             assert_eq!(t1.legs(), t2.legs());
             assert_eq!(t1.bond_dims(), t2.bond_dims());
         }

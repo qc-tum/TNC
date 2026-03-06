@@ -22,7 +22,10 @@ use crate::{
         repartitioning::compute_solution,
         SimplePath,
     },
-    tensornetwork::{partitioning::partition_tensor_network, tensor::Tensor},
+    tensornetwork::{
+        partitioning::partition_tensor_network,
+        tensor::{CompositeTensor, LeafTensor},
+    },
 };
 
 type ScoreType = NotNan<f64>;
@@ -166,7 +169,7 @@ impl SimulatedAnnealingOptimizer {
 
 /// Common evaluation method for all simulated annealing methods.
 fn evaluate_partitioning<R>(
-    tensor: &Tensor,
+    tensor: &CompositeTensor,
     partitioning: &[usize],
     communication_scheme: CommunicationScheme,
     memory_limit: Option<f64>,
@@ -197,7 +200,7 @@ where
 
 /// A simulated annealing model that moves a random tensor between random partitions.
 pub struct NaivePartitioningModel<'a> {
-    pub tensor: &'a Tensor,
+    pub tensor: &'a CompositeTensor,
     pub num_partitions: usize,
     pub communication_scheme: CommunicationScheme,
     pub memory_limit: Option<f64>,
@@ -236,7 +239,7 @@ impl OptModel for NaivePartitioningModel<'_> {
 
 /// A simulated annealing model that moves a random subtree between random partitions.
 pub struct NaiveIntermediatePartitioningModel<'a> {
-    pub tensor: &'a Tensor,
+    pub tensor: &'a CompositeTensor,
     pub num_partitions: usize,
     pub communication_scheme: CommunicationScheme,
     pub memory_limit: Option<f64>,
@@ -312,8 +315,8 @@ impl OptModel for NaiveIntermediatePartitioningModel<'_> {
         }
 
         // Recompute the contraction path for both partitions
-        let mut from_tensor = Tensor::default();
-        let mut to_tensor = Tensor::default();
+        let mut from_tensor = CompositeTensor::default();
+        let mut to_tensor = CompositeTensor::default();
         for (partition_index, tensor) in zip(&partitioning, self.tensor.tensors()) {
             if *partition_index == source_partition {
                 from_tensor.push_tensor(tensor.clone());
@@ -349,13 +352,13 @@ impl OptModel for NaiveIntermediatePartitioningModel<'_> {
 /// A simulated annealing model that moves a random tensor to the partition that
 /// maximizes memory reduction.
 pub struct LeafPartitioningModel<'a> {
-    pub tensor: &'a Tensor,
+    pub tensor: &'a CompositeTensor,
     pub communication_scheme: CommunicationScheme,
     pub memory_limit: Option<f64>,
 }
 
 impl OptModel for LeafPartitioningModel<'_> {
-    type SolutionType = (Vec<usize>, Vec<Tensor>);
+    type SolutionType = (Vec<usize>, Vec<LeafTensor>);
 
     fn generate_trial_solution<R: Rng>(
         &self,
@@ -364,7 +367,7 @@ impl OptModel for LeafPartitioningModel<'_> {
     ) -> Self::SolutionType {
         let (mut partitioning, mut partition_tensors) = current_solution;
         let tensor_index = rng.random_range(0..partitioning.len());
-        let shifted_tensor = self.tensor.tensor(tensor_index);
+        let shifted_tensor = self.tensor.tensor(tensor_index).as_leaf().unwrap();
         let source_partition = partitioning[tensor_index];
 
         let (new_partition, _) = partition_tensors
@@ -404,7 +407,7 @@ impl OptModel for LeafPartitioningModel<'_> {
 /// A simulated annealing model that moves a random subtree to the partition that
 /// maximizes memory reduction.
 pub struct IntermediatePartitioningModel<'a> {
-    pub tensor: &'a Tensor,
+    pub tensor: &'a CompositeTensor,
     pub communication_scheme: CommunicationScheme,
     pub memory_limit: Option<f64>,
 }
@@ -421,7 +424,7 @@ impl IntermediatePartitioningModel<'_> {
         let partition_tensors = partitioned_tn
             .tensors()
             .iter()
-            .map(Tensor::external_tensor)
+            .map(|t| t.as_composite().unwrap().external_tensor())
             .collect_vec();
 
         let contraction_paths = initial_contraction_paths.unwrap_or_else(|| {
@@ -431,7 +434,7 @@ impl IntermediatePartitioningModel<'_> {
                 .iter()
                 .map(|t| {
                     // Find path for this partition
-                    let mut opt = Cotengrust::new(t, OptMethod::Greedy);
+                    let mut opt = Cotengrust::new(t.as_composite().unwrap(), OptMethod::Greedy);
                     opt.find_path();
                     let path = opt.get_best_replace_path();
                     path.into_simple()
@@ -449,7 +452,7 @@ impl IntermediatePartitioningModel<'_> {
 }
 
 impl OptModel for IntermediatePartitioningModel<'_> {
-    type SolutionType = (Vec<usize>, Vec<Tensor>, Vec<SimplePath>);
+    type SolutionType = (Vec<usize>, Vec<LeafTensor>, Vec<SimplePath>);
 
     fn generate_trial_solution<R: Rng>(
         &self,
@@ -492,7 +495,7 @@ impl OptModel for IntermediatePartitioningModel<'_> {
             }
         }
 
-        let mut shifted_tensor = Tensor::default();
+        let mut shifted_tensor = LeafTensor::default();
         let mut shifted_indices = Vec::with_capacity(tensor_leaves.len());
         for (partition_tensor_index, (i, _partition)) in partitioning
             .iter()
@@ -501,7 +504,7 @@ impl OptModel for IntermediatePartitioningModel<'_> {
             .enumerate()
         {
             if tensor_leaves.contains(&partition_tensor_index) {
-                shifted_tensor ^= self.tensor.tensor(i);
+                shifted_tensor ^= self.tensor.tensor(i).as_leaf().unwrap();
                 shifted_indices.push(i);
             }
         }
@@ -535,8 +538,8 @@ impl OptModel for IntermediatePartitioningModel<'_> {
         partition_tensors[target_partition] ^= &shifted_tensor;
 
         // Recompute the contraction path for both partitions
-        let mut from_tensor = Tensor::default();
-        let mut to_tensor = Tensor::default();
+        let mut from_tensor = CompositeTensor::default();
+        let mut to_tensor = CompositeTensor::default();
         for (partition_index, tensor) in zip(&partitioning, self.tensor.tensors()) {
             if *partition_index == source_partition {
                 from_tensor.push_tensor(tensor.clone());
@@ -607,15 +610,15 @@ mod tests {
 
     #[test]
     fn small_leaf_partitioning() {
-        let t1 = Tensor::new_from_const(vec![0, 1], 2);
-        let t2 = Tensor::new_from_const(vec![2, 3], 2);
-        let t3 = Tensor::new_from_const(vec![0, 1, 4], 2);
-        let t4 = Tensor::new_from_const(vec![2, 3, 4], 2);
-        let tn = Tensor::new_composite(vec![t1.clone(), t2.clone(), t3.clone(), t4.clone()]);
-        let tn1 = Tensor::new_composite(vec![t1, t2]);
-        let tn2 = Tensor::new_composite(vec![t3, t4]);
+        let t1 = LeafTensor::new_from_const(vec![0, 1], 2);
+        let t2 = LeafTensor::new_from_const(vec![2, 3], 2);
+        let t3 = LeafTensor::new_from_const(vec![0, 1, 4], 2);
+        let t4 = LeafTensor::new_from_const(vec![2, 3, 4], 2);
+        let tn = CompositeTensor::new(vec![t1.clone(), t2.clone(), t3.clone(), t4.clone()]);
+        let tn1 = CompositeTensor::new(vec![t1, t2]);
+        let tn2 = CompositeTensor::new(vec![t3, t4]);
         let initial_partitioning = vec![0, 0, 1, 1];
-        let initial_partitions = vec![tn1, tn2];
+        let initial_partitions = vec![tn1.external_tensor(), tn2.external_tensor()];
         let mut rng = StdRng::seed_from_u64(42);
 
         let ((partitioning, _partitions), _) = balance_partitions(

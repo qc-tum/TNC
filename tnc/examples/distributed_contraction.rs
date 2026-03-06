@@ -14,7 +14,7 @@ use tnc::{
         partitioning::{
             find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
         },
-        tensor::Tensor,
+        tensor::{CompositeTensor, LeafTensor},
     },
 };
 
@@ -42,7 +42,7 @@ fn main() {
     }
 }
 
-fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor {
+fn distributed_contraction(tensor: CompositeTensor, world: &SimpleCommunicator) -> LeafTensor {
     let rank = world.rank();
     let size = world.size();
     let root = world.process_at_rank(0);
@@ -71,15 +71,15 @@ fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor
     broadcast_path(&mut communication_path, &root);
 
     // Distribute the partitions to the ranks
-    let (mut local_tn, local_path, comm) =
+    let (local_tn, local_path, comm) =
         scatter_tensor_network(&partitioned_tn, &path, rank, size, world);
 
     // Contract the partitions on each rank
-    local_tn = contract_tensor_network(local_tn, &local_path);
+    let mut local_tensor = contract_tensor_network(local_tn, &local_path);
 
     // Perform the final fan-in, sending tensors between ranks and contracting them
     // until there is only the final tensor left, which will end up on rank 0.
-    intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, world, &comm);
+    intermediate_reduce_tensor_network(&mut local_tensor, &communication_path, rank, world, &comm);
 
-    local_tn
+    local_tensor
 }

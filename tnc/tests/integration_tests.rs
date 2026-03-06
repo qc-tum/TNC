@@ -16,7 +16,7 @@ use tnc::{
         partitioning::{
             find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
         },
-        tensor::Tensor,
+        tensor::LeafTensor,
         tensordata::TensorData,
     },
 };
@@ -39,7 +39,7 @@ fn test_partitioned_contraction_random() {
     opt.find_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
-    assert_approx_eq!(&Tensor, &ref_result, &result);
+    assert_approx_eq!(&LeafTensor, &ref_result, &result);
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn test_partitioned_contraction() {
     opt.find_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
-    assert_approx_eq!(&Tensor, &ref_result, &result);
+    assert_approx_eq!(&LeafTensor, &ref_result, &result);
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn test_partitioned_contraction_mixed() {
     opt.find_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
-    assert_approx_eq!(&Tensor, &ref_result, &result);
+    assert_approx_eq!(&LeafTensor, &ref_result, &result);
 }
 
 #[mpi_test(2)]
@@ -141,9 +141,9 @@ fn test_partitioned_contraction_need_mpi() {
         Default::default()
     };
 
-    let (mut local_tn, local_path, comm) =
+    let (local_tn, local_path, comm) =
         scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
-    local_tn = contract_tensor_network(local_tn, &local_path);
+    let mut local_tn = contract_tensor_network(local_tn, &local_path);
 
     let mut communication_path = if rank == 0 {
         path.toplevel

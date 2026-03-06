@@ -53,7 +53,7 @@ use tnc::qasm::import_qasm;
 use tnc::tensornetwork::contraction::contract_tensor_network;
 use tnc::tensornetwork::partitioning::find_partitioning;
 use tnc::tensornetwork::partitioning::partition_config::PartitioningStrategy;
-use tnc::tensornetwork::tensor::Tensor;
+use tnc::tensornetwork::tensor::{CompositeTensor, LeafTensor};
 use utils::{hash_str, parse_range_list, setup_logging_mpi};
 
 mod cli;
@@ -64,8 +64,8 @@ mod utils;
 const TIME_LIMIT: Duration = Duration::from_secs(10 * 60);
 
 /// Reads a circuit from the given qasm file.
-fn read_circuit(file: &str) -> Tensor {
-    static LAST_RETURN: Mutex<Option<(String, Tensor)>> = Mutex::new(None);
+fn read_circuit(file: &str) -> CompositeTensor {
+    static LAST_RETURN: Mutex<Option<(String, CompositeTensor)>> = Mutex::new(None);
     let mut last_values = LAST_RETURN.lock().unwrap();
     if let Some((arg, out)) = &*last_values {
         if arg == file {
@@ -224,7 +224,7 @@ fn main() {
 fn write_to_cache(
     directory: &str,
     key: &str,
-    partitioned_tensor: &Tensor,
+    partitioned_tensor: &CompositeTensor,
     contraction_path: &ContractionPath,
 ) {
     let file = fs::File::create(format!("{directory}/{key}")).unwrap();
@@ -234,7 +234,7 @@ fn write_to_cache(
         .unwrap();
 }
 
-fn read_from_cache(directory: &str, key: &str) -> (Tensor, ContractionPath) {
+fn read_from_cache(directory: &str, key: &str) -> (CompositeTensor, ContractionPath) {
     let file = fs::File::open(format!("{directory}/{key}")).unwrap();
     let mut stream = ZlibDecoder::new(file);
     let (deserializable, path) =
@@ -244,7 +244,7 @@ fn read_from_cache(directory: &str, key: &str) -> (Tensor, ContractionPath) {
 
 /// Computes the flops and memory when using Greedy without partitioning.
 /// Uses the file as a cache key.
-fn serial_cost(tensor: &Tensor, file: &str) -> (f64, f64) {
+fn serial_cost(tensor: &CompositeTensor, file: &str) -> (f64, f64) {
     static LAST_RETURN: Mutex<Option<(String, (f64, f64))>> = Mutex::new(None);
     let mut last_values = LAST_RETURN.lock().unwrap();
     if let Some((arg, out)) = &*last_values {
@@ -353,7 +353,10 @@ fn do_run(
     std::hint::black_box(final_tensor);
 }
 
-fn local_contraction(tensor: Tensor, contraction_path: &ContractionPath) -> (Tensor, Duration) {
+fn local_contraction(
+    tensor: CompositeTensor,
+    contraction_path: &ContractionPath,
+) -> (LeafTensor, Duration) {
     let t0 = Instant::now();
     let result = contract_tensor_network(tensor, contraction_path);
     let duration = t0.elapsed();
@@ -361,10 +364,10 @@ fn local_contraction(tensor: Tensor, contraction_path: &ContractionPath) -> (Ten
 }
 
 fn perform_contraction(
-    partitioned_tensor: &Tensor,
+    partitioned_tensor: &CompositeTensor,
     contraction_path: &ContractionPath,
     world: &SimpleCommunicator,
-) -> (Tensor, Duration) {
+) -> (LeafTensor, Duration) {
     let rank = world.rank();
     let root = world.process_at_rank(0);
     world.barrier();
@@ -383,7 +386,7 @@ fn perform_contraction(
     broadcast_path(&mut communication_path, &root);
 
     // Distribute tensor network
-    let (mut local_tn, local_path, comm) = scatter_tensor_network(
+    let (local_tn, local_path, comm) = scatter_tensor_network(
         partitioned_tensor,
         contraction_path,
         rank,
@@ -392,7 +395,7 @@ fn perform_contraction(
     );
 
     // Contract the local tensor network
-    local_tn = contract_tensor_network(local_tn, &local_path);
+    let mut local_tn = contract_tensor_network(local_tn, &local_path);
 
     // Reduce the tensor network
     intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, world, &comm);
@@ -415,24 +418,24 @@ trait MethodRun {
     /// contraction path and the number of operations it takes to constract.
     fn run(
         &self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
-    ) -> (Tensor, ContractionPath, f64, f64);
+    ) -> (CompositeTensor, ContractionPath, f64, f64);
 
     /// Runs the method on the given tensor, returning the partitioned tensor, the
     /// contraction path, the number of operations it takes to constract and the
     /// time it took to run the method.
     fn timed_run(
         &self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
-    ) -> ((Tensor, ContractionPath, f64, f64), Duration) {
+    ) -> ((CompositeTensor, ContractionPath, f64, f64), Duration) {
         let t0 = Instant::now();
         let result = self.run(
             tensor,
@@ -456,12 +459,12 @@ impl MethodRun for Generic {
 
     fn run(
         &self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         _num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
-    ) -> (Tensor, ContractionPath, f64, f64) {
+    ) -> (CompositeTensor, ContractionPath, f64, f64) {
         let (
             initial_partitioned_tensor,
             initial_contraction_path,
@@ -492,12 +495,12 @@ impl MethodRun for Sa {
 
     fn run(
         &self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
-    ) -> (Tensor, ContractionPath, f64, f64) {
+    ) -> (CompositeTensor, ContractionPath, f64, f64) {
         let (partitioning, _) = simulated_annealing::balance_partitions(
             NaivePartitioningModel {
                 tensor,
@@ -531,12 +534,12 @@ impl MethodRun for Ia {
 
     fn run(
         &self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
-    ) -> (Tensor, ContractionPath, f64, f64) {
+    ) -> (CompositeTensor, ContractionPath, f64, f64) {
         let (_, initial_contraction_path, _, _) = compute_solution(
             tensor,
             initial_partitioning,
@@ -583,15 +586,15 @@ impl MethodRun for Sad {
 
     fn run(
         &self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
-    ) -> (Tensor, ContractionPath, f64, f64) {
-        let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
+    ) -> (CompositeTensor, ContractionPath, f64, f64) {
+        let mut intermediate_tensors = vec![LeafTensor::default(); num_partitions as usize];
         for (index, partition) in initial_partitioning.iter().enumerate() {
-            intermediate_tensors[*partition] ^= tensor.tensor(index);
+            intermediate_tensors[*partition] ^= tensor.tensor(index).as_leaf().unwrap();
         }
 
         let (solution, _) = simulated_annealing::balance_partitions(
@@ -627,15 +630,15 @@ impl MethodRun for Iad {
 
     fn run(
         &self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
-    ) -> (Tensor, ContractionPath, f64, f64) {
-        let mut intermediate_tensors = vec![Tensor::default(); num_partitions as usize];
+    ) -> (CompositeTensor, ContractionPath, f64, f64) {
+        let mut intermediate_tensors = vec![LeafTensor::default(); num_partitions as usize];
         for (index, partition) in initial_partitioning.iter().enumerate() {
-            intermediate_tensors[*partition] ^= tensor.tensor(index);
+            intermediate_tensors[*partition] ^= tensor.tensor(index).as_leaf().unwrap();
         }
 
         let (_, initial_contraction_path, _, _) = compute_solution(
@@ -683,7 +686,7 @@ struct GreedyBalance {
     iterations: usize,
     balancing_scheme: BalancingScheme,
 }
-fn objective_function(a: &Tensor, b: &Tensor) -> f64 {
+fn objective_function(a: &LeafTensor, b: &LeafTensor) -> f64 {
     a.size() + b.size() - (a ^ b).size()
 }
 impl MethodRun for GreedyBalance {
@@ -697,12 +700,12 @@ impl MethodRun for GreedyBalance {
 
     fn run(
         &self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         _num_partitions: i32,
         initial_partitioning: &[usize],
         communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
-    ) -> (Tensor, ContractionPath, f64, f64) {
+    ) -> (CompositeTensor, ContractionPath, f64, f64) {
         let (initial_partitioned_tensor, initial_contraction_path, _, _) = compute_solution(
             tensor,
             initial_partitioning,
@@ -749,22 +752,26 @@ impl MethodRun for CotengraTempering {
 
     fn run(
         &self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         _num_partitions: i32,
         _initial_partitioning: &[usize],
         _communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
-    ) -> (Tensor, ContractionPath, f64, f64) {
+    ) -> (CompositeTensor, ContractionPath, f64, f64) {
         let seed = rng.next_u64();
         let mut tree = TreeTempering::new(tensor, Some(seed), CostType::Flops, Some(300));
         tree.find_path();
         let best_path = tree.get_best_replace_path();
         let best_path_simple = best_path.clone().into_simple();
 
+        let leaves = tensor
+            .tensors()
+            .iter()
+            .map(|t| t.clone().into_leaf().unwrap())
+            .collect_vec();
         let (parallel_flops, _) =
-            communication_path_cost(tensor.tensors(), &best_path_simple, true, true, None);
-        let (sum_flops, _) =
-            communication_path_cost(tensor.tensors(), &best_path_simple, true, false, None);
+            communication_path_cost(&leaves, &best_path_simple, true, true, None);
+        let (sum_flops, _) = communication_path_cost(&leaves, &best_path_simple, true, false, None);
 
         (tensor.clone(), best_path, parallel_flops, sum_flops)
     }
@@ -784,12 +791,12 @@ impl MethodRun for CotengraAnneal {
 
     fn run(
         &self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         _num_partitions: i32,
         _initial_partitioning: &[usize],
         _communication_scheme: CommunicationScheme,
         rng: &mut StdRng,
-    ) -> (Tensor, ContractionPath, f64, f64) {
+    ) -> (CompositeTensor, ContractionPath, f64, f64) {
         let seed = rng.next_u64();
         let mut tree =
             TreeAnnealing::new(tensor, Some(seed), CostType::Flops, Some(300), Some(100));
@@ -797,10 +804,14 @@ impl MethodRun for CotengraAnneal {
         let best_path = tree.get_best_replace_path();
         let best_path_simple = best_path.clone().into_simple();
 
+        let leaves = tensor
+            .tensors()
+            .iter()
+            .map(|t| t.clone().into_leaf().unwrap())
+            .collect_vec();
         let (parallel_flops, _) =
-            communication_path_cost(tensor.tensors(), &best_path_simple, true, true, None);
-        let (sum_flops, _) =
-            communication_path_cost(tensor.tensors(), &best_path_simple, true, false, None);
+            communication_path_cost(&leaves, &best_path_simple, true, true, None);
+        let (sum_flops, _) = communication_path_cost(&leaves, &best_path_simple, true, false, None);
         (tensor.clone(), best_path, parallel_flops, sum_flops)
     }
 }
@@ -819,12 +830,12 @@ impl MethodRun for CotengraHyper {
 
     fn run(
         &self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         _num_partitions: i32,
         _initial_partitioning: &[usize],
         _communication_scheme: CommunicationScheme,
         _rng: &mut StdRng,
-    ) -> (Tensor, ContractionPath, f64, f64) {
+    ) -> (CompositeTensor, ContractionPath, f64, f64) {
         let mut tree = Hyperoptimizer::new(
             tensor,
             CostType::Flops,
@@ -836,10 +847,14 @@ impl MethodRun for CotengraHyper {
         let best_path = tree.get_best_replace_path();
         let best_path_simple = best_path.clone().into_simple();
 
+        let leaves = tensor
+            .tensors()
+            .iter()
+            .map(|t| t.clone().into_leaf().unwrap())
+            .collect_vec();
         let (parallel_flops, _) =
-            communication_path_cost(tensor.tensors(), &best_path_simple, true, true, None);
-        let (sum_flops, _) =
-            communication_path_cost(tensor.tensors(), &best_path_simple, true, false, None);
+            communication_path_cost(&leaves, &best_path_simple, true, true, None);
+        let (sum_flops, _) = communication_path_cost(&leaves, &best_path_simple, true, false, None);
 
         (tensor.clone(), best_path, parallel_flops, sum_flops)
     }

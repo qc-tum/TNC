@@ -21,11 +21,11 @@ use ndarray::Array;
 use num_complex::Complex64;
 use tetra::Tensor as DataTensor;
 
-use crate::tensornetwork::tensor::Tensor;
+use crate::tensornetwork::tensor::{CompositeTensor, LeafTensor};
 use crate::tensornetwork::tensordata::TensorData;
 
 /// Loads a tensor network from a HDF5 file.
-pub fn load_tensor<P>(filename: P) -> Result<Tensor>
+pub fn load_tensor<P>(filename: P) -> Result<CompositeTensor>
 where
     P: AsRef<Path>,
 {
@@ -51,17 +51,18 @@ where
     write_data(&file, tensor)
 }
 
-fn read_tensor(file: &File) -> Result<Tensor> {
+fn read_tensor(file: &File) -> Result<CompositeTensor> {
     let gr = file.group("/tensors")?;
     let tensor_names = gr.member_names()?;
 
-    // Outuput tensor is always labelled as -1
-    let out_tensor = gr.dataset("-1")?;
-    let out_tensor_bids = out_tensor.attr("bids")?;
-    let out_bond_ids = out_tensor_bids.read_1d::<usize>()?;
+    // We don't track external legs explicitly, hence the following is commented out
+    // // Output tensor is always labelled as -1
+    // let out_tensor = gr.dataset("-1")?;
+    // let out_tensor_bids = out_tensor.attr("bids")?;
+    // let out_bond_ids = out_tensor_bids.read_1d::<usize>()?;
 
-    let mut new_tensor_network = Tensor::default();
-
+    let mut new_tensor_network = CompositeTensor::default();
+    new_tensor_network.reserve(tensor_names.len());
     for tensor_name in tensor_names {
         if tensor_name == "-1" {
             continue;
@@ -71,7 +72,7 @@ fn read_tensor(file: &File) -> Result<Tensor> {
         let tensor_dataset = gr.dataset(&tensor_name).unwrap().read_dyn::<Complex64>()?;
         let tensor_shape = tensor_dataset.shape().to_vec();
         let bond_dims = tensor_shape.iter().map(|s| *s as u64).collect();
-        let mut new_tensor = Tensor::new(bond_ids.to_vec(), bond_dims);
+        let mut new_tensor = LeafTensor::new(bond_ids.to_vec(), bond_dims);
         let (data, offset) = tensor_dataset.into_raw_vec_and_offset();
         assert_eq!(offset, Some(0));
         new_tensor.set_tensor_data(TensorData::Matrix(DataTensor::new_from_flat(
@@ -81,7 +82,6 @@ fn read_tensor(file: &File) -> Result<Tensor> {
         )));
         new_tensor_network.push_tensor(new_tensor);
     }
-    new_tensor_network.set_legs(out_bond_ids.to_vec());
 
     Ok(new_tensor_network)
 }
@@ -126,7 +126,6 @@ mod tests {
     };
     use tetra::Tensor as DataTensor;
 
-    use crate::tensornetwork::tensor::Tensor;
     use crate::tensornetwork::tensordata::TensorData;
 
     /// Creates a new HDF5 file in memory.
@@ -211,8 +210,7 @@ mod tests {
         let file = create_hdf5_tensor().unwrap();
         let tensor = read_tensor(&file).unwrap();
 
-        let mut ref_tn = Tensor::default();
-        let mut ref_tensor = Tensor::new(vec![0, 1], vec![2, 2]);
+        let mut ref_tensor = LeafTensor::new(vec![0, 1], vec![2, 2]);
         ref_tensor.set_tensor_data(TensorData::new_from_data(
             &[2, 2],
             vec![
@@ -223,9 +221,8 @@ mod tests {
             ],
             None,
         ));
-        ref_tn.push_tensor(ref_tensor);
-        ref_tn.set_legs(vec![0, 1]);
-        assert_approx_eq!(&Tensor, &tensor, &ref_tn);
+        let ref_tn = CompositeTensor::new(vec![ref_tensor]);
+        assert_approx_eq!(&CompositeTensor, &tensor, &ref_tn);
     }
 
     #[test]

@@ -7,7 +7,7 @@ use num_complex::Complex64;
 use permutation::Permutation;
 
 use crate::tensornetwork::{
-    tensor::{EdgeIndex, Tensor},
+    tensor::{CompositeTensor, EdgeIndex, LeafTensor},
     tensordata::TensorData,
 };
 
@@ -83,18 +83,12 @@ impl Permutor {
     }
 
     /// Permutates the tensor according to the stored permutation.
-    pub fn apply(&self, tensor: Tensor) -> Tensor {
-        assert!(tensor.is_leaf());
+    pub fn apply(&self, tensor: LeafTensor) -> LeafTensor {
         if self.is_identity() {
             return tensor;
         }
 
-        let Tensor {
-            mut legs,
-            mut bond_dims,
-            tensordata,
-            ..
-        } = tensor;
+        let (mut legs, mut bond_dims, tensordata) = tensor.into_inner();
         let mut data = tensordata.into_data();
 
         // Find the permutation
@@ -105,12 +99,7 @@ impl Permutor {
         perm.apply_slice_in_place(&mut bond_dims);
         data.transpose(&perm);
 
-        Tensor {
-            tensors: vec![],
-            legs,
-            bond_dims,
-            tensordata: TensorData::Matrix(data),
-        }
+        LeafTensor::new_with_data(legs, bond_dims, TensorData::Matrix(data))
     }
 
     /// Returns whether the permutor is identity, in which case it won't have any
@@ -137,8 +126,8 @@ pub struct Circuit {
     open_edges: Vec<EdgeIndex>,
     /// The next edge to be used.
     next_edge: usize,
-    /// The tensors representing the circuit.
-    tensors: Vec<Tensor>,
+    /// The tensor network representing the circuit.
+    tensor_network: CompositeTensor,
 }
 
 impl Circuit {
@@ -185,13 +174,13 @@ impl Circuit {
         let previous_qubits = self.num_qubits();
 
         self.open_edges.reserve(size);
-        self.tensors.reserve(size);
+        self.tensor_network.reserve(size);
         for _ in 0..size {
             let edge = self.new_edge();
             self.open_edges.push(edge);
-            let mut ket0 = Tensor::new_from_const(vec![edge], 2);
+            let mut ket0 = LeafTensor::new_from_const(vec![edge], 2);
             ket0.set_tensor_data(Self::ket0());
-            self.tensors.push(ket0);
+            self.tensor_network.push_tensor(ket0);
         }
 
         QuantumRegister {
@@ -220,11 +209,11 @@ impl Circuit {
         }
 
         // Create the new tensor
-        let mut new_tensor = Tensor::new_from_const(edges, 2);
+        let mut new_tensor = LeafTensor::new_from_const(edges, 2);
         new_tensor.set_tensor_data(gate);
 
         // Push the new tensor to the tensors
-        self.tensors.push(new_tensor);
+        self.tensor_network.push_tensor(new_tensor);
     }
 
     /// Converts the circuit to a tensor network that computes the amplitude for the
@@ -240,11 +229,11 @@ impl Circuit {
     /// natural order, i.e., sorted by increasing qubit number. If the bitstring
     /// contains no wildcards, the final result is a scalar and the permutator can be
     /// ignored.
-    pub fn into_amplitude_network(mut self, bitstring: &str) -> (Tensor, Permutor) {
+    pub fn into_amplitude_network(mut self, bitstring: &str) -> (CompositeTensor, Permutor) {
         assert_eq!(bitstring.len(), self.num_qubits());
 
         // Apply the final bras
-        self.tensors.reserve(bitstring.len());
+        self.tensor_network.reserve(bitstring.len());
         let mut final_legs = Vec::new();
         for (c, e) in bitstring.chars().zip(self.open_edges) {
             let bra = match c {
@@ -256,18 +245,17 @@ impl Circuit {
                 }
                 _ => panic!("Only 0, 1 and * are allowed in bitstring"),
             };
-            let mut tensor = Tensor::new_from_const(vec![e], 2);
+            let mut tensor = LeafTensor::new_from_const(vec![e], 2);
             tensor.set_tensor_data(bra);
-            self.tensors.push(tensor);
+            self.tensor_network.push_tensor(tensor);
         }
 
         // The contraction can re-order the legs depending on the contraction order,
         // so we need to return the order we want the legs to be in at the end, such
         // that the user can transpose the final tensor and has the expected order of
         // elements.
-        let out = Tensor::new_composite(self.tensors);
         let permutor = Permutor::new(final_legs);
-        (out, permutor)
+        (self.tensor_network, permutor)
     }
 
     /// Converts the circuit to a tensor network that computes the full statevector.
@@ -276,7 +264,7 @@ impl Circuit {
     /// is returned that can transpose the final tensor after contraction to the
     /// natural order, i.e., sorted by increasing qubit number.
     #[inline]
-    pub fn into_statevector_network(self) -> (Tensor, Permutor) {
+    pub fn into_statevector_network(self) -> (CompositeTensor, Permutor) {
         let qubits = self.num_qubits();
         self.into_amplitude_network(&"*".repeat(qubits))
     }
@@ -284,7 +272,7 @@ impl Circuit {
     /// Creates the adjoint tensor of a given `tensor`. This not only modifies the
     /// data, but also the order of legs and the bond dims vec. The legs of the new
     /// tensor are offset by `leg_offset`.
-    fn tensor_adjoint(tensor: &Tensor, leg_offset: usize) -> Tensor {
+    fn tensor_adjoint(tensor: &LeafTensor, leg_offset: usize) -> LeafTensor {
         // Transpose legs and shape of tensor
         let half = tensor.legs().len() / 2;
         let legs = tensor.legs()[half..]
@@ -302,9 +290,7 @@ impl Circuit {
         let data = tensor.tensor_data().clone();
         let data = data.adjoint();
 
-        let mut adjoint = Tensor::new(legs, bond_dims);
-        adjoint.set_tensor_data(data);
-        adjoint
+        LeafTensor::new_with_data(legs, bond_dims, data)
     }
 
     /// Converts the circuit to a tensor network that computes the expectation value
@@ -312,26 +298,28 @@ impl Circuit {
     ///
     /// The tensor network is roughly twice the size of the circuit, as it needs to
     /// compute the adjoint of the circuit as well.
-    pub fn into_expectation_value_network(mut self) -> Tensor {
+    pub fn into_expectation_value_network(mut self) -> CompositeTensor {
         let offset = self.next_edge;
-        self.tensors.reserve(self.tensors.len() + self.num_qubits());
+        self.tensor_network
+            .reserve(self.tensor_network.len() + self.num_qubits());
 
         // Add the mirrored tensor network
-        let mut adjoint_tensors = Vec::with_capacity(self.tensors.len());
-        for tensor in &self.tensors {
+        let mut adjoint_tensors = Vec::with_capacity(self.tensor_network.len());
+        for tensor in self.tensor_network.tensors() {
+            let tensor = tensor.as_leaf().unwrap();
             let adjoint = Self::tensor_adjoint(tensor, offset);
             adjoint_tensors.push(adjoint);
         }
-        self.tensors.append(&mut adjoint_tensors);
+        self.tensor_network.push_tensors(adjoint_tensors);
 
         // Add the layer of observables
         for e in self.open_edges {
-            let mut t = Tensor::new_from_const(vec![e, e + offset], 2);
+            let mut t = LeafTensor::new_from_const(vec![e, e + offset], 2);
             t.set_tensor_data(Self::z());
-            self.tensors.push(t);
+            self.tensor_network.push_tensor(t);
         }
 
-        Tensor::new_composite(self.tensors)
+        self.tensor_network
     }
 }
 
@@ -349,9 +337,7 @@ mod tests {
             cotengrust::{Cotengrust, OptMethod},
             FindPath,
         },
-        tensornetwork::{
-            contraction::contract_tensor_network, tensor::Tensor, tensordata::TensorData,
-        },
+        tensornetwork::{contraction::contract_tensor_network, tensordata::TensorData},
     };
 
     fn test_permutation_between(given: &[usize], target: &[usize]) {
@@ -385,14 +371,14 @@ mod tests {
 
         let result = contract_tensor_network(tensor_network, &path);
 
-        let mut tn_ref = Tensor::default();
+        let mut tn_ref = LeafTensor::default();
         tn_ref.set_tensor_data(TensorData::new_from_data(
             &[],
             vec![Complex64::new(FRAC_1_SQRT_2.powi(qubits as i32), 0.0)],
             None,
         ));
 
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_approx_eq!(&LeafTensor, &result, &tn_ref);
     }
 
     #[test]
@@ -416,14 +402,14 @@ mod tests {
 
         let result = contract_tensor_network(tensor_network, &path);
 
-        let mut tn_ref = Tensor::default();
+        let mut tn_ref = LeafTensor::default();
         tn_ref.set_tensor_data(TensorData::new_from_data(
             &[],
             vec![Complex64::new(FRAC_1_SQRT_2 * 0.5, 0.0)],
             None,
         ));
 
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_approx_eq!(&LeafTensor, &result, &tn_ref);
     }
 
     #[test]

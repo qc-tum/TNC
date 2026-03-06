@@ -17,12 +17,12 @@ use crate::{
         contraction_cost::{compute_memory_requirements, contract_size_tensors_exact},
         repartitioning::compute_solution,
     },
-    tensornetwork::tensor::Tensor,
+    tensornetwork::tensor::CompositeTensor,
 };
 
 #[derive(Clone, Debug)]
 struct PartitioningFitness<'a> {
-    tensor: &'a Tensor,
+    tensor: &'a CompositeTensor,
     communication_scheme: CommunicationScheme,
     memory_limit: Option<f64>,
 }
@@ -65,7 +65,7 @@ impl Fitness for PartitioningFitness<'_> {
 /// Balances partitions using a genetic algorithm. Finds the partitioning that reduces
 /// the total contraction cost.
 pub fn balance_partitions(
-    tensor: &Tensor,
+    tensor: &CompositeTensor,
     num_partitions: usize,
     initial_partitioning: &[usize],
     communication_scheme: CommunicationScheme,
@@ -113,15 +113,17 @@ pub fn balance_partitions(
 
 #[cfg(test)]
 mod tests {
+    use crate::tensornetwork::tensor::LeafTensor;
+
     use super::*;
 
     #[test]
     fn small_partitioning() {
-        let t1 = Tensor::new_from_const(vec![0, 1], 2);
-        let t2 = Tensor::new_from_const(vec![2, 3], 2);
-        let t3 = Tensor::new_from_const(vec![0, 1, 4], 2);
-        let t4 = Tensor::new_from_const(vec![2, 3, 4], 2);
-        let tn = Tensor::new_composite(vec![t1, t2, t3, t4]);
+        let t1 = LeafTensor::new_from_const(vec![0, 1], 2);
+        let t2 = LeafTensor::new_from_const(vec![2, 3], 2);
+        let t3 = LeafTensor::new_from_const(vec![0, 1, 4], 2);
+        let t4 = LeafTensor::new_from_const(vec![2, 3, 4], 2);
+        let tn = CompositeTensor::new(vec![t1, t2, t3, t4]);
         let initial_partitioning = vec![0, 0, 1, 1];
 
         let (partitioning, _) = balance_partitions(

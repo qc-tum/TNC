@@ -51,7 +51,7 @@ mod tests {
         contractionpath::ContractionPath,
         tensornetwork::{
             contraction::contract_tensor_network,
-            tensor::{EdgeIndex, Tensor, TensorIndex},
+            tensor::{CompositeTensor, EdgeIndex, LeafTensor, TensorIndex},
             tensordata::TensorData,
         },
     };
@@ -61,21 +61,25 @@ mod tests {
         edge_id: EdgeIndex,
         t1_id: TensorIndex,
         t2_id: TensorIndex,
-        tn: &Tensor,
+        tn: &CompositeTensor,
     ) -> bool {
-        let overlap = tn.tensor(t1_id) & tn.tensor(t2_id);
+        let t1 = tn.tensor(t1_id).as_leaf().unwrap();
+        let t2 = tn.tensor(t2_id).as_leaf().unwrap();
+        let overlap = t1 & t2;
         overlap.legs().contains(&edge_id)
     }
 
     /// Returns whether the edge is an open edge of the tensor.
-    fn is_open_edge_of(edge_id: EdgeIndex, t1_id: TensorIndex, tn: &Tensor) -> bool {
+    fn is_open_edge_of(edge_id: EdgeIndex, t1_id: TensorIndex, tn: &CompositeTensor) -> bool {
         // Check if the edge is a leg of the tensor
-        if !tn.tensor(t1_id).legs().contains(&edge_id) {
+        let t1 = tn.tensor(t1_id).as_leaf().unwrap();
+        if !t1.legs().contains(&edge_id) {
             return false;
         }
 
         // Check if the edge is not connected to any other tensor
         for (tensor_id, tensor) in tn.tensors().iter().enumerate() {
+            let tensor = tensor.as_leaf().unwrap();
             if tensor_id != t1_id && tensor.legs().contains(&edge_id) {
                 return false;
             }
@@ -85,22 +89,23 @@ mod tests {
 
     struct IdTensor<'a> {
         id: usize,
-        tensor: &'a Tensor,
+        tensor: &'a LeafTensor,
     }
 
     fn get_quantum_tensors(
-        tn: &Tensor,
+        tn: &CompositeTensor,
     ) -> (Vec<IdTensor<'_>>, Vec<IdTensor<'_>>, Vec<IdTensor<'_>>) {
         let mut kets = Vec::new();
         let mut single_qubit_gates = Vec::new();
         let mut two_qubit_gates = Vec::new();
         for (tid, tensor) in tn.tensors().iter().enumerate() {
+            let leaf = tensor.as_leaf().unwrap();
             let id: usize = tid;
-            let legs = tensor.legs().len();
+            let legs = leaf.legs().len();
             match legs {
-                1 => kets.push(IdTensor { id, tensor }),
-                2 => single_qubit_gates.push(IdTensor { id, tensor }),
-                4 => two_qubit_gates.push(IdTensor { id, tensor }),
+                1 => kets.push(IdTensor { id, tensor: leaf }),
+                2 => single_qubit_gates.push(IdTensor { id, tensor: leaf }),
+                4 => two_qubit_gates.push(IdTensor { id, tensor: leaf }),
                 _ => panic!("Tensor with unexpected leg count {legs} in quantum tensor network"),
             }
         }
@@ -160,12 +165,12 @@ mod tests {
 
     /// Contracts the tensor network with an arbitrary contraction order, then
     /// returns the correctly permuted tensor data.
-    fn contract_tn(tn: Tensor, perm: &Permutor) -> TensorData {
+    fn contract_tn(tn: CompositeTensor, perm: &Permutor) -> TensorData {
         let opt_path =
             ContractionPath::simple((1..tn.tensors().len()).map(|tid| (0, tid)).collect());
-        let tn = contract_tensor_network(tn, &opt_path);
-        let mut tn = perm.apply(tn);
-        std::mem::take(&mut tn.tensordata)
+        let leaf = contract_tensor_network(tn, &opt_path);
+        let leaf = perm.apply(leaf);
+        leaf.into_data()
     }
 
     #[test]

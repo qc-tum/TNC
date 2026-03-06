@@ -3342,6 +3342,7 @@ name = "tnc"
 version = "1.0.0"
 dependencies = [
  "antlr-rust",
+ "bytemuck",
  "cotengrust",
  "flexi_logger",
  "float-cmp",
