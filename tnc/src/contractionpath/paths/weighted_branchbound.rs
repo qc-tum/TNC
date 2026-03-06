@@ -10,7 +10,7 @@ use crate::{
         paths::{BasicContractionPathResult, ContractionPathResult, CostType, Pathfinder},
         ssa_ordering, ContractionPath,
     },
-    tensornetwork::tensor::Tensor,
+    tensornetwork::tensor::{CompositeTensor, LeafTensor},
     utils::traits::HashMapInsertNew,
 };
 
@@ -26,7 +26,7 @@ pub struct WeightedBranchBound {
     largest_latency: f64,
     result_cache: FxHashMap<(usize, usize), (usize, f64, f64)>,
     comm_cache: FxHashMap<usize, f64>,
-    tensor_cache: FxHashMap<usize, Tensor>,
+    tensor_cache: FxHashMap<usize, LeafTensor>,
 }
 
 impl WeightedBranchBound {
@@ -108,7 +108,7 @@ impl WeightedBranchBound {
     /// the Python based `opt_einsum` implementation. Found at <https://github.com/dgasmith/opt_einsum>.
     fn branch_iterate(
         &mut self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         path: &[(usize, usize, usize)],
         remaining: &[usize],
         flops: f64,
@@ -169,10 +169,7 @@ impl WeightedBranchBound {
 impl Pathfinder for WeightedBranchBound {
     type Result = BasicContractionPathResult;
 
-    fn find_path(&mut self, tensor: &Tensor) -> BasicContractionPathResult {
-        if tensor.is_leaf() {
-            return BasicContractionPathResult::default();
-        }
+    fn find_path(&mut self, tensor: &CompositeTensor) -> BasicContractionPathResult {
         let tensors = tensor.tensors().clone();
         self.result_cache.clear();
         self.tensor_cache.clear();
@@ -186,17 +183,18 @@ impl Pathfinder for WeightedBranchBound {
         // Get the initial space requirements for uncontracted tensors
         for (index, mut tensor) in tensors.into_iter().enumerate() {
             // Check that tensor has sub-tensors and doesn't have external legs set
-            if tensor.is_composite() && tensor.legs().is_empty() {
+            if let Some(composite) = tensor.as_composite() {
                 let mut bb = WeightedBranchBound::new(
                     self.nbranch,
                     self.cutoff_flops_factor,
                     self.comm_cache.clone(),
                     self.minimize,
                 );
-                let result = bb.find_path(&tensor);
+                let result = bb.find_path(composite);
                 nested_paths.insert(index, result.ssa_path().clone());
-                tensor = tensor.external_tensor();
+                tensor = composite.external_tensor().into();
             }
+            let tensor = tensor.into_leaf().unwrap();
             self.tensor_cache.insert_new(index, tensor);
         }
         let remaining = (0..tensor.tensors().len()).collect_vec();
@@ -222,22 +220,21 @@ mod tests {
     use crate::contractionpath::paths::CostType;
     use crate::contractionpath::paths::Pathfinder;
     use crate::path;
-    use crate::tensornetwork::tensor::Tensor;
 
-    fn setup_simple() -> (Tensor, FxHashMap<usize, f64>) {
+    fn setup_simple() -> (CompositeTensor, FxHashMap<usize, f64>) {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
         (
-            Tensor::new_composite(vec![
-                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            CompositeTensor::new(vec![
+                LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
             ]),
             FxHashMap::from_iter([(0, 20.), (1, 40.), (2, 85.)]),
         )
     }
 
-    fn setup_complex() -> (Tensor, FxHashMap<usize, f64>) {
+    fn setup_complex() -> (CompositeTensor, FxHashMap<usize, f64>) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -253,13 +250,13 @@ mod tests {
             (11, 17),
         ]);
         (
-            Tensor::new_composite(vec![
-                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-                Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-                Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-                Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+            CompositeTensor::new(vec![
+                LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
+                LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims),
+                LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims),
+                LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims),
             ]),
             FxHashMap::from_iter([(0, 120.), (1, 0.), (2, 15.), (3, 15.), (4, 85.), (5, 15.)]),
         )

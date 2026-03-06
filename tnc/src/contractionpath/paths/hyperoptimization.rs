@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use rustengra::hyper::cotengra_hyperoptimizer;
 
@@ -8,7 +7,7 @@ use crate::{
         paths::{BasicContractionPathResult, ContractionPathResult, CostType, Pathfinder},
         ssa_replace_ordering, ContractionPath,
     },
-    tensornetwork::tensor::Tensor,
+    tensornetwork::tensor::{CompositeTensor, LeafTensor, TensorType},
 };
 
 pub use rustengra::hyper::HyperOptions;
@@ -34,36 +33,39 @@ impl Hyperoptimizer {
 impl Pathfinder for Hyperoptimizer {
     type Result = BasicContractionPathResult;
 
-    fn find_path(&mut self, tensor: &Tensor) -> BasicContractionPathResult {
+    fn find_path(&mut self, tensor: &CompositeTensor) -> BasicContractionPathResult {
         // Handle nested tensors first
         let mut nested_paths = FxHashMap::default();
-        let inputs = tensor
-            .tensors()
-            .iter()
-            .enumerate()
-            .map(|(index, tensor)| {
-                if tensor.is_composite() {
-                    let result = self.find_path(tensor);
-                    nested_paths.insert(index, result.ssa_path().clone());
-                    tensor.external_tensor().legs
-                } else {
-                    tensor.legs.clone()
-                }
-            })
-            .collect_vec();
+        let mut inputs = Vec::with_capacity(tensor.len());
+        let mut output = LeafTensor::default();
+        let mut size_dict = FxHashMap::default();
 
-        let outputs = tensor.external_tensor();
-        let size_dict = tensor.tensors().iter().map(Tensor::edges).fold(
-            FxHashMap::default(),
-            |mut acc, edges| {
-                acc.extend(edges);
-                acc
-            },
-        );
+        for (index, tensor) in tensor.tensors().iter().enumerate() {
+            match tensor.kind() {
+                TensorType::Composite => {
+                    // Find a path for the nested tensors
+                    let composite = tensor.as_composite().unwrap();
+                    let result = self.find_path(composite);
+                    nested_paths.insert(index, result.ssa_path().clone());
+
+                    // Get the outer tensor after contraction
+                    let leaf = composite.external_tensor();
+                    size_dict.extend(leaf.edges());
+                    output ^= &leaf;
+                    inputs.push(leaf.into_legs());
+                }
+                TensorType::Leaf => {
+                    let leaf = tensor.as_leaf().unwrap();
+                    size_dict.extend(leaf.edges());
+                    output ^= leaf;
+                    inputs.push(leaf.legs().clone());
+                }
+            }
+        }
 
         let (ssa_path, _) = cotengra_hyperoptimizer(
             &inputs,
-            outputs.legs(),
+            output.legs(),
             &size_dict,
             "kahypar",
             &self.hyper_options,
@@ -95,20 +97,19 @@ mod tests {
     use crate::{
         contractionpath::paths::{CostType, Pathfinder},
         path,
-        tensornetwork::tensor::Tensor,
     };
 
-    fn setup_simple() -> Tensor {
+    fn setup_simple() -> CompositeTensor {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
         ])
     }
 
-    fn setup_complex() -> Tensor {
+    fn setup_complex() -> CompositeTensor {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -123,13 +124,13 @@ mod tests {
             (10, 5),
             (11, 17),
         ]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims),
         ])
     }
 

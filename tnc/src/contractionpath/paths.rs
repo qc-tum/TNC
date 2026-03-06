@@ -2,7 +2,7 @@
 
 use crate::{
     contractionpath::{ssa_replace_ordering, ContractionPath},
-    tensornetwork::tensor::Tensor,
+    tensornetwork::tensor::CompositeTensor,
 };
 
 pub mod branchbound;
@@ -24,7 +24,7 @@ pub trait Pathfinder {
     /// Finds a contraction path for the `tensor`.
     ///
     /// Uses `&mut self` to allow for internal state such as caching.
-    fn find_path(&mut self, tensor: &Tensor) -> Self::Result;
+    fn find_path(&mut self, tensor: &CompositeTensor) -> Self::Result;
 }
 
 /// The result of running a contraction [`Pathfinder`].

@@ -10,7 +10,7 @@ use crate::{
         paths::{BasicContractionPathResult, ContractionPathResult, CostType, Pathfinder},
         ssa_ordering, ContractionPath,
     },
-    tensornetwork::tensor::Tensor,
+    tensornetwork::tensor::{CompositeTensor, LeafTensor},
     utils::traits::HashMapInsertNew,
 };
 
@@ -26,7 +26,7 @@ pub struct BranchBound {
     result_cache: FxHashMap<(usize, usize), usize>,
     flop_cache: FxHashMap<usize, f64>,
     size_cache: FxHashMap<usize, f64>,
-    tensor_cache: FxHashMap<usize, Tensor>,
+    tensor_cache: FxHashMap<usize, LeafTensor>,
 }
 
 impl BranchBound {
@@ -57,7 +57,7 @@ impl BranchBound {
         let flops_12: f64;
         let size_12: f64;
         let k12: usize;
-        let k12_tensor: Tensor;
+        let k12_tensor: LeafTensor;
         let mut current_flops = flops;
         let mut current_size = size;
         // Ensure that larger tensor is always to the left.
@@ -111,7 +111,7 @@ impl BranchBound {
     /// the Python based `opt_einsum` implementation. Found at <https://github.com/dgasmith/opt_einsum>.
     fn branch_iterate(
         &mut self,
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         path: &[(usize, usize, usize)],
         remaining: &[usize],
         flops: f64,
@@ -171,10 +171,7 @@ impl BranchBound {
 impl Pathfinder for BranchBound {
     type Result = BasicContractionPathResult;
 
-    fn find_path(&mut self, tensor: &Tensor) -> BasicContractionPathResult {
-        if tensor.is_leaf() {
-            return BasicContractionPathResult::default();
-        }
+    fn find_path(&mut self, tensor: &CompositeTensor) -> BasicContractionPathResult {
         let tensors = tensor.tensors().clone();
         self.flop_cache.clear();
         self.size_cache.clear();
@@ -184,13 +181,14 @@ impl Pathfinder for BranchBound {
         // Get the initial space requirements for uncontracted tensors
         for (index, mut tensor) in tensors.into_iter().enumerate() {
             // Check that tensor has sub-tensors and doesn't have external legs set
-            if !tensor.tensors().is_empty() && tensor.legs().is_empty() {
+            if let Some(composite) = tensor.as_composite() {
                 let mut bb =
                     BranchBound::new(self.nbranch, self.cutoff_flops_factor, self.minimize);
-                let result = bb.find_path(&tensor);
+                let result = bb.find_path(composite);
                 nested_paths.insert(index, result.ssa_path().clone());
-                tensor = tensor.external_tensor();
+                tensor = composite.external_tensor().into();
             }
+            let tensor = tensor.into_leaf().unwrap();
             self.size_cache
                 .entry(index)
                 .or_insert_with(|| tensor.size());
@@ -219,19 +217,18 @@ mod tests {
 
     use crate::contractionpath::paths::{CostType, Pathfinder};
     use crate::path;
-    use crate::tensornetwork::tensor::Tensor;
 
-    fn setup_simple() -> Tensor {
+    fn setup_simple() -> CompositeTensor {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
         ])
     }
 
-    fn setup_complex() -> Tensor {
+    fn setup_complex() -> CompositeTensor {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -246,13 +243,13 @@ mod tests {
             (10, 5),
             (11, 17),
         ]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims),
         ])
     }
 

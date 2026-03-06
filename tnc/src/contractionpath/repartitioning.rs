@@ -14,7 +14,7 @@ use crate::{
         },
         ContractionPath,
     },
-    tensornetwork::{partitioning::partition_tensor_network, tensor::Tensor},
+    tensornetwork::{partitioning::partition_tensor_network, tensor::CompositeTensor},
 };
 
 pub mod genetic;
@@ -23,11 +23,11 @@ pub mod simulated_annealing;
 /// Given a `tensor` and a `partitioning` for it, this constructs the partitioned
 /// tensor and finds a contraction path for it.
 pub fn compute_solution<R>(
-    tensor: &Tensor,
+    tensor: &CompositeTensor,
     partitioning: &[usize],
     communication_scheme: CommunicationScheme,
     rng: Option<&mut R>,
-) -> (Tensor, ContractionPath, f64, f64)
+) -> (CompositeTensor, ContractionPath, f64, f64)
 where
     R: Rng,
 {
@@ -43,8 +43,8 @@ where
     let mut latency_map =
         FxHashMap::from_iter((0..partitioned_tn.tensors().len()).map(|i| (i, 0.0)));
     for (i, local_path) in &path.nested {
-        let (local_cost, _) =
-            contract_path_cost(partitioned_tn.tensor(*i).tensors(), local_path, true);
+        let composite = partitioned_tn.tensor(*i).as_composite().unwrap().tensors();
+        let (local_cost, _) = contract_path_cost(composite, local_path, true);
         latency_map.insert(*i, local_cost);
     }
 
@@ -52,7 +52,7 @@ where
     let children_tensors = partitioned_tn
         .tensors()
         .iter()
-        .map(Tensor::external_tensor)
+        .map(|composite| composite.as_composite().unwrap().external_tensor())
         .collect_vec();
     let communication_path =
         communication_scheme.communication_path(&children_tensors, &latency_map, rng);

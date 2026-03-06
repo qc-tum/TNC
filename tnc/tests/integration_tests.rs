@@ -142,9 +142,9 @@ fn test_partitioned_contraction_need_mpi() {
         Default::default()
     };
 
-    let (mut local_tn, local_path, comm) =
+    let (local_tn, local_path, comm) =
         scatter_tensor_network(&partitioned_tn, &path, rank, size, &world);
-    local_tn = contract_tensor_network(local_tn, &local_path);
+    let mut local_tn = contract_tensor_network(local_tn, &local_path);
 
     let mut communication_path = if rank == 0 {
         path.toplevel
@@ -192,7 +192,7 @@ fn dj_4qubits_statevector() {
 
     let final_tensor = contract_tensor_network(tensor_network, &path);
     let statevector = permutator.apply(final_tensor);
-    let data = statevector.into_tensor_data().into_data();
+    let data = statevector.into_data().into_data();
 
     // Result is 1/sqrt(2) * (|1110> - |1111>)
     let expected = array![
@@ -237,7 +237,7 @@ fn qft_2qubits_expectation() {
     let path = result.replace_path();
 
     let final_tensor = contract_tensor_network(tensor_network, &path);
-    let data = final_tensor.into_tensor_data().into_data();
+    let data = final_tensor.into_data().into_data();
 
     let expected = array![Complex64::new(0.5, 0.0)];
     assert_abs_diff_eq!(data.flatten(), expected, epsilon = 1e-15);
