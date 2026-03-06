@@ -4,6 +4,7 @@ use std::{
     time::Duration,
 };
 
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use serde_pickle::{DeOptions, SerOptions};
@@ -14,13 +15,13 @@ use crate::{
         paths::{CostType, FindPath},
         ssa_replace_ordering, ContractionPath,
     },
-    tensornetwork::tensor::Tensor,
+    tensornetwork::tensor::{CompositeTensor, LeafTensor, TensorType},
 };
 
 /// Creates an interface to access `Cotengra` methods in Rust. Specifically exposes
 /// `search` method of `HyperOptimizer`.
 pub struct Hyperoptimizer<'a> {
-    tensor: &'a Tensor,
+    tensor: &'a CompositeTensor,
     hyper_options: HyperOptions,
     best_flops: f64,
     best_size: f64,
@@ -28,7 +29,11 @@ pub struct Hyperoptimizer<'a> {
 }
 
 impl<'a> Hyperoptimizer<'a> {
-    pub fn new(tensor: &'a Tensor, minimize: CostType, hyper_options: HyperOptions) -> Self {
+    pub fn new(
+        tensor: &'a CompositeTensor,
+        minimize: CostType,
+        hyper_options: HyperOptions,
+    ) -> Self {
         assert_eq!(
             minimize,
             CostType::Flops,
@@ -49,7 +54,7 @@ impl<'a> Hyperoptimizer<'a> {
 /// Unassigned options will not be passed to the function and hence the Python
 /// default values will be used. Please see the cotengra documentation for details on
 /// the parameters.
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Clone)]
 pub struct HyperOptions {
     max_time: Option<u64>,
     max_repeats: Option<usize>,
@@ -119,8 +124,8 @@ fn python_hyperoptimizer(
 
 /// Converts tensor leg inputs to chars. Creates new inputs, outputs and size_dict that can be fed to Cotengra.
 fn tensor_legs_to_chars(
-    inputs: &[Tensor],
-    output: &Tensor,
+    inputs: &[LeafTensor],
+    output: &LeafTensor,
 ) -> (Vec<Vec<char>>, Vec<char>, FxHashMap<char, f32>) {
     fn leg_to_char(leg: usize) -> char {
         char::from_u32(leg.try_into().unwrap()).unwrap()
@@ -142,12 +147,36 @@ fn tensor_legs_to_chars(
 
 impl FindPath for Hyperoptimizer<'_> {
     fn find_path(&mut self) {
-        let (inputs, outputs, size_dict) =
-            tensor_legs_to_chars(self.tensor.tensors(), &self.tensor.external_tensor());
+        // Handle nested tensors first
+        let mut nested_paths = FxHashMap::default();
+        let leaves = self
+            .tensor
+            .tensors()
+            .iter()
+            .enumerate()
+            .map(|(index, t)| match t.kind() {
+                TensorType::Composite => {
+                    let composite = t.as_composite().unwrap();
+                    let mut hp =
+                        Hyperoptimizer::new(composite, CostType::Flops, self.hyper_options.clone());
+                    hp.find_path();
+                    nested_paths.insert(index, hp.get_best_path().clone());
+                    composite.external_tensor()
+                }
+                TensorType::Leaf => t.clone().into_leaf().unwrap(),
+            })
+            .collect_vec();
+
+        // Now handle the outer tensor
+        let external_tensor = self.tensor.external_tensor();
+        let (inputs, outputs, size_dict) = tensor_legs_to_chars(&leaves, &external_tensor);
 
         let ssa_path = python_hyperoptimizer(&inputs, &outputs, &size_dict, &self.hyper_options);
 
-        self.best_path = ContractionPath::simple(ssa_path);
+        self.best_path = ContractionPath {
+            nested: nested_paths,
+            toplevel: ssa_path,
+        };
 
         let (op_cost, mem_cost) =
             contract_path_cost(self.tensor.tensors(), &self.get_best_replace_path(), true);
@@ -184,20 +213,19 @@ mod tests {
     use crate::{
         contractionpath::paths::{CostType, FindPath},
         path,
-        tensornetwork::tensor::Tensor,
     };
 
-    fn setup_simple() -> Tensor {
+    fn setup_simple() -> CompositeTensor {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
         ])
     }
 
-    fn setup_complex() -> Tensor {
+    fn setup_complex() -> CompositeTensor {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -212,13 +240,13 @@ mod tests {
             (10, 5),
             (11, 17),
         ]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims),
         ])
     }
 

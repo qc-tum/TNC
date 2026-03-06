@@ -16,11 +16,11 @@ use tnc::{
         partitioning::{
             find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
         },
-        tensor::Tensor,
+        tensor::CompositeTensor,
     },
 };
 
-fn compute_cost(tensor: &Tensor, partitioning: &[usize]) -> f64 {
+fn compute_cost(tensor: &CompositeTensor, partitioning: &[usize]) -> f64 {
     // Partition the tensor
     let partitioned_tn = partition_tensor_network(tensor.clone(), partitioning);
 
@@ -35,7 +35,8 @@ fn compute_cost(tensor: &Tensor, partitioning: &[usize]) -> f64 {
         .iter()
         .enumerate()
         .map(|(i, t)| {
-            let (ops, _mem) = contract_path_cost(t.tensors(), &path.nested[&i], true);
+            let (ops, _mem) =
+                contract_path_cost(t.as_composite().unwrap().tensors(), &path.nested[&i], true);
             ops
         })
         .collect::<Vec<_>>();
@@ -44,7 +45,7 @@ fn compute_cost(tensor: &Tensor, partitioning: &[usize]) -> f64 {
     let partition_tensors = partitioned_tn
         .tensors()
         .iter()
-        .map(Tensor::external_tensor)
+        .map(|t| t.as_composite().unwrap().external_tensor())
         .collect::<Vec<_>>();
 
     // Get the contraction cost of contracting the final partition tensors in parallel
@@ -59,7 +60,7 @@ fn compute_cost(tensor: &Tensor, partitioning: &[usize]) -> f64 {
 }
 
 fn rebalance(
-    tensor: &Tensor,
+    tensor: &CompositeTensor,
     initial_partitioning: &[usize],
     rng: &mut StdRng,
     communication_scheme: CommunicationScheme,

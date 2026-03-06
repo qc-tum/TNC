@@ -10,13 +10,13 @@ use crate::{
         paths::{CostType, FindPath},
         ssa_replace_ordering, ContractionPath,
     },
-    tensornetwork::tensor::Tensor,
+    tensornetwork::tensor::CompositeTensor,
 };
 
 /// Creates an interface to `rustengra` an interface to access `Cotengra` methods in
 /// Rust. Specifically exposes `subtree_reconfigure` method.
 pub struct TreeReconfigure<'a> {
-    tensor: &'a Tensor,
+    tensor: &'a CompositeTensor,
     subtree_size: usize,
     best_flops: f64,
     best_size: f64,
@@ -27,7 +27,7 @@ impl<'a> TreeReconfigure<'a> {
     /// Creates a new [`TreeReconfigure`] instance. `subtree_size` is the
     /// size of subtrees that is considered (increases the optimization cost
     /// exponentially!).
-    pub fn new(tensor: &'a Tensor, subtree_size: usize, minimize: CostType) -> Self {
+    pub fn new(tensor: &'a CompositeTensor, subtree_size: usize, minimize: CostType) -> Self {
         assert!(cotengra_check().is_ok());
         assert_eq!(
             minimize,
@@ -51,16 +51,18 @@ impl FindPath for TreeReconfigure<'_> {
             .tensor
             .tensors()
             .iter()
-            .map(|tensor| tensor.legs().clone())
+            .map(|tensor| tensor.as_leaf().unwrap().legs().clone())
             .collect_vec();
         let outputs = self.tensor.external_tensor();
-        let size_dict = self.tensor.tensors().iter().map(Tensor::edges).fold(
-            FxHashMap::default(),
-            |mut acc, edges| {
+        let size_dict = self
+            .tensor
+            .tensors()
+            .iter()
+            .map(|tensor| tensor.as_leaf().unwrap().edges())
+            .fold(FxHashMap::default(), |mut acc, edges| {
                 acc.extend(edges);
                 acc
-            },
-        );
+            });
 
         let (inputs, outputs, size_dict) =
             tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
@@ -105,20 +107,20 @@ mod tests {
     use crate::{
         contractionpath::paths::{CostType, FindPath},
         path,
-        tensornetwork::tensor::Tensor,
+        tensornetwork::tensor::LeafTensor,
     };
 
-    fn setup_simple() -> Tensor {
+    fn setup_simple() -> CompositeTensor {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
         ])
     }
 
-    fn setup_complex() -> Tensor {
+    fn setup_complex() -> CompositeTensor {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -133,13 +135,13 @@ mod tests {
             (10, 5),
             (11, 17),
         ]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims),
         ])
     }
 

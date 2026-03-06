@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 use crate::contractionpath::contraction_cost::contract_path_cost;
 use crate::contractionpath::paths::FindPath;
 use crate::contractionpath::{ssa_replace_ordering, ContractionPath, SimplePath};
-use crate::tensornetwork::tensor::Tensor;
+use crate::tensornetwork::tensor::{CompositeTensor, LeafTensor, TensorType};
 
 /// The optimization method to use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,7 +23,7 @@ pub enum OptMethod {
 /// A contraction path finder using the `cotengrust` library.
 #[derive(Debug, Clone)]
 pub struct Cotengrust<'a> {
-    tensor: &'a Tensor,
+    tensor: &'a CompositeTensor,
     best_path: ContractionPath,
     best_flops: f64,
     best_size: f64,
@@ -32,7 +32,7 @@ pub struct Cotengrust<'a> {
 
 impl<'a> Cotengrust<'a> {
     /// Creates a new Cotengrust optimizer using the specified optimization method.
-    pub fn new(tensor: &'a Tensor, opt_method: OptMethod) -> Self {
+    pub fn new(tensor: &'a CompositeTensor, opt_method: OptMethod) -> Self {
         Self {
             tensor,
             opt_method,
@@ -44,7 +44,7 @@ impl<'a> Cotengrust<'a> {
 
     /// Finds a contraction path for a "classical" tensor network, i.e. the inputs
     /// are all leaf tensors.
-    fn optimize_single(&self, inputs: &[Tensor], output: &Tensor) -> SimplePath {
+    fn optimize_single(&self, inputs: &[LeafTensor], output: &LeafTensor) -> SimplePath {
         // Check if the inputs are empty (cotengrust does not handle this gracefully)
         if inputs.is_empty() {
             return SimplePath::default();
@@ -100,8 +100,8 @@ impl<'a> Cotengrust<'a> {
 
 /// Converts tensor leg inputs to chars. Creates new inputs, outputs and size_dict that can be fed to Cotengra.
 fn tensor_legs_to_digit(
-    inputs: &[Tensor],
-    output: &Tensor,
+    inputs: &[LeafTensor],
+    output: &LeafTensor,
 ) -> (Vec<Vec<char>>, Vec<char>, FxHashMap<char, f32>) {
     fn leg_to_char(leg: usize) -> char {
         char::from_u32(leg.try_into().unwrap()).unwrap()
@@ -125,19 +125,26 @@ impl FindPath for Cotengrust<'_> {
     fn find_path(&mut self) {
         // Handle nested tensors first
         let mut nested_paths = FxHashMap::default();
-        let mut inputs = self.tensor.tensors().clone();
-        for (index, input_tensor) in inputs.iter_mut().enumerate() {
-            if input_tensor.is_composite() {
-                let mut ct = Cotengrust::new(input_tensor, self.opt_method);
-                ct.find_path();
-                nested_paths.insert(index, ct.get_best_path().clone());
-                *input_tensor = input_tensor.external_tensor();
-            }
-        }
+        let leaves = self
+            .tensor
+            .tensors()
+            .iter()
+            .enumerate()
+            .map(|(index, t)| match t.kind() {
+                TensorType::Composite => {
+                    let composite = t.as_composite().unwrap();
+                    let mut ct = Cotengrust::new(composite, self.opt_method);
+                    ct.find_path();
+                    nested_paths.insert(index, ct.get_best_path().clone());
+                    composite.external_tensor()
+                }
+                TensorType::Leaf => t.clone().into_leaf().unwrap(),
+            })
+            .collect_vec();
 
         // Now handle the outer tensor
         let external_tensor = self.tensor.external_tensor();
-        let outer_path = self.optimize_single(&inputs, &external_tensor);
+        let outer_path = self.optimize_single(&leaves, &external_tensor);
         self.best_path = ContractionPath {
             nested: nested_paths,
             toplevel: outer_path,
@@ -173,17 +180,17 @@ mod tests {
 
     use crate::path;
 
-    fn setup_simple() -> Tensor {
+    fn setup_simple() -> CompositeTensor {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
         ])
     }
 
-    fn setup_complex() -> Tensor {
+    fn setup_complex() -> CompositeTensor {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -198,43 +205,43 @@ mod tests {
             (10, 5),
             (11, 17),
         ]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims),
         ])
     }
 
-    fn setup_simple_inner_product() -> Tensor {
+    fn setup_simple_inner_product() -> CompositeTensor {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 5], &bond_dims),
-            Tensor::new_from_map(vec![1, 6], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 5], &bond_dims),
+            LeafTensor::new_from_map(vec![1, 6], &bond_dims),
         ])
     }
 
-    fn setup_simple_outer_product() -> Tensor {
+    fn setup_simple_outer_product() -> CompositeTensor {
         let bond_dims = FxHashMap::from_iter([(0, 3), (1, 2), (2, 2)]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![0], &bond_dims),
-            Tensor::new_from_map(vec![1], &bond_dims),
-            Tensor::new_from_map(vec![2], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![0], &bond_dims),
+            LeafTensor::new_from_map(vec![1], &bond_dims),
+            LeafTensor::new_from_map(vec![2], &bond_dims),
         ])
     }
 
-    fn setup_complex_outer_product() -> Tensor {
+    fn setup_complex_outer_product() -> CompositeTensor {
         let bond_dims = FxHashMap::from_iter([(0, 5), (1, 4)]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![0], &bond_dims),
-            Tensor::new_from_map(vec![0], &bond_dims),
-            Tensor::new_from_map(vec![1], &bond_dims),
-            Tensor::new_from_map(vec![1], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![0], &bond_dims),
+            LeafTensor::new_from_map(vec![0], &bond_dims),
+            LeafTensor::new_from_map(vec![1], &bond_dims),
+            LeafTensor::new_from_map(vec![1], &bond_dims),
         ])
     }
 

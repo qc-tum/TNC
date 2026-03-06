@@ -17,7 +17,7 @@ use crate::contractionpath::contraction_tree::{
 };
 use crate::contractionpath::paths::validate_path;
 use crate::contractionpath::{ContractionPath, SimplePath};
-use crate::tensornetwork::tensor::{Tensor, TensorIndex};
+use crate::tensornetwork::tensor::{CompositeTensor, LeafTensor, TensorIndex, TensorType};
 
 mod balancing_schemes;
 
@@ -33,7 +33,7 @@ where
     random_balance: Option<(usize, R)>,
     rebalance_depth: usize,
     iterations: usize,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
     communication_scheme: CommunicationScheme,
     balancing_scheme: BalancingScheme,
     memory_limit: Option<f64>,
@@ -43,7 +43,7 @@ impl BalanceSettings<StdRng> {
     pub fn new(
         rebalance_depth: usize,
         iterations: usize,
-        objective_function: fn(&Tensor, &Tensor) -> f64,
+        objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
         communication_scheme: CommunicationScheme,
         balancing_scheme: BalancingScheme,
         memory_limit: Option<f64>,
@@ -68,7 +68,7 @@ where
         random_balance: Option<(usize, R)>,
         rebalance_depth: usize,
         iterations: usize,
-        objective_function: fn(&Tensor, &Tensor) -> f64,
+        objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
         communication_scheme: CommunicationScheme,
         balancing_scheme: BalancingScheme,
         memory_limit: Option<f64>,
@@ -91,16 +91,16 @@ pub(crate) struct PartitionData {
     pub flop_cost: f64,
     pub mem_cost: f64,
     pub contraction: SimplePath,
-    pub local_tensor: Tensor,
+    pub local_tensor: LeafTensor,
 }
 
 /// Balances a partitioned tensor network to greedily optimize for a given objective.
 pub fn balance_partitions_iter<R>(
-    tensor_network: &Tensor,
+    tensor_network: &CompositeTensor,
     path: &ContractionPath,
     mut balance_settings: BalanceSettings<R>,
     rng: &mut R,
-) -> (usize, Tensor, ContractionPath, Vec<(f64, f64)>)
+) -> (usize, CompositeTensor, ContractionPath, Vec<(f64, f64)>)
 where
     R: Rng,
 {
@@ -212,7 +212,7 @@ where
 fn communicate_partitions<R>(
     partition_data: &[PartitionData],
     contraction_tree: &mut ContractionTree,
-    tensor_network: &Tensor,
+    tensor_network: &CompositeTensor,
     balance_settings: &BalanceSettings<R>,
     rng: Option<&mut R>,
 ) -> SimplePath
@@ -223,7 +223,10 @@ where
     let children_tensors = tensor_network
         .tensors()
         .iter()
-        .map(Tensor::external_tensor)
+        .map(|t| match t.kind() {
+            TensorType::Composite => t.as_composite().unwrap().external_tensor(),
+            TensorType::Leaf => t.as_leaf().unwrap().clone(),
+        })
         .collect_vec();
     let latency_map = partition_data
         .iter()
@@ -246,10 +249,10 @@ where
 fn balance_partitions<R>(
     partition_data: &mut [PartitionData],
     contraction_tree: &mut ContractionTree,
-    tensor_network: &Tensor,
+    tensor_network: &CompositeTensor,
     balance_settings: &mut BalanceSettings<R>,
     iteration: usize,
-) -> (FxHashMap<TensorIndex, ContractionPath>, Tensor)
+) -> (FxHashMap<TensorIndex, ContractionPath>, CompositeTensor)
 where
     R: Rng,
 {
@@ -443,7 +446,6 @@ where
                 },
             )| {
                 rebalanced_paths.insert(i, ContractionPath::simple(subtree_contraction.clone()));
-                let mut child_tensor = Tensor::default();
                 let leaf_ids = contraction_tree.leaf_ids(*id);
                 let leaf_tensors = leaf_ids
                     .iter()
@@ -456,7 +458,7 @@ where
                         tensor_network.nested_tensor(&nested_indices).clone()
                     })
                     .collect_vec();
-                child_tensor.push_tensors(leaf_tensors);
+                let child_tensor = CompositeTensor::new(leaf_tensors);
                 (child_tensor, *id)
             },
         )
@@ -466,8 +468,7 @@ where
         .partitions
         .insert(*rebalance_depth, partition_ids);
 
-    let mut updated_tn = Tensor::default();
-    updated_tn.push_tensors(partition_tensors);
+    let updated_tn = CompositeTensor::new(partition_tensors);
     (rebalanced_paths, updated_tn)
 }
 
@@ -480,9 +481,9 @@ where
 /// * `objective_function` - Cost function that takes in two tensors and returns an f64 cost.
 fn find_rebalance_node<R>(
     random_balance: &mut Option<(usize, R)>,
-    larger_subtree_nodes: &FxHashMap<usize, Tensor>,
-    smaller_subtree_nodes: &FxHashMap<usize, Tensor>,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
+    larger_subtree_nodes: &FxHashMap<usize, LeafTensor>,
+    smaller_subtree_nodes: &FxHashMap<usize, LeafTensor>,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
 ) -> (usize, f64)
 where
     R: Rng,
@@ -519,7 +520,7 @@ fn shift_node_between_subtrees(
     larger_subtree_id: usize,
     smaller_subtree_id: usize,
     rebalanced_nodes: Vec<usize>,
-    tensor_network: &Tensor,
+    tensor_network: &CompositeTensor,
 ) -> (usize, SimplePath, f64, f64, usize, SimplePath, f64, f64) {
     // Obtain parents of the two subtrees that are being updated.
     let larger_subtree_parent_id = contraction_tree
@@ -626,9 +627,8 @@ mod tests {
         ContractionTree,
     };
     use crate::path;
-    use crate::tensornetwork::tensor::Tensor;
 
-    fn setup_complex() -> (ContractionTree, Tensor) {
+    fn setup_complex() -> (ContractionTree, CompositeTensor) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -643,13 +643,13 @@ mod tests {
             (10, 5),
         ]);
         let (tensor, contraction_path) = (
-            Tensor::new_composite(vec![
-                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-                Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-                Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-                Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+            CompositeTensor::new(vec![
+                LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
+                LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims),
+                LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims),
+                LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims),
             ]),
             path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)],
         );
@@ -726,7 +726,7 @@ mod tests {
         assert_eq!(root.upgrade().unwrap(), ref_root);
     }
 
-    fn custom_weight_function(a: &Tensor, b: &Tensor) -> f64 {
+    fn custom_weight_function(a: &LeafTensor, b: &LeafTensor) -> f64 {
         (a & b).legs().len() as f64
     }
 
@@ -735,13 +735,13 @@ mod tests {
         let bond_dims =
             FxHashMap::from_iter([(0, 2), (1, 1), (2, 3), (3, 5), (4, 3), (5, 8), (6, 7)]);
         let larger_hash = FxHashMap::from_iter([
-            (0, Tensor::new_from_map(vec![0, 1, 2], &bond_dims)),
-            (1, Tensor::new_from_map(vec![1, 2, 3], &bond_dims)),
-            (2, Tensor::new_from_map(vec![3, 4, 5], &bond_dims)),
+            (0, LeafTensor::new_from_map(vec![0, 1, 2], &bond_dims)),
+            (1, LeafTensor::new_from_map(vec![1, 2, 3], &bond_dims)),
+            (2, LeafTensor::new_from_map(vec![3, 4, 5], &bond_dims)),
         ]);
 
         let smaller_hash =
-            FxHashMap::from_iter([(3, Tensor::new_from_map(vec![4, 5, 6], &bond_dims))]);
+            FxHashMap::from_iter([(3, LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims))]);
 
         let ref_balanced_node = 2;
         let (node_id, cost) = find_rebalance_node::<StdRng>(
@@ -759,13 +759,13 @@ mod tests {
         let bond_dims =
             FxHashMap::from_iter([(0, 2), (1, 1), (2, 3), (3, 5), (4, 3), (5, 8), (6, 7)]);
         let larger_hash = FxHashMap::from_iter([
-            (0, Tensor::new_from_map(vec![0, 1, 2], &bond_dims)),
-            (1, Tensor::new_from_map(vec![1, 2, 6], &bond_dims)),
-            (2, Tensor::new_from_map(vec![3, 4, 5], &bond_dims)),
+            (0, LeafTensor::new_from_map(vec![0, 1, 2], &bond_dims)),
+            (1, LeafTensor::new_from_map(vec![1, 2, 6], &bond_dims)),
+            (2, LeafTensor::new_from_map(vec![3, 4, 5], &bond_dims)),
         ]);
 
         let smaller_hash =
-            FxHashMap::from_iter([(3, Tensor::new_from_map(vec![4, 5, 6], &bond_dims))]);
+            FxHashMap::from_iter([(3, LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims))]);
 
         let ref_balanced_node = 1;
         let (node_id, cost) = find_rebalance_node(

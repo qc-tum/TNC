@@ -5,25 +5,24 @@ use num_complex::Complex64;
 
 use crate::{
     contractionpath::{ContractionPath, SimplePathRef},
-    tensornetwork::tensor::{EdgeIndex, Tensor},
+    tensornetwork::tensor::{EdgeIndex, LeafTensor, Tensor},
 };
 
-/// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
-/// objects. Considers cost of complex operations.
+/// Returns Schroedinger contraction time complexity of contracting two
+/// [`LeafTensor`] objects. Considers cost of complex operations.
 ///
 /// # Examples
 /// ```
-/// # use tnc::tensornetwork::tensor::Tensor;
+/// # use tnc::tensornetwork::tensor::LeafTensor;
 /// # use tnc::contractionpath::contraction_cost::contract_cost_tensors;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims);
-/// let tensor2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims);
+/// let tensor1 = LeafTensor::new_from_map(vec![0, 1, 2], &bond_dims);
+/// let tensor2 = LeafTensor::new_from_map(vec![2, 3, 4], &bond_dims);
 /// // result = [0, 1, 2, 3, 4] // cost of (9-1)*54*5005 = 350350;
-/// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
-/// assert_eq!(contract_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 350350.);
+/// assert_eq!(contract_cost_tensors(&tensor1, &tensor2), 350350.);
 /// ```
-pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
+pub fn contract_cost_tensors(t_1: &LeafTensor, t_2: &LeafTensor) -> f64 {
     let final_dims = t_1 ^ t_2;
     let shared_dims = t_1 & t_2;
 
@@ -31,44 +30,42 @@ pub fn contract_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     (single_loop_cost - 1f64).mul_add(2f64, single_loop_cost * 6f64) * final_dims.size()
 }
 
-/// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
-/// objects. Naive op cost, does not consider costs of multiplication.
+/// Returns Schroedinger contraction time complexity of contracting two
+/// [`LeafTensor`] objects. Naive op cost, does not consider costs of multiplication.
 ///
 /// # Examples
 /// ```
-/// # use tnc::tensornetwork::tensor::Tensor;
+/// # use tnc::tensornetwork::tensor::LeafTensor;
 /// # use tnc::contractionpath::contraction_cost::contract_op_cost_tensors;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims);
-/// let tensor2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims);
+/// let tensor1 = LeafTensor::new_from_map(vec![0, 1, 2], &bond_dims);
+/// let tensor2 = LeafTensor::new_from_map(vec![2, 3, 4], &bond_dims);
 /// // result = [0, 1, 2, 3, 4] // cost of 5*7*9*11*13 = 45045;
-/// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
-/// assert_eq!(contract_op_cost_tensors(&tn.tensor(0), &tn.tensor(1)), 45045.);
+/// assert_eq!(contract_op_cost_tensors(&tensor1, &tensor2), 45045.);
 /// ```
 #[inline]
-pub fn contract_op_cost_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
+pub fn contract_op_cost_tensors(t_1: &LeafTensor, t_2: &LeafTensor) -> f64 {
     let all_dims = t_1 | t_2;
     all_dims.size()
 }
 
-/// Returns Schroedinger contraction space complexity of contracting two [`Tensor`]
-/// objects.
+/// Returns Schroedinger contraction space complexity of contracting two
+/// [`LeafTensor`] objects.
 ///
 /// # Examples
 /// ```
-/// # use tnc::tensornetwork::tensor::Tensor;
+/// # use tnc::tensornetwork::tensor::LeafTensor;
 /// # use tnc::contractionpath::contraction_cost::contract_size_tensors;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
-/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims); // 315 entries
-/// let tensor2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims); // 1287 entries
+/// let tensor1 = LeafTensor::new_from_map(vec![0, 1, 2], &bond_dims); // 315 entries
+/// let tensor2 = LeafTensor::new_from_map(vec![2, 3, 4], &bond_dims); // 1287 entries
 /// // result = [0, 1, 3, 4] //  5005 entries -> total 6607 entries
-/// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
-/// assert_eq!(contract_size_tensors(&tn.tensor(0), &tn.tensor(1)), 6607.);
+/// assert_eq!(contract_size_tensors(&tensor1, &tensor2), 6607.);
 /// ```
 #[inline]
-pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
+pub fn contract_size_tensors(t_1: &LeafTensor, t_2: &LeafTensor) -> f64 {
     let diff = t_1 ^ t_2;
     diff.size() + t_1.size() + t_2.size()
 }
@@ -82,17 +79,16 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
 ///
 /// # Examples
 /// ```
-/// # use tnc::tensornetwork::tensor::Tensor;
+/// # use tnc::tensornetwork::tensor::LeafTensor;
 /// # use tnc::contractionpath::contraction_cost::contract_size_tensors_exact;
 /// # use rustc_hash::FxHashMap;
 /// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
-/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims); // requires 5040 bytes
-/// let tensor2 = Tensor::new_from_map(vec![3, 2], &bond_dims);    // requires 1584 bytes
+/// let tensor1 = LeafTensor::new_from_map(vec![0, 1, 2], &bond_dims); // requires 5040 bytes
+/// let tensor2 = LeafTensor::new_from_map(vec![3, 2], &bond_dims);    // requires 1584 bytes
 /// // result = [0, 1, 3], requires 6160 bytes
-/// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
-/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1)), 12784.);
+/// assert_eq!(contract_size_tensors_exact(&tensor1, &tensor2), 12784.);
 /// ```
-pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor) -> f64 {
+pub fn contract_size_tensors_exact(i: &LeafTensor, j: &LeafTensor) -> f64 {
     /// Checks if `prefix` is a prefix of `list`.
     #[inline]
     fn is_prefix(prefix: &[EdgeIndex], list: &[EdgeIndex]) -> bool {
@@ -166,27 +162,30 @@ pub fn contract_path_cost(
 fn contract_path_custom_cost(
     inputs: &[Tensor],
     contract_path: &ContractionPath,
-    cost_function: fn(&Tensor, &Tensor) -> f64,
-    size_function: fn(&Tensor, &Tensor) -> f64,
+    cost_function: fn(&LeafTensor, &LeafTensor) -> f64,
+    size_function: fn(&LeafTensor, &LeafTensor) -> f64,
 ) -> (f64, f64) {
     let mut op_cost = 0f64;
     let mut mem_cost = 0f64;
     let mut inputs = inputs.to_vec();
 
     for (i, path) in &contract_path.nested {
+        let composite = inputs[*i].as_composite().unwrap();
         let costs =
-            contract_path_custom_cost(inputs[*i].tensors(), path, cost_function, size_function);
+            contract_path_custom_cost(composite.tensors(), path, cost_function, size_function);
         op_cost += costs.0;
         mem_cost = mem_cost.max(costs.1);
-        inputs[*i] = inputs[*i].external_tensor();
+        inputs[*i] = composite.external_tensor().into();
     }
 
-    for &(i, j) in &contract_path.toplevel {
-        op_cost += cost_function(&inputs[i], &inputs[j]);
-        let ij = &inputs[i] ^ &inputs[j];
-        let new_mem_cost = size_function(&inputs[i], &inputs[j]);
+    for (i, j) in &contract_path.toplevel {
+        let ti = inputs[*i].as_leaf().unwrap();
+        let tj = inputs[*j].as_leaf().unwrap();
+        op_cost += cost_function(ti, tj);
+        let tij = ti ^ tj;
+        let new_mem_cost = size_function(ti, tj);
         mem_cost = mem_cost.max(new_mem_cost);
-        inputs[i] = ij;
+        inputs[*i] = tij.into();
     }
 
     (op_cost, mem_cost)
@@ -196,7 +195,7 @@ fn contract_path_custom_cost(
 /// and using the sum metric. Additionally returns the space complexity.
 #[inline]
 pub fn communication_path_op_costs(
-    inputs: &[Tensor],
+    inputs: &[LeafTensor],
     contract_path: SimplePathRef,
     only_count_ops: bool,
     tensor_cost: Option<&[f64]>,
@@ -218,7 +217,7 @@ pub fn communication_path_op_costs(
 /// * `only_circital_path` - If `true`, only counts the cost along the critical path, otherwise the sum of all costs
 /// * `tensor_costs` - Initial cost for each tensor
 pub fn communication_path_cost(
-    inputs: &[Tensor],
+    inputs: &[LeafTensor],
     contract_path: SimplePathRef,
     only_count_ops: bool,
     only_critical_path: bool,
@@ -257,9 +256,9 @@ pub fn communication_path_cost(
 /// * `cost_function` - Function to calculate cost of contracting two tensors
 /// * `tensor_costs` - Initial cost for each tensor
 fn communication_path_custom_cost(
-    inputs: &[Tensor],
+    inputs: &[LeafTensor],
     contract_path: SimplePathRef,
-    cost_function: fn(&Tensor, &Tensor) -> f64,
+    cost_function: fn(&LeafTensor, &LeafTensor) -> f64,
     only_critical_path: bool,
     tensor_cost: &[f64],
 ) -> (f64, f64) {
@@ -296,9 +295,9 @@ fn communication_path_custom_cost(
 pub fn compute_memory_requirements(
     inputs: &[Tensor],
     contract_path: &ContractionPath,
-    memory_estimator: fn(&Tensor, &Tensor) -> f64,
+    memory_estimator: fn(&LeafTensor, &LeafTensor) -> f64,
 ) -> f64 {
-    fn id(_: &Tensor, _: &Tensor) -> f64 {
+    fn id(_: &LeafTensor, _: &LeafTensor) -> f64 {
         0.0
     }
     let (_, mem) = contract_path_custom_cost(inputs, contract_path, id, memory_estimator);
@@ -312,19 +311,19 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::path;
-    use crate::tensornetwork::tensor::Tensor;
+    use crate::tensornetwork::tensor::CompositeTensor;
 
-    fn setup_simple() -> Tensor {
+    fn setup_simple() -> CompositeTensor {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
         ])
     }
 
-    fn setup_complex() -> Tensor {
+    fn setup_complex() -> CompositeTensor {
         let bond_dims = FxHashMap::from_iter([
             (0, 5),
             (1, 2),
@@ -338,29 +337,29 @@ mod tests {
             (9, 2),
         ]);
         let t1_tensors = vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
         ];
-        let t1 = Tensor::new_composite(t1_tensors);
+        let t1 = CompositeTensor::new(t1_tensors);
 
         let t2_tensors = vec![
-            Tensor::new_from_map(vec![5, 6, 8], &bond_dims),
-            Tensor::new_from_map(vec![7, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 6, 8], &bond_dims),
+            LeafTensor::new_from_map(vec![7, 8, 9], &bond_dims),
         ];
-        let t2 = Tensor::new_composite(t2_tensors);
-        Tensor::new_composite(vec![t1, t2])
+        let t2 = CompositeTensor::new(t2_tensors);
+        CompositeTensor::new(vec![t1, t2])
     }
 
-    fn setup_parallel() -> Tensor {
+    fn setup_parallel() -> Vec<LeafTensor> {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
-        Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-            Tensor::new_from_map(vec![5, 6], &bond_dims),
-        ])
+        vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 6], &bond_dims),
+        ]
     }
 
     #[test]
@@ -411,28 +410,28 @@ mod tests {
 
     #[test]
     fn test_communication_path_cost_only_ops() {
-        let tn = setup_parallel();
+        let tensors = setup_parallel();
         let (op_cost, mem_cost) =
-            communication_path_cost(tn.tensors(), &[(0, 1), (2, 3), (0, 2)], true, true, None);
+            communication_path_cost(&tensors, &[(0, 1), (2, 3), (0, 2)], true, true, None);
         assert_eq!(op_cost, 490.);
         assert_eq!(mem_cost, 538.);
     }
 
     #[test]
     fn test_communication_path_cost() {
-        let tn = setup_parallel();
+        let tensors = setup_parallel();
         let (op_cost, mem_cost) =
-            communication_path_cost(tn.tensors(), &[(0, 1), (2, 3), (0, 1)], false, true, None);
+            communication_path_cost(&tensors, &[(0, 1), (2, 3), (0, 1)], false, true, None);
         assert_eq!(op_cost, 7564.);
         assert_eq!(mem_cost, 538.);
     }
 
     #[test]
     fn test_communication_path_cost_only_ops_with_partition_cost() {
-        let tn = setup_parallel();
+        let tensors = setup_parallel();
         let tensor_cost = vec![20., 30., 80., 10.];
         let (op_cost, mem_cost) = communication_path_cost(
-            tn.tensors(),
+            &tensors,
             &[(0, 1), (2, 3), (0, 2)],
             true,
             true,
@@ -444,10 +443,10 @@ mod tests {
 
     #[test]
     fn test_communication_path_cost_with_partition_cost() {
-        let tn = setup_parallel();
+        let tensors = setup_parallel();
         let tensor_cost = vec![20., 30., 80., 10.];
         let (op_cost, mem_cost) = communication_path_cost(
-            tn.tensors(),
+            &tensors,
             &[(0, 1), (2, 3), (0, 1)],
             false,
             true,

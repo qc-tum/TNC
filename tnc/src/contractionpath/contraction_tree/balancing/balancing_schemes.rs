@@ -5,7 +5,7 @@ use crate::contractionpath::contraction_tree::balancing::{find_rebalance_node, P
 use crate::contractionpath::contraction_tree::{
     populate_leaf_node_tensor_map, populate_subtree_tensor_map, ContractionTree,
 };
-use crate::tensornetwork::tensor::Tensor;
+use crate::tensornetwork::tensor::{CompositeTensor, LeafTensor};
 
 /// The scheme used for greedy balancing of partitions.
 #[derive(Debug, Clone, Copy)]
@@ -84,8 +84,8 @@ pub(super) fn best_worst<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
-    tensor: &Tensor,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
+    tensor: &CompositeTensor,
 ) -> Vec<Shift>
 where
     R: Rng,
@@ -120,8 +120,8 @@ pub(super) fn best_tensor<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
-    tensor: &Tensor,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
+    tensor: &CompositeTensor,
 ) -> Vec<Shift>
 where
     R: Rng,
@@ -163,8 +163,8 @@ pub(super) fn best_tensors<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
-    tensor: &Tensor,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
+    tensor: &CompositeTensor,
 ) -> Vec<Shift>
 where
     R: Rng,
@@ -239,8 +239,8 @@ pub(super) fn tensors_odd<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
-    tensor: &Tensor,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
+    tensor: &CompositeTensor,
 ) -> Vec<Shift>
 where
     R: Rng,
@@ -281,8 +281,8 @@ pub(super) fn tensors_even<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
-    tensor: &Tensor,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
+    tensor: &CompositeTensor,
 ) -> Vec<Shift>
 where
     R: Rng,
@@ -324,8 +324,8 @@ pub(super) fn best_intermediate_tensors<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
-    tensor: &Tensor,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
+    tensor: &CompositeTensor,
     height_limit: Option<usize>,
 ) -> Vec<Shift>
 where
@@ -404,8 +404,8 @@ pub(super) fn intermediate_tensors_odd<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
-    tensor: &Tensor,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
+    tensor: &CompositeTensor,
     height_limit: Option<usize>,
 ) -> Vec<Shift>
 where
@@ -450,8 +450,8 @@ pub(super) fn intermediate_tensors_even<R>(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
     random_balance: &mut Option<(usize, R)>,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
-    tensor: &Tensor,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
+    tensor: &CompositeTensor,
     height_limit: Option<usize>,
 ) -> Vec<Shift>
 where
@@ -496,8 +496,8 @@ where
 pub(super) fn tree_tensors_odd(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
-    tensor: &Tensor,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
+    tensor: &CompositeTensor,
     height_limit: usize,
 ) -> Vec<Shift> {
     // Obtain most expensive partition
@@ -549,8 +549,8 @@ pub(super) fn tree_tensors_odd(
 pub(super) fn tree_tensors_even(
     partition_data: &[PartitionData],
     contraction_tree: &ContractionTree,
-    objective_function: fn(&Tensor, &Tensor) -> f64,
-    tensor: &Tensor,
+    objective_function: fn(&LeafTensor, &LeafTensor) -> f64,
+    tensor: &CompositeTensor,
     height_limit: usize,
 ) -> Vec<Shift> {
     let smaller_subtree_id = partition_data.first().unwrap().id;
@@ -613,7 +613,7 @@ mod tests {
     use crate::{
         contractionpath::contraction_tree::{balancing::PartitionData, ContractionTree},
         path,
-        tensornetwork::tensor::Tensor,
+        tensornetwork::tensor::LeafTensor,
     };
 
     fn setup_simple_partition_data() -> Vec<PartitionData> {
@@ -636,27 +636,27 @@ mod tests {
                 flop_cost: 1.,
                 mem_cost: 0.,
                 contraction: Default::default(),
-                local_tensor: Tensor::new_from_map(vec![7, 9, 10], &bond_dims),
+                local_tensor: LeafTensor::new_from_map(vec![7, 9, 10], &bond_dims),
             },
             PartitionData {
                 id: 7,
                 flop_cost: 2.,
                 mem_cost: 0.,
                 contraction: Default::default(),
-                local_tensor: Tensor::new_from_map(vec![0, 1, 5, 7], &bond_dims),
+                local_tensor: LeafTensor::new_from_map(vec![0, 1, 5, 7], &bond_dims),
             },
             PartitionData {
                 id: 14,
                 flop_cost: 3.,
                 mem_cost: 0.,
                 contraction: Default::default(),
-                local_tensor: Tensor::new_from_map(vec![0, 1, 2, 5, 10], &bond_dims),
+                local_tensor: LeafTensor::new_from_map(vec![0, 1, 2, 5, 10], &bond_dims),
             },
         ]
     }
 
     /// Tensor ids in contraction tree included in variable name for easy tracking
-    fn setup_simple() -> (ContractionTree, Tensor) {
+    fn setup_simple() -> (ContractionTree, CompositeTensor) {
         let bond_dims = FxHashMap::from_iter([
             (0, 2),
             (1, 2),
@@ -671,26 +671,26 @@ mod tests {
             (10, 2),
         ]);
 
-        let tensor0 = Tensor::new_from_map(vec![7, 8], &bond_dims);
-        let tensor1 = Tensor::new_from_map(vec![8, 9, 10], &bond_dims);
+        let tensor0 = LeafTensor::new_from_map(vec![7, 8], &bond_dims);
+        let tensor1 = LeafTensor::new_from_map(vec![8, 9, 10], &bond_dims);
 
-        let tensor3 = Tensor::new_from_map(vec![0, 6], &bond_dims);
-        let tensor4 = Tensor::new_from_map(vec![1, 6], &bond_dims);
-        let tensor5 = Tensor::new_from_map(vec![5, 7], &bond_dims);
+        let tensor3 = LeafTensor::new_from_map(vec![0, 6], &bond_dims);
+        let tensor4 = LeafTensor::new_from_map(vec![1, 6], &bond_dims);
+        let tensor5 = LeafTensor::new_from_map(vec![5, 7], &bond_dims);
 
-        let tensor8 = Tensor::new_from_map(vec![0, 1], &bond_dims);
-        let tensor9 = Tensor::new_from_map(vec![2, 3], &bond_dims);
-        let tensor10 = Tensor::new_from_map(vec![3, 4], &bond_dims);
-        let tensor11 = Tensor::new_from_map(vec![4, 5, 10], &bond_dims);
+        let tensor8 = LeafTensor::new_from_map(vec![0, 1], &bond_dims);
+        let tensor9 = LeafTensor::new_from_map(vec![2, 3], &bond_dims);
+        let tensor10 = LeafTensor::new_from_map(vec![3, 4], &bond_dims);
+        let tensor11 = LeafTensor::new_from_map(vec![4, 5, 10], &bond_dims);
 
-        let intermediate_tensor2 = Tensor::new_composite(vec![tensor0, tensor1]);
+        let intermediate_tensor2 = CompositeTensor::new(vec![tensor0, tensor1]);
 
-        let intermediate_tensor7 = Tensor::new_composite(vec![tensor3, tensor4, tensor5]);
+        let intermediate_tensor7 = CompositeTensor::new(vec![tensor3, tensor4, tensor5]);
 
         let intermediate_tensor14 =
-            Tensor::new_composite(vec![tensor8, tensor9, tensor10, tensor11]);
+            CompositeTensor::new(vec![tensor8, tensor9, tensor10, tensor11]);
 
-        let tensor15 = Tensor::new_composite(vec![
+        let tensor15 = CompositeTensor::new(vec![
             intermediate_tensor2,
             intermediate_tensor7,
             intermediate_tensor14,
@@ -712,7 +712,7 @@ mod tests {
         )
     }
 
-    fn custom_cost_function(a: &Tensor, b: &Tensor) -> f64 {
+    fn custom_cost_function(a: &LeafTensor, b: &LeafTensor) -> f64 {
         (a & b).legs().len() as f64
     }
 

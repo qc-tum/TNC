@@ -7,7 +7,7 @@ use kahypar::{partition, KaHyParContext};
 use rustc_hash::FxHashMap;
 
 use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
-use crate::tensornetwork::tensor::Tensor;
+use crate::tensornetwork::tensor::{CompositeTensor, LeafTensor};
 
 pub mod partition_config;
 
@@ -24,23 +24,21 @@ const LOG_SCALE_FACTOR: f64 = 1e5;
 /// The usize associated with each Tensor indicates its partionining.
 ///
 /// # Arguments
-///
 /// * `tensor_network` - [`Tensor`] to be partitionined
 /// * `k` - imbalance parameter for `KaHyPar`
 /// * `partition_strategy` - The strategy to pass to `KaHyPar`
 /// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
-///
 pub fn find_partitioning(
-    tensor_network: &Tensor,
+    tensor_network: &CompositeTensor,
     k: i32,
     partitioning_strategy: PartitioningStrategy,
     min: bool,
 ) -> Vec<usize> {
     if k == 1 {
-        return vec![0; tensor_network.tensors().len()];
+        return vec![0; tensor_network.len()];
     }
 
-    let num_vertices = tensor_network.tensors().len() as u32;
+    let num_vertices = tensor_network.len() as u32;
     let mut context = KaHyParContext::new();
     partitioning_strategy.apply(&mut context);
 
@@ -54,6 +52,9 @@ pub fn find_partitioning(
 
     let mut edge_dict = FxHashMap::default();
     for (tensor_id, tensor) in tensor_network.tensors().iter().enumerate() {
+        let tensor = tensor
+            .as_leaf()
+            .expect("Partitioning currently only supports one level of nesting");
         for (leg, dim) in tensor.edges() {
             edge_dict
                 .entry(leg)
@@ -92,14 +93,12 @@ pub fn find_partitioning(
 /// Returns a `Vec<usize>` of length equal to the number of input tensors minus one, acts as a communication scheme.
 ///
 /// # Arguments
-///
-/// * `tensors` - &[(usize, `Tensor`)] to be partitioned. each tuple contains the intermediate contraction cost and intermediate tensor for communication.
+/// * `tensors` - &[(usize, `Tensor`)] to be partitioned. Each tuple contains the intermediate contraction cost and intermediate tensor for communication.
 /// * `k` - number of partitions
 /// * `partitioning_strategy` - The strategy to pass to `KaHyPar`
 /// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
-///
 pub fn communication_partitioning(
-    tensors: &[(usize, Tensor)],
+    tensors: &[(usize, LeafTensor)],
     k: i32,
     imbalance: f64,
     partitioning_strategy: PartitioningStrategy,
@@ -162,16 +161,16 @@ pub fn communication_partitioning(
 
 /// Partitions the tensor network based on the `partitioning` vector that assigns
 /// each vector to a partition.
-pub fn partition_tensor_network(tn: Tensor, partitioning: &[usize]) -> Tensor {
+pub fn partition_tensor_network(tn: CompositeTensor, partitioning: &[usize]) -> CompositeTensor {
     let partition_ids = partitioning.iter().unique().copied().collect_vec();
     let partition_dict =
         zip(partition_ids.iter().copied(), 0..partition_ids.len()).collect::<FxHashMap<_, _>>();
 
-    let mut partitions = vec![Tensor::default(); partition_ids.len()];
-    for (partition_id, tensor) in zip(partitioning, tn.tensors) {
-        partitions[partition_dict[partition_id]].push_tensor(tensor);
+    let mut partitions = vec![CompositeTensor::default(); partition_ids.len()];
+    for (partition_id, tensor) in zip(partitioning, tn.tensors()) {
+        partitions[partition_dict[partition_id]].push_tensor(tensor.clone());
     }
-    Tensor::new_composite(partitions)
+    CompositeTensor::new(partitions)
 }
 
 #[cfg(test)]
@@ -182,9 +181,9 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
-    use crate::tensornetwork::tensor::{EdgeIndex, Tensor};
+    use crate::tensornetwork::tensor::{EdgeIndex, LeafTensor, Tensor};
 
-    fn setup_complex() -> (Tensor, FxHashMap<EdgeIndex, u64>) {
+    fn setup_complex() -> (CompositeTensor, FxHashMap<EdgeIndex, u64>) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -200,13 +199,13 @@ mod tests {
             (11, 17),
         ]);
         (
-            Tensor::new_composite(vec![
-                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-                Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-                Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-                Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+            CompositeTensor::new(vec![
+                LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
+                LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims),
+                LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims),
+                LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims),
             ]),
             bond_dims,
         )
@@ -215,26 +214,26 @@ mod tests {
     #[test]
     fn test_simple_partitioning() {
         let (tn, bond_dims) = setup_complex();
-        let ref_tensor_1 = Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-            Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
+        let ref_tensor_1 = CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims),
+            LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims),
         ]);
-        let ref_tensor_2 = Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+        let ref_tensor_2 = CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims),
         ]);
-        let ref_tensor_3 = Tensor::new_composite(vec![
-            Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-            Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+        let ref_tensor_3 = CompositeTensor::new(vec![
+            LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+            LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
         ]);
         let partitioning = find_partitioning(&tn, 3, PartitioningStrategy::MinCut, true);
         assert_eq!(partitioning, [2, 1, 2, 0, 0, 1]);
         let partitioned_tn = partition_tensor_network(tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.tensors().len(), 3);
 
-        assert_approx_eq!(&Tensor, partitioned_tn.tensor(2), &ref_tensor_1);
-        assert_approx_eq!(&Tensor, partitioned_tn.tensor(1), &ref_tensor_2);
-        assert_approx_eq!(&Tensor, partitioned_tn.tensor(0), &ref_tensor_3);
+        assert_approx_eq!(&Tensor, partitioned_tn.tensor(2), ref_tensor_1.as_tensor());
+        assert_approx_eq!(&Tensor, partitioned_tn.tensor(1), ref_tensor_2.as_tensor());
+        assert_approx_eq!(&Tensor, partitioned_tn.tensor(0), ref_tensor_3.as_tensor());
     }
 
     #[test]

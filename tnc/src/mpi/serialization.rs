@@ -85,15 +85,15 @@ mod tests {
     use float_cmp::assert_approx_eq;
     use rustc_hash::FxHashMap;
 
-    use crate::tensornetwork::tensor::Tensor;
+    use crate::tensornetwork::tensor::{CompositeTensor, LeafTensor, Tensor};
 
     #[test]
     fn test_serialize_deserialize_tensor_roundtrip() {
         let bond_dims = FxHashMap::from_iter([(1, 2), (2, 2), (3, 2), (4, 2), (5, 2)]);
-        let t2 = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
-        let t3 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims);
-        let t4 = Tensor::new_from_map(vec![4, 5], &bond_dims);
-        let ta = Tensor::new_composite(vec![t2, t3, t4]);
+        let t2 = LeafTensor::new_from_map(vec![1, 2, 3], &bond_dims);
+        let t3 = LeafTensor::new_from_map(vec![2, 3, 4], &bond_dims);
+        let t4 = LeafTensor::new_from_map(vec![4, 5], &bond_dims);
+        let ta = CompositeTensor::new(vec![t2, t3, t4]).into();
         let serialized = serialize_tensor(&ta);
         let deserialized = deserialize_tensor(&serialized);
         assert_approx_eq!(&Tensor, &ta, &deserialized);
