@@ -21,42 +21,6 @@ Local contractions on a single system are also possible.
 - Creation of tensor networks for quantum circuits to compute amplitudes or expectation values
 - Support for MKL (Intel Math Kernel Library)
 
-## Installation
-
-### Requirements
-The library requires a few dependencies to be installed on the system.
-Those can be installed with
-```shell
-sudo apt install libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
-```
-Furthermore, for building the library, `cmake` and a C++ compiler must be installed on the system.
-
-Additionally, to run the `HyperOptimizer` of [cotengra](https://github.com/jcmgray/cotengra), Python is required.
-The following Python packages have to be installed (in a virtual environment if preferred):
-```shell
-pip install cotengra kahypar optuna
-```
-
-### Usage
-The library can be added to an existing Rust project with e.g.
-```shell
-cargo add --git https://github.com/qc-tum/TNC.git --features cotengra tnc
-```
-or you can run the examples of this library by e.g.
-```shell
-cargo run --example local_contraction
-```
-
-### Features
-- `cotengra`: Enables Rust bindings to the tree annealing, tree reconfiguration and tree tempering methods of cotengra
-- `mkl`: Uses the MKL library for performing the tensor contractions.
-
-## Getting started
-
-To familiarize yourself with the code, it is recommended to look at the [Examples] and the [Documentation].
-Some aspects of the library are also covered in more detail in the [Tutorial].
-If you want to contribute, please take a loot at the [Contribution guide](https://github.com/qc-tum/TNC/blob/main/CONTRIBUTING.md).
-
 ## Example
 
 ```rust
@@ -108,6 +72,42 @@ cx q[1], q[2];
     println!("Resulting statevector is: {:?}", data.elements());
 }
 ```
+
+## Installation
+
+### Requirements
+The library requires a few dependencies to be installed on the system.
+Those can be installed with
+```shell
+sudo apt install libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
+```
+Furthermore, for building the library, `cmake` and a C++ compiler must be installed on the system.
+
+Additionally, to run the `HyperOptimizer` of [cotengra](https://github.com/jcmgray/cotengra), Python is required.
+The following Python packages have to be installed (in a virtual environment if preferred):
+```shell
+pip install cotengra kahypar optuna
+```
+
+### Usage
+The library can be added to an existing Rust project with e.g.
+```shell
+cargo add --git https://github.com/qc-tum/TNC.git --features cotengra tnc
+```
+or you can run the examples of this library by e.g.
+```shell
+cargo run --example local_contraction
+```
+
+### Features
+- `cotengra`: Enables Rust bindings to the tree annealing, tree reconfiguration and tree tempering methods of cotengra
+- `mkl`: Uses the MKL library for performing the tensor contractions.
+
+## Getting started
+
+To familiarize yourself with the code, it is recommended to look at the [Examples] and the [Documentation].
+Some aspects of the library are also covered in more detail in the [Tutorial].
+If you want to contribute, please take a loot at the [Contribution guide](https://github.com/qc-tum/TNC/blob/main/CONTRIBUTING.md).
 
 ## Publications
 - <i>Optimizing Tensor Network Partitioning using Simulated Annealing</i>, Geiger et al. (2025): <https://arxiv.org/abs/2507.20667>
