@@ -1,3 +1,5 @@
+{{#include links.md}}
+
 # Structure of tensors
 
 In contrast to the common design of having tensors and tensor networks, this library allows arbitrary nesting of tensors.
@@ -19,5 +21,3 @@ It has legs with sizes and it has data (that is obtained by contracting the tens
 In addition, this format is useful for multi-level parallelization based on partitioning the network: For example, the top level could be a composite tensor, where each children is assigned to one compute node.
 Each children is also again a composite tensor, where each children is assigned to one core.
 Finally, each of those children is again a composite tensor that is an actual tensor network (i.e., with leaf tensors as children).
-
-[`external_tensor`]: Tensor::external_tensor

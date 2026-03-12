@@ -1,3 +1,5 @@
+{{#include links.md}}
+
 # Constructing tensor networks
 
 There are multiple ways to construct tensors and tensor networks.
@@ -16,10 +18,6 @@ From the circuit, we can then construct different tensor networks, depending on 
 - [`into_amplitude_network`] creates a tensor network that computes the amplitude(s) to one or more states.
 - [`into_statevector_network`] creates a tensor network that computes the full statevector.
 - [`into_expectation_value_network`]: creates a tensor network that computes the expectation value of the circuit with respect to `Z` observables on each qubit.
-
-[`into_amplitude_network`]: Circuit::into_amplitude_network
-[`into_statevector_network`]: Circuit::into_statevector_network
-[`into_expectation_value_network`]: Circuit::into_expectation_value_network
 
 ### Circuit builder
 Similar to importing QASM2 code, the [`Circuit`] struct can also directly be used to construct tensor networks that simulate quantum circuits.
@@ -48,8 +46,6 @@ The corresponding bond dimensions have to match.
 
 Tensors without data can already be used for e.g. finding a contraction path, but if you want to actually contract a tensor network, the tensors need data.
 For this, there is the [`set_tensor_data`] method which takes a variant of [`TensorData`].
-
-[`set_tensor_data`]: Tensor::set_tensor_data
 
 A normal tensor network is a list of tensors.
 However, this library also supports hierarchical tensor network structures, which are detailed in another tutorial.

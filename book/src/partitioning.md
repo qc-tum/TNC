@@ -1,3 +1,5 @@
+{{#include links.md}}
+
 # Partitioning
 
 To partition a tensor network, use [`find_partitioning`] and specify how many partitions should be created.
@@ -9,6 +11,4 @@ The partitioning just specifies for each tensor to which partition it should bel
 This initial partitioning can be suboptimal for contraction, though.
 For this reason, we provide multiple methods to iteratively refine the partitioning for lower time-to-solution.
 The best method is simulated annealing with the [`IntermediatePartitioningModel`].
-For details on the method, see publication [1].
-
-[1]: https://arxiv.org/abs/2507.20667
+For details on the method, see [Optimizing Tensor Network Partitioning using Simulated Annealing](https://arxiv.org/abs/2507.20667) (Geiger et al.).

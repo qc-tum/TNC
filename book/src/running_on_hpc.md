@@ -1,3 +1,5 @@
+{{#include links.md}}
+
 # Running on HPC
 
 ## Running with MPI

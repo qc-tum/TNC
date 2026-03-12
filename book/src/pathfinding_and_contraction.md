@@ -1,3 +1,5 @@
+{{#include links.md}}
+
 # Pathfinding and Contraction
 
 ## Pathfinding

@@ -1,3 +1,5 @@
+{{#include links.md}}
+
 # Parallelization
 
 ### Distributed memory parallelism
