@@ -2,6 +2,15 @@
 
 # Partitioning
 
+The library uses partitiioning of tensor networks to parallelize the contraction.
+For example, given the following tensor network
+
+![A tensor network](assets/tensor_network.svg)
+
+one can partition it into two separate tensor networks like this:
+
+![A tensor network split into two networks, separated by a dashed line.](assets/partitioning.svg)
+
 To partition a tensor network, use [`find_partitioning`] and specify how many partitions should be created.
 This will use the Hypergraph partitioner KaHyPar to find roughly equally sized partitions with minimial cost for the legs between the partitions.
 

@@ -14,6 +14,11 @@ A few examples:
 
 In the case of our library, the tensor elements are always complex numbers.
 
+A tensor is usually visualized by a circle with an outgoing line ("leg", "edge", "bond") for each dimension it has.
+For example, here is a tensor with three dimensions:
+
+![A circle with three lines coming out](assets/tensor.svg)
+
 ## Contraction
 Contraction is a binary tensor operation where specified dimensions of both tensors are multiplied together and summed over to create a new tensor.
 The contracted dimensions of both tensors must match in size.
@@ -38,11 +43,18 @@ Contracting tensor `[a, b, c, d]` and tensor `[d, a, e, f]` along dimensions `a,
 3. Multiply to get matrix `[I, K]`
 4. Reshape into resulting tensor `[b, c, e, f]`
 
+Visually, two tensors that are to be contracted along some dimensions share the legs corresponding to those dimensions.
+For example, a matrix-matrix multiplication would be visualized like this:
+
+![Two circles connected by a line. Both circles have an additional line coming out the other side.](assets/contraction.svg)
+
 ## Tensor Networks
 Often we need to contract multiple tensors together to compute something.
-One can visualize tensors as circles with one leg for each dimension.
-Contractions can be visualized by connecting the legs that are contracted over of two tensors.
-Doing this creates a network of connected tensors, a tensor network.
+A tensor network is a collection of tensors that are to be contracted together.
+The shape of the final tensor corresponds to the open legs of the network, i.e., the legs that are not connected to another tensor.
+For example, the following tensor network would end up as a tensor with 5 dimensions:
+
+![Multiple connected circles, with some unconnected lines.](assets/tensor_network.svg)
 
 ## Contraction Paths
 Contraction paths specify the order in which tensor networks are contracted.
