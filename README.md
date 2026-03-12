@@ -2,7 +2,7 @@
 [![test](https://github.com/qc-tum/TNC/actions/workflows/test.yml/badge.svg)](https://github.com/qc-tum/TNC/actions/workflows/test.yml)
 
 [Documentation]
-[Tutorial]
+[Guide]
 [Examples]
 
 # Tensornetwork Contraction Library
@@ -113,5 +113,5 @@ If you want to contribute, please take a loot at the [Contribution guide](https:
 - <i>Optimizing Tensor Network Partitioning using Simulated Annealing</i>, Geiger et al. (2025): <https://arxiv.org/abs/2507.20667>
 
 [Examples]: https://github.com/qc-tum/TNC/tree/main/tnc/examples
-[Documentation]: https://qc-tum.github.io/TNC/
-[Tutorial]: https://qc-tum.github.io/TNC/tnc/_tutorial/index.html
+[Documentation]: https://qc-tum.github.io/TNC/doc
+[Guide]: https://qc-tum.github.io/TNC/book
