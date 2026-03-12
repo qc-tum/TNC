@@ -9,9 +9,8 @@ Since this library focuses on simulation of quantum circuits, there are multiple
 ### OpenQASM2 code
 If the goal is to clasically simulate quantum circuits, one can directly load OpenQASM2 code and construct a [`Circuit`] out of it using [`import_qasm`].
 
-<div class="warning">
-This library implements many standard gates and when it encounters one in the QASM code, it will not look for a gate definition; only when it doesn't know the gate, it will decompose the gate using an earlier gate definition in the QASM code.
-</div>
+> [!NOTE]
+> This library implements many standard gates and when it encounters one in the QASM code, it will not look for a gate definition; only when it doesn't know the gate, it will decompose the gate using an earlier gate definition in the QASM code.
 
 From the circuit, we can then construct different tensor networks, depending on what we want to compute:
 - [`into_amplitude_network`] creates a tensor network that computes the amplitude(s) to one or more states.
