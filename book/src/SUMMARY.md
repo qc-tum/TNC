@@ -1,6 +1,8 @@
 # Summary
 
+- [Intro](./intro.md)
 - [Getting Started](./getting_started.md)
+- [Theory](./theory.md)
 - [User guide](./usage.md)
     - [Tensors](./tensor_structure.md)
     - [Constructing TNs](./constructing_tns.md)
