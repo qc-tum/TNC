@@ -8,6 +8,7 @@ permissions:
 on:
   push:
     branches: [main]
+  pull_request:
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -64,6 +65,7 @@ jobs:
         with:
           path: book/book
   cleanup:
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     permissions: write-all
     needs: build-book
@@ -75,6 +77,7 @@ jobs:
           environment: github-pages
           onlyRemoveDeployments: true
   deploy:
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
