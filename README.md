@@ -29,7 +29,7 @@ use tnc::{
         cotengrust::{Cotengrust, OptMethod},
         FindPath,
     },
-    qasm::import_qasm,
+    io::qasm::import_qasm,
     tensornetwork::contraction::contract_tensor_network,
 };
 

@@ -1,6 +1,6 @@
 use std::mem::take;
 
-use crate::qasm::ast::{BinOp, Expr, FuncType, UnOp};
+use crate::io::qasm::ast::{BinOp, Expr, FuncType, UnOp};
 
 /// Folds (i.e. computes) constant subexpressions in the expression. For instance,
 /// `a * (5 + sin(0))` becomes `a * 5`.
@@ -69,7 +69,7 @@ pub fn fold_expr(expr: &mut Expr) {
 mod tests {
     use super::*;
 
-    use crate::qasm::ast::{BinOp, Expr, FuncType, UnOp};
+    use crate::io::qasm::ast::{BinOp, Expr, FuncType, UnOp};
 
     #[test]
     fn long_expression() {

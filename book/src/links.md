@@ -15,9 +15,9 @@ REF: https://github.com/tag1consulting/goose/issues/320
 
 [`sycamore_circuit`]: ./doc/tnc/builders/sycamore_circuit/fn.sycamore_circuit.html
 
-[`import_qasm`]: ./doc/tnc/qasm/fn.import_qasm.html
+[`import_qasm`]: ./doc/tnc/io/qasm/fn.import_qasm.html
 
-[`hdf5`]: ./doc/tnc/hdf5/index.html
+[`hdf5`]: ./doc/tnc/io/hdf5/index.html
 
 [`contraction_cost`]: ./doc/tnc/contractionpath/contraction_cost/index.html
 [`Cotengrust`]: ./doc/tnc/contractionpath/paths/cotengrust/struct.Cotengrust.html

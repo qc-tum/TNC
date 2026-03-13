@@ -45,11 +45,11 @@ use tnc::contractionpath::repartitioning::simulated_annealing::{
 };
 use tnc::contractionpath::repartitioning::{compute_solution, simulated_annealing};
 use tnc::contractionpath::ContractionPath;
+use tnc::io::qasm::import_qasm;
 use tnc::mpi::communication::{
     broadcast_path, broadcast_serializing, intermediate_reduce_tensor_network,
     scatter_tensor_network,
 };
-use tnc::qasm::import_qasm;
 use tnc::tensornetwork::contraction::contract_tensor_network;
 use tnc::tensornetwork::partitioning::{find_partitioning, PartitioningStrategy};
 use tnc::tensornetwork::tensor::Tensor;

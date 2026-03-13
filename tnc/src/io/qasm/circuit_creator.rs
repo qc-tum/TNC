@@ -2,7 +2,7 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
 use crate::builders::circuit_builder::{Circuit, QuantumRegister};
-use crate::qasm::ast::{Argument, Program, Statement};
+use crate::io::qasm::ast::{Argument, Program, Statement};
 use crate::tensornetwork::tensordata::TensorData;
 use crate::utils::traits::HashMapInsertNew;
 
@@ -113,7 +113,7 @@ mod tests {
 
     use rustc_hash::FxHashMap;
 
-    use crate::qasm::ast::Argument;
+    use crate::io::qasm::ast::Argument;
 
     #[test]
     fn broadcasting_2qargs() {

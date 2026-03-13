@@ -7,11 +7,11 @@ use antlr_rust::tree::{ParseTree, ParseTreeVisitorCompat, Visitable};
 use antlr_rust::InputStream;
 use rustc_hash::FxHashSet;
 
-use crate::qasm::generated::qasm2lexer::Qasm2Lexer;
-use crate::qasm::generated::qasm2parser::IncludeStatementContext;
-use crate::qasm::generated::qasm2parser::Qasm2ParserContextType;
-use crate::qasm::generated::qasm2parser::{IncludeStatementContextAttrs, Qasm2Parser};
-use crate::qasm::generated::qasm2parservisitor::Qasm2ParserVisitorCompat;
+use crate::io::qasm::generated::qasm2lexer::Qasm2Lexer;
+use crate::io::qasm::generated::qasm2parser::{
+    IncludeStatementContext, IncludeStatementContextAttrs, Qasm2Parser, Qasm2ParserContextType,
+};
+use crate::io::qasm::generated::qasm2parservisitor::Qasm2ParserVisitorCompat;
 
 static QELIB: &str = include_str!("qelib1.inc");
 

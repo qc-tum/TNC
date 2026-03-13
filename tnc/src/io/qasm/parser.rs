@@ -2,9 +2,9 @@ use antlr_rust::common_token_stream::CommonTokenStream;
 use antlr_rust::tree::{ParseTree, ParseTreeVisitorCompat, Visitable};
 use antlr_rust::InputStream;
 
-use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement, UnOp};
-use crate::qasm::generated::qasm2lexer::Qasm2Lexer;
-use crate::qasm::generated::qasm2parser::{
+use crate::io::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement, UnOp};
+use crate::io::qasm::generated::qasm2lexer::Qasm2Lexer;
+use crate::io::qasm::generated::qasm2parser::{
     AdditiveExpressionContext, AdditiveExpressionContextAttrs, ArgumentContext,
     ArgumentContextAttrs, BitwiseXorExpressionContext, BitwiseXorExpressionContextAttrs,
     BodyStatementContext, BodyStatementContextAttrs, DeclarationContext, DeclarationContextAttrs,
@@ -17,9 +17,11 @@ use crate::qasm::generated::qasm2parser::{
     ProgramContextAttrs, Qasm2Parser, QuantumOperationContext, QuantumOperationContextAttrs,
     StatementContext, StatementContextAttrs, UnaryExpressionContext, UnaryExpressionContextAttrs,
 };
-use crate::qasm::generated::qasm2parser::{LiteralExpressionContextAttrs, Qasm2ParserContextType};
-use crate::qasm::generated::qasm2parservisitor::Qasm2ParserVisitorCompat;
-use crate::qasm::utils::cast;
+use crate::io::qasm::generated::qasm2parser::{
+    LiteralExpressionContextAttrs, Qasm2ParserContextType,
+};
+use crate::io::qasm::generated::qasm2parservisitor::Qasm2ParserVisitorCompat;
+use crate::io::qasm::utils::cast;
 
 #[derive(Debug, Default)]
 enum ReturnVal {
@@ -319,7 +321,7 @@ pub fn parse(code: &str) -> Program {
 mod tests {
     use super::*;
 
-    use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement};
+    use crate::io::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement};
 
     #[test]
     fn program() {

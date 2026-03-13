@@ -2,7 +2,7 @@ use std::{iter::zip, mem::take};
 
 use rustc_hash::FxHashMap;
 
-use crate::qasm::{
+use crate::io::qasm::{
     ast::{Expr, GateCallData, GateDeclarationData, Program, Statement},
     utils::cast,
 };
@@ -152,7 +152,7 @@ mod tests {
 
     use rustc_hash::FxHashMap;
 
-    use crate::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement, UnOp};
+    use crate::io::qasm::ast::{Argument, BinOp, Expr, FuncType, Program, Statement, UnOp};
 
     #[test]
     fn recursive_inline() {

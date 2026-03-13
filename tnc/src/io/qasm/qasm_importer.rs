@@ -1,5 +1,5 @@
 use crate::builders::circuit_builder::Circuit;
-use crate::qasm::{
+use crate::io::qasm::{
     ast::Visitor, circuit_creator::CircuitCreator, expression_folder::ExpressionFolder,
     gate_inliner::GateInliner, include_resolver::expand_includes, parser::parse,
 };
