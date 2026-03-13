@@ -10,3 +10,4 @@
     - [Partitioning](./partitioning.md)
     - [Parallelization](./parallelization.md)
     - [Running on HPC](./running_on_hpc.md)
+- [Future Work](./future_work.md)

@@ -19,6 +19,7 @@ REF: https://github.com/tag1consulting/goose/issues/320
 
 [`hdf5`]: ./doc/tnc/io/hdf5/index.html
 
+[`ContractionPath`]: ./doc/tnc/contractionpath/struct.ContractionPath.html
 [`contraction_cost`]: ./doc/tnc/contractionpath/contraction_cost/index.html
 [`Cotengrust`]: ./doc/tnc/contractionpath/paths/cotengrust/struct.Cotengrust.html
 [`OptMethod`]: ./doc/tnc/contractionpath/paths/cotengrust/enum.OptMethod.html

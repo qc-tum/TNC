@@ -3,7 +3,7 @@
 # Structure of tensors
 
 In contrast to the common design of having tensors and tensor networks, this library allows arbitrary nesting of tensors.
-This means that the children of tensor networks can themselves be tensor networks again.
+This means that the children of tensor networks can themselves be tensor networks again, forming a tree-like structure.
 We call tensors with children "composite tensors" and those without children "leaf tensors".
 
 ## Composite tensors

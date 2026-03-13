@@ -5,7 +5,7 @@
 ## Running with MPI
 The library can run on multiple connected compute nodes such as in a HPC setting.
 It uses MPI for communication between nodes.
-To run the code with MPI, compile it (e.g. using `cargo build -r`) and then execute the binary found in the `target`
+To run the code with MPI, compile it (e.g. using `cargo build -r`) and then execute the binary found in the `target/release`
 folder using an MPI launcher (such as `mpirun`).
 For example:
 ```shell
