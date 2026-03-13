@@ -2,3 +2,6 @@
 title = "TNC - TensorNetworkContraction library"
 authors = ["Manuel Geiger"]
 language = "en"
+
+[output.linkcheck2]
+traverse-parent-directories = true
