@@ -5,6 +5,7 @@
 
 pub mod builders;
 pub mod contractionpath;
+mod doctests;
 pub mod gates;
 pub mod hdf5;
 pub mod mpi;
