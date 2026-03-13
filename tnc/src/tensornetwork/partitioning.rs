@@ -6,10 +6,10 @@ use itertools::Itertools;
 use kahypar::{partition, KaHyParContext};
 use rustc_hash::FxHashMap;
 
-use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
 use crate::tensornetwork::tensor::Tensor;
 
-pub mod partition_config;
+mod partition_config;
+pub use partition_config::PartitioningStrategy;
 
 /// The scale factor for the log weights used in the partitioning.
 /// This is used to convert the log weights to integer weights for KaHyPar.

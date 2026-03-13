@@ -51,8 +51,7 @@ use tnc::mpi::communication::{
 };
 use tnc::qasm::import_qasm;
 use tnc::tensornetwork::contraction::contract_tensor_network;
-use tnc::tensornetwork::partitioning::find_partitioning;
-use tnc::tensornetwork::partitioning::partition_config::PartitioningStrategy;
+use tnc::tensornetwork::partitioning::{find_partitioning, PartitioningStrategy};
 use tnc::tensornetwork::tensor::Tensor;
 use utils::{hash_str, parse_range_list, setup_logging_mpi};
 

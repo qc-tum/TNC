@@ -10,8 +10,7 @@ use crate::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
 use crate::contractionpath::paths::{CostType, FindPath};
 use crate::contractionpath::SimplePath;
-use crate::tensornetwork::partitioning::communication_partitioning;
-use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
+use crate::tensornetwork::partitioning::{communication_partitioning, PartitioningStrategy};
 use crate::tensornetwork::tensor::Tensor;
 
 /// The scheme used to find a contraction path for the final fan-in of tensors

@@ -11,9 +11,7 @@ use tnc::{
     },
     tensornetwork::{
         contraction::contract_tensor_network,
-        partitioning::{
-            find_partitioning, partition_config::PartitioningStrategy, partition_tensor_network,
-        },
+        partitioning::{find_partitioning, partition_tensor_network, PartitioningStrategy},
         tensor::Tensor,
     },
 };
