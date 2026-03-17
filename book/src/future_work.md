@@ -9,14 +9,18 @@ For instance, by performing trivial contractions in advance, the search space fo
 2. **Slicing**:
 Currently, the library can face memory limitations with large tensor networks.
 We want to use slicing to reduce the required memory in such cases, at the cost of having to do additional computations.
-3. **GPU Support**:
-GPUs are undoubtedly superior to CPU at matrix calculations.
-Having support for GPUs could speed up contractions tremendously.
-4. **Support for shared-memory parallelism**:
+3. **Support for shared-memory parallelism**:
 While we already use multithreading for single contractions, this will only be worth it for large tensors.
 It would be nice to utilize the full system at all times, even when the individual tensor contractions are not so large.
-5. **Replacing the C++ dependencies**:
+4. **GPU Support**:
+GPUs are undoubtedly superior to CPU at matrix calculations.
+Having support for GPUs could speed up contractions tremendously.
+5. **More I/O formats**:
+Support more file formats for importing and exporting. For example, store and load tensors using the `numpy` file format, import QIR and cirq files
+6. **Replacing the C++ dependencies**:
 The installation of the library is cumbersome, particularily due to the C++ dependencies.
 If we found pure Rust replacements, the installation would be easier, build times probably faster, and we could likely support more plattforms.
-6. **More tensor operations**:
+7. **A Python interface**:
+This would enable to use the library from Python.
+8. **More tensor operations**:
 Having e.g. options for singular value decomposition or other operations could make the library more useful for other use cases.
