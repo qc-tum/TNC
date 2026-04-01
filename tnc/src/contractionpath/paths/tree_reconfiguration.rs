@@ -1,8 +1,6 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
-use rustengra::{
-    cotengra_check, cotengra_optimized_greedy, replace_to_ssa_path, tensor_legs_to_digit,
-};
+use rustengra::{cotengra_check, cotengra_optimized_greedy, utils::tensor_legs_to_digit};
 
 use crate::{
     contractionpath::{
@@ -28,7 +26,7 @@ impl<'a> TreeReconfigure<'a> {
     /// size of subtrees that is considered (increases the optimization cost
     /// exponentially!).
     pub fn new(tensor: &'a Tensor, subtree_size: usize, minimize: CostType) -> Self {
-        assert!(cotengra_check().is_ok());
+        cotengra_check().expect("Needs python and cotengra installed");
         assert_eq!(
             minimize,
             CostType::Flops,
@@ -65,10 +63,8 @@ impl FindPath for TreeReconfigure<'_> {
         let (inputs, outputs, size_dict) =
             tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
 
-        let replace_path =
-            cotengra_optimized_greedy(&inputs, outputs, size_dict, self.subtree_size).unwrap();
-
-        let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
+        let best_path =
+            cotengra_optimized_greedy(&inputs, &outputs, &size_dict, self.subtree_size).unwrap();
 
         self.best_path = ContractionPath::simple(best_path);
 

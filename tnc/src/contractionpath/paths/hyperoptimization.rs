@@ -1,12 +1,9 @@
-use std::{
-    iter::zip,
-    process::{Command, Stdio},
-    time::Duration,
-};
-
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
-use serde::Serialize;
-use serde_pickle::{DeOptions, SerOptions};
+use rustengra::{
+    hyper::cotengra_hyperoptimizer,
+    utils::{replace_to_ssa_path, tensor_legs_to_digit},
+};
 
 use crate::{
     contractionpath::{
@@ -16,6 +13,8 @@ use crate::{
     },
     tensornetwork::tensor::Tensor,
 };
+
+pub use rustengra::hyper::HyperOptions;
 
 /// Creates an interface to access `Cotengra` methods in Rust. Specifically exposes
 /// `search` method of `HyperOptimizer`.
@@ -44,110 +43,39 @@ impl<'a> Hyperoptimizer<'a> {
     }
 }
 
-/// The keyword options for the cotengra Hyperoptimizer.
-///
-/// Unassigned options will not be passed to the function and hence the Python
-/// default values will be used. Please see the cotengra documentation for details on
-/// the parameters.
-#[derive(Serialize, Default)]
-pub struct HyperOptions {
-    max_time: Option<u64>,
-    max_repeats: Option<usize>,
-}
-
-impl HyperOptions {
-    /// Creates the default HyperOptimizer options.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Sets the `max_time` argument for the HyperOptimizer.
-    pub fn with_max_time(mut self, time: &Duration) -> Self {
-        self.max_time = Some(time.as_secs());
-        self
-    }
-
-    /// Sets the `max_repeats` argument for the HyperOptimizer.
-    pub fn with_max_repeats(mut self, repeats: usize) -> Self {
-        self.max_repeats = Some(repeats);
-        self
-    }
-}
-
-/// Runs the Hyperoptimizer of cotengra on the given inputs. Additional inputs to the
-/// Hyperoptimizer can be passed with the [`HyperOptions`] struct.
-///
-/// # Python Dependency
-/// Python 3 must be installed with `cotengra` and `kahypar` packages installed.
-/// Can also work with virtual environments if the binary is run from a terminal with
-/// actived virtual environment.
-fn python_hyperoptimizer(
-    inputs: &[Vec<char>],
-    outputs: &[char],
-    size_dict: &FxHashMap<char, f32>,
-    hyper_options: &HyperOptions,
-) -> Vec<(usize, usize)> {
-    // Python code to be executed (WARNING: command line length limits might silently
-    // truncate the code! These are usually around >100,000 characters. Make sure the
-    // code is not too long.)
-    const PYTHON_CODE: &str = include_str!("hyperoptimization.py");
-
-    // Spawn python process
-    let mut child = Command::new("python3")
-        .arg("-c")
-        .arg(PYTHON_CODE)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap();
-    let mut stdin = child.stdin.take().unwrap();
-
-    // Send serialized data
-    serde_pickle::to_writer(
-        &mut stdin,
-        &(inputs, outputs, size_dict, hyper_options),
-        SerOptions::default(),
-    )
-    .unwrap();
-
-    // Wait for completion
-    let out = child.wait_with_output().unwrap();
-
-    // Deserialize SSA path
-    serde_pickle::from_slice(&out.stdout, DeOptions::default()).unwrap()
-}
-
-/// Converts tensor leg inputs to chars. Creates new inputs, outputs and size_dict that can be fed to Cotengra.
-fn tensor_legs_to_chars(
-    inputs: &[Tensor],
-    output: &Tensor,
-) -> (Vec<Vec<char>>, Vec<char>, FxHashMap<char, f32>) {
-    fn leg_to_char(leg: usize) -> char {
-        char::from_u32(leg.try_into().unwrap()).unwrap()
-    }
-    let mut new_inputs = vec![Vec::new(); inputs.len()];
-    let new_output = output.legs().iter().copied().map(leg_to_char).collect();
-    let mut new_size_dict = FxHashMap::default();
-
-    for (tensor, labels) in zip(inputs, new_inputs.iter_mut()) {
-        labels.reserve_exact(tensor.legs().len());
-        for (leg, dim) in tensor.edges() {
-            let character = leg_to_char(*leg);
-            labels.push(character);
-            new_size_dict.insert(character, *dim as f32);
-        }
-    }
-    (new_inputs, new_output, new_size_dict)
-}
-
 impl FindPath for Hyperoptimizer<'_> {
     fn find_path(&mut self) {
+        // Map tensors to legs
+        let inputs = self
+            .tensor
+            .tensors()
+            .iter()
+            .map(|tensor| tensor.legs().clone())
+            .collect_vec();
+        let outputs = self.tensor.external_tensor();
+        let size_dict = self.tensor.tensors().iter().map(Tensor::edges).fold(
+            FxHashMap::default(),
+            |mut acc, edges| {
+                acc.extend(edges);
+                acc
+            },
+        );
+
         let (inputs, outputs, size_dict) =
-            tensor_legs_to_chars(self.tensor.tensors(), &self.tensor.external_tensor());
+            tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
 
-        let ssa_path = python_hyperoptimizer(&inputs, &outputs, &size_dict, &self.hyper_options);
+        let replace_path = cotengra_hyperoptimizer(
+            &inputs,
+            &outputs,
+            &size_dict,
+            "kahypar",
+            &self.hyper_options,
+        )
+        .unwrap();
 
-        self.best_path = ContractionPath::simple(ssa_path);
+        let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
+
+        self.best_path = ContractionPath::simple(best_path);
 
         let (op_cost, mem_cost) =
             contract_path_cost(self.tensor.tensors(), &self.get_best_replace_path(), true);
@@ -176,8 +104,6 @@ impl FindPath for Hyperoptimizer<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use std::time::Duration;
 
     use rustc_hash::FxHashMap;
 
@@ -228,7 +154,9 @@ mod tests {
         let mut opt = Hyperoptimizer::new(
             &tn,
             CostType::Flops,
-            HyperOptions::new().with_max_time(&Duration::from_secs(25)),
+            HyperOptions::new()
+                .with_max_repeats(16)
+                .with_parallel(false),
         );
         opt.find_path();
 
@@ -244,7 +172,9 @@ mod tests {
         let mut opt = Hyperoptimizer::new(
             &tn,
             CostType::Flops,
-            HyperOptions::new().with_max_time(&Duration::from_secs(45)),
+            HyperOptions::new()
+                .with_max_repeats(32)
+                .with_parallel(false),
         );
         opt.find_path();
 
