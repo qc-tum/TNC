@@ -1,7 +1,8 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use rustengra::{
-    cotengra_check, cotengra_tree_tempering, replace_to_ssa_path, tensor_legs_to_digit,
+    cotengra_check, cotengra_tree_tempering,
+    utils::{replace_to_ssa_path, tensor_legs_to_digit},
 };
 
 use crate::{
@@ -70,7 +71,8 @@ impl FindPath for TreeTempering<'_> {
             tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
 
         let replace_path =
-            cotengra_tree_tempering(&inputs, outputs, self.numiter, size_dict, self.seed).unwrap();
+            cotengra_tree_tempering(&inputs, &outputs, self.numiter, &size_dict, self.seed)
+                .unwrap();
 
         let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
 

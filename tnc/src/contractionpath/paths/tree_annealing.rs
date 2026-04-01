@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
-use rustengra::{cotengra_check, cotengra_sa_tree, replace_to_ssa_path, tensor_legs_to_digit};
+use rustengra::{cotengra_check, cotengra_sa_tree, utils::tensor_legs_to_digit};
 
 use crate::{
     contractionpath::{
@@ -70,17 +70,15 @@ impl FindPath for TreeAnnealing<'_> {
         let (inputs, outputs, size_dict) =
             tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
 
-        let replace_path = cotengra_sa_tree(
+        let best_path = cotengra_sa_tree(
             &inputs,
-            outputs,
+            &outputs,
             self.temperature_steps,
             self.numiter,
-            size_dict,
+            &size_dict,
             self.seed,
         )
         .unwrap();
-
-        let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
 
         self.best_path = ContractionPath::simple(best_path);
 
