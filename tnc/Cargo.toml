@@ -17,7 +17,7 @@ mkl = ["tetra/mkl"]
 
 [dependencies]
 mpi = { version = "0.8.1", features = ["complex", "derive"] }
-hdf5-metno = { version = "0.12.1", features = ["complex"] }
+hdf5-metno = { version = "0.12.4", features = ["complex"] }
 itertools = "0.14.0"
 num-complex = "0.4.6"
 rand = "0.9.2"
