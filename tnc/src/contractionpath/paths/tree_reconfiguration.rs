@@ -28,7 +28,7 @@ impl<'a> TreeReconfigure<'a> {
     /// size of subtrees that is considered (increases the optimization cost
     /// exponentially!).
     pub fn new(tensor: &'a Tensor, subtree_size: usize, minimize: CostType) -> Self {
-        assert!(cotengra_check().is_ok());
+        cotengra_check().expect("Needs python and cotengra installed");
         assert_eq!(
             minimize,
             CostType::Flops,

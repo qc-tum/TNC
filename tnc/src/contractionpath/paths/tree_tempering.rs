@@ -31,7 +31,7 @@ impl<'a> TreeTempering<'a> {
         minimize: CostType,
         numiter: Option<usize>,
     ) -> Self {
-        assert!(cotengra_check().is_ok());
+        cotengra_check().expect("Needs python and cotengra installed");
         assert_eq!(
             minimize,
             CostType::Flops,
