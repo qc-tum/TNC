@@ -1,9 +1,6 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
-use rustengra::{
-    hyper::cotengra_hyperoptimizer,
-    utils::{replace_to_ssa_path, tensor_legs_to_digit},
-};
+use rustengra::{hyper::cotengra_hyperoptimizer, utils::tensor_legs_to_digit};
 
 use crate::{
     contractionpath::{
@@ -64,7 +61,7 @@ impl FindPath for Hyperoptimizer<'_> {
         let (inputs, outputs, size_dict) =
             tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
 
-        let replace_path = cotengra_hyperoptimizer(
+        let best_path = cotengra_hyperoptimizer(
             &inputs,
             &outputs,
             &size_dict,
@@ -72,8 +69,6 @@ impl FindPath for Hyperoptimizer<'_> {
             &self.hyper_options,
         )
         .unwrap();
-
-        let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
 
         self.best_path = ContractionPath::simple(best_path);
 
