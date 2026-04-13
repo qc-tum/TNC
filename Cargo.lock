@@ -241,7 +241,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.12.1",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -858,7 +858,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "778e2ac28f6c47af28e4907f13ffd1e1ddbd400980a9abd7c8df189bf578a5ad"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1334,7 +1334,7 @@ dependencies = [
 [[package]]
 name = "hptt"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#a1f4920fcc960813162efb1b37d9d127fa620013"
+source = "git+https://github.com/Ectras/rust-hptt.git#00d654a2be1c0066ea9cae9f04af4bc5e8e91e10"
 dependencies = [
  "hptt-sys",
  "num-complex",
@@ -1344,7 +1344,7 @@ dependencies = [
 [[package]]
 name = "hptt-sys"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#a1f4920fcc960813162efb1b37d9d127fa620013"
+source = "git+https://github.com/Ectras/rust-hptt.git#00d654a2be1c0066ea9cae9f04af4bc5e8e91e10"
 dependencies = [
  "bindgen 0.72.1",
  "cmake",
@@ -2839,7 +2839,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2852,7 +2852,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.11.0",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3263,7 +3263,7 @@ checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 [[package]]
 name = "tetra"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/tetra.git#e5692c7434097f3aaf623ff33cb3a6e9f66b72e3"
+source = "git+https://github.com/Ectras/tetra.git#2c2a23af46336b835703c301d7ae6820c4e97904"
 dependencies = [
  "bytemuck",
  "cblas-sys",
@@ -3805,7 +3805,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
