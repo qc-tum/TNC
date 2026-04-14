@@ -567,6 +567,7 @@ mod tests {
 
     use std::iter::zip;
 
+    use float_cmp::assert_approx_eq;
     use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::tensordata::TensorData;
@@ -641,8 +642,9 @@ mod tests {
         let tensor_1234 = Tensor::new_composite(vec![tensor_12, tensor_34]);
 
         let external = tensor_1234.external_tensor();
-        assert_eq!(external.legs(), &[4, 5, 7, 9]);
-        assert_eq!(external.bond_dims(), &[6, 8, 12, 16]);
+
+        let ref_tensor = Tensor::new_from_map(vec![4, 5, 7, 9], &bond_dims);
+        assert_approx_eq!(&Tensor, &external, &ref_tensor);
     }
 
     #[test]
@@ -659,8 +661,7 @@ mod tests {
         tensor.push_tensor(tensor_1);
 
         for (sub_tensor, ref_tensor) in zip(tensor.tensors(), [&ref_tensor_1]) {
-            assert_eq!(sub_tensor.legs(), ref_tensor.legs());
-            assert_eq!(sub_tensor.bond_dims(), ref_tensor.bond_dims());
+            assert_approx_eq!(&Tensor, sub_tensor, ref_tensor);
         }
 
         // Push tensor 2
@@ -668,8 +669,7 @@ mod tests {
         tensor.push_tensor(tensor_2);
 
         for (sub_tensor, ref_tensor) in zip(tensor.tensors(), [&ref_tensor_1, &ref_tensor_2]) {
-            assert_eq!(sub_tensor.legs(), ref_tensor.legs());
-            assert_eq!(sub_tensor.bond_dims(), ref_tensor.bond_dims());
+            assert_approx_eq!(&Tensor, sub_tensor, ref_tensor);
         }
 
         // Test that other fields are unchanged
@@ -707,8 +707,7 @@ mod tests {
             tensor.tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
         ) {
-            assert_eq!(sub_tensor.legs(), ref_tensor.legs());
-            assert_eq!(sub_tensor.bond_dims(), ref_tensor.bond_dims());
+            assert_approx_eq!(&Tensor, sub_tensor, ref_tensor);
         }
     }
 
