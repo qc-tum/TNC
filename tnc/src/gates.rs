@@ -29,6 +29,7 @@ static GATES: LazyLock<RwLock<FxHashSet<Box<dyn Gate>>>> = LazyLock::new(|| {
     gates.insert(Box::new(Rz) as _);
     gates.insert(Box::new(Cx) as _);
     gates.insert(Box::new(Cz) as _);
+    gates.insert(Box::new(Swap) as _);
     gates.insert(Box::new(Cp) as _);
     gates.insert(Box::new(Iswap) as _);
     gates.insert(Box::new(Fsim) as _);
@@ -500,6 +501,33 @@ impl Gate for Cz {
             z, o, z, z,
             z, z, o, z,
             z, z, z, -o,
+        ];
+        DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+    }
+
+    fn adjoint(&self, angles: &[f64]) -> DataTensor {
+        // self-adjoint
+        self.compute(angles)
+    }
+}
+
+/// The SWAP gate.
+struct Swap;
+impl Gate for Swap {
+    fn name(&self) -> &str {
+        "swap"
+    }
+
+    fn compute(&self, angles: &[f64]) -> DataTensor {
+        let [] = unpack_angles(angles);
+        let z = Complex64::ZERO;
+        let o = Complex64::ONE;
+        #[rustfmt::skip]
+        let data = vec![
+            o, z, z, z,
+            z, z, o, z,
+            z, o, z, z,
+            z, z, z, o,
         ];
         DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
     }
