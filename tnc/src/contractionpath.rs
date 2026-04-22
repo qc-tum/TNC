@@ -203,14 +203,12 @@ pub(super) fn ssa_replace_ordering(path: &ContractionPath) -> ContractionPath {
 
     let mut hs = FxHashMap::with_capacity(path.len());
     let mut toplevel = Vec::with_capacity(path.len());
-    let mut n = path.len() + 1;
-    for (t0, t1) in &path.toplevel {
+    for (n, (t0, t1)) in (path.len() + 1..).zip(&path.toplevel) {
         let new_t0 = *hs.get(t0).unwrap_or(t0);
         let new_t1 = *hs.get(t1).unwrap_or(t1);
 
         hs.insert_new(n, new_t0);
         toplevel.push((new_t0, new_t1));
-        n += 1;
     }
 
     ContractionPath { nested, toplevel }

@@ -110,13 +110,12 @@ impl GateInliner {
                     self.register_gate(data);
                     changes.push(Change::Remove(i));
                 }
-                Statement::GateCall(call) => {
-                    if !call.is_builtin() {
-                        // Get the inlined body and mark the call as to be replaced
-                        let body = self.get_inlined_body(call);
-                        changes.push(Change::Replace(i, body));
-                    }
+                Statement::GateCall(call) if !call.is_builtin() => {
+                    // Get the inlined body and mark the call as to be replaced
+                    let body = self.get_inlined_body(call);
+                    changes.push(Change::Replace(i, body));
                 }
+
                 _ => (),
             }
         }

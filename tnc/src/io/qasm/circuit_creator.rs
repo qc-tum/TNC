@@ -66,16 +66,15 @@ impl CircuitCreator {
         for statement in &program.statements {
             match statement {
                 Statement::Declaration {
-                    is_quantum,
+                    is_quantum: true,
                     name,
                     count,
                 } => {
-                    if *is_quantum {
-                        // Allocate a new register in |0> state
-                        let register = circuit.allocate_register((*count).try_into().unwrap());
-                        registers.insert_new(name.to_owned(), register);
-                    }
+                    // Allocate a new register in |0> state
+                    let register = circuit.allocate_register((*count).try_into().unwrap());
+                    registers.insert_new(name.to_owned(), register);
                 }
+
                 Statement::GateCall(call) => {
                     // Convert arg expressions to actual numbers
                     let args = call
