@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
-use rustengra::{cotengra_check, cotengra_tree_tempering, utils::replace_to_ssa_path};
+use rustengra::{cotengra_check, cotengra_tree_tempering};
 
 use crate::{
     contractionpath::{
@@ -64,11 +64,9 @@ impl FindPath for TreeTempering<'_> {
             },
         );
 
-        let replace_path =
+        let best_path =
             cotengra_tree_tempering(&inputs, outputs.legs(), self.numiter, &size_dict, self.seed)
                 .unwrap();
-
-        let best_path = replace_to_ssa_path(replace_path, self.tensor.tensors().len());
 
         self.best_path = ContractionPath::simple(best_path);
 
