@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
-use rustengra::{cotengra_check, cotengra_optimized_greedy, utils::tensor_legs_to_digit};
+use rustengra::{cotengra_check, cotengra_optimized_greedy};
 
 use crate::{
     contractionpath::{
@@ -60,11 +60,9 @@ impl FindPath for TreeReconfigure<'_> {
             },
         );
 
-        let (inputs, outputs, size_dict) =
-            tensor_legs_to_digit(&inputs, outputs.legs(), &size_dict);
-
         let best_path =
-            cotengra_optimized_greedy(&inputs, &outputs, &size_dict, self.subtree_size).unwrap();
+            cotengra_optimized_greedy(&inputs, outputs.legs(), &size_dict, self.subtree_size)
+                .unwrap();
 
         self.best_path = ContractionPath::simple(best_path);
 
