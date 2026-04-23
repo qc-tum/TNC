@@ -42,13 +42,26 @@ impl<'a> Hyperoptimizer<'a> {
 
 impl FindPath for Hyperoptimizer<'_> {
     fn find_path(&mut self) {
-        // Map tensors to legs
+        // Handle nested tensors first
+        let mut nested_paths = FxHashMap::default();
         let inputs = self
             .tensor
             .tensors()
             .iter()
-            .map(|tensor| tensor.legs().clone())
+            .enumerate()
+            .map(|(index, tensor)| {
+                if tensor.is_composite() {
+                    let mut hp =
+                        Hyperoptimizer::new(tensor, CostType::Flops, self.hyper_options.clone());
+                    hp.find_path();
+                    nested_paths.insert(index, hp.get_best_path().clone());
+                    tensor.external_tensor().legs
+                } else {
+                    tensor.legs.clone()
+                }
+            })
             .collect_vec();
+
         let outputs = self.tensor.external_tensor();
         let size_dict = self.tensor.tensors().iter().map(Tensor::edges).fold(
             FxHashMap::default(),
@@ -58,7 +71,7 @@ impl FindPath for Hyperoptimizer<'_> {
             },
         );
 
-        let best_path = cotengra_hyperoptimizer(
+        let ssa_path = cotengra_hyperoptimizer(
             &inputs,
             outputs.legs(),
             &size_dict,
@@ -67,7 +80,10 @@ impl FindPath for Hyperoptimizer<'_> {
         )
         .unwrap();
 
-        self.best_path = ContractionPath::simple(best_path);
+        self.best_path = ContractionPath {
+            nested: nested_paths,
+            toplevel: ssa_path,
+        };
 
         let (op_cost, mem_cost) =
             contract_path_cost(self.tensor.tensors(), &self.get_best_replace_path(), true);
