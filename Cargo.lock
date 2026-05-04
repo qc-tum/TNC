@@ -241,7 +241,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -713,12 +713,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "doxygen-rs"
-version = "0.4.2"
+name = "doxygen-bindgen"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "415b6ec780d34dcf624666747194393603d0373b7141eef01d12ee58881507d9"
+checksum = "93ba4ed6eedf7f4ace1632149d8f0e8a65a480534024d65a7c3b9daacdedbad3"
 dependencies = [
- "phf",
+ "yap",
 ]
 
 [[package]]
@@ -1334,7 +1334,7 @@ dependencies = [
 [[package]]
 name = "hptt"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#00d654a2be1c0066ea9cae9f04af4bc5e8e91e10"
+source = "git+https://github.com/Ectras/rust-hptt.git#41e435dc4f1030ab41d268da36f9804d0b5304dd"
 dependencies = [
  "hptt-sys",
  "num-complex",
@@ -1344,11 +1344,11 @@ dependencies = [
 [[package]]
 name = "hptt-sys"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-hptt.git#00d654a2be1c0066ea9cae9f04af4bc5e8e91e10"
+source = "git+https://github.com/Ectras/rust-hptt.git#41e435dc4f1030ab41d268da36f9804d0b5304dd"
 dependencies = [
  "bindgen 0.72.1",
  "cmake",
- "doxygen-rs",
+ "doxygen-bindgen",
  "openmp-sys",
 ]
 
@@ -2306,48 +2306,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "phf"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fd6780a80ae0c52cc120a26a1a42c1ae51b247a253e4e06113d23d2c2edd078"
-dependencies = [
- "phf_macros",
- "phf_shared",
-]
-
-[[package]]
-name = "phf_generator"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c80231409c20246a13fddb31776fb942c38553c51e871f8cbd687a4cfb5843d"
-dependencies = [
- "phf_shared",
- "rand 0.8.5",
-]
-
-[[package]]
-name = "phf_macros"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f84ac04429c13a7ff43785d75ad27569f2951ce0ffd30a3321230db2fc727216"
-dependencies = [
- "phf_generator",
- "phf_shared",
- "proc-macro2",
- "quote",
- "syn 2.0.114",
-]
-
-[[package]]
-name = "phf_shared"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67eabc2ef2a60eb7faa00097bd1ffdb5bd28e62bf39990626a582201b7a754e5"
-dependencies = [
- "siphasher",
-]
-
-[[package]]
 name = "pin-project-lite"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3048,12 +3006,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
 
 [[package]]
-name = "siphasher"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
-
-[[package]]
 name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3263,7 +3215,7 @@ checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 [[package]]
 name = "tetra"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/tetra.git#2c2a23af46336b835703c301d7ae6820c4e97904"
+source = "git+https://github.com/Ectras/tetra.git#16e710f81264dc58c4eb81c26b6006844e0bc780"
 dependencies = [
  "bytemuck",
  "cblas-sys",
@@ -4219,6 +4171,12 @@ dependencies = [
  "libc",
  "rustix 1.1.2",
 ]
+
+[[package]]
+name = "yap"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfe269e7b803a5e8e20cbd97860e136529cd83bf2c9c6d37b142467e7e1f051f"
 
 [[package]]
 name = "yoke"
