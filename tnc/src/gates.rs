@@ -84,7 +84,7 @@ fn matrix_transpose_inplace(data: &mut DataTensor) {
         assert!(data.ndim().is_power_of_two());
         let half = data.ndim() / 2;
         let perm = (half..data.ndim()).chain(0..half).collect_vec();
-        data.transpose(&Permutation::oneline(perm));
+        *data = data.transpose(&Permutation::oneline(perm));
     }
 }
 
@@ -160,7 +160,7 @@ impl Gate for X {
             z, o,
             o, z,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -185,7 +185,7 @@ impl Gate for Y {
             z, -i,
             i,  z,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -210,7 +210,7 @@ impl Gate for Z {
             o,  z,
             z, -o,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -234,7 +234,7 @@ impl Gate for H {
             h,  h,
             h, -h,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -260,7 +260,7 @@ impl Gate for T {
             o, z,
             z, t,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -287,7 +287,7 @@ impl Gate for U {
             (Complex64::I * phi).exp() * sin,
             (Complex64::I * (phi + lambda)).exp() * cos,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -300,7 +300,7 @@ impl Gate for U {
             -(Complex64::I * -lambda).exp() * sin,
             (Complex64::I * -(phi + lambda)).exp() * cos,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 }
 
@@ -320,7 +320,7 @@ impl Gate for Sx {
             a, b,
             b, a,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -347,7 +347,7 @@ impl Gate for Sy {
             a, b,
             a, a,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 }
 
@@ -368,7 +368,7 @@ impl Gate for Sz {
             o, z,
             z, i,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -396,7 +396,7 @@ impl Gate for Rx {
             o*cos, -i*sin,
             -i*sin, o*cos,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -422,7 +422,7 @@ impl Gate for Ry {
             o*cos, -o*sin,
             o*sin, o*cos,
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -448,7 +448,7 @@ impl Gate for Rz {
             (-i*theta/2.0).exp(), z,
             z, (i*theta/2.0).exp(),
         ];
-        DataTensor::new_from_flat(&[2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -475,7 +475,7 @@ impl Gate for Cx {
             z, z, z, o,
             z, z, o, z,
         ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -502,7 +502,7 @@ impl Gate for Cz {
             z, z, o, z,
             z, z, z, -o,
         ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -529,7 +529,7 @@ impl Gate for Swap {
             z, o, z, z,
             z, z, z, o,
         ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -557,7 +557,7 @@ impl Gate for Cp {
             z, z, o, z,
             z, z, z, e,
         ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -585,7 +585,7 @@ impl Gate for Iswap {
             z, i, z, z,
             z, z, z, o,
         ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -617,7 +617,7 @@ impl Gate for Fsim {
             z, b, a, z,
             z, z, z, c,
         ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data, None)
+        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {

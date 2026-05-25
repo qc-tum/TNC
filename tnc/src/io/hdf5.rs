@@ -77,7 +77,6 @@ fn read_tensor(file: &File) -> Result<Tensor> {
         new_tensor.set_tensor_data(TensorData::Matrix(DataTensor::new_from_flat(
             &tensor_shape,
             data,
-            None,
         )));
         new_tensor_network.push_tensor(new_tensor);
     }
@@ -97,13 +96,13 @@ fn read_data(file: &File) -> Result<DataTensor> {
     let tensor_shape = tensor_dataset.shape().to_vec();
     let (data, offset) = tensor_dataset.into_raw_vec_and_offset();
     assert_eq!(offset, Some(0));
-    Ok(DataTensor::new_from_flat(&tensor_shape, data, None))
+    Ok(DataTensor::new_from_flat(&tensor_shape, data))
 }
 
 fn write_data(file: &File, tensor: &DataTensor) -> Result<()> {
     let gr = file.create_group("/tensors")?;
-    let data = tensor.elements().into_owned();
-    let shape = tensor.shape();
+    let data = tensor.elements().to_vec();
+    let shape = tensor.shape().to_vec();
     let data = Array::from_shape_vec(shape, data)?;
     let tensor_dataset = gr.new_dataset_builder().with_data(&data);
     tensor_dataset.create("-1")?;
@@ -221,7 +220,6 @@ mod tests {
                 Complex64::new(3.0, 0.0),
                 Complex64::new(0.0, 1.0),
             ],
-            None,
         ));
         ref_tn.push_tensor(ref_tensor);
         ref_tn.set_legs(vec![0, 1]);
@@ -239,7 +237,7 @@ mod tests {
             Complex64::new(0.0, 0.0),
             Complex64::new(0.5, 2.0),
         ];
-        let tensor = DataTensor::new_from_flat(&[2, 3], data, None);
+        let tensor = DataTensor::new_from_flat(&[2, 3], data);
 
         write_data(&file, &tensor).unwrap();
         let read = read_data(&file).unwrap();

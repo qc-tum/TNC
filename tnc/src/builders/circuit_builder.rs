@@ -103,7 +103,7 @@ impl Permutor {
         // Permute legs, shape and data
         perm.apply_slice_in_place(&mut legs);
         perm.apply_slice_in_place(&mut bond_dims);
-        data.transpose(&perm);
+        data = data.transpose(&perm);
 
         Tensor {
             tensors: vec![],
@@ -144,12 +144,12 @@ pub struct Circuit {
 impl Circuit {
     /// The |0> state.
     fn ket0() -> TensorData {
-        TensorData::new_from_data(&[2], vec![Complex64::ONE, Complex64::ZERO], None)
+        TensorData::new_from_data(&[2], vec![Complex64::ONE, Complex64::ZERO])
     }
 
     /// The |1> state.
     fn ket1() -> TensorData {
-        TensorData::new_from_data(&[2], vec![Complex64::ZERO, Complex64::ONE], None)
+        TensorData::new_from_data(&[2], vec![Complex64::ZERO, Complex64::ONE])
     }
 
     /// The Z gate.
@@ -390,7 +390,6 @@ mod tests {
         tn_ref.set_tensor_data(TensorData::new_from_data(
             &[],
             vec![Complex64::new(FRAC_1_SQRT_2.powi(qubits as i32), 0.0)],
-            None,
         ));
 
         assert_approx_eq!(&Tensor, &result, &tn_ref);
@@ -421,7 +420,6 @@ mod tests {
         tn_ref.set_tensor_data(TensorData::new_from_data(
             &[],
             vec![Complex64::new(FRAC_1_SQRT_2 * 0.5, 0.0)],
-            None,
         ));
 
         assert_approx_eq!(&Tensor, &result, &tn_ref);
@@ -451,7 +449,6 @@ mod tests {
                     Complex64::new(3.0, 0.0),
                     Complex64::new(4.0, 0.0),
                 ],
-                None,
             ),
             &[qr.qubit(0)],
         );
@@ -462,7 +459,6 @@ mod tests {
         tn_ref.set_tensor_data(TensorData::new_from_data(
             &[2],
             vec![Complex64::new(1.0, 0.0), Complex64::new(3.0, 0.0)],
-            None,
         ));
         assert_approx_eq!(&Tensor, &result, &tn_ref);
     }

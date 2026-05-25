@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use float_cmp::{ApproxEq, F64Margin};
 use num_complex::Complex64;
 use serde::{Deserialize, Serialize};
-use tetra::{Layout, Tensor as DataTensor};
+use tetra::Tensor as DataTensor;
 
 use crate::{
     gates::{load_gate, load_gate_adjoint, matrix_adjoint_inplace},
@@ -28,12 +28,8 @@ pub enum TensorData {
 impl TensorData {
     /// Creates a new tensor from raw (flat) data.
     #[must_use]
-    pub fn new_from_data(
-        dimensions: &[usize],
-        data: Vec<Complex64>,
-        layout: Option<Layout>,
-    ) -> Self {
-        Self::Matrix(DataTensor::new_from_flat(dimensions, data, layout))
+    pub fn new_from_data(dimensions: &[usize], data: Vec<Complex64>) -> Self {
+        Self::Matrix(DataTensor::new_from_flat(dimensions, data))
     }
 
     /// Consumes the tensor data and returns the contained tensor.
@@ -124,7 +120,7 @@ mod tests {
     #[should_panic(expected = "assertion failed: `(left approx_eq right)`")]
     fn eq_different_data() {
         let g1 = TensorData::Gate((String::from("u"), vec![1.4, 2.0, -3.0], false));
-        let g2 = TensorData::new_from_data(&[], vec![Complex64::ONE], None);
+        let g2 = TensorData::new_from_data(&[], vec![Complex64::ONE]);
         assert_approx_eq!(&TensorData, &g1, &g2);
     }
 }
