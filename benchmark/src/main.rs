@@ -29,7 +29,7 @@ use rand::{Rng, RngCore, SeedableRng};
 use results::{OptimizationResult, RunResult, Writer};
 use tnc::contractionpath::communication_schemes::CommunicationScheme;
 use tnc::contractionpath::contraction_cost::{
-    communication_path_cost, compute_memory_requirements, contract_size_tensors_exact,
+    communication_path_cost, compute_memory_requirements, contract_size_tensors_bytes,
 };
 use tnc::contractionpath::contraction_tree::balancing::{
     balance_partitions_iter, BalanceSettings, BalancingScheme,
@@ -257,7 +257,7 @@ fn serial_cost(tensor: &Tensor, file: &str) -> (f64, f64) {
     let memory = compute_memory_requirements(
         tensor.tensors(),
         &opt.get_best_replace_path(),
-        contract_size_tensors_exact,
+        contract_size_tensors_bytes,
     );
     last_values.replace((file.into(), (cost, memory)));
     (cost, memory)
@@ -298,7 +298,7 @@ fn do_sweep(
     let memory = compute_memory_requirements(
         partitioned_tensor.tensors(),
         &contraction_path,
-        contract_size_tensors_exact,
+        contract_size_tensors_bytes,
     );
 
     // Store the partitioning and contraction path

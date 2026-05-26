@@ -5,7 +5,7 @@ use num_complex::Complex64;
 
 use crate::{
     contractionpath::{ContractionPath, SimplePathRef},
-    tensornetwork::tensor::{EdgeIndex, Tensor},
+    tensornetwork::tensor::Tensor,
 };
 
 /// Returns Schroedinger contraction time complexity of contracting two [`Tensor`]
@@ -73,66 +73,24 @@ pub fn contract_size_tensors(t_1: &Tensor, t_2: &Tensor) -> f64 {
     diff.size() + t_1.size() + t_2.size()
 }
 
-/// Returns a rather exact estimate of the memory requirements for
-/// contracting tensors `i` and `j`.
-///
-/// This takes into account if tensors need to be transposed (which doubles the
-/// required memory). It does not include memory of additional data like shape,
-/// bonddims, legs, etc..
+/// Returns contraction space complexity in bytes of contracting two [`Tensor`]
+/// objects.
 ///
 /// # Examples
 /// ```
 /// # use tnc::tensornetwork::tensor::Tensor;
-/// # use tnc::contractionpath::contraction_cost::contract_size_tensors_exact;
+/// # use tnc::contractionpath::contraction_cost::contract_size_tensors_bytes;
 /// # use rustc_hash::FxHashMap;
-/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11)]);
-/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims); // requires 5040 bytes
-/// let tensor2 = Tensor::new_from_map(vec![3, 2], &bond_dims);    // requires 1584 bytes
-/// // result = [0, 1, 3], requires 6160 bytes
+/// let bond_dims = FxHashMap::from_iter([(0, 5),(1, 7), (2, 9), (3, 11), (4, 13)]);
+/// let tensor1 = Tensor::new_from_map(vec![0, 1, 2], &bond_dims); // 315 entries
+/// let tensor2 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims); // 1287 entries
+/// // result = [0, 1, 3, 4] //  5005 entries -> total 6607 entries
 /// let tn = Tensor::new_composite(vec![tensor1, tensor2]);
-/// assert_eq!(contract_size_tensors_exact(&tn.tensor(0), &tn.tensor(1)), 12784.);
+/// assert_eq!(contract_size_tensors_bytes(&tn.tensor(0), &tn.tensor(1)), 6607. * 16.);
 /// ```
-pub fn contract_size_tensors_exact(i: &Tensor, j: &Tensor) -> f64 {
-    /// Checks if `prefix` is a prefix of `list`.
-    #[inline]
-    fn is_prefix(prefix: &[EdgeIndex], list: &[EdgeIndex]) -> bool {
-        if prefix.len() > list.len() {
-            return false;
-        }
-        list.iter().zip(prefix.iter()).all(|(a, b)| a == b)
-    }
-
-    /// Checks if `suffix` is a suffix of `list`.
-    #[inline]
-    fn is_suffix(suffix: &[EdgeIndex], list: &[EdgeIndex]) -> bool {
-        if suffix.len() > list.len() {
-            return false;
-        }
-        list.iter()
-            .rev()
-            .zip(suffix.iter().rev())
-            .all(|(a, b)| a == b)
-    }
-
-    let ij = i ^ j;
-    let contracted_legs = i & j;
-    let i_needs_transpose = !is_suffix(contracted_legs.legs(), i.legs());
-    let j_needs_transpose = !is_prefix(contracted_legs.legs(), j.legs());
-
-    let i_size = i.size();
-    let j_size = j.size();
-    let ij_size = ij.size();
-
-    let elements = match (i_needs_transpose, j_needs_transpose) {
-        (true, true) => (2.0 * i_size + j_size)
-            .max(i_size + 2.0 * j_size)
-            .max(i_size + j_size + ij_size),
-        (true, false) => (2.0 * i_size + j_size).max(i_size + j_size + ij_size),
-        (false, true) => (i_size + 2.0 * j_size).max(i_size + j_size + ij_size),
-        (false, false) => i_size + j_size + ij_size,
-    };
-
-    elements * std::mem::size_of::<Complex64>() as f64
+#[inline]
+pub fn contract_size_tensors_bytes(i: &Tensor, j: &Tensor) -> f64 {
+    contract_size_tensors(i, j) * std::mem::size_of::<Complex64>() as f64
 }
 
 /// Returns Schroedinger contraction time and space complexity of fully contracting
@@ -291,7 +249,7 @@ fn communication_path_custom_cost(
 ///
 /// Candidates for `memory_estimator` are e.g.:
 /// - [`contract_size_tensors`]
-/// - [`contract_size_tensors_exact`]
+/// - [`contract_size_tensors_bytes`]
 #[inline]
 pub fn compute_memory_requirements(
     inputs: &[Tensor],
