@@ -188,7 +188,6 @@ mod tests {
                 Complex64::ZERO,
                 Complex64::new(FRAC_1_SQRT_2, 0.),
             ],
-            None,
         );
         assert_approx_eq!(&TensorData, &resulting_state, &expected);
     }
@@ -218,7 +217,6 @@ mod tests {
                 Complex64::ZERO,
                 Complex64::ZERO,
             ],
-            None,
         );
         assert_approx_eq!(&TensorData, &resulting_state, &expected);
     }
@@ -254,7 +252,6 @@ mod tests {
                 Complex64::new(-0.03678688170631573, 0.0),
                 Complex64::new(0.0, -0.24340376901515096),
             ],
-            None,
         );
         assert_approx_eq!(&TensorData, &resulting_state, &expected);
     }
@@ -272,7 +269,6 @@ mod tests {
                 Complex64::new(-0.024421837348497916, 0.0),
                 Complex64::new(-0.03678688170631573, 0.0),
             ],
-            None,
         );
         assert_approx_eq!(&TensorData, &resulting_state, &expected);
     }
@@ -292,7 +288,6 @@ mod tests {
                 Complex64::new(-0.03678688170631573, 0.0),
                 Complex64::new(0.0, -0.24340376901515096),
             ],
-            None,
         );
         assert_approx_eq!(&TensorData, &resulting_state, &expected);
     }
@@ -316,12 +311,11 @@ mod tests {
         let expected = TensorData::new_from_data(
             &[2, 2],
             vec![
-                Complex64::new(0.0, 0.0),
-                Complex64::new(0.0, 0.0),
+                Complex64::ZERO,
+                Complex64::ZERO,
                 Complex64::new(-FRAC_1_SQRT_2, 0.0),
                 Complex64::new(FRAC_1_SQRT_2, 0.0),
             ],
-            None,
         );
         assert_approx_eq!(&TensorData, &resulting_state, &expected);
     }

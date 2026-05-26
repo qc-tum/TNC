@@ -137,34 +137,14 @@ mod tests {
         // t23 is of shape [3, 5, 7, 6]
         let mut t23 = Tensor::new(tbc.legs, tbc.shape);
 
-        t1.set_tensor_data(TensorData::new_from_data(
-            &t1.shape().unwrap(),
-            ta.data,
-            None,
-        ));
+        t1.set_tensor_data(TensorData::new_from_data(&t1.shape().unwrap(), ta.data));
 
-        t2.set_tensor_data(TensorData::new_from_data(
-            &t2.shape().unwrap(),
-            tb.data,
-            None,
-        ));
-        t3.set_tensor_data(TensorData::new_from_data(
-            &t3.shape().unwrap(),
-            tc.data,
-            None,
-        ));
+        t2.set_tensor_data(TensorData::new_from_data(&t2.shape().unwrap(), tb.data));
+        t3.set_tensor_data(TensorData::new_from_data(&t3.shape().unwrap(), tc.data));
 
-        t12.set_tensor_data(TensorData::new_from_data(
-            &t12.shape().unwrap(),
-            tab.data,
-            None,
-        ));
+        t12.set_tensor_data(TensorData::new_from_data(&t12.shape().unwrap(), tab.data));
 
-        t23.set_tensor_data(TensorData::new_from_data(
-            &t23.shape().unwrap(),
-            tbc.data,
-            None,
-        ));
+        t23.set_tensor_data(TensorData::new_from_data(&t23.shape().unwrap(), tbc.data));
 
         let mut tn_12 = Tensor::new_composite(vec![t1.clone(), t2.clone(), t3.clone()]);
 
@@ -194,27 +174,11 @@ mod tests {
         // tout is of shape [5, 6, 2]
         let mut tout = Tensor::new(tabc.legs, tabc.shape);
 
-        t1.set_tensor_data(TensorData::new_from_data(
-            &t1.shape().unwrap(),
-            ta.data,
-            None,
-        ));
+        t1.set_tensor_data(TensorData::new_from_data(&t1.shape().unwrap(), ta.data));
 
-        t2.set_tensor_data(TensorData::new_from_data(
-            &t2.shape().unwrap(),
-            tb.data,
-            None,
-        ));
-        t3.set_tensor_data(TensorData::new_from_data(
-            &t3.shape().unwrap(),
-            tc.data,
-            None,
-        ));
-        tout.set_tensor_data(TensorData::new_from_data(
-            &tout.shape().unwrap(),
-            tabc.data,
-            None,
-        ));
+        t2.set_tensor_data(TensorData::new_from_data(&t2.shape().unwrap(), tb.data));
+        t3.set_tensor_data(TensorData::new_from_data(&t3.shape().unwrap(), tc.data));
+        tout.set_tensor_data(TensorData::new_from_data(&tout.shape().unwrap(), tabc.data));
 
         let tn = Tensor::new_composite(vec![t1, t2, t3]);
         let contract_path = path![(0, 1), (0, 2)];
@@ -235,12 +199,10 @@ mod tests {
                 Complex64::new(2.0, 5.0),
                 Complex64::new(3.0, -1.0),
             ],
-            None,
         ));
         t2.set_tensor_data(TensorData::new_from_data(
             &[2],
             vec![Complex64::new(-4.0, 2.0), Complex64::new(0.0, -1.0)],
-            None,
         ));
         let t3 = Tensor::new_composite(vec![t1, t2]);
         let contract_path = path![(0, 1)];
@@ -256,7 +218,6 @@ mod tests {
                 Complex64::new(5.0, -2.0),
                 Complex64::new(-1.0, -3.0),
             ],
-            None,
         ));
 
         let result = contract_tensor_network(t3, &contract_path);
@@ -269,7 +230,6 @@ mod tests {
         ket0.set_tensor_data(TensorData::new_from_data(
             &[2],
             vec![Complex64::ONE, Complex64::ZERO],
-            None,
         ));
 
         let mut mat = Tensor::new_from_const(vec![1, 0], 2);
@@ -281,7 +241,6 @@ mod tests {
                 Complex64::new(3.0, 0.0),
                 Complex64::new(4.0, 0.0),
             ],
-            None,
         ));
 
         let tn = Tensor::new_composite(vec![ket0, mat]);
@@ -291,7 +250,6 @@ mod tests {
         tn_ref.set_tensor_data(TensorData::new_from_data(
             &[2],
             vec![Complex64::new(1.0, 0.0), Complex64::new(3.0, 0.0)],
-            None,
         ));
 
         let result = contract_tensor_network(tn, &contract_path);
