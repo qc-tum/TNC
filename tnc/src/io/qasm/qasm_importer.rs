@@ -44,7 +44,7 @@ mod tests {
     use std::f64::consts::FRAC_1_SQRT_2;
 
     use float_cmp::assert_approx_eq;
-    use num_complex::{c64, Complex64};
+    use num_complex::Complex64;
 
     use crate::{
         builders::circuit_builder::Permutor,
@@ -129,7 +129,7 @@ mod tests {
 
         // Find out which tensor is the first/top qubit (the one connected to the H gate tensor)
         // and which is the second/bottom qubit
-        let first_qubit_id = h.tensor.legs()[0];
+        let first_qubit_id = h.tensor.legs()[1];
         let (first_qubit, second_qubit) = if first_qubit_id == k0.id {
             (k0, k1)
         } else if first_qubit_id == k1.id {
@@ -140,21 +140,21 @@ mod tests {
 
         // Check edges
         let fq_to_h_id = first_qubit.tensor.legs()[0];
-        assert_eq!(h.tensor.legs()[0], fq_to_h_id);
+        assert_eq!(h.tensor.legs()[1], fq_to_h_id);
         assert!(edge_connects(fq_to_h_id, first_qubit_id, h.id, &tn));
 
         let sq_to_cx_t_id = second_qubit.tensor.legs()[0];
-        assert_eq!(cx.tensor.legs()[1], sq_to_cx_t_id);
+        assert_eq!(cx.tensor.legs()[3], sq_to_cx_t_id);
         assert!(edge_connects(sq_to_cx_t_id, second_qubit.id, cx.id, &tn));
 
-        let h_to_cx_c_id = h.tensor.legs()[1];
-        assert_eq!(cx.tensor.legs()[0], h_to_cx_c_id);
+        let h_to_cx_c_id = h.tensor.legs()[0];
+        assert_eq!(cx.tensor.legs()[2], h_to_cx_c_id);
         assert!(edge_connects(h_to_cx_c_id, h.id, cx.id, &tn));
 
-        let cx_c_to_open_id = cx.tensor.legs()[2];
+        let cx_c_to_open_id = cx.tensor.legs()[0];
         assert!(is_open_edge_of(cx_c_to_open_id, cx.id, &tn));
 
-        let cx_t_to_open_id = cx.tensor.legs()[3];
+        let cx_t_to_open_id = cx.tensor.legs()[1];
         assert!(is_open_edge_of(cx_t_to_open_id, cx.id, &tn));
     }
 
@@ -183,10 +183,10 @@ mod tests {
         let expected = TensorData::new_from_data(
             &[2, 2],
             vec![
-                c64(FRAC_1_SQRT_2, 0.),
-                c64(0, 0),
-                c64(0, 0),
-                c64(FRAC_1_SQRT_2, 0.),
+                Complex64::new(FRAC_1_SQRT_2, 0.),
+                Complex64::ZERO,
+                Complex64::ZERO,
+                Complex64::new(FRAC_1_SQRT_2, 0.),
             ],
             None,
         );
@@ -291,6 +291,35 @@ mod tests {
                 Complex64::new(0.0, -0.09564366568448116),
                 Complex64::new(-0.03678688170631573, 0.0),
                 Complex64::new(0.0, -0.24340376901515096),
+            ],
+            None,
+        );
+        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+    }
+
+    #[test]
+    fn gate_order() {
+        // Ensures that the cx gate legs are in the correct order
+        let code = "OPENQASM 2.0;
+        include \"qelib1.inc\";
+        qreg q[2];
+        creg c[1];
+        u2(0,0) q[0];
+        u2(-pi,-pi) q[1];
+        cx q[0],q[1];
+        u2(-pi,-pi) q[0];";
+
+        let circuit = import_qasm(code);
+        let (tn, perm) = circuit.into_statevector_network();
+        let resulting_state = contract_tn(tn, &perm);
+
+        let expected = TensorData::new_from_data(
+            &[2, 2],
+            vec![
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(-FRAC_1_SQRT_2, 0.0),
+                Complex64::new(FRAC_1_SQRT_2, 0.0),
             ],
             None,
         );

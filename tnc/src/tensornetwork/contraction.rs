@@ -262,4 +262,39 @@ mod tests {
         let result = contract_tensor_network(t3, &contract_path);
         assert_approx_eq!(&Tensor, &result, &tn_ref);
     }
+
+    #[test]
+    fn dimension_order() {
+        let mut ket0 = Tensor::new_from_const(vec![0], 2);
+        ket0.set_tensor_data(TensorData::new_from_data(
+            &[2],
+            vec![Complex64::ONE, Complex64::ZERO],
+            None,
+        ));
+
+        let mut mat = Tensor::new_from_const(vec![1, 0], 2);
+        mat.set_tensor_data(TensorData::new_from_data(
+            &[2, 2],
+            vec![
+                Complex64::new(1.0, 0.0),
+                Complex64::new(2.0, 0.0),
+                Complex64::new(3.0, 0.0),
+                Complex64::new(4.0, 0.0),
+            ],
+            None,
+        ));
+
+        let tn = Tensor::new_composite(vec![ket0, mat]);
+        let contract_path = path![(0, 1)];
+
+        let mut tn_ref = Tensor::new_from_const(vec![1], 2);
+        tn_ref.set_tensor_data(TensorData::new_from_data(
+            &[2],
+            vec![Complex64::new(1.0, 0.0), Complex64::new(3.0, 0.0)],
+            None,
+        ));
+
+        let result = contract_tensor_network(tn, &contract_path);
+        assert_approx_eq!(&Tensor, &result, &tn_ref);
+    }
 }

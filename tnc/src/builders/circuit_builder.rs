@@ -211,11 +211,11 @@ impl Circuit {
         // Get the old and new edges
         let old_edges = indices.iter().map(|q| self.open_edges[q.index]);
         let new_edges = (0..indices.len()).map(|e| e + self.next_edge);
-        let edges = old_edges.chain(new_edges).collect_vec();
+        let edges = new_edges.chain(old_edges).collect_vec();
         self.next_edge += indices.len();
 
         // Update the open edges
-        for (q, next_edge) in indices.iter().zip(&edges[indices.len()..]) {
+        for (q, next_edge) in indices.iter().zip(&edges[..indices.len()]) {
             self.open_edges[q.index] = *next_edge;
         }
 
@@ -349,6 +349,7 @@ mod tests {
             cotengrust::{Cotengrust, OptMethod},
             FindPath,
         },
+        path,
         tensornetwork::{
             contraction::contract_tensor_network, tensor::Tensor, tensordata::TensorData,
         },
@@ -435,5 +436,34 @@ mod tests {
             TensorData::Gate((String::from("cx"), vec![], true)),
             &[qr.qubit(1), qr.qubit(1)],
         );
+    }
+
+    #[test]
+    fn dimension_order() {
+        let mut circuit = Circuit::default();
+        let qr = circuit.allocate_register(1);
+        circuit.append_gate(
+            TensorData::new_from_data(
+                &[2, 2],
+                vec![
+                    Complex64::new(1.0, 0.0),
+                    Complex64::new(2.0, 0.0),
+                    Complex64::new(3.0, 0.0),
+                    Complex64::new(4.0, 0.0),
+                ],
+                None,
+            ),
+            &[qr.qubit(0)],
+        );
+        let (tensor_network, permutor) = circuit.into_statevector_network();
+        let result = contract_tensor_network(tensor_network, &path![(0, 1)]);
+        let result = permutor.apply(result);
+        let mut tn_ref = Tensor::new_from_const(vec![1], 2);
+        tn_ref.set_tensor_data(TensorData::new_from_data(
+            &[2],
+            vec![Complex64::new(1.0, 0.0), Complex64::new(3.0, 0.0)],
+            None,
+        ));
+        assert_approx_eq!(&Tensor, &result, &tn_ref);
     }
 }
