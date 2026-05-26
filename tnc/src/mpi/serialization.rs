@@ -83,9 +83,10 @@ mod tests {
     use super::*;
 
     use float_cmp::assert_approx_eq;
+    use num_complex::Complex64;
     use rustc_hash::FxHashMap;
 
-    use crate::tensornetwork::tensor::Tensor;
+    use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
 
     #[test]
     fn test_serialize_deserialize_tensor_roundtrip() {
@@ -97,5 +98,16 @@ mod tests {
         let serialized = serialize_tensor(&ta);
         let deserialized = deserialize_tensor(&serialized);
         assert_approx_eq!(&Tensor, &ta, &deserialized);
+    }
+
+    #[test]
+    fn test_serialize_deserialize_tensor_with_data() {
+        let bond_dims = FxHashMap::from_iter([(1, 2), (2, 3)]);
+        let data = (0..6).map(|x| Complex64::new(x as f64, 0.0)).collect();
+        let mut tensor = Tensor::new_from_map(vec![1, 2], &bond_dims);
+        tensor.set_tensor_data(TensorData::new_from_data(&[2, 3], data));
+        let serialized = serialize_tensor(&tensor);
+        let deserialized = deserialize_tensor(&serialized);
+        assert_approx_eq!(&Tensor, &tensor, &deserialized);
     }
 }
