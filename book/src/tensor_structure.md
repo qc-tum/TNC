@@ -18,6 +18,6 @@ Leaf tensors have legs with corresponding bond dimensions and can optionally hav
 The idea for this recursive design is natural: When looking only at the outer (i.e. open) legs of a tensor network, it can be seen as a plain tensor again.
 It has legs with sizes and it has data (that is obtained by contracting the tensor network).
 
-In addition, this format is useful for multi-level parallelization based on partitioning the network: For example, the top level could be a composite tensor, where each children is assigned to one compute node.
-Each children is also again a composite tensor, where each children is assigned to one core.
+In addition, this format is useful for multi-level parallelization based on partitioning the network: For example, the top level could be a composite tensor, where each child is assigned to one compute node.
+Each child is also again a composite tensor, where each child is assigned to one core.
 Finally, each of those children is again a composite tensor that is an actual tensor network (i.e., with leaf tensors as children).

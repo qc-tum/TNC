@@ -11,7 +11,7 @@ Finally, the results are gathered in a parallel reduce operation, where the tens
 
 ### Shared memory parallelism
 Given the large tensor sizes that can occur during contraction, we do not partition tensor networks further than the node level.
-Instead, we use the avilable cores to parallelize the individual tensor tensor contractions.
+Instead, we use the avilable cores to parallelize the individual tensor-tensor contractions.
 
 ### What about slicing?
 Slicing is currently not supported, as it is not easy to combine it with partitioning.

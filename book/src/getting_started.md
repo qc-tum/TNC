@@ -15,7 +15,6 @@ tnc = { git = "https://github.com/qc-tum/TNC.git" }
 There are no default features activated.
 The list of optional features to include is:
 - `cotengra`: Enables Rust bindings to the tree annealing, tree reconfiguration and tree tempering methods of cotengra (for improving contraction paths)
-- `mkl`: Uses the Intel Math Kernel Library (MKL) for performing tensor contractions. Otherwise, a pure Rust implementation is used
 
 ## System Requirements
 As noted in the README, the library relies on system dependencies.

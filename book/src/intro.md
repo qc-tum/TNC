@@ -11,4 +11,4 @@ It supports the local contraction of tensor networks as well as parallel contrac
 To this end, we employ partitioning of tensor networks to contract the individual partitions in parallel on different compute nodes.
 Different methods for optimizing a partitioning before contraction are available.
 
-The library allows to build and import tensor networks and offers methods to find contraction paths.
+The library allows building and import tensor networks and offers methods to find contraction paths.
