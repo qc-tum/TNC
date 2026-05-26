@@ -8,10 +8,11 @@ use std::{
 };
 
 use itertools::Itertools;
+use ndarray::array;
 use num_complex::Complex64;
-use permutation::Permutation;
 use rustc_hash::FxHashSet;
-use tetra::Tensor as DataTensor;
+
+use crate::{tensornetwork::tensordata::DataTensor, utils::traits::ConjugateInPlace};
 
 static GATES: LazyLock<RwLock<FxHashSet<Box<dyn Gate>>>> = LazyLock::new(|| {
     let mut gates = FxHashSet::default();
@@ -84,7 +85,8 @@ fn matrix_transpose_inplace(data: &mut DataTensor) {
         assert!(data.ndim().is_power_of_two());
         let half = data.ndim() / 2;
         let perm = (half..data.ndim()).chain(0..half).collect_vec();
-        *data = data.transpose(&Permutation::oneline(perm));
+        let used_data = std::mem::take(data);
+        *data = used_data.permuted_axes(perm);
     }
 }
 
@@ -155,12 +157,7 @@ impl Gate for X {
         let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
-        #[rustfmt::skip]
-        let data = vec![
-            z, o,
-            o, z,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![[z, o], [o, z],].into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -180,12 +177,7 @@ impl Gate for Y {
         let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let i = Complex64::I;
-        #[rustfmt::skip]
-        let data = vec![
-            z, -i,
-            i,  z,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![[z, -i], [i, z]].into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -205,12 +197,7 @@ impl Gate for Z {
         let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
-        #[rustfmt::skip]
-        let data = vec![
-            o,  z,
-            z, -o,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![[o, z], [z, -o]].into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -229,12 +216,7 @@ impl Gate for H {
     fn compute(&self, angles: &[f64]) -> DataTensor {
         let [] = unpack_angles(angles);
         let h = Complex64::new(FRAC_1_SQRT_2, 0.0);
-        #[rustfmt::skip]
-        let data = vec![
-            h,  h,
-            h, -h,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![[h, h], [h, -h]].into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -255,12 +237,7 @@ impl Gate for T {
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         let t = Complex64::new(FRAC_1_SQRT_2, FRAC_1_SQRT_2);
-        #[rustfmt::skip]
-        let data = vec![
-            o, z,
-            z, t,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![[o, z], [z, t]].into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -281,26 +258,31 @@ impl Gate for U {
     fn compute(&self, angles: &[f64]) -> DataTensor {
         let [theta, phi, lambda] = unpack_angles(angles);
         let (sin, cos) = (theta / 2.0).sin_cos();
-        let data = vec![
-            Complex64::new(cos, 0.0),
-            -(Complex64::I * lambda).exp() * sin,
-            (Complex64::I * phi).exp() * sin,
-            (Complex64::I * (phi + lambda)).exp() * cos,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![
+            [
+                Complex64::new(cos, 0.0),
+                -(Complex64::I * lambda).exp() * sin
+            ],
+            [
+                (Complex64::I * phi).exp() * sin,
+                (Complex64::I * (phi + lambda)).exp() * cos
+            ]
+        ]
+        .into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
         // This explicit implementation is ~30% faster
         let [theta, phi, lambda] = unpack_angles(angles);
         let (sin, cos) = (theta / 2.0).sin_cos();
-        let data = vec![
-            Complex64::new(cos, 0.0),
-            (Complex64::I * -phi).exp() * sin,
-            -(Complex64::I * -lambda).exp() * sin,
-            (Complex64::I * -(phi + lambda)).exp() * cos,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![
+            [Complex64::new(cos, 0.0), (Complex64::I * -phi).exp() * sin],
+            [
+                -(Complex64::I * -lambda).exp() * sin,
+                (Complex64::I * -(phi + lambda)).exp() * cos
+            ]
+        ]
+        .into_dyn()
     }
 }
 
@@ -315,12 +297,7 @@ impl Gate for Sx {
         let [] = unpack_angles(angles);
         let a = Complex64::new(0.5, 0.5);
         let b = Complex64::new(0.5, -0.5);
-        #[rustfmt::skip]
-        let data = vec![
-            a, b,
-            b, a,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![[a, b], [b, a]].into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -342,12 +319,7 @@ impl Gate for Sy {
         let [] = unpack_angles(angles);
         let a = Complex64::new(0.5, 0.5);
         let b = Complex64::new(-0.5, -0.5);
-        #[rustfmt::skip]
-        let data = vec![
-            a, b,
-            a, a,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![[a, b], [a, a]].into_dyn()
     }
 }
 
@@ -363,12 +335,7 @@ impl Gate for Sz {
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         let i = Complex64::I;
-        #[rustfmt::skip]
-        let data = vec![
-            o, z,
-            z, i,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![[o, z], [z, i]].into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -391,12 +358,7 @@ impl Gate for Rx {
         let (sin, cos) = (theta / 2.0).sin_cos();
         let o = Complex64::ONE;
         let i = Complex64::I;
-        #[rustfmt::skip]
-        let data = vec![
-            o*cos, -i*sin,
-            -i*sin, o*cos,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![[o * cos, -i * sin], [-i * sin, o * cos]].into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -417,12 +379,7 @@ impl Gate for Ry {
         let (sin, cos) = (theta / 2.0).sin_cos();
         let o = Complex64::ONE;
 
-        #[rustfmt::skip]
-        let data = vec![
-            o*cos, -o*sin,
-            o*sin, o*cos,
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![[o * cos, -o * sin], [o * sin, o * cos]].into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -443,12 +400,7 @@ impl Gate for Rz {
         let z = Complex64::ZERO;
         let i = Complex64::I;
 
-        #[rustfmt::skip]
-        let data = vec![
-            (-i*theta/2.0).exp(), z,
-            z, (i*theta/2.0).exp(),
-        ];
-        DataTensor::new_from_flat(&[2, 2], data)
+        array![[(-i * theta / 2.0).exp(), z], [z, (i * theta / 2.0).exp()]].into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -468,14 +420,10 @@ impl Gate for Cx {
         let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
-        #[rustfmt::skip]
-        let data = vec![
-            o, z, z, z,
-            z, o, z, z,
-            z, z, z, o,
-            z, z, o, z,
-        ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
+        array![[o, z, z, z], [z, o, z, z], [z, z, z, o], [z, z, o, z]]
+            .into_shape_with_order((2, 2, 2, 2))
+            .unwrap()
+            .into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -495,14 +443,10 @@ impl Gate for Cz {
         let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
-        #[rustfmt::skip]
-        let data = vec![
-            o, z, z, z,
-            z, o, z, z,
-            z, z, o, z,
-            z, z, z, -o,
-        ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
+        array![[o, z, z, z], [z, o, z, z], [z, z, o, z], [z, z, z, -o]]
+            .into_shape_with_order((2, 2, 2, 2))
+            .unwrap()
+            .into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -522,14 +466,10 @@ impl Gate for Swap {
         let [] = unpack_angles(angles);
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
-        #[rustfmt::skip]
-        let data = vec![
-            o, z, z, z,
-            z, z, o, z,
-            z, o, z, z,
-            z, z, z, o,
-        ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
+        array![[o, z, z, z], [z, z, o, z], [z, o, z, z], [z, z, z, o]]
+            .into_shape_with_order((2, 2, 2, 2))
+            .unwrap()
+            .into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -550,14 +490,10 @@ impl Gate for Cp {
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         let e = (Complex64::I * theta).exp();
-        #[rustfmt::skip]
-        let data = vec![
-            o, z, z, z,
-            z, o, z, z,
-            z, z, o, z,
-            z, z, z, e,
-        ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
+        array![[o, z, z, z], [z, o, z, z], [z, z, o, z], [z, z, z, e]]
+            .into_shape_with_order((2, 2, 2, 2))
+            .unwrap()
+            .into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -578,14 +514,10 @@ impl Gate for Iswap {
         let z = Complex64::ZERO;
         let o = Complex64::ONE;
         let i = Complex64::I;
-        #[rustfmt::skip]
-        let data = vec![
-            o, z, z, z,
-            z, z, i, z,
-            z, i, z, z,
-            z, z, z, o,
-        ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
+        array![[o, z, z, z], [z, z, i, z], [z, i, z, z], [z, z, z, o]]
+            .into_shape_with_order((2, 2, 2, 2))
+            .unwrap()
+            .into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -610,14 +542,10 @@ impl Gate for Fsim {
         let a = Complex64::new(theta.cos(), 0.0);
         let b = Complex64::new(0.0, -theta.sin());
         let c = Complex64::new(0.0, -phi).exp();
-        #[rustfmt::skip]
-        let data = vec![
-            o, z, z, z,
-            z, a, b, z,
-            z, b, a, z,
-            z, z, z, c,
-        ];
-        DataTensor::new_from_flat(&[2, 2, 2, 2], data)
+        array![[o, z, z, z], [z, a, b, z], [z, b, a, z], [z, z, z, c]]
+            .into_shape_with_order((2, 2, 2, 2))
+            .unwrap()
+            .into_dyn()
     }
 
     fn adjoint(&self, angles: &[f64]) -> DataTensor {
@@ -630,7 +558,7 @@ impl Gate for Fsim {
 mod tests {
     use std::f64::consts::PI;
 
-    use float_cmp::assert_approx_eq;
+    use approx::assert_abs_diff_eq;
     use rand::{distr::Uniform, prelude::Distribution, rngs::StdRng, SeedableRng};
     use rustc_hash::FxHashMap;
 
@@ -675,7 +603,7 @@ mod tests {
             let mut matrix = gate.compute(&params);
             matrix_adjoint_inplace(&mut matrix);
             let general_adjoint = matrix;
-            assert_approx_eq!(&DataTensor, &specialized_adjoint, &general_adjoint);
+            assert_abs_diff_eq!(&specialized_adjoint, &general_adjoint);
         }
     }
 }

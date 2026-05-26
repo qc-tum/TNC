@@ -106,6 +106,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
+dependencies = [
+ "num-complex",
+ "num-traits",
+]
+
+[[package]]
 name = "ascii"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1111,10 +1121,11 @@ dependencies = [
 
 [[package]]
 name = "ndarray"
-version = "0.17.1"
+version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c7c9125e8f6f10c9da3aad044cc918cf8784fa34de857b1aa68038eb05a50a9"
+checksum = "520080814a7a6b4a6e9070823bb24b4531daac8c4627e08ba5de8c5ef2f2752d"
 dependencies = [
+ "approx",
  "matrixmultiply",
  "num-complex",
  "num-integer",
@@ -1122,6 +1133,7 @@ dependencies = [
  "portable-atomic",
  "portable-atomic-util",
  "rawpointer",
+ "serde",
 ]
 
 [[package]]
@@ -1882,7 +1894,7 @@ checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 [[package]]
 name = "tblis"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-tblis#924c897b5558187319eec4faea92b56a8de33351"
+source = "git+https://github.com/Ectras/rust-tblis.git#493da087fcb40625052c4285573bffe09f58640d"
 dependencies = [
  "num-complex",
  "tblis-sys",
@@ -1891,7 +1903,7 @@ dependencies = [
 [[package]]
 name = "tblis-sys"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-tblis#924c897b5558187319eec4faea92b56a8de33351"
+source = "git+https://github.com/Ectras/rust-tblis.git#493da087fcb40625052c4285573bffe09f58640d"
 dependencies = [
  "bindgen 0.72.1",
  "cc",
@@ -1899,20 +1911,6 @@ dependencies = [
  "link-cplusplus",
  "openmp-sys",
  "pkg-config",
-]
-
-[[package]]
-name = "tetra"
-version = "0.1.0"
-source = "git+https://github.com/Ectras/tetra.git#830725a5a7ef1eff1cea0572768e38afeb0ee428"
-dependencies = [
- "bytemuck",
- "float-cmp",
- "itertools 0.14.0",
- "num-complex",
- "permutation",
- "serde",
- "tblis",
 ]
 
 [[package]]
@@ -1949,6 +1947,7 @@ name = "tnc"
 version = "1.0.0"
 dependencies = [
  "antlr-rust",
+ "approx",
  "cotengrust",
  "flexi_logger",
  "float-cmp",
@@ -1970,7 +1969,7 @@ dependencies = [
  "rustengra",
  "serde",
  "serde_json",
- "tetra",
+ "tblis",
 ]
 
 [[package]]

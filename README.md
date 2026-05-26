@@ -69,7 +69,7 @@ cx q[1], q[2];
     let data = statevector.tensor_data().clone().into_data();
 
     // Print the data
-    println!("Resulting statevector is: {:?}", data.elements());
+    println!("Resulting statevector is: {:?}", data);
 }
 ```
 

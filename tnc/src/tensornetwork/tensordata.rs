@@ -1,14 +1,17 @@
 use std::path::PathBuf;
 
+use approx::ulps_eq;
 use float_cmp::{ApproxEq, F64Margin};
+use ndarray::ArrayD;
 use num_complex::Complex64;
 use serde::{Deserialize, Serialize};
-use tetra::Tensor as DataTensor;
 
 use crate::{
     gates::{load_gate, load_gate_adjoint, matrix_adjoint_inplace},
     io::hdf5::load_data,
 };
+
+pub type DataTensor = ArrayD<Complex64>;
 
 /// The data of a tensor.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -29,7 +32,7 @@ impl TensorData {
     /// Creates a new tensor from raw (flat) data.
     #[must_use]
     pub fn new_from_data(dimensions: &[usize], data: Vec<Complex64>) -> Self {
-        Self::Matrix(DataTensor::new_from_flat(dimensions, data))
+        Self::Matrix(ArrayD::from_shape_vec(dimensions, data).unwrap())
     }
 
     /// Consumes the tensor data and returns the contained tensor.
@@ -79,7 +82,14 @@ impl ApproxEq for &TensorData {
                 TensorData::Gate((name_l, angles_l, adjoint_l)),
                 TensorData::Gate((name_r, angles_r, adjoint_r)),
             ) => name_l == name_r && adjoint_l == adjoint_r && angles_l.approx_eq(angles_r, margin),
-            (TensorData::Matrix(l0), TensorData::Matrix(r0)) => l0.approx_eq(r0, margin),
+            (TensorData::Matrix(l0), TensorData::Matrix(r0)) => {
+                ulps_eq!(
+                    l0,
+                    r0,
+                    max_ulps = margin.ulps as _,
+                    epsilon = margin.epsilon
+                )
+            }
             (TensorData::Uncontracted, TensorData::Uncontracted) => true,
             _ => false,
         }
