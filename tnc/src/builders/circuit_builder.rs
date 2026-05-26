@@ -344,7 +344,7 @@ mod tests {
 
     use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_3, FRAC_PI_4};
 
-    use float_cmp::assert_approx_eq;
+    use approx::assert_abs_diff_eq;
     use num_complex::Complex64;
 
     use crate::{
@@ -395,7 +395,7 @@ mod tests {
             vec![Complex64::new(FRAC_1_SQRT_2.powi(qubits as i32), 0.0)],
         ));
 
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_abs_diff_eq!(&result, &tn_ref);
     }
 
     #[test]
@@ -425,7 +425,7 @@ mod tests {
             vec![Complex64::new(FRAC_1_SQRT_2 * 0.5, 0.0)],
         ));
 
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_abs_diff_eq!(&result, &tn_ref);
     }
 
     #[test]
@@ -463,7 +463,7 @@ mod tests {
             &[2],
             vec![Complex64::new(1.0, 0.0), Complex64::new(3.0, 0.0)],
         ));
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_abs_diff_eq!(&result, &tn_ref);
     }
 
     #[test]
@@ -482,6 +482,6 @@ mod tests {
         let mut expected = Tensor::new_from_const(vec![2, 0, 1], 2);
         expected.set_tensor_data(TensorData::new_from_data(&[2, 2, 2], ref_data));
 
-        assert_approx_eq!(&Tensor, &permuted, &expected);
+        assert_abs_diff_eq!(&permuted, &expected);
     }
 }

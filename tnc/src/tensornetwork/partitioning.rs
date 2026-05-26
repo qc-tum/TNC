@@ -178,7 +178,7 @@ pub fn partition_tensor_network(tn: Tensor, partitioning: &[usize]) -> Tensor {
 mod tests {
     use super::*;
 
-    use float_cmp::assert_approx_eq;
+    use approx::assert_abs_diff_eq;
     use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::partitioning::partition_config::PartitioningStrategy;
@@ -232,9 +232,9 @@ mod tests {
         let partitioned_tn = partition_tensor_network(tn, partitioning.as_slice());
         assert_eq!(partitioned_tn.tensors().len(), 3);
 
-        assert_approx_eq!(&Tensor, partitioned_tn.tensor(2), &ref_tensor_1);
-        assert_approx_eq!(&Tensor, partitioned_tn.tensor(1), &ref_tensor_2);
-        assert_approx_eq!(&Tensor, partitioned_tn.tensor(0), &ref_tensor_3);
+        assert_abs_diff_eq!(partitioned_tn.tensor(2), &ref_tensor_1);
+        assert_abs_diff_eq!(partitioned_tn.tensor(1), &ref_tensor_2);
+        assert_abs_diff_eq!(partitioned_tn.tensor(0), &ref_tensor_3);
     }
 
     #[test]

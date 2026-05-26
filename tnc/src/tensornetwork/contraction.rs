@@ -126,7 +126,7 @@ fn contract_ndarrays(
 mod tests {
     use super::*;
 
-    use float_cmp::assert_approx_eq;
+    use approx::assert_abs_diff_eq;
     use num_complex::Complex64;
     use rustc_hash::FxHashMap;
     use serde::Deserialize;
@@ -183,12 +183,12 @@ mod tests {
         let mut tn_12 = Tensor::new_composite(vec![t1.clone(), t2.clone(), t3.clone()]);
 
         tn_12.contract_tensors(0, 1);
-        assert_approx_eq!(&Tensor, tn_12.tensor(0), &t12, epsilon = 1e-14);
+        assert_abs_diff_eq!(tn_12.tensor(0), &t12, epsilon = 1e-14);
 
         let mut tn_23 = Tensor::new_composite(vec![t1, t2, t3]);
 
         tn_23.contract_tensors(1, 2);
-        assert_approx_eq!(&Tensor, tn_23.tensor(1), &t23, epsilon = 1e-14);
+        assert_abs_diff_eq!(tn_23.tensor(1), &t23, epsilon = 1e-14);
     }
 
     #[test]
@@ -218,7 +218,7 @@ mod tests {
         let contract_path = path![(0, 1), (0, 2)];
 
         let result = contract_tensor_network(tn, &contract_path);
-        assert_approx_eq!(&Tensor, &result, &tout, epsilon = 1e-14);
+        assert_abs_diff_eq!(result, &tout, epsilon = 1e-14);
     }
 
     #[test]
@@ -255,7 +255,7 @@ mod tests {
         ));
 
         let result = contract_tensor_network(t3, &contract_path);
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_abs_diff_eq!(result, &tn_ref);
     }
 
     #[test]
@@ -287,6 +287,6 @@ mod tests {
         ));
 
         let result = contract_tensor_network(tn, &contract_path);
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_abs_diff_eq!(result, &tn_ref);
     }
 }

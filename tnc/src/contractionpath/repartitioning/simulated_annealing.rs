@@ -593,16 +593,16 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use approx::assert_abs_diff_eq;
 
-    use float_cmp::assert_approx_eq;
+    use super::*;
 
     #[test]
     fn simple_linear_interpolation() {
-        assert_approx_eq!(f64, linear_interpolation(0., 6., 0.5), 3.0);
-        assert_approx_eq!(f64, linear_interpolation(-1.0, 4.0, 0.2), 0.0);
-        assert_approx_eq!(f64, linear_interpolation(-7.0, -6.0, 0.0), -7.0);
-        assert_approx_eq!(f64, linear_interpolation(3.0, 5.0, 1.0), 5.0);
+        assert_abs_diff_eq!(linear_interpolation(0., 6., 0.5), 3.0);
+        assert_abs_diff_eq!(linear_interpolation(-1.0, 4.0, 0.2), 0.0);
+        assert_abs_diff_eq!(linear_interpolation(-7.0, -6.0, 0.0), -7.0);
+        assert_abs_diff_eq!(linear_interpolation(3.0, 5.0, 1.0), 5.0);
     }
 
     #[test]

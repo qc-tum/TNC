@@ -103,7 +103,6 @@ mod tests {
     use std::iter::zip;
 
     use approx::assert_abs_diff_eq;
-    use float_cmp::assert_approx_eq;
     use hdf5_metno::{AttributeBuilder, File, Result};
     use ndarray::{array, Array2};
     use num_complex::Complex64;
@@ -189,8 +188,8 @@ mod tests {
             Complex64::new(0.0, 1.0),
         ];
         for (u, v) in zip(ref_data.iter(), tensor_data.flatten().iter()) {
-            assert_approx_eq!(f64, u.re, v.re, epsilon = 1e-8);
-            assert_approx_eq!(f64, u.im, v.im, epsilon = 1e-8);
+            assert_abs_diff_eq!(u.re, v.re, epsilon = 1e-8);
+            assert_abs_diff_eq!(u.im, v.im, epsilon = 1e-8);
         }
     }
 
@@ -212,7 +211,7 @@ mod tests {
         ));
         ref_tn.push_tensor(ref_tensor);
         ref_tn.set_legs(vec![0, 1]);
-        assert_approx_eq!(&Tensor, &tensor, &ref_tn);
+        assert_abs_diff_eq!(&tensor, &ref_tn);
     }
 
     #[test]

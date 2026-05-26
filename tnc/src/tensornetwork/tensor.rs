@@ -2,7 +2,7 @@ use std::iter::zip;
 use std::num::TryFromIntError;
 use std::ops::{BitAnd, BitOr, BitXor, BitXorAssign, Sub};
 
-use float_cmp::{ApproxEq, F64Margin};
+use approx::AbsDiffEq;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
@@ -498,11 +498,23 @@ impl Tensor {
     }
 }
 
-impl ApproxEq for &Tensor {
-    type Margin = F64Margin;
+impl PartialEq for Tensor {
+    fn eq(&self, other: &Self) -> bool {
+        self.legs == other.legs
+            && self.bond_dims == other.bond_dims
+            && self.tensors == other.tensors
+            && self.tensordata == other.tensordata
+    }
+}
 
-    fn approx_eq<M: Into<Self::Margin>>(self, other: Self, margin: M) -> bool {
-        let margin = margin.into();
+impl AbsDiffEq for Tensor {
+    type Epsilon = f64;
+
+    fn default_epsilon() -> Self::Epsilon {
+        f64::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
         if self.legs != other.legs {
             return false;
         }
@@ -513,12 +525,12 @@ impl ApproxEq for &Tensor {
             return false;
         }
         for (tensor, other_tensor) in zip(&self.tensors, &other.tensors) {
-            if !tensor.approx_eq(other_tensor, margin) {
+            if !Tensor::abs_diff_eq(tensor, other_tensor, epsilon) {
                 return false;
             }
         }
 
-        self.tensordata.approx_eq(&other.tensordata, margin)
+        TensorData::abs_diff_eq(&self.tensordata, &other.tensordata, epsilon)
     }
 }
 
@@ -567,7 +579,7 @@ mod tests {
 
     use std::iter::zip;
 
-    use float_cmp::assert_approx_eq;
+    use approx::assert_abs_diff_eq;
     use rustc_hash::FxHashMap;
 
     use crate::tensornetwork::tensordata::TensorData;
@@ -644,7 +656,7 @@ mod tests {
         let external = tensor_1234.external_tensor();
 
         let ref_tensor = Tensor::new_from_map(vec![4, 5, 7, 9], &bond_dims);
-        assert_approx_eq!(&Tensor, &external, &ref_tensor);
+        assert_abs_diff_eq!(&external, &ref_tensor);
     }
 
     #[test]
@@ -661,7 +673,7 @@ mod tests {
         tensor.push_tensor(tensor_1);
 
         for (sub_tensor, ref_tensor) in zip(tensor.tensors(), [&ref_tensor_1]) {
-            assert_approx_eq!(&Tensor, sub_tensor, ref_tensor);
+            assert_abs_diff_eq!(sub_tensor, ref_tensor);
         }
 
         // Push tensor 2
@@ -669,7 +681,7 @@ mod tests {
         tensor.push_tensor(tensor_2);
 
         for (sub_tensor, ref_tensor) in zip(tensor.tensors(), [&ref_tensor_1, &ref_tensor_2]) {
-            assert_approx_eq!(&Tensor, sub_tensor, ref_tensor);
+            assert_abs_diff_eq!(sub_tensor, ref_tensor);
         }
 
         // Test that other fields are unchanged
@@ -707,7 +719,7 @@ mod tests {
             tensor.tensors(),
             &vec![ref_tensor_1, ref_tensor_2, ref_tensor_3],
         ) {
-            assert_approx_eq!(&Tensor, sub_tensor, ref_tensor);
+            assert_abs_diff_eq!(sub_tensor, ref_tensor);
         }
     }
 
