@@ -9,10 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Use TBLIS instead of HPTT + MKL for contraction. This means contractions are faster and often require only half as much memory. Also, build time decreased.
-
-### Removed
-- Support for column-major tensors (for now)
-- Zero-cost tensor permutations (for now)
+- Use ndarray instead of own implementation for tensors. This means more features (slicing, arbitrary memory layout, ...) and interoperability.
 
 ## [1.0.1] - 2026-05-26
 
