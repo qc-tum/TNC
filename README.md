@@ -9,17 +9,17 @@
 
 This library is designed to perform tensor network contractions, using partitioning of the network as parallelization strategy.
 To this end, it ships multiple methods to partition a tensor network for lowest contraction cost, for example, based on simulated annealing.
-The partitionings can then be contracted in parallel on a distributed-memory system, as common in high-performance computing.
+The partitions can then be contracted in parallel on a distributed-memory system, as common in high-performance computing.
 Local contractions on a single system are also possible.
 
 *Some key features:*
 - Contraction of arbitrary tensor networks
+- Efficient "transpose-free" contraction using TBLIS
 - Contraction path finding using state-of-the-art methods
 - Partitioning of tensor networks with iterative refinement
 - Parallel contraction on multiple compute nodes using MPI
 - Import of quantum circuits from QASM2 code
 - Creation of tensor networks for quantum circuits to compute amplitudes or expectation values
-- Support for MKL (Intel Math Kernel Library)
 
 ## Example
 
