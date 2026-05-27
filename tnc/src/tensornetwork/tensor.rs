@@ -284,6 +284,21 @@ impl Tensor {
             && matches!(*self.tensor_data(), TensorData::Uncontracted)
     }
 
+    /// Consumes the `Tensor` and returns its `TensorData`.
+    ///
+    /// # Examples
+    /// ```
+    /// # use tnc::tensornetwork::tensor::Tensor;
+    /// # use tnc::tensornetwork::tensordata::TensorData;
+    /// let tensor = Tensor::new_from_const(vec![1, 2], 2);
+    /// let tensordata = tensor.into_tensor_data();
+    /// assert_eq!(tensordata, TensorData::Uncontracted);
+    /// ```
+    #[inline]
+    pub fn into_tensor_data(self) -> TensorData {
+        self.tensordata
+    }
+
     /// Pushes additional `tensor` into this tensor, which must be a composite tensor.
     #[inline]
     pub fn push_tensor(&mut self, tensor: Self) {

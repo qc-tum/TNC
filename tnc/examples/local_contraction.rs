@@ -13,16 +13,14 @@ use tnc::{
 fn main() {
     // The QASM code prepares a GHZ state
     let code = "\
-OPENQASM 2.0;
-include \"qelib1.inc\";
-qreg q[2];
-creg c[1];
-u2(0,0) q[0];
-u2(-pi,-pi) q[1];
-cx q[0],q[1];
-u2(-pi,-pi) q[0];
-";
-    // let code = include_str!("/work/ga87com/MQTBench_2025-04-10-21-41-01/dj_indep_qiskit_10.qasm");
+    OPENQASM 2.0;
+    include \"qelib1.inc\";
+
+    qreg q[3];
+    h q[0];
+    cx q[0], q[1];
+    cx q[1], q[2];
+    ";
 
     // Create a Circuit instance out of the code
     let circuit = import_qasm(code);
@@ -44,14 +42,9 @@ u2(-pi,-pi) q[0];
     // Apply the permutator to make sure the data is in the expected order
     let statevector = permutator.apply(final_tensor);
 
-    // Get the data vector. Don't worry, the clone does not clone the data itself.
-    let data = statevector.tensor_data().clone().into_data();
+    // Get the actual data
+    let data = statevector.into_tensor_data().into_data();
 
     // Print the data
-    // println!("Resulting statevector is: {:?}", data.flatten());
-    for (i, amp) in data.flatten().iter().enumerate() {
-        if amp.norm() > 1e-6 {
-            println!("|{:02b}>: {:.4}", i, amp.norm_sqr());
-        }
-    }
+    println!("Resulting statevector is: {:?}", data.flatten());
 }

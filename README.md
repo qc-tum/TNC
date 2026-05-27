@@ -65,8 +65,8 @@ cx q[1], q[2];
     // Apply the permutator to make sure the data is in the expected order
     let statevector = permutator.apply(final_tensor);
 
-    // Get the data vector. Don't worry, the clone does not clone the data itself.
-    let data = statevector.tensor_data().clone().into_data();
+    // Get the actual data.
+    let data = statevector.into_tensor_data().into_data();
 
     // Print the data
     println!("Resulting statevector is: {:?}", data);
