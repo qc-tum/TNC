@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use float_cmp::approx_eq;
+use approx::abs_diff_eq;
 
 /// Struct to store contraction candidate information when searching for optimal
 /// contraction path.
@@ -14,8 +14,8 @@ pub(crate) struct Candidate {
 
 impl PartialEq for Candidate {
     fn eq(&self, other: &Self) -> bool {
-        approx_eq!(f64, self.flop_cost, other.flop_cost)
-            && approx_eq!(f64, self.size_cost, other.size_cost)
+        abs_diff_eq!(&self.flop_cost, &other.flop_cost)
+            && abs_diff_eq!(&self.size_cost, &other.size_cost)
             && self.parent_ids == other.parent_ids
             && self.child_id == other.child_id
     }

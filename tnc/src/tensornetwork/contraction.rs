@@ -1,10 +1,14 @@
 //! Functionality to contract tensor networks.
 use log::debug;
-use tetra::contract;
+use ndarray::Axis;
+use tblis::{tensor_mult, TensorView};
 
 use crate::{
     contractionpath::ContractionPath,
-    tensornetwork::{tensor::Tensor, tensordata::TensorData},
+    tensornetwork::{
+        tensor::Tensor,
+        tensordata::{DataTensor, TensorData},
+    },
 };
 
 /// Fully contracts `tn` based on the given `contract_path` using ReplaceLeft format.
@@ -75,7 +79,7 @@ impl TensorContraction for Tensor {
             ..
         } = tensor_b;
 
-        let result = contract(
+        let result = contract_ndarrays(
             &tensor_symmetric_difference.legs,
             &a_legs,
             a_data.into_data(),
@@ -88,11 +92,41 @@ impl TensorContraction for Tensor {
     }
 }
 
+fn contract_ndarrays(
+    out_labels: &[usize],
+    a_labels: &[usize],
+    a_data: DataTensor,
+    b_labels: &[usize],
+    b_data: DataTensor,
+) -> DataTensor {
+    assert_eq!(a_labels.len(), a_data.ndim());
+    assert_eq!(b_labels.len(), b_data.ndim());
+
+    // Find output shape
+    let mut out_shape = Vec::with_capacity(out_labels.len());
+    for label in out_labels {
+        if let Some(a_index) = a_labels.iter().position(|l| l == label) {
+            out_shape.push(a_data.len_of(Axis(a_index)));
+        } else if let Some(b_index) = b_labels.iter().position(|l| l == label) {
+            out_shape.push(b_data.len_of(Axis(b_index)));
+        } else {
+            panic!("Out label {label} not found in input a ({a_labels:?}) or b ({b_labels:?})");
+        }
+    }
+
+    // Contract with TBLIS
+    let a_view = TensorView::new(a_labels, a_data.shape(), a_data.strides(), a_data.as_ptr());
+    let b_view = TensorView::new(b_labels, b_data.shape(), b_data.strides(), b_data.as_ptr());
+    let out_data = tensor_mult(out_labels, &out_shape, a_view, b_view);
+
+    DataTensor::from_shape_vec(out_shape, out_data).unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use float_cmp::assert_approx_eq;
+    use approx::assert_abs_diff_eq;
     use num_complex::Complex64;
     use rustc_hash::FxHashMap;
     use serde::Deserialize;
@@ -149,12 +183,12 @@ mod tests {
         let mut tn_12 = Tensor::new_composite(vec![t1.clone(), t2.clone(), t3.clone()]);
 
         tn_12.contract_tensors(0, 1);
-        assert_approx_eq!(&Tensor, tn_12.tensor(0), &t12, epsilon = 1e-14);
+        assert_abs_diff_eq!(tn_12.tensor(0), &t12, epsilon = 1e-14);
 
         let mut tn_23 = Tensor::new_composite(vec![t1, t2, t3]);
 
         tn_23.contract_tensors(1, 2);
-        assert_approx_eq!(&Tensor, tn_23.tensor(1), &t23, epsilon = 1e-14);
+        assert_abs_diff_eq!(tn_23.tensor(1), &t23, epsilon = 1e-14);
     }
 
     #[test]
@@ -184,7 +218,7 @@ mod tests {
         let contract_path = path![(0, 1), (0, 2)];
 
         let result = contract_tensor_network(tn, &contract_path);
-        assert_approx_eq!(&Tensor, &result, &tout, epsilon = 1e-14);
+        assert_abs_diff_eq!(result, &tout, epsilon = 1e-14);
     }
 
     #[test]
@@ -221,7 +255,7 @@ mod tests {
         ));
 
         let result = contract_tensor_network(t3, &contract_path);
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_abs_diff_eq!(result, &tn_ref);
     }
 
     #[test]
@@ -253,6 +287,6 @@ mod tests {
         ));
 
         let result = contract_tensor_network(tn, &contract_path);
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_abs_diff_eq!(result, &tn_ref);
     }
 }

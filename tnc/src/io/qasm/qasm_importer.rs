@@ -43,7 +43,7 @@ mod tests {
 
     use std::f64::consts::FRAC_1_SQRT_2;
 
-    use float_cmp::assert_approx_eq;
+    use approx::assert_abs_diff_eq;
     use num_complex::Complex64;
 
     use crate::{
@@ -189,7 +189,7 @@ mod tests {
                 Complex64::new(FRAC_1_SQRT_2, 0.),
             ],
         );
-        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+        assert_abs_diff_eq!(&resulting_state, &expected);
     }
 
     #[test]
@@ -218,7 +218,7 @@ mod tests {
                 Complex64::ZERO,
             ],
         );
-        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+        assert_abs_diff_eq!(&resulting_state, &expected);
     }
 
     fn odd_test_circuit() -> Circuit {
@@ -253,7 +253,7 @@ mod tests {
                 Complex64::new(0.0, -0.24340376901515096),
             ],
         );
-        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+        assert_abs_diff_eq!(&resulting_state, &expected);
     }
 
     #[test]
@@ -270,7 +270,7 @@ mod tests {
                 Complex64::new(-0.03678688170631573, 0.0),
             ],
         );
-        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+        assert_abs_diff_eq!(&resulting_state, &expected);
     }
 
     #[test]
@@ -289,7 +289,7 @@ mod tests {
                 Complex64::new(0.0, -0.24340376901515096),
             ],
         );
-        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+        assert_abs_diff_eq!(&resulting_state, &expected);
     }
 
     #[test]
@@ -317,6 +317,6 @@ mod tests {
                 Complex64::new(FRAC_1_SQRT_2, 0.0),
             ],
         );
-        assert_approx_eq!(&TensorData, &resulting_state, &expected);
+        assert_abs_diff_eq!(&resulting_state, &expected);
     }
 }

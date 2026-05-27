@@ -6,9 +6,12 @@ use itertools::Itertools;
 use num_complex::Complex64;
 use permutation::Permutation;
 
-use crate::tensornetwork::{
-    tensor::{EdgeIndex, Tensor},
-    tensordata::TensorData,
+use crate::{
+    tensornetwork::{
+        tensor::{EdgeIndex, Tensor},
+        tensordata::TensorData,
+    },
+    utils::traits::PermutationToVec,
 };
 
 /// A quantum register, i.e., an array of qubits. Similar to the Qiskit / QASM
@@ -103,7 +106,7 @@ impl Permutor {
         // Permute legs, shape and data
         perm.apply_slice_in_place(&mut legs);
         perm.apply_slice_in_place(&mut bond_dims);
-        data = data.transpose(&perm);
+        data = data.permuted_axes(perm.to_vec());
 
         Tensor {
             tensors: vec![],
@@ -341,7 +344,7 @@ mod tests {
 
     use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_3, FRAC_PI_4};
 
-    use float_cmp::assert_approx_eq;
+    use approx::assert_abs_diff_eq;
     use num_complex::Complex64;
 
     use crate::{
@@ -392,7 +395,7 @@ mod tests {
             vec![Complex64::new(FRAC_1_SQRT_2.powi(qubits as i32), 0.0)],
         ));
 
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_abs_diff_eq!(&result, &tn_ref);
     }
 
     #[test]
@@ -422,7 +425,7 @@ mod tests {
             vec![Complex64::new(FRAC_1_SQRT_2 * 0.5, 0.0)],
         ));
 
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_abs_diff_eq!(&result, &tn_ref);
     }
 
     #[test]
@@ -460,6 +463,25 @@ mod tests {
             &[2],
             vec![Complex64::new(1.0, 0.0), Complex64::new(3.0, 0.0)],
         ));
-        assert_approx_eq!(&Tensor, &result, &tn_ref);
+        assert_abs_diff_eq!(&result, &tn_ref);
+    }
+
+    #[test]
+    fn permute() {
+        let mut tensor = Tensor::new_from_const(vec![0, 1, 2], 2);
+        let data = (0..8).map(|i| Complex64::new(i as f64, 0.0)).collect();
+        tensor.set_tensor_data(TensorData::new_from_data(&[2, 2, 2], data));
+
+        let permutor = Permutor::new(vec![2, 0, 1]);
+        let permuted = permutor.apply(tensor);
+
+        let ref_data = [0, 2, 4, 6, 1, 3, 5, 7]
+            .into_iter()
+            .map(|i| Complex64::new(i as f64, 0.0))
+            .collect();
+        let mut expected = Tensor::new_from_const(vec![2, 0, 1], 2);
+        expected.set_tensor_data(TensorData::new_from_data(&[2, 2, 2], ref_data));
+
+        assert_abs_diff_eq!(&permuted, &expected);
     }
 }

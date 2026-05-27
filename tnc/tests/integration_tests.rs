@@ -1,4 +1,4 @@
-use float_cmp::assert_approx_eq;
+use approx::assert_abs_diff_eq;
 use mpi::traits::Communicator;
 use mpi_test::mpi_test;
 use rand::{rngs::StdRng, SeedableRng};
@@ -14,8 +14,6 @@ use tnc::{
     tensornetwork::{
         contraction::contract_tensor_network,
         partitioning::{find_partitioning, partition_tensor_network, PartitioningStrategy},
-        tensor::Tensor,
-        tensordata::TensorData,
     },
 };
 
@@ -37,7 +35,7 @@ fn test_partitioned_contraction_random() {
     opt.find_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
-    assert_approx_eq!(&Tensor, &ref_result, &result);
+    assert_abs_diff_eq!(&result, &ref_result);
 }
 
 #[test]
@@ -58,7 +56,7 @@ fn test_partitioned_contraction() {
     opt.find_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
-    assert_approx_eq!(&Tensor, &ref_result, &result);
+    assert_abs_diff_eq!(&result, &ref_result);
 }
 
 #[test]
@@ -79,7 +77,7 @@ fn test_partitioned_contraction_mixed() {
     opt.find_path();
     let path = opt.get_best_replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
-    assert_approx_eq!(&Tensor, &ref_result, &result);
+    assert_abs_diff_eq!(&result, &ref_result);
 }
 
 #[mpi_test(2)]
@@ -159,6 +157,6 @@ fn test_partitioned_contraction_need_mpi() {
 
         let ref_tn = contract_tensor_network(ref_tn, &ref_path);
 
-        assert_approx_eq!(&TensorData, local_tn.tensor_data(), ref_tn.tensor_data());
+        assert_abs_diff_eq!(&local_tn.tensor_data(), &ref_tn.tensor_data());
     }
 }

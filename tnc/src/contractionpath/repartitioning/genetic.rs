@@ -14,7 +14,7 @@ use rand::rngs::StdRng;
 use crate::{
     contractionpath::{
         communication_schemes::CommunicationScheme,
-        contraction_cost::{compute_memory_requirements, contract_size_tensors_exact},
+        contraction_cost::{compute_memory_requirements, contract_size_tensors_bytes},
         repartitioning::compute_solution,
     },
     tensornetwork::tensor::Tensor,
@@ -37,7 +37,7 @@ impl PartitioningFitness<'_> {
         let mem = compute_memory_requirements(
             partitioned_tn.tensors(),
             &path,
-            contract_size_tensors_exact,
+            contract_size_tensors_bytes,
         );
 
         // If the memory limit is exceeded, return infinity
