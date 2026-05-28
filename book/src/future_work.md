@@ -18,8 +18,8 @@ Having support for GPUs could speed up contractions tremendously.
 5. **More I/O formats**:
 Support more file formats for importing and exporting. For example, store and load tensors using the `numpy` file format, import QIR and cirq files
 6. **Replacing the C++ dependencies**:
-The installation of the library is cumbersome, particularily due to the C++ dependencies.
-If we found pure Rust replacements, the installation would be easier, build times probably faster, and we could likely support more plattforms.
+The installation of the library is cumbersome, particularly due to the C++ dependencies.
+If we found pure Rust replacements, the installation would be easier, build times probably faster, and we could likely support more platforms.
 7. **A Python interface**:
 This would enable to use the library from Python.
 8. **More tensor operations**:
