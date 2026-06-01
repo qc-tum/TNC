@@ -71,7 +71,7 @@ jobs:
     needs: build-book
     steps:
       - name: Delete previous deployments
-        uses: strumwolf/delete-deployment-environment@a4825dd9648c57da8437a4885c3fcad58beac69c # tag=v3.0.0
+        uses: strumwolf/delete-deployment-environment@035f6d27c8b8951729f4d71b2d3d6a7975139476 # tag=v4.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           environment: github-pages
