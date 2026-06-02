@@ -1,0 +1,38 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Geiger
+  given-names: Manuel
+  orcid: "https://orcid.org/0000-0003-3514-8657"
+- family-names: Huang
+  given-names: Qunsheng
+  orcid: "https://orcid.org/0000-0002-1289-6559"
+- family-names: Mendl
+  given-names: Christian B.
+  orcid: "https://orcid.org/0000-0002-6386-0230"
+doi: 10.5281/zenodo.20084457
+message: If you use this software, please cite our article in the
+  Journal of Open Source Software.
+preferred-citation:
+  authors:
+  - family-names: Geiger
+    given-names: Manuel
+    orcid: "https://orcid.org/0000-0003-3514-8657"
+  - family-names: Huang
+    given-names: Qunsheng
+    orcid: "https://orcid.org/0000-0002-1289-6559"
+  - family-names: Mendl
+    given-names: Christian B.
+    orcid: "https://orcid.org/0000-0002-6386-0230"
+  date-published: 2026-06-02
+  doi: 10.21105/joss.09598
+  issn: 2475-9066
+  issue: 122
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 9598
+  title: "TNC: Distributed Tensor Network Contractions in Rust"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.09598"
+  volume: 11
+title: "TNC: Distributed Tensor Network Contractions in Rust"

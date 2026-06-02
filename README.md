@@ -1,5 +1,6 @@
 [![check](https://github.com/qc-tum/TNC/actions/workflows/check.yml/badge.svg)](https://github.com/qc-tum/TNC/actions/workflows/check.yml)
 [![test](https://github.com/qc-tum/TNC/actions/workflows/test.yml/badge.svg)](https://github.com/qc-tum/TNC/actions/workflows/test.yml)
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.09598/status.svg)](https://doi.org/10.21105/joss.09598)
 
 [Documentation]
 [Guide]
@@ -111,6 +112,7 @@ If you want to contribute, please take a loot at the [Contribution guide](https:
 
 ## Publications
 - <i>Optimizing Tensor Network Partitioning using Simulated Annealing</i>, Geiger et al. (2025): <https://arxiv.org/abs/2507.20667>
+- <i>TNC: Distributed Tensor Network Contractions in Rust</i>, Geiger et al. (2026): <https://joss.theoj.org/papers/10.21105/joss.09598>
 
 [Examples]: https://github.com/qc-tum/TNC/tree/main/tnc/examples
 [Documentation]: https://qc-tum.github.io/TNC/doc
