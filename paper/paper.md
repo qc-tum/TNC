@@ -27,14 +27,14 @@ bibliography: paper.bib
 # Summary
 
 Since real quantum computers continue to have high error rates, classical error-free simulation of circuits is essential for verification, benchmarking, and algorithm design.
-A commonly used tool for the simulation are tensor networks, which represent a quantum circuit as network of multi-dimensional arrays that must be multiplied ("contracted") to compute the result of the circuit.
+A commonly used tool for the simulation is tensor networks, which represent a quantum circuit as network of multi-dimensional arrays that must be multiplied ("contracted") to compute the result of the circuit.
 TNC is a Rust-based library for efficiently contracting large tensor networks.
 Designed for distributed-memory environments common in high-performance computing (HPC), TNC partitions tensor networks to enable parallel contraction across multiple compute nodes.
 While optimized for quantum circuit simulation, TNC is general enough to contract arbitrary tensor networks, combining high performance with Rust's memory safety guarantees.
 
 # Statement of need
 
-With the rapid advancements in quantum computing, ever larger quantum circuits are being explored, which require more computing resources.
+With the rapid advances in quantum computing, ever larger quantum circuits are being explored, which require more computing resources.
 Real quantum hardware is often not yet available, however, has limited qubit counts, and has high error rates due to imperfect gates and noise induced by the environment.
 Hence, research on efficient classical simulation methods is crucial to bridge this gap.
 Tensor networks have been shown to be a viable tool for classical simulation, even disproving two major claims of quantum advantage, i.e., the realization of an algorithm on real quantum hardware which would be infeasible to simulate on classical hardware [@Pan2022;@Patra2024].
