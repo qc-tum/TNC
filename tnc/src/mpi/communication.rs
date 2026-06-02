@@ -7,7 +7,7 @@ use crate::contractionpath::{ContractionPath, SimplePath, SimplePathRef};
 use crate::mpi::mpi_types::{MessageBinaryBlob, RankTensorMapping};
 use crate::mpi::serialization::{deserialize, deserialize_tensor, serialize, serialize_tensor};
 use crate::tensornetwork::contraction::contract_tensor_network;
-use crate::tensornetwork::tensor::Tensor;
+use crate::tensornetwork::tensor::{CompositeTensor, LeafTensor, Tensor};
 
 /// Broadcasts a vector of `data` from `root` to all processes in `world`. For the
 /// receivers, `data` can just be an empty vector.
@@ -123,12 +123,12 @@ pub struct Communication {
 
 /// Distributes the partitioned tensor network to the various processes via MPI.
 pub fn scatter_tensor_network(
-    r_tn: &Tensor,
+    r_tn: &CompositeTensor,
     path: &ContractionPath,
     rank: Rank,
     size: Rank,
     world: &SimpleCommunicator,
-) -> (Tensor, ContractionPath, Communication) {
+) -> (CompositeTensor, ContractionPath, Communication) {
     debug!(rank, size; "Scattering tensor network");
     let root = world.process_at_rank(0);
 
@@ -181,12 +181,12 @@ pub fn scatter_tensor_network(
 
             send_tensor(tensor, target_rank, world);
         }
-        local_tn.unwrap()
+        local_tn.and_then(Tensor::into_composite).unwrap()
     } else if is_tensor_owner {
         debug!("Receiving tensor");
-        receive_tensor(0, world)
+        receive_tensor(0, world).into_composite().unwrap()
     } else {
-        Default::default()
+        CompositeTensor::default()
     };
     debug!("Scattered tensor network");
 
@@ -197,14 +197,13 @@ pub fn scatter_tensor_network(
 /// Uses the `path` as a communication blueprint to iteratively send tensors and contract them in a fan-in.
 /// Assumes that `path` is a valid contraction path.
 pub fn intermediate_reduce_tensor_network(
-    local_tn: &mut Tensor,
+    local_tensor: &mut LeafTensor,
     path: SimplePathRef,
     rank: Rank,
     world: &SimpleCommunicator,
     communication: &Communication,
 ) {
     debug!(rank, path:serde; "Reducing tensor network (intermediate)");
-    assert!(local_tn.is_leaf());
 
     let mut final_rank = 0;
     for (x, y) in path {
@@ -216,18 +215,19 @@ pub fn intermediate_reduce_tensor_network(
             debug!(sender; "Start receiving tensor");
             let received_tensor = receive_tensor(sender, world);
             debug!(sender; "Finish receiving tensor");
+            let received_tensor = received_tensor.into_leaf().unwrap();
 
             // Add local tensor and received tensor into a new tensor network
             let tensor_network =
-                Tensor::new_composite(vec![std::mem::take(local_tn), received_tensor]);
+                CompositeTensor::new(vec![std::mem::take(local_tensor), received_tensor]);
 
             // Contract tensors
             let result = contract_tensor_network(tensor_network, &ContractionPath::single(0, 1));
-            *local_tn = result;
+            *local_tensor = result;
         }
         if sender == rank {
             debug!(receiver; "Start sending tensor");
-            send_tensor(local_tn, receiver, world);
+            send_tensor(local_tensor.as_tensor(), receiver, world);
             debug!(receiver; "Finish sending tensor");
         }
     }
@@ -238,11 +238,11 @@ pub fn intermediate_reduce_tensor_network(
         if rank == 0 {
             debug!(sender = final_rank; "Receiving final tensor");
             let received_tensor = receive_tensor(final_rank, world);
-            *local_tn = received_tensor;
+            *local_tensor = received_tensor.into_leaf().unwrap();
         }
         if rank == final_rank {
             debug!(receiver = 0; "Sending final tensor");
-            send_tensor(local_tn, 0, world);
+            send_tensor(local_tensor.as_tensor(), 0, world);
         }
     }
     debug!("Reduced tensor network");

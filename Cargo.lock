@@ -1940,6 +1940,7 @@ version = "1.0.0"
 dependencies = [
  "antlr-rust",
  "approx",
+ "bytemuck",
  "cotengrust",
  "flexi_logger",
  "genetic_algorithm",

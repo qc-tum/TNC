@@ -86,15 +86,18 @@ mod tests {
     use num_complex::Complex64;
     use rustc_hash::FxHashMap;
 
-    use crate::tensornetwork::{tensor::Tensor, tensordata::TensorData};
+    use crate::tensornetwork::{
+        tensor::{CompositeTensor, LeafTensor},
+        tensordata::TensorData,
+    };
 
     #[test]
     fn test_serialize_deserialize_tensor_roundtrip() {
         let bond_dims = FxHashMap::from_iter([(1, 2), (2, 2), (3, 2), (4, 2), (5, 2)]);
-        let t2 = Tensor::new_from_map(vec![1, 2, 3], &bond_dims);
-        let t3 = Tensor::new_from_map(vec![2, 3, 4], &bond_dims);
-        let t4 = Tensor::new_from_map(vec![4, 5], &bond_dims);
-        let ta = Tensor::new_composite(vec![t2, t3, t4]);
+        let t2 = LeafTensor::new_from_map(vec![1, 2, 3], &bond_dims);
+        let t3 = LeafTensor::new_from_map(vec![2, 3, 4], &bond_dims);
+        let t4 = LeafTensor::new_from_map(vec![4, 5], &bond_dims);
+        let ta = CompositeTensor::new(vec![t2, t3, t4]).into();
         let serialized = serialize_tensor(&ta);
         let deserialized = deserialize_tensor(&serialized);
         assert_abs_diff_eq!(&ta, &deserialized);
@@ -102,10 +105,9 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize_tensor_with_data() {
-        let bond_dims = FxHashMap::from_iter([(1, 2), (2, 3)]);
         let data = (0..6).map(|x| Complex64::new(x as f64, 0.0)).collect();
-        let mut tensor = Tensor::new_from_map(vec![1, 2], &bond_dims);
-        tensor.set_tensor_data(TensorData::new_from_data(&[2, 3], data));
+        let data = TensorData::new_from_data(&[2, 3], data);
+        let tensor = LeafTensor::new_with_data(vec![1, 2], vec![2, 3], data).into();
         let serialized = serialize_tensor(&tensor);
         let deserialized = deserialize_tensor(&serialized);
         assert_abs_diff_eq!(&tensor, &deserialized);

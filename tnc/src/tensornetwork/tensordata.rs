@@ -15,10 +15,9 @@ pub type DataTensor = ArrayD<Complex64>;
 /// The data of a tensor.
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TensorData {
-    /// This is for composite tensors that have not been contracted yet, as well as
-    /// empty tensors in general.
+    /// No data.
     #[default]
-    Uncontracted,
+    None,
     /// The data is loaded from a HDF5 file.
     File((PathBuf, bool)),
     /// A quantum gate. The name must be registered in the gates module.
@@ -37,7 +36,7 @@ impl TensorData {
     /// Consumes the tensor data and returns the contained tensor.
     pub fn into_data(self) -> DataTensor {
         match self {
-            TensorData::Uncontracted => panic!("Cannot convert uncontracted tensor to data"),
+            TensorData::None => panic!("Cannot convert uncontracted tensor to data"),
             TensorData::File((filename, adjoint)) => {
                 let mut data = load_data(filename).unwrap();
                 if adjoint {
@@ -59,7 +58,7 @@ impl TensorData {
     /// Returns the adjoint of this data.
     pub fn adjoint(self) -> Self {
         match self {
-            TensorData::Uncontracted => TensorData::Uncontracted,
+            TensorData::None => TensorData::None,
             TensorData::File((filename, adjoint)) => TensorData::File((filename, !adjoint)),
             TensorData::Gate((name, params, adjoint)) => TensorData::Gate((name, params, !adjoint)),
             TensorData::Matrix(mut tensor) => {
@@ -94,7 +93,7 @@ impl AbsDiffEq for TensorData {
             (TensorData::Matrix(l0), TensorData::Matrix(r0)) => {
                 DataTensor::abs_diff_eq(l0, r0, epsilon)
             }
-            (TensorData::Uncontracted, TensorData::Uncontracted) => true,
+            (TensorData::None, TensorData::None) => true,
             _ => false,
         }
     }
