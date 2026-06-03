@@ -35,8 +35,8 @@ where
     let partitioned_tn = partition_tensor_network(tensor.clone(), partitioning);
 
     // Find contraction path
-    let mut greedy = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-    let result = greedy.find_path();
+    let mut greedy = Cotengrust::new(OptMethod::Greedy);
+    let result = greedy.find_path(&partitioned_tn);
     let path = result.replace_path();
 
     // Store the local paths (and costs)

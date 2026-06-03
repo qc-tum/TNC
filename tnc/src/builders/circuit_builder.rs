@@ -383,8 +383,8 @@ mod tests {
         let (tensor_network, permutor) = circuit.into_amplitude_network("00000");
         assert!(permutor.is_identity());
 
-        let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
-        let result = opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tensor_network);
         let path = result.replace_path();
 
         let result = contract_tensor_network(tensor_network, &path);
@@ -413,8 +413,8 @@ mod tests {
         );
         let tensor_network = circuit.into_expectation_value_network();
 
-        let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
-        let result = opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tensor_network);
         let path = result.replace_path();
 
         let result = contract_tensor_network(tensor_network, &path);

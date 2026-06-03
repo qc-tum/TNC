@@ -14,9 +14,8 @@ use crate::{
     utils::traits::HashMapInsertNew,
 };
 
-/// A struct with an [`FindPath`] implementation that explores possible pair contractions in a depth-first manner.
-pub struct BranchBound<'a> {
-    tn: &'a Tensor,
+/// A struct with an [`Pathfinder`] implementation that explores possible pair contractions in a depth-first manner.
+pub struct BranchBound {
     nbranch: Option<usize>,
     cutoff_flops_factor: f64,
     minimize: CostType,
@@ -30,15 +29,9 @@ pub struct BranchBound<'a> {
     tensor_cache: FxHashMap<usize, Tensor>,
 }
 
-impl<'a> BranchBound<'a> {
-    pub fn new(
-        tn: &'a Tensor,
-        nbranch: Option<usize>,
-        cutoff_flops_factor: f64,
-        minimize: CostType,
-    ) -> Self {
+impl BranchBound {
+    pub fn new(nbranch: Option<usize>, cutoff_flops_factor: f64, minimize: CostType) -> Self {
         Self {
-            tn,
             nbranch,
             cutoff_flops_factor,
             minimize,
@@ -118,6 +111,7 @@ impl<'a> BranchBound<'a> {
     /// the Python based `opt_einsum` implementation. Found at <https://github.com/dgasmith/opt_einsum>.
     fn branch_iterate(
         &mut self,
+        tensor: &Tensor,
         path: &[(usize, usize, usize)],
         remaining: &[usize],
         flops: f64,
@@ -129,14 +123,14 @@ impl<'a> BranchBound<'a> {
                     if self.best_flops > flops {
                         self.best_flops = flops;
                         self.best_size = size;
-                        self.best_path = ssa_ordering(path, self.tn.tensors().len());
+                        self.best_path = ssa_ordering(path, tensor.tensors().len());
                     }
                 }
                 CostType::Size => {
                     if self.best_size > size {
                         self.best_flops = flops;
                         self.best_size = size;
-                        self.best_path = ssa_ordering(path, self.tn.tensors().len());
+                        self.best_path = ssa_ordering(path, tensor.tensors().len());
                     }
                 }
             }
@@ -169,19 +163,19 @@ impl<'a> BranchBound<'a> {
             new_remaining.push(child_id);
             new_path = path.to_vec();
             new_path.push((parent_ids.0, parent_ids.1, child_id));
-            self.branch_iterate(&new_path, &new_remaining, flop_cost, size_cost);
+            self.branch_iterate(tensor, &new_path, &new_remaining, flop_cost, size_cost);
         }
     }
 }
 
-impl Pathfinder for BranchBound<'_> {
+impl Pathfinder for BranchBound {
     type Result = BasicContractionPathResult;
 
-    fn find_path(&mut self) -> BasicContractionPathResult {
-        if self.tn.is_leaf() {
+    fn find_path(&mut self, tensor: &Tensor) -> BasicContractionPathResult {
+        if tensor.is_leaf() {
             return BasicContractionPathResult::default();
         }
-        let tensors = self.tn.tensors().clone();
+        let tensors = tensor.tensors().clone();
         self.flop_cache.clear();
         self.size_cache.clear();
         self.result_cache.clear();
@@ -191,13 +185,9 @@ impl Pathfinder for BranchBound<'_> {
         for (index, mut tensor) in tensors.into_iter().enumerate() {
             // Check that tensor has sub-tensors and doesn't have external legs set
             if !tensor.tensors().is_empty() && tensor.legs().is_empty() {
-                let mut bb = BranchBound::new(
-                    &tensor,
-                    self.nbranch,
-                    self.cutoff_flops_factor,
-                    self.minimize,
-                );
-                let result = bb.find_path();
+                let mut bb =
+                    BranchBound::new(self.nbranch, self.cutoff_flops_factor, self.minimize);
+                let result = bb.find_path(&tensor);
                 nested_paths.insert(index, result.ssa_path().clone());
                 tensor = tensor.external_tensor();
             }
@@ -207,8 +197,8 @@ impl Pathfinder for BranchBound<'_> {
 
             self.tensor_cache.insert_new(index, tensor);
         }
-        let remaining = (0..self.tn.tensors().len()).collect_vec();
-        self.branch_iterate(&[], &remaining, 0f64, 0f64);
+        let remaining = (0..tensor.tensors().len()).collect_vec();
+        self.branch_iterate(tensor, &[], &remaining, 0f64, 0f64);
         let best_path = ContractionPath {
             nested: nested_paths,
             toplevel: std::mem::take(&mut self.best_path).into_simple(),
@@ -269,8 +259,8 @@ mod tests {
     #[test]
     fn test_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = BranchBound::new(&tn, None, 20., CostType::Flops);
-        let result = opt.find_path();
+        let mut opt = BranchBound::new(None, 20., CostType::Flops);
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,
@@ -285,8 +275,8 @@ mod tests {
     #[test]
     fn test_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = BranchBound::new(&tn, None, 20., CostType::Flops);
-        let result = opt.find_path();
+        let mut opt = BranchBound::new(None, 20., CostType::Flops);
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,

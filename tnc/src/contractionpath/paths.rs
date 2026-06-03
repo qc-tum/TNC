@@ -1,6 +1,9 @@
 //! Contraction path finders.
 
-use crate::contractionpath::{ssa_replace_ordering, ContractionPath};
+use crate::{
+    contractionpath::{ssa_replace_ordering, ContractionPath},
+    tensornetwork::tensor::Tensor,
+};
 
 pub mod branchbound;
 pub mod cotengrust;
@@ -18,8 +21,10 @@ pub mod weighted_branchbound;
 pub trait Pathfinder {
     type Result: ContractionPathResult;
 
-    /// Finds a contraction path.
-    fn find_path(&mut self) -> Self::Result;
+    /// Finds a contraction path for the `tensor`.
+    ///
+    /// Uses `&mut self` to allow for internal state such as caching.
+    fn find_path(&mut self, tensor: &Tensor) -> Self::Result;
 }
 
 /// The result of running a contraction [`Pathfinder`].

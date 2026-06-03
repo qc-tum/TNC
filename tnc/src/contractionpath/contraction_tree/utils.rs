@@ -67,8 +67,8 @@ pub(super) fn subtree_contraction_path(
     // Obtain tensor network corresponding to subtree
     let subtree_tensor_network = Tensor::new_composite(tensors);
 
-    let mut opt = Cotengrust::new(&subtree_tensor_network, OptMethod::Greedy);
-    let result = opt.find_path();
+    let mut opt = Cotengrust::new(OptMethod::Greedy);
+    let result = opt.find_path(&subtree_tensor_network);
 
     let smaller_path_new_index = result.replace_path();
     let smaller_path_new_index = smaller_path_new_index.into_simple();

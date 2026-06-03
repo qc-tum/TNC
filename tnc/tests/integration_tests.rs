@@ -29,15 +29,15 @@ fn test_partitioned_contraction_random() {
 
     let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Eagle);
     let ref_tn = r_tn.clone();
-    let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::RandomGreedy(10));
-    let result = ref_opt.find_path();
+    let mut ref_opt = Cotengrust::new(OptMethod::RandomGreedy(10));
+    let result = ref_opt.find_path(&ref_tn);
     let ref_path = result.replace_path();
     let ref_result = contract_tensor_network(ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
     let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
-    let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::RandomGreedy(10));
-    let result = opt.find_path();
+    let mut opt = Cotengrust::new(OptMethod::RandomGreedy(10));
+    let result = opt.find_path(&partitioned_tn);
     let path = result.replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
     assert_abs_diff_eq!(&result, &ref_result);
@@ -50,15 +50,15 @@ fn test_partitioned_contraction() {
 
     let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Osprey);
     let ref_tn = r_tn.clone();
-    let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::Greedy);
-    let result = ref_opt.find_path();
+    let mut ref_opt = Cotengrust::new(OptMethod::Greedy);
+    let result = ref_opt.find_path(&ref_tn);
     let ref_path = result.replace_path();
     let ref_result = contract_tensor_network(ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
     let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
-    let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-    let result = opt.find_path();
+    let mut opt = Cotengrust::new(OptMethod::Greedy);
+    let result = opt.find_path(&partitioned_tn);
     let path = result.replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
     assert_abs_diff_eq!(&result, &ref_result);
@@ -71,15 +71,15 @@ fn test_partitioned_contraction_mixed() {
 
     let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Condor);
     let ref_tn = r_tn.clone();
-    let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::Greedy);
-    let result = ref_opt.find_path();
+    let mut ref_opt = Cotengrust::new(OptMethod::Greedy);
+    let result = ref_opt.find_path(&ref_tn);
     let ref_path = result.replace_path();
     let ref_result = contract_tensor_network(ref_tn, &ref_path);
 
     let partitioning = find_partitioning(&r_tn, 12, PartitioningStrategy::MinCut, true);
     let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
-    let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::RandomGreedy(15));
-    let result = opt.find_path();
+    let mut opt = Cotengrust::new(OptMethod::RandomGreedy(15));
+    let result = opt.find_path(&partitioned_tn);
     let path = result.replace_path();
     let result = contract_tensor_network(partitioned_tn, &path);
     assert_abs_diff_eq!(&result, &ref_result);
@@ -134,8 +134,8 @@ fn test_partitioned_contraction_need_mpi() {
         let ref_tn = r_tn.clone();
         let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
         let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
-        let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-        let result = opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&partitioned_tn);
         let path = result.replace_path();
         (ref_tn, partitioned_tn, path)
     } else {
@@ -156,8 +156,8 @@ fn test_partitioned_contraction_need_mpi() {
     intermediate_reduce_tensor_network(&mut local_tn, &communication_path, rank, &world, &comm);
 
     if rank == 0 {
-        let mut ref_opt = Cotengrust::new(&ref_tn, OptMethod::RandomGreedy(10));
-        let result = ref_opt.find_path();
+        let mut ref_opt = Cotengrust::new(OptMethod::RandomGreedy(10));
+        let result = ref_opt.find_path(&ref_tn);
         let ref_path = result.replace_path();
 
         let ref_tn = contract_tensor_network(ref_tn, &ref_path);
@@ -186,8 +186,8 @@ fn dj_4qubits_statevector() {
     let circuit = import_qasm(code);
     let (tensor_network, permutator) = circuit.into_statevector_network();
 
-    let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
-    let result = opt.find_path();
+    let mut opt = Cotengrust::new(OptMethod::Greedy);
+    let result = opt.find_path(&tensor_network);
     let path = result.replace_path();
 
     let final_tensor = contract_tensor_network(tensor_network, &path);
@@ -232,8 +232,8 @@ fn qft_2qubits_expectation() {
     let circuit = import_qasm(code);
     let tensor_network = circuit.into_expectation_value_network();
 
-    let mut opt = Cotengrust::new(&tensor_network, OptMethod::RandomGreedy(3));
-    let result = opt.find_path();
+    let mut opt = Cotengrust::new(OptMethod::RandomGreedy(3));
+    let result = opt.find_path(&tensor_network);
     let path = result.replace_path();
 
     let final_tensor = contract_tensor_network(tensor_network, &path);

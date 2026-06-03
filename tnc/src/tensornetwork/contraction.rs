@@ -26,8 +26,8 @@ use crate::{
 /// # use rand::SeedableRng;
 /// let mut r = StdRng::seed_from_u64(42);
 /// let mut r_tn = sycamore_circuit(2, 1, &mut r).into_expectation_value_network();
-/// let mut opt = Cotengrust::new(&r_tn, OptMethod::Greedy);
-/// let result = opt.find_path();
+/// let mut opt = Cotengrust::new(OptMethod::Greedy);
+/// let result = opt.find_path(&r_tn);
 /// let opt_path = result.replace_path();
 /// let result = contract_tensor_network(r_tn, &opt_path);
 /// ```

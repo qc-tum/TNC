@@ -13,42 +13,37 @@ use crate::{
 
 /// Creates an interface to `rustengra` an interface to access `Cotengra` methods in
 /// Rust. Specifically exposes `subtree_reconfigure` method.
-pub struct TreeReconfigure<'a> {
-    tensor: &'a Tensor,
+pub struct TreeReconfigure {
     subtree_size: usize,
 }
 
-impl<'a> TreeReconfigure<'a> {
+impl TreeReconfigure {
     /// Creates a new [`TreeReconfigure`] instance. `subtree_size` is the
     /// size of subtrees that is considered (increases the optimization cost
     /// exponentially!).
-    pub fn new(tensor: &'a Tensor, subtree_size: usize, minimize: CostType) -> Self {
+    pub fn new(subtree_size: usize, minimize: CostType) -> Self {
         cotengra_check().expect("Needs python and cotengra installed");
         assert_eq!(
             minimize,
             CostType::Flops,
             "Currently, only Flops is supported"
         );
-        Self {
-            tensor,
-            subtree_size,
-        }
+        Self { subtree_size }
     }
 }
 
-impl Pathfinder for TreeReconfigure<'_> {
+impl Pathfinder for TreeReconfigure {
     type Result = BasicContractionPathResult;
 
-    fn find_path(&mut self) -> BasicContractionPathResult {
+    fn find_path(&mut self, tensor: &Tensor) -> BasicContractionPathResult {
         // Map tensors to legs
-        let inputs = self
-            .tensor
+        let inputs = tensor
             .tensors()
             .iter()
             .map(|tensor| tensor.legs().clone())
             .collect_vec();
-        let outputs = self.tensor.external_tensor();
-        let size_dict = self.tensor.tensors().iter().map(Tensor::edges).fold(
+        let outputs = tensor.external_tensor();
+        let size_dict = tensor.tensors().iter().map(Tensor::edges).fold(
             FxHashMap::default(),
             |mut acc, edges| {
                 acc.extend(edges);
@@ -63,7 +58,7 @@ impl Pathfinder for TreeReconfigure<'_> {
         let best_path = ContractionPath::simple(best_path);
         let replace_path = ssa_replace_ordering(&best_path);
 
-        let (op_cost, mem_cost) = contract_path_cost(self.tensor.tensors(), &replace_path, true);
+        let (op_cost, mem_cost) = contract_path_cost(tensor.tensors(), &replace_path, true);
 
         BasicContractionPathResult {
             ssa_path: best_path,
@@ -123,8 +118,8 @@ mod tests {
     #[test]
     fn test_tree_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
-        let result = opt.find_path();
+        let mut opt = TreeReconfigure::new(8, CostType::Flops);
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,
@@ -139,8 +134,8 @@ mod tests {
     #[test]
     fn test_tree_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = TreeReconfigure::new(&tn, 8, CostType::Flops);
-        let result = opt.find_path();
+        let mut opt = TreeReconfigure::new(8, CostType::Flops);
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,

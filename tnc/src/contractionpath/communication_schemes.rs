@@ -74,8 +74,8 @@ impl CommunicationScheme {
 
 fn greedy(children_tensors: &[Tensor], _latency_map: &FxHashMap<usize, f64>) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
-    let mut opt = Cotengrust::new(&communication_tensors, OptMethod::Greedy);
-    let result = opt.find_path();
+    let mut opt = Cotengrust::new(OptMethod::Greedy);
+    let result = opt.find_path(&communication_tensors);
     result.replace_path().into_simple()
 }
 
@@ -125,14 +125,8 @@ fn weighted_branchbound(
 ) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
-    let mut opt = WeightedBranchBound::new(
-        &communication_tensors,
-        Some(10),
-        5.,
-        latency_map.clone(),
-        CostType::Flops,
-    );
-    let result = opt.find_path();
+    let mut opt = WeightedBranchBound::new(Some(10), 5., latency_map.clone(), CostType::Flops);
+    let result = opt.find_path(&communication_tensors);
     result.replace_path().into_simple()
 }
 
@@ -140,14 +134,8 @@ fn branchbound(children_tensors: &[Tensor]) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
     let latency_map = (0..children_tensors.len()).map(|i| (i, 0.0)).collect();
 
-    let mut opt = WeightedBranchBound::new(
-        &communication_tensors,
-        Some(10),
-        5.,
-        latency_map,
-        CostType::Flops,
-    );
-    let result = opt.find_path();
+    let mut opt = WeightedBranchBound::new(Some(10), 5., latency_map, CostType::Flops);
+    let result = opt.find_path(&communication_tensors);
     result.replace_path().into_simple()
 }
 
@@ -223,8 +211,8 @@ fn tensor_bipartition(children_tensor: &[(usize, Tensor)], imbalance: f64) -> Si
 fn random_greedy(children_tensors: &[Tensor]) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
-    let mut opt = Cotengrust::new(&communication_tensors, OptMethod::RandomGreedy(100));
-    let result = opt.find_path();
+    let mut opt = Cotengrust::new(OptMethod::RandomGreedy(100));
+    let result = opt.find_path(&communication_tensors);
     result.replace_path().into_simple()
 }
 

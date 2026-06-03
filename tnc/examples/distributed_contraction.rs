@@ -51,8 +51,8 @@ fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor
         let partitioned_tn = partition_tensor_network(tensor, &partitioning);
 
         // Find a contraction path for the individual partitions and the final fan-in
-        let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-        let result = opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&partitioned_tn);
         let path = result.replace_path();
 
         (partitioned_tn, path)

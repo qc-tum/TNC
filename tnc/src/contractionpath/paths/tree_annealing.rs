@@ -13,16 +13,14 @@ use crate::{
 
 /// Creates an interface to `rustengra` an interface to access `Cotengra` methods in
 /// Rust. Specifically exposes `simulated_anneal_tree` method.
-pub struct TreeAnnealing<'a> {
-    tensor: &'a Tensor,
+pub struct TreeAnnealing {
     temperature_steps: Option<usize>,
     numiter: Option<usize>,
     seed: Option<u64>,
 }
 
-impl<'a> TreeAnnealing<'a> {
+impl TreeAnnealing {
     pub fn new(
-        tensor: &'a Tensor,
         seed: Option<u64>,
         minimize: CostType,
         temperature_steps: Option<usize>,
@@ -35,7 +33,6 @@ impl<'a> TreeAnnealing<'a> {
             "Currently, only Flops is supported"
         );
         Self {
-            tensor,
             temperature_steps,
             numiter,
             seed,
@@ -43,19 +40,18 @@ impl<'a> TreeAnnealing<'a> {
     }
 }
 
-impl Pathfinder for TreeAnnealing<'_> {
+impl Pathfinder for TreeAnnealing {
     type Result = BasicContractionPathResult;
 
-    fn find_path(&mut self) -> BasicContractionPathResult {
+    fn find_path(&mut self, tensor: &Tensor) -> BasicContractionPathResult {
         // Map tensors to legs
-        let inputs = self
-            .tensor
+        let inputs = tensor
             .tensors()
             .iter()
             .map(|tensor| tensor.legs().clone())
             .collect_vec();
-        let outputs = self.tensor.external_tensor();
-        let size_dict = self.tensor.tensors().iter().map(Tensor::edges).fold(
+        let outputs = tensor.external_tensor();
+        let size_dict = tensor.tensors().iter().map(Tensor::edges).fold(
             FxHashMap::default(),
             |mut acc, edges| {
                 acc.extend(edges);
@@ -76,7 +72,7 @@ impl Pathfinder for TreeAnnealing<'_> {
         let best_path = ContractionPath::simple(best_path);
         let replace_path = ssa_replace_ordering(&best_path);
 
-        let (op_cost, mem_cost) = contract_path_cost(self.tensor.tensors(), &replace_path, true);
+        let (op_cost, mem_cost) = contract_path_cost(tensor.tensors(), &replace_path, true);
 
         BasicContractionPathResult {
             ssa_path: best_path,
@@ -136,8 +132,8 @@ mod tests {
     #[test]
     fn test_anneal_tree_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = TreeAnnealing::new(&tn, Some(8), CostType::Flops, Some(100), Some(50));
-        let result = opt.find_path();
+        let mut opt = TreeAnnealing::new(Some(8), CostType::Flops, Some(100), Some(50));
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,
@@ -152,8 +148,8 @@ mod tests {
     #[test]
     fn test_anneal_tree_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = TreeAnnealing::new(&tn, Some(8), CostType::Flops, Some(100), Some(50));
-        let result = opt.find_path();
+        let mut opt = TreeAnnealing::new(Some(8), CostType::Flops, Some(100), Some(50));
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,

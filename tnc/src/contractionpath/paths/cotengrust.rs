@@ -24,15 +24,15 @@ pub enum OptMethod {
 
 /// A contraction path finder using the `cotengrust` library.
 #[derive(Debug, Clone)]
-pub struct Cotengrust<'a> {
-    tensor: &'a Tensor,
+pub struct Cotengrust {
     opt_method: OptMethod,
 }
 
-impl<'a> Cotengrust<'a> {
+impl Cotengrust {
     /// Creates a new Cotengrust optimizer using the specified optimization method.
-    pub fn new(tensor: &'a Tensor, opt_method: OptMethod) -> Self {
-        Self { tensor, opt_method }
+    #[inline]
+    pub fn new(opt_method: OptMethod) -> Self {
+        Self { opt_method }
     }
 
     /// Finds a contraction path for a "classical" tensor network, i.e. the inputs
@@ -114,24 +114,24 @@ fn tensor_legs_to_digit(
     (new_inputs, new_output, new_size_dict)
 }
 
-impl Pathfinder for Cotengrust<'_> {
+impl Pathfinder for Cotengrust {
     type Result = BasicContractionPathResult;
 
-    fn find_path(&mut self) -> BasicContractionPathResult {
+    fn find_path(&mut self, tensor: &Tensor) -> BasicContractionPathResult {
         // Handle nested tensors first
         let mut nested_paths = FxHashMap::default();
-        let mut inputs = self.tensor.tensors().clone();
+        let mut inputs = tensor.tensors().clone();
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.is_composite() {
-                let mut ct = Cotengrust::new(input_tensor, self.opt_method);
-                let result = ct.find_path();
+                let mut ct = Cotengrust::new(self.opt_method);
+                let result = ct.find_path(input_tensor);
                 nested_paths.insert(index, result.ssa_path().clone());
                 *input_tensor = input_tensor.external_tensor();
             }
         }
 
         // Now handle the outer tensor
-        let external_tensor = self.tensor.external_tensor();
+        let external_tensor = tensor.external_tensor();
         let outer_path = self.optimize_single(&inputs, &external_tensor);
         let best_path = ContractionPath {
             nested: nested_paths,
@@ -140,7 +140,7 @@ impl Pathfinder for Cotengrust<'_> {
         let replace_path = ssa_replace_ordering(&best_path);
 
         // Compute the cost
-        let (op_cost, mem_cost) = contract_path_cost(self.tensor.tensors(), &replace_path, true);
+        let (op_cost, mem_cost) = contract_path_cost(tensor.tensors(), &replace_path, true);
         BasicContractionPathResult {
             ssa_path: best_path,
             flops: op_cost,
@@ -223,8 +223,8 @@ mod tests {
     #[test]
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
-        let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        let result = opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,
@@ -239,8 +239,8 @@ mod tests {
     #[test]
     fn test_contract_order_greedy_simple_inner() {
         let tn = setup_simple_inner_product();
-        let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        let result = opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,
@@ -255,8 +255,8 @@ mod tests {
     #[test]
     fn test_contract_order_greedy_simple_outer() {
         let tn = setup_simple_outer_product();
-        let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        let result = opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,
@@ -271,8 +271,8 @@ mod tests {
     #[test]
     fn test_contract_order_greedy_complex_outer() {
         let tn = setup_complex_outer_product();
-        let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        let result = opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,
@@ -287,8 +287,8 @@ mod tests {
     #[test]
     fn test_contract_order_greedy_complex() {
         let tn = setup_complex();
-        let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        let result = opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,

@@ -322,13 +322,13 @@ impl OptModel for NaiveIntermediatePartitioningModel<'_> {
             }
         }
 
-        let mut from_opt = Cotengrust::new(&from_tensor, OptMethod::Greedy);
-        let result = from_opt.find_path();
+        let mut from_opt = Cotengrust::new(OptMethod::Greedy);
+        let result = from_opt.find_path(&from_tensor);
         let from_path = result.replace_path();
         contraction_paths[source_partition] = from_path.into_simple();
 
-        let mut to_opt = Cotengrust::new(&to_tensor, OptMethod::Greedy);
-        let result = to_opt.find_path();
+        let mut to_opt = Cotengrust::new(OptMethod::Greedy);
+        let result = to_opt.find_path(&to_tensor);
         let to_path = result.replace_path();
         contraction_paths[target_partition] = to_path.into_simple();
 
@@ -431,8 +431,8 @@ impl IntermediatePartitioningModel<'_> {
                 .iter()
                 .map(|t| {
                     // Find path for this partition
-                    let mut opt = Cotengrust::new(t, OptMethod::Greedy);
-                    let result = opt.find_path();
+                    let mut opt = Cotengrust::new(OptMethod::Greedy);
+                    let result = opt.find_path(t);
                     let path = result.replace_path();
                     path.into_simple()
                 })
@@ -545,13 +545,13 @@ impl OptModel for IntermediatePartitioningModel<'_> {
             }
         }
 
-        let mut from_opt = Cotengrust::new(&from_tensor, OptMethod::Greedy);
-        let result = from_opt.find_path();
+        let mut from_opt = Cotengrust::new(OptMethod::Greedy);
+        let result = from_opt.find_path(&from_tensor);
         let from_path = result.replace_path();
         contraction_paths[source_partition] = from_path.into_simple();
 
-        let mut to_opt = Cotengrust::new(&to_tensor, OptMethod::Greedy);
-        let result = to_opt.find_path();
+        let mut to_opt = Cotengrust::new(OptMethod::Greedy);
+        let result = to_opt.find_path(&to_tensor);
         let to_path = result.replace_path();
         contraction_paths[target_partition] = to_path.into_simple();
 

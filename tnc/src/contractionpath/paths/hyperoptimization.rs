@@ -15,41 +15,36 @@ pub use rustengra::hyper::HyperOptions;
 
 /// Creates an interface to access `Cotengra` methods in Rust. Specifically exposes
 /// `search` method of `HyperOptimizer`.
-pub struct Hyperoptimizer<'a> {
-    tensor: &'a Tensor,
+pub struct Hyperoptimizer {
     hyper_options: HyperOptions,
 }
 
-impl<'a> Hyperoptimizer<'a> {
-    pub fn new(tensor: &'a Tensor, minimize: CostType, hyper_options: HyperOptions) -> Self {
+impl Hyperoptimizer {
+    #[inline]
+    pub fn new(minimize: CostType, hyper_options: HyperOptions) -> Self {
         assert_eq!(
             minimize,
             CostType::Flops,
             "Currently, only Flops is supported"
         );
-        Self {
-            tensor,
-            hyper_options,
-        }
+        Self { hyper_options }
     }
 }
 
-impl Pathfinder for Hyperoptimizer<'_> {
+impl Pathfinder for Hyperoptimizer {
     type Result = BasicContractionPathResult;
 
-    fn find_path(&mut self) -> BasicContractionPathResult {
+    fn find_path(&mut self, tensor: &Tensor) -> BasicContractionPathResult {
         // Handle nested tensors first
         let mut nested_paths = FxHashMap::default();
-        let inputs = self
-            .tensor
+        let inputs = tensor
             .tensors()
             .iter()
             .enumerate()
             .map(|(index, tensor)| {
                 if tensor.is_composite() {
-                    let mut hp =
-                        Hyperoptimizer::new(tensor, CostType::Flops, self.hyper_options.clone());
-                    let result = hp.find_path();
+                    let mut hp = Hyperoptimizer::new(CostType::Flops, self.hyper_options.clone());
+                    let result = hp.find_path(tensor);
                     nested_paths.insert(index, result.ssa_path().clone());
                     tensor.external_tensor().legs
                 } else {
@@ -58,8 +53,8 @@ impl Pathfinder for Hyperoptimizer<'_> {
             })
             .collect_vec();
 
-        let outputs = self.tensor.external_tensor();
-        let size_dict = self.tensor.tensors().iter().map(Tensor::edges).fold(
+        let outputs = tensor.external_tensor();
+        let size_dict = tensor.tensors().iter().map(Tensor::edges).fold(
             FxHashMap::default(),
             |mut acc, edges| {
                 acc.extend(edges);
@@ -82,7 +77,7 @@ impl Pathfinder for Hyperoptimizer<'_> {
         };
         let replace_path = ssa_replace_ordering(&best_path);
 
-        let (op_cost, mem_cost) = contract_path_cost(self.tensor.tensors(), &&replace_path, true);
+        let (op_cost, mem_cost) = contract_path_cost(tensor.tensors(), &&replace_path, true);
 
         BasicContractionPathResult {
             ssa_path: best_path,
@@ -143,13 +138,12 @@ mod tests {
     fn test_hyper_tree_contract_order_simple() {
         let tn = setup_simple();
         let mut opt = Hyperoptimizer::new(
-            &tn,
             CostType::Flops,
             HyperOptions::new()
                 .with_max_repeats(16)
                 .with_parallel(false),
         );
-        let result = opt.find_path();
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,
@@ -165,13 +159,12 @@ mod tests {
     fn test_hyper_tree_contract_order_complex() {
         let tn = setup_complex();
         let mut opt = Hyperoptimizer::new(
-            &tn,
             CostType::Flops,
             HyperOptions::new()
                 .with_max_repeats(32)
                 .with_parallel(false),
         );
-        let result = opt.find_path();
+        let result = opt.find_path(&tn);
 
         assert_eq!(
             result,
