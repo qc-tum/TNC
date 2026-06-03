@@ -43,8 +43,7 @@ impl Pathfinder for Hyperoptimizer {
             .enumerate()
             .map(|(index, tensor)| {
                 if tensor.is_composite() {
-                    let mut hp = Hyperoptimizer::new(CostType::Flops, self.hyper_options.clone());
-                    let result = hp.find_path(tensor);
+                    let result = self.find_path(tensor);
                     nested_paths.insert(index, result.ssa_path().clone());
                     tensor.external_tensor().legs
                 } else {

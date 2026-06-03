@@ -123,8 +123,7 @@ impl Pathfinder for Cotengrust {
         let mut inputs = tensor.tensors().clone();
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.is_composite() {
-                let mut ct = Cotengrust::new(self.opt_method);
-                let result = ct.find_path(input_tensor);
+                let result = self.find_path(input_tensor);
                 nested_paths.insert(index, result.ssa_path().clone());
                 *input_tensor = input_tensor.external_tensor();
             }
