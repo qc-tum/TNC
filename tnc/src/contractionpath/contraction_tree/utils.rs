@@ -7,7 +7,7 @@ use crate::{
         contraction_tree::{balancing::PartitionData, ContractionTree},
         paths::{
             cotengrust::{Cotengrust, OptMethod},
-            FindPath,
+            ContractionPathResult, Pathfinder,
         },
         ContractionPath, SimplePath,
     },
@@ -68,9 +68,9 @@ pub(super) fn subtree_contraction_path(
     let subtree_tensor_network = Tensor::new_composite(tensors);
 
     let mut opt = Cotengrust::new(&subtree_tensor_network, OptMethod::Greedy);
-    opt.find_path();
+    let result = opt.find_path();
 
-    let smaller_path_new_index = opt.get_best_replace_path();
+    let smaller_path_new_index = result.replace_path();
     let smaller_path_new_index = smaller_path_new_index.into_simple();
 
     let smaller_path_node_index = smaller_path_new_index
@@ -81,8 +81,8 @@ pub(super) fn subtree_contraction_path(
     (
         smaller_path_node_index,
         smaller_path_new_index,
-        opt.get_best_flops(),
-        opt.get_best_size(),
+        result.flops(),
+        result.size(),
     )
 }
 

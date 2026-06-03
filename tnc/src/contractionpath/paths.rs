@@ -1,6 +1,6 @@
 //! Contraction path finders.
 
-use crate::contractionpath::ContractionPath;
+use crate::contractionpath::{ssa_replace_ordering, ContractionPath};
 
 pub mod branchbound;
 pub mod cotengrust;
@@ -15,21 +15,59 @@ pub mod tree_tempering;
 pub mod weighted_branchbound;
 
 /// An optimizer for finding a contraction path.
-pub trait FindPath {
-    /// Finds a contraction path.
-    fn find_path(&mut self);
+pub trait Pathfinder {
+    type Result: ContractionPathResult;
 
+    /// Finds a contraction path.
+    fn find_path(&mut self) -> Self::Result;
+}
+
+/// The result of running a contraction [`Pathfinder`].
+pub trait ContractionPathResult {
     /// Returns the best found contraction path in SSA format.
-    fn get_best_path(&self) -> &ContractionPath;
+    fn ssa_path(&self) -> &ContractionPath;
 
     /// Returns the best found contraction path in ReplaceLeft format.
-    fn get_best_replace_path(&self) -> ContractionPath;
+    fn replace_path(&self) -> ContractionPath;
 
     /// Returns the total op count of the best path found.
-    fn get_best_flops(&self) -> f64;
+    fn flops(&self) -> f64;
 
     /// Returns the max memory (in number of elements) of the best path found.
-    fn get_best_size(&self) -> f64;
+    fn size(&self) -> f64;
+}
+
+/// Basic result data from running a contraction [`Pathfinder`].
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct BasicContractionPathResult {
+    /// The found path in SSA format.
+    ssa_path: ContractionPath,
+    /// The computational cost of the found path.
+    flops: f64,
+    /// The peak memory of the found path.
+    size: f64,
+}
+
+impl ContractionPathResult for BasicContractionPathResult {
+    #[inline]
+    fn ssa_path(&self) -> &ContractionPath {
+        &self.ssa_path
+    }
+
+    #[inline]
+    fn replace_path(&self) -> ContractionPath {
+        ssa_replace_ordering(&self.ssa_path)
+    }
+
+    #[inline]
+    fn flops(&self) -> f64 {
+        self.flops
+    }
+
+    #[inline]
+    fn size(&self) -> f64 {
+        self.size
+    }
 }
 
 /// The cost metric to optimize for.

@@ -350,7 +350,7 @@ mod tests {
     use crate::{
         contractionpath::paths::{
             cotengrust::{Cotengrust, OptMethod},
-            FindPath,
+            ContractionPathResult, Pathfinder,
         },
         path,
         tensornetwork::{
@@ -384,8 +384,8 @@ mod tests {
         assert!(permutor.is_identity());
 
         let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
-        opt.find_path();
-        let path = opt.get_best_replace_path();
+        let result = opt.find_path();
+        let path = result.replace_path();
 
         let result = contract_tensor_network(tensor_network, &path);
 
@@ -414,8 +414,8 @@ mod tests {
         let tensor_network = circuit.into_expectation_value_network();
 
         let mut opt = Cotengrust::new(&tensor_network, OptMethod::Greedy);
-        opt.find_path();
-        let path = opt.get_best_replace_path();
+        let result = opt.find_path();
+        let path = result.replace_path();
 
         let result = contract_tensor_network(tensor_network, &path);
 

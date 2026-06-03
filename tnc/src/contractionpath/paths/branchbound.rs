@@ -7,8 +7,8 @@ use crate::{
     contractionpath::{
         candidates::Candidate,
         contraction_cost::{contract_cost_tensors, contract_size_tensors},
-        paths::{CostType, FindPath},
-        ssa_ordering, ssa_replace_ordering, ContractionPath,
+        paths::{BasicContractionPathResult, ContractionPathResult, CostType, Pathfinder},
+        ssa_ordering, ContractionPath,
     },
     tensornetwork::tensor::Tensor,
     utils::traits::HashMapInsertNew,
@@ -174,10 +174,12 @@ impl<'a> BranchBound<'a> {
     }
 }
 
-impl FindPath for BranchBound<'_> {
-    fn find_path(&mut self) {
+impl Pathfinder for BranchBound<'_> {
+    type Result = BasicContractionPathResult;
+
+    fn find_path(&mut self) -> BasicContractionPathResult {
         if self.tn.is_leaf() {
-            return;
+            return BasicContractionPathResult::default();
         }
         let tensors = self.tn.tensors().clone();
         self.flop_cache.clear();
@@ -195,8 +197,8 @@ impl FindPath for BranchBound<'_> {
                     self.cutoff_flops_factor,
                     self.minimize,
                 );
-                bb.find_path();
-                nested_paths.insert(index, bb.get_best_path().clone());
+                let result = bb.find_path();
+                nested_paths.insert(index, result.ssa_path().clone());
                 tensor = tensor.external_tensor();
             }
             self.size_cache
@@ -207,26 +209,15 @@ impl FindPath for BranchBound<'_> {
         }
         let remaining = (0..self.tn.tensors().len()).collect_vec();
         self.branch_iterate(&[], &remaining, 0f64, 0f64);
-        self.best_path = ContractionPath {
+        let best_path = ContractionPath {
             nested: nested_paths,
             toplevel: std::mem::take(&mut self.best_path).into_simple(),
         };
-    }
-
-    fn get_best_flops(&self) -> f64 {
-        self.best_flops
-    }
-
-    fn get_best_size(&self) -> f64 {
-        self.best_size
-    }
-
-    fn get_best_path(&self) -> &ContractionPath {
-        &self.best_path
-    }
-
-    fn get_best_replace_path(&self) -> ContractionPath {
-        ssa_replace_ordering(&self.best_path)
+        BasicContractionPathResult {
+            ssa_path: best_path,
+            flops: self.best_flops,
+            size: self.best_size,
+        }
     }
 }
 
@@ -236,7 +227,7 @@ mod tests {
 
     use rustc_hash::FxHashMap;
 
-    use crate::contractionpath::paths::{CostType, FindPath};
+    use crate::contractionpath::paths::{CostType, Pathfinder};
     use crate::path;
     use crate::tensornetwork::tensor::Tensor;
 
@@ -279,26 +270,31 @@ mod tests {
     fn test_contract_order_simple() {
         let tn = setup_simple();
         let mut opt = BranchBound::new(&tn, None, 20., CostType::Flops);
-        opt.find_path();
+        let result = opt.find_path();
 
-        assert_eq!(opt.best_flops, 4540.);
-        assert_eq!(opt.best_size, 538.);
-        assert_eq!(opt.get_best_path(), &path![(1, 0), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), path![(1, 0), (2, 1)]);
+        assert_eq!(
+            result,
+            BasicContractionPathResult {
+                ssa_path: path![(1, 0), (2, 3)],
+                flops: 4540.,
+                size: 538.
+            }
+        );
     }
 
     #[test]
     fn test_contract_order_complex() {
         let tn = setup_complex();
         let mut opt = BranchBound::new(&tn, None, 20., CostType::Flops);
-        opt.find_path();
+        let result = opt.find_path();
 
-        assert_eq!(opt.best_flops, 2654474.);
-        assert_eq!(opt.best_size, 89478.);
-        assert_eq!(opt.best_path, path![(1, 5), (0, 6), (2, 7), (3, 8), (4, 9)]);
         assert_eq!(
-            opt.get_best_replace_path(),
-            path![(1, 5), (0, 1), (2, 0), (3, 2), (4, 3)]
+            result,
+            BasicContractionPathResult {
+                ssa_path: path![(1, 5), (0, 6), (2, 7), (3, 8), (4, 9)],
+                flops: 2654474.,
+                size: 89478.
+            }
         );
     }
 }
