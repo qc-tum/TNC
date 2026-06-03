@@ -7,16 +7,15 @@ use crate::{
     contractionpath::{
         candidates::Candidate,
         contraction_cost::{contract_op_cost_tensors, contract_size_tensors},
-        paths::{CostType, FindPath},
-        ssa_ordering, ssa_replace_ordering, ContractionPath,
+        paths::{BasicContractionPathResult, ContractionPathResult, CostType, Pathfinder},
+        ssa_ordering, ContractionPath,
     },
     tensornetwork::tensor::Tensor,
     utils::traits::HashMapInsertNew,
 };
 
-/// A struct with an [`FindPath`] implementation that explores possible pair contractions in a depth-first manner.
-pub struct WeightedBranchBound<'a> {
-    tn: &'a Tensor,
+/// A struct with an [`Pathfinder`] implementation that explores possible pair contractions in a depth-first manner.
+pub struct WeightedBranchBound {
     nbranch: Option<usize>,
     cutoff_flops_factor: f64,
     minimize: CostType,
@@ -30,16 +29,14 @@ pub struct WeightedBranchBound<'a> {
     tensor_cache: FxHashMap<usize, Tensor>,
 }
 
-impl<'a> WeightedBranchBound<'a> {
+impl WeightedBranchBound {
     pub fn new(
-        tn: &'a Tensor,
         nbranch: Option<usize>,
         cutoff_flops_factor: f64,
         latency_map: FxHashMap<usize, f64>,
         minimize: CostType,
     ) -> Self {
         Self {
-            tn,
             nbranch,
             cutoff_flops_factor,
             minimize,
@@ -111,6 +108,7 @@ impl<'a> WeightedBranchBound<'a> {
     /// the Python based `opt_einsum` implementation. Found at <https://github.com/dgasmith/opt_einsum>.
     fn branch_iterate(
         &mut self,
+        tensor: &Tensor,
         path: &[(usize, usize, usize)],
         remaining: &[usize],
         flops: f64,
@@ -122,14 +120,14 @@ impl<'a> WeightedBranchBound<'a> {
                     if self.best_flops > flops {
                         self.best_flops = flops;
                         self.best_size = size;
-                        self.best_path = ssa_ordering(path, self.tn.tensors().len());
+                        self.best_path = ssa_ordering(path, tensor.tensors().len());
                     }
                 }
                 CostType::Size => {
                     if self.best_size > size {
                         self.best_flops = flops;
                         self.best_size = size;
-                        self.best_path = ssa_ordering(path, self.tn.tensors().len());
+                        self.best_path = ssa_ordering(path, tensor.tensors().len());
                     }
                 }
             }
@@ -162,18 +160,20 @@ impl<'a> WeightedBranchBound<'a> {
             new_remaining.retain(|e| *e != parent_ids.0 && *e != parent_ids.1);
             new_remaining.push(child_id);
             new_path.push((parent_ids.0, parent_ids.1, child_id));
-            self.branch_iterate(&new_path, &new_remaining, flop_cost, size_cost);
+            self.branch_iterate(tensor, &new_path, &new_remaining, flop_cost, size_cost);
             new_path.pop();
         }
     }
 }
 
-impl FindPath for WeightedBranchBound<'_> {
-    fn find_path(&mut self) {
-        if self.tn.is_leaf() {
-            return;
+impl Pathfinder for WeightedBranchBound {
+    type Result = BasicContractionPathResult;
+
+    fn find_path(&mut self, tensor: &Tensor) -> BasicContractionPathResult {
+        if tensor.is_leaf() {
+            return BasicContractionPathResult::default();
         }
-        let tensors = self.tn.tensors().clone();
+        let tensors = tensor.tensors().clone();
         self.result_cache.clear();
         self.tensor_cache.clear();
         self.largest_latency = *self
@@ -188,40 +188,28 @@ impl FindPath for WeightedBranchBound<'_> {
             // Check that tensor has sub-tensors and doesn't have external legs set
             if tensor.is_composite() && tensor.legs().is_empty() {
                 let mut bb = WeightedBranchBound::new(
-                    &tensor,
                     self.nbranch,
                     self.cutoff_flops_factor,
                     self.comm_cache.clone(),
                     self.minimize,
                 );
-                bb.find_path();
-                nested_paths.insert(index, bb.get_best_path().clone());
+                let result = bb.find_path(&tensor);
+                nested_paths.insert(index, result.ssa_path().clone());
                 tensor = tensor.external_tensor();
             }
             self.tensor_cache.insert_new(index, tensor);
         }
-        let remaining = (0..self.tn.tensors().len()).collect_vec();
-        self.branch_iterate(&[], &remaining, 0f64, 0f64);
-        self.best_path = ContractionPath {
+        let remaining = (0..tensor.tensors().len()).collect_vec();
+        self.branch_iterate(tensor, &[], &remaining, 0f64, 0f64);
+        let best_path = ContractionPath {
             nested: nested_paths,
             toplevel: std::mem::take(&mut self.best_path).into_simple(),
         };
-    }
-
-    fn get_best_flops(&self) -> f64 {
-        self.best_flops
-    }
-
-    fn get_best_size(&self) -> f64 {
-        self.best_size
-    }
-
-    fn get_best_path(&self) -> &ContractionPath {
-        &self.best_path
-    }
-
-    fn get_best_replace_path(&self) -> ContractionPath {
-        ssa_replace_ordering(&self.best_path)
+        BasicContractionPathResult {
+            ssa_path: best_path,
+            flops: self.best_flops,
+            size: self.best_size,
+        }
     }
 }
 
@@ -232,7 +220,7 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::contractionpath::paths::CostType;
-    use crate::contractionpath::paths::FindPath;
+    use crate::contractionpath::paths::Pathfinder;
     use crate::path;
     use crate::tensornetwork::tensor::Tensor;
 
@@ -280,27 +268,32 @@ mod tests {
     #[test]
     fn test_contract_order_simple() {
         let (tn, latency_costs) = setup_simple();
-        let mut opt = WeightedBranchBound::new(&tn, None, 20., latency_costs, CostType::Flops);
-        opt.find_path();
+        let mut opt = WeightedBranchBound::new(None, 20., latency_costs, CostType::Flops);
+        let result = opt.find_path(&tn);
 
-        assert_eq!(opt.best_flops, 640.);
-        assert_eq!(opt.best_size, 538.);
-        assert_eq!(opt.get_best_path(), &path![(1, 0), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), path![(1, 0), (2, 1)]);
+        assert_eq!(
+            result,
+            BasicContractionPathResult {
+                ssa_path: path![(1, 0), (2, 3)],
+                flops: 640.,
+                size: 538.
+            }
+        );
     }
 
     #[test]
     fn test_contract_order_complex() {
         let (tn, latency_costs) = setup_complex();
-        let mut opt = WeightedBranchBound::new(&tn, None, 20., latency_costs, CostType::Flops);
-        opt.find_path();
+        let mut opt = WeightedBranchBound::new(None, 20., latency_costs, CostType::Flops);
+        let result = opt.find_path(&tn);
 
-        assert_eq!(opt.best_flops, 265230.);
-        assert_eq!(opt.best_size, 89478.);
-        assert_eq!(opt.best_path, path![(3, 4), (2, 6), (1, 5), (0, 8), (7, 9)]);
         assert_eq!(
-            opt.get_best_replace_path(),
-            path![(3, 4), (2, 3), (1, 5), (0, 1), (2, 0)]
+            result,
+            BasicContractionPathResult {
+                ssa_path: path![(3, 4), (2, 6), (1, 5), (0, 8), (7, 9)],
+                flops: 265230.,
+                size: 89478.
+            }
         );
     }
 }

@@ -8,7 +8,7 @@ use tnc::{
         contraction_cost::{communication_path_cost, contract_path_cost},
         paths::{
             cotengrust::{Cotengrust, OptMethod},
-            FindPath,
+            ContractionPathResult, Pathfinder,
         },
         repartitioning::simulated_annealing::{self, IntermediatePartitioningModel},
     },
@@ -23,9 +23,9 @@ fn compute_cost(tensor: &Tensor, partitioning: &[usize]) -> f64 {
     let partitioned_tn = partition_tensor_network(tensor.clone(), partitioning);
 
     // Find a contraction path
-    let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-    opt.find_path();
-    let path = opt.get_best_replace_path();
+    let mut opt = Cotengrust::new(OptMethod::Greedy);
+    let result = opt.find_path(&partitioned_tn);
+    let path = result.replace_path();
 
     // Get the serial contraction cost of each partition
     let cost_per_partition = partitioned_tn

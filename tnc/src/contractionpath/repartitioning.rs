@@ -10,7 +10,7 @@ use crate::{
         contraction_cost::{communication_path_op_costs, contract_path_cost},
         paths::{
             cotengrust::{Cotengrust, OptMethod},
-            FindPath,
+            ContractionPathResult, Pathfinder,
         },
         ContractionPath,
     },
@@ -35,9 +35,9 @@ where
     let partitioned_tn = partition_tensor_network(tensor.clone(), partitioning);
 
     // Find contraction path
-    let mut greedy = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-    greedy.find_path();
-    let path = greedy.get_best_replace_path();
+    let mut greedy = Cotengrust::new(OptMethod::Greedy);
+    let result = greedy.find_path(&partitioned_tn);
+    let path = result.replace_path();
 
     // Store the local paths (and costs)
     let mut latency_map =

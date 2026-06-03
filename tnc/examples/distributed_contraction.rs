@@ -4,7 +4,7 @@ use tnc::{
     builders::sycamore_circuit::sycamore_circuit,
     contractionpath::paths::{
         cotengrust::{Cotengrust, OptMethod},
-        FindPath,
+        ContractionPathResult, Pathfinder,
     },
     mpi::communication::{
         broadcast_path, intermediate_reduce_tensor_network, scatter_tensor_network,
@@ -51,9 +51,9 @@ fn distributed_contraction(tensor: Tensor, world: &SimpleCommunicator) -> Tensor
         let partitioned_tn = partition_tensor_network(tensor, &partitioning);
 
         // Find a contraction path for the individual partitions and the final fan-in
-        let mut opt = Cotengrust::new(&partitioned_tn, OptMethod::Greedy);
-        opt.find_path();
-        let path = opt.get_best_replace_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&partitioned_tn);
+        let path = result.replace_path();
 
         (partitioned_tn, path)
     } else {

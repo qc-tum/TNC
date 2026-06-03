@@ -5,7 +5,7 @@ use rustengra::{cotengra_check, cotengra_tree_tempering};
 use crate::{
     contractionpath::{
         contraction_cost::contract_path_cost,
-        paths::{CostType, FindPath},
+        paths::{BasicContractionPathResult, CostType, Pathfinder},
         ssa_replace_ordering, ContractionPath,
     },
     tensornetwork::tensor::Tensor,
@@ -13,50 +13,35 @@ use crate::{
 
 /// Creates an interface to `rustengra` an interface to access `Cotengra` methods in
 /// Rust. Specifically exposes `parallel_temper_tree` method.
-pub struct TreeTempering<'a> {
-    tensor: &'a Tensor,
+pub struct TreeTempering {
     numiter: Option<usize>,
-    best_flops: f64,
-    best_size: f64,
-    best_path: ContractionPath,
     seed: Option<u64>,
 }
 
-impl<'a> TreeTempering<'a> {
-    pub fn new(
-        tensor: &'a Tensor,
-        seed: Option<u64>,
-        minimize: CostType,
-        numiter: Option<usize>,
-    ) -> Self {
+impl TreeTempering {
+    pub fn new(seed: Option<u64>, minimize: CostType, numiter: Option<usize>) -> Self {
         cotengra_check().expect("Needs python and cotengra installed");
         assert_eq!(
             minimize,
             CostType::Flops,
             "Currently, only Flops is supported"
         );
-        Self {
-            tensor,
-            numiter,
-            best_flops: f64::INFINITY,
-            best_size: f64::INFINITY,
-            best_path: ContractionPath::default(),
-            seed,
-        }
+        Self { numiter, seed }
     }
 }
 
-impl FindPath for TreeTempering<'_> {
-    fn find_path(&mut self) {
+impl Pathfinder for TreeTempering {
+    type Result = BasicContractionPathResult;
+
+    fn find_path(&mut self, tensor: &Tensor) -> BasicContractionPathResult {
         // Map tensors to legs
-        let inputs = self
-            .tensor
+        let inputs = tensor
             .tensors()
             .iter()
             .map(|tensor| tensor.legs().clone())
             .collect_vec();
-        let outputs = self.tensor.external_tensor();
-        let size_dict = self.tensor.tensors().iter().map(Tensor::edges).fold(
+        let outputs = tensor.external_tensor();
+        let size_dict = tensor.tensors().iter().map(Tensor::edges).fold(
             FxHashMap::default(),
             |mut acc, edges| {
                 acc.extend(edges);
@@ -68,29 +53,16 @@ impl FindPath for TreeTempering<'_> {
             cotengra_tree_tempering(&inputs, outputs.legs(), self.numiter, &size_dict, self.seed)
                 .unwrap();
 
-        self.best_path = ContractionPath::simple(best_path);
+        let best_path = ContractionPath::simple(best_path);
+        let replace_path = ssa_replace_ordering(&best_path);
 
-        let (op_cost, mem_cost) =
-            contract_path_cost(self.tensor.tensors(), &self.get_best_replace_path(), true);
+        let (op_cost, mem_cost) = contract_path_cost(tensor.tensors(), &replace_path, true);
 
-        self.best_flops = op_cost;
-        self.best_size = mem_cost;
-    }
-
-    fn get_best_flops(&self) -> f64 {
-        self.best_flops
-    }
-
-    fn get_best_size(&self) -> f64 {
-        self.best_size
-    }
-
-    fn get_best_path(&self) -> &ContractionPath {
-        &self.best_path
-    }
-
-    fn get_best_replace_path(&self) -> ContractionPath {
-        ssa_replace_ordering(&self.best_path)
+        BasicContractionPathResult {
+            ssa_path: best_path,
+            flops: op_cost,
+            size: mem_cost,
+        }
     }
 }
 
@@ -101,7 +73,7 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     use crate::{
-        contractionpath::paths::{CostType, FindPath},
+        contractionpath::paths::{CostType, Pathfinder},
         path,
         tensornetwork::tensor::Tensor,
     };
@@ -145,28 +117,33 @@ mod tests {
     #[ignore = "flaky test due to a bug in cotengra"]
     fn test_temper_tree_contract_order_simple() {
         let tn = setup_simple();
-        let mut opt = TreeTempering::new(&tn, Some(8), CostType::Flops, Some(100));
-        opt.find_path();
+        let mut opt = TreeTempering::new(Some(8), CostType::Flops, Some(100));
+        let result = opt.find_path(&tn);
 
-        assert_eq!(opt.best_flops, 600.);
-        assert_eq!(opt.best_size, 538.);
-        assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3)]);
-        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 0)]);
+        assert_eq!(
+            result,
+            BasicContractionPathResult {
+                ssa_path: path![(0, 1), (2, 3)],
+                flops: 600.,
+                size: 538.
+            }
+        );
     }
 
     #[test]
     #[ignore = "flaky test due to a bug in cotengra"]
     fn test_temper_tree_contract_order_complex() {
         let tn = setup_complex();
-        let mut opt = TreeTempering::new(&tn, Some(8), CostType::Flops, Some(100));
-        opt.find_path();
+        let mut opt = TreeTempering::new(Some(8), CostType::Flops, Some(100));
+        let result = opt.find_path(&tn);
 
-        assert_eq!(opt.best_flops, 332685.);
-        assert_eq!(opt.best_size, 89478.);
-        assert_eq!(opt.best_path, path![(1, 5), (0, 6), (2, 7), (3, 8), (4, 9)]);
         assert_eq!(
-            opt.get_best_replace_path(),
-            path![(1, 5), (0, 1), (2, 0), (3, 2), (4, 3)]
+            result,
+            BasicContractionPathResult {
+                ssa_path: path![(1, 5), (0, 6), (2, 7), (3, 8), (4, 9)],
+                flops: 332685.,
+                size: 89478.
+            }
         );
     }
 }

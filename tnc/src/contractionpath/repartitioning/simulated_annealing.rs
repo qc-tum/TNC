@@ -17,7 +17,7 @@ use crate::{
         contraction_cost::{compute_memory_requirements, contract_size_tensors_bytes},
         paths::{
             cotengrust::{Cotengrust, OptMethod},
-            FindPath,
+            ContractionPathResult, Pathfinder,
         },
         repartitioning::compute_solution,
         SimplePath,
@@ -322,14 +322,14 @@ impl OptModel for NaiveIntermediatePartitioningModel<'_> {
             }
         }
 
-        let mut from_opt = Cotengrust::new(&from_tensor, OptMethod::Greedy);
-        from_opt.find_path();
-        let from_path = from_opt.get_best_replace_path();
+        let mut from_opt = Cotengrust::new(OptMethod::Greedy);
+        let result = from_opt.find_path(&from_tensor);
+        let from_path = result.replace_path();
         contraction_paths[source_partition] = from_path.into_simple();
 
-        let mut to_opt = Cotengrust::new(&to_tensor, OptMethod::Greedy);
-        to_opt.find_path();
-        let to_path = to_opt.get_best_replace_path();
+        let mut to_opt = Cotengrust::new(OptMethod::Greedy);
+        let result = to_opt.find_path(&to_tensor);
+        let to_path = result.replace_path();
         contraction_paths[target_partition] = to_path.into_simple();
 
         (partitioning, contraction_paths)
@@ -431,9 +431,9 @@ impl IntermediatePartitioningModel<'_> {
                 .iter()
                 .map(|t| {
                     // Find path for this partition
-                    let mut opt = Cotengrust::new(t, OptMethod::Greedy);
-                    opt.find_path();
-                    let path = opt.get_best_replace_path();
+                    let mut opt = Cotengrust::new(OptMethod::Greedy);
+                    let result = opt.find_path(t);
+                    let path = result.replace_path();
                     path.into_simple()
                 })
                 .collect()
@@ -545,14 +545,14 @@ impl OptModel for IntermediatePartitioningModel<'_> {
             }
         }
 
-        let mut from_opt = Cotengrust::new(&from_tensor, OptMethod::Greedy);
-        from_opt.find_path();
-        let from_path = from_opt.get_best_replace_path();
+        let mut from_opt = Cotengrust::new(OptMethod::Greedy);
+        let result = from_opt.find_path(&from_tensor);
+        let from_path = result.replace_path();
         contraction_paths[source_partition] = from_path.into_simple();
 
-        let mut to_opt = Cotengrust::new(&to_tensor, OptMethod::Greedy);
-        to_opt.find_path();
-        let to_path = to_opt.get_best_replace_path();
+        let mut to_opt = Cotengrust::new(OptMethod::Greedy);
+        let result = to_opt.find_path(&to_tensor);
+        let to_path = result.replace_path();
         contraction_paths[target_partition] = to_path.into_simple();
 
         (partitioning, partition_tensors, contraction_paths)

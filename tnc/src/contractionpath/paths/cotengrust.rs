@@ -5,7 +5,9 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
 use crate::contractionpath::contraction_cost::contract_path_cost;
-use crate::contractionpath::paths::FindPath;
+use crate::contractionpath::paths::{
+    BasicContractionPathResult, ContractionPathResult, Pathfinder,
+};
 use crate::contractionpath::{ssa_replace_ordering, ContractionPath, SimplePath};
 use crate::tensornetwork::tensor::Tensor;
 
@@ -22,24 +24,15 @@ pub enum OptMethod {
 
 /// A contraction path finder using the `cotengrust` library.
 #[derive(Debug, Clone)]
-pub struct Cotengrust<'a> {
-    tensor: &'a Tensor,
-    best_path: ContractionPath,
-    best_flops: f64,
-    best_size: f64,
+pub struct Cotengrust {
     opt_method: OptMethod,
 }
 
-impl<'a> Cotengrust<'a> {
+impl Cotengrust {
     /// Creates a new Cotengrust optimizer using the specified optimization method.
-    pub fn new(tensor: &'a Tensor, opt_method: OptMethod) -> Self {
-        Self {
-            tensor,
-            opt_method,
-            best_path: ContractionPath::default(),
-            best_flops: f64::INFINITY,
-            best_size: f64::INFINITY,
-        }
+    #[inline]
+    pub fn new(opt_method: OptMethod) -> Self {
+        Self { opt_method }
     }
 
     /// Finds a contraction path for a "classical" tensor network, i.e. the inputs
@@ -121,49 +114,37 @@ fn tensor_legs_to_digit(
     (new_inputs, new_output, new_size_dict)
 }
 
-impl FindPath for Cotengrust<'_> {
-    fn find_path(&mut self) {
+impl Pathfinder for Cotengrust {
+    type Result = BasicContractionPathResult;
+
+    fn find_path(&mut self, tensor: &Tensor) -> BasicContractionPathResult {
         // Handle nested tensors first
         let mut nested_paths = FxHashMap::default();
-        let mut inputs = self.tensor.tensors().clone();
+        let mut inputs = tensor.tensors().clone();
         for (index, input_tensor) in inputs.iter_mut().enumerate() {
             if input_tensor.is_composite() {
-                let mut ct = Cotengrust::new(input_tensor, self.opt_method);
-                ct.find_path();
-                nested_paths.insert(index, ct.get_best_path().clone());
+                let result = self.find_path(input_tensor);
+                nested_paths.insert(index, result.ssa_path().clone());
                 *input_tensor = input_tensor.external_tensor();
             }
         }
 
         // Now handle the outer tensor
-        let external_tensor = self.tensor.external_tensor();
+        let external_tensor = tensor.external_tensor();
         let outer_path = self.optimize_single(&inputs, &external_tensor);
-        self.best_path = ContractionPath {
+        let best_path = ContractionPath {
             nested: nested_paths,
             toplevel: outer_path,
         };
+        let replace_path = ssa_replace_ordering(&best_path);
 
         // Compute the cost
-        let (op_cost, mem_cost) =
-            contract_path_cost(self.tensor.tensors(), &self.get_best_replace_path(), true);
-        self.best_size = mem_cost;
-        self.best_flops = op_cost;
-    }
-
-    fn get_best_path(&self) -> &ContractionPath {
-        &self.best_path
-    }
-
-    fn get_best_replace_path(&self) -> ContractionPath {
-        ssa_replace_ordering(&self.best_path)
-    }
-
-    fn get_best_flops(&self) -> f64 {
-        self.best_flops
-    }
-
-    fn get_best_size(&self) -> f64 {
-        self.best_size
+        let (op_cost, mem_cost) = contract_path_cost(tensor.tensors(), &replace_path, true);
+        BasicContractionPathResult {
+            ssa_path: best_path,
+            flops: op_cost,
+            size: mem_cost,
+        }
     }
 }
 
@@ -241,66 +222,80 @@ mod tests {
     #[test]
     fn test_contract_order_greedy_simple() {
         let tn = setup_simple();
-        let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tn);
 
-        assert_eq!(opt.get_best_flops(), 600.);
-        assert_eq!(opt.get_best_size(), 538.);
-        assert_eq!(opt.get_best_path(), &path![(0, 1), (3, 2)]);
-        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (0, 2)]);
+        assert_eq!(
+            result,
+            BasicContractionPathResult {
+                ssa_path: path![(0, 1), (3, 2)],
+                flops: 600.,
+                size: 538.
+            }
+        );
     }
 
     #[test]
     fn test_contract_order_greedy_simple_inner() {
         let tn = setup_simple_inner_product();
-        let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tn);
 
-        assert_eq!(opt.get_best_flops(), 228.);
-        assert_eq!(opt.get_best_size(), 121.);
-        assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3), (4, 5)]);
-        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (0, 2)]);
+        assert_eq!(
+            result,
+            BasicContractionPathResult {
+                ssa_path: path![(0, 1), (2, 3), (4, 5)],
+                flops: 228.,
+                size: 121.
+            }
+        );
     }
 
     #[test]
     fn test_contract_order_greedy_simple_outer() {
         let tn = setup_simple_outer_product();
-        let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tn);
 
-        assert_eq!(opt.get_best_flops(), 16.);
-        assert_eq!(opt.get_best_size(), 19.);
-        assert_eq!(opt.get_best_path(), &path![(2, 1), (0, 3)]);
-        assert_eq!(opt.get_best_replace_path(), path![(2, 1), (0, 2)]);
+        assert_eq!(
+            result,
+            BasicContractionPathResult {
+                ssa_path: path![(2, 1), (0, 3)],
+                flops: 16.,
+                size: 19.
+            }
+        );
     }
 
     #[test]
     fn test_contract_order_greedy_complex_outer() {
         let tn = setup_complex_outer_product();
-        let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tn);
 
-        assert_eq!(opt.get_best_flops(), 10.);
-        assert_eq!(opt.get_best_size(), 11.);
-        assert_eq!(opt.get_best_path(), &path![(0, 1), (2, 3), (5, 4)]);
-        assert_eq!(opt.get_best_replace_path(), path![(0, 1), (2, 3), (2, 0)]);
+        assert_eq!(
+            result,
+            BasicContractionPathResult {
+                ssa_path: path![(0, 1), (2, 3), (5, 4)],
+                flops: 10.,
+                size: 11.
+            }
+        );
     }
 
     #[test]
     fn test_contract_order_greedy_complex() {
         let tn = setup_complex();
-        let mut opt = Cotengrust::new(&tn, OptMethod::Greedy);
-        opt.find_path();
+        let mut opt = Cotengrust::new(OptMethod::Greedy);
+        let result = opt.find_path(&tn);
 
-        assert_eq!(opt.get_best_flops(), 529815.);
-        assert_eq!(opt.get_best_size(), 89478.);
         assert_eq!(
-            opt.get_best_path(),
-            &path![(1, 5), (3, 4), (6, 0), (7, 2), (9, 8)]
-        );
-        assert_eq!(
-            opt.get_best_replace_path(),
-            path![(1, 5), (3, 4), (1, 0), (3, 2), (3, 1)]
+            result,
+            BasicContractionPathResult {
+                ssa_path: path![(1, 5), (3, 4), (6, 0), (7, 2), (9, 8)],
+                flops: 529815.,
+                size: 89478.
+            }
         );
     }
 }

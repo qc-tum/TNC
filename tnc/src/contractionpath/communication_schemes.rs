@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 use crate::contractionpath::contraction_cost::communication_path_cost;
 use crate::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
-use crate::contractionpath::paths::{CostType, FindPath};
+use crate::contractionpath::paths::{ContractionPathResult, CostType, Pathfinder};
 use crate::contractionpath::SimplePath;
 use crate::tensornetwork::partitioning::{communication_partitioning, PartitioningStrategy};
 use crate::tensornetwork::tensor::Tensor;
@@ -74,9 +74,9 @@ impl CommunicationScheme {
 
 fn greedy(children_tensors: &[Tensor], _latency_map: &FxHashMap<usize, f64>) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
-    let mut opt = Cotengrust::new(&communication_tensors, OptMethod::Greedy);
-    opt.find_path();
-    opt.get_best_replace_path().into_simple()
+    let mut opt = Cotengrust::new(OptMethod::Greedy);
+    let result = opt.find_path(&communication_tensors);
+    result.replace_path().into_simple()
 }
 
 fn bipartition(children_tensors: &[Tensor], _latency_map: &FxHashMap<usize, f64>) -> SimplePath {
@@ -125,30 +125,18 @@ fn weighted_branchbound(
 ) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
-    let mut opt = WeightedBranchBound::new(
-        &communication_tensors,
-        Some(10),
-        5.,
-        latency_map.clone(),
-        CostType::Flops,
-    );
-    opt.find_path();
-    opt.get_best_replace_path().into_simple()
+    let mut opt = WeightedBranchBound::new(Some(10), 5., latency_map.clone(), CostType::Flops);
+    let result = opt.find_path(&communication_tensors);
+    result.replace_path().into_simple()
 }
 
 fn branchbound(children_tensors: &[Tensor]) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
     let latency_map = (0..children_tensors.len()).map(|i| (i, 0.0)).collect();
 
-    let mut opt = WeightedBranchBound::new(
-        &communication_tensors,
-        Some(10),
-        5.,
-        latency_map,
-        CostType::Flops,
-    );
-    opt.find_path();
-    opt.get_best_replace_path().into_simple()
+    let mut opt = WeightedBranchBound::new(Some(10), 5., latency_map, CostType::Flops);
+    let result = opt.find_path(&communication_tensors);
+    result.replace_path().into_simple()
 }
 
 /// Uses recursive bipartitioning to identify a communication scheme for final tensors
@@ -223,9 +211,9 @@ fn tensor_bipartition(children_tensor: &[(usize, Tensor)], imbalance: f64) -> Si
 fn random_greedy(children_tensors: &[Tensor]) -> SimplePath {
     let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
 
-    let mut opt = Cotengrust::new(&communication_tensors, OptMethod::RandomGreedy(100));
-    opt.find_path();
-    opt.get_best_replace_path().into_simple()
+    let mut opt = Cotengrust::new(OptMethod::RandomGreedy(100));
+    let result = opt.find_path(&communication_tensors);
+    result.replace_path().into_simple()
 }
 
 #[cfg(test)]

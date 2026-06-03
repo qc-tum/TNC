@@ -15,9 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use TBLIS instead of HPTT + MKL for contraction. This means contractions are faster and often require only half as much memory. Also, build time decreased.
 - Use ndarray instead of own implementation for tensors. This means more features (slicing, arbitrary memory layout, ...) and interoperability.
 - Implement `approx` instead of `float-cmp` for tensors and tensor data
+- `find_path` now takes the tensor network as argument and returns a results struct
 
 ### Removed
 - Function `contract_size_tensors_exact` (since there is no explicit transpose, the normal contraction size estimate is sufficient)
+- Functions `get_best_path`, `get_best_flops`, ... from `FindPath` trait. They exist on the struct returned by `find_path` now
 
 ## [1.0.1] - 2026-05-26
 

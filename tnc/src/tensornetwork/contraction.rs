@@ -17,7 +17,7 @@ use crate::{
 /// # Examples
 /// ```
 /// # use tnc::{
-/// #   contractionpath::paths::{cotengrust::{Cotengrust, OptMethod}, FindPath},
+/// #   contractionpath::paths::{cotengrust::{Cotengrust, OptMethod}, Pathfinder, ContractionPathResult},
 /// #   builders::sycamore_circuit::sycamore_circuit,
 /// #   tensornetwork::tensor::Tensor,
 /// #   tensornetwork::contraction::contract_tensor_network,
@@ -26,9 +26,9 @@ use crate::{
 /// # use rand::SeedableRng;
 /// let mut r = StdRng::seed_from_u64(42);
 /// let mut r_tn = sycamore_circuit(2, 1, &mut r).into_expectation_value_network();
-/// let mut opt = Cotengrust::new(&r_tn, OptMethod::Greedy);
-/// opt.find_path();
-/// let opt_path = opt.get_best_replace_path();
+/// let mut opt = Cotengrust::new(OptMethod::Greedy);
+/// let result = opt.find_path(&r_tn);
+/// let opt_path = result.replace_path();
 /// let result = contract_tensor_network(r_tn, &opt_path);
 /// ```
 pub fn contract_tensor_network(mut tn: Tensor, contract_path: &ContractionPath) -> Tensor {
