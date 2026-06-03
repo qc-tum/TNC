@@ -76,7 +76,7 @@ impl Pathfinder for Hyperoptimizer {
         };
         let replace_path = ssa_replace_ordering(&best_path);
 
-        let (op_cost, mem_cost) = contract_path_cost(tensor.tensors(), &&replace_path, true);
+        let (op_cost, mem_cost) = contract_path_cost(tensor.tensors(), &replace_path, true);
 
         BasicContractionPathResult {
             ssa_path: best_path,
