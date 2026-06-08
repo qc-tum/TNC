@@ -61,7 +61,7 @@ impl Pathfinder for Hyperoptimizer {
             },
         );
 
-        let ssa_path = cotengra_hyperoptimizer(
+        let (ssa_path, _) = cotengra_hyperoptimizer(
             &inputs,
             outputs.legs(),
             &size_dict,
