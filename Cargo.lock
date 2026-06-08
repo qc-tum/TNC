@@ -906,7 +906,7 @@ dependencies = [
 [[package]]
 name = "kahypar"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-kahypar#d5ba97637454e05f5f1b37c09d2dc8540df24339"
+source = "git+https://github.com/Ectras/rust-kahypar#8ab70ce62558d5c419292eea62ffb51a8b3d045d"
 dependencies = [
  "kahypar-sys",
 ]
@@ -914,7 +914,7 @@ dependencies = [
 [[package]]
 name = "kahypar-sys"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-kahypar#d5ba97637454e05f5f1b37c09d2dc8540df24339"
+source = "git+https://github.com/Ectras/rust-kahypar#8ab70ce62558d5c419292eea62ffb51a8b3d045d"
 dependencies = [
  "bindgen 0.65.1",
  "cmake",
