@@ -20,7 +20,7 @@ The list of optional features to include is:
 As noted in the README, the library relies on system dependencies.
 To install them, run
 ```bash
-sudo apt install libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
+sudo apt install libhdf5-dev openmpi-bin libopenmpi-dev
 ```
 Furthermore, the library relies on C++ libraries that are being built when building the library.
 For this, `cmake` and a C++ compiler are required on the system.

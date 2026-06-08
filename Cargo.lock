@@ -579,7 +579,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "778e2ac28f6c47af28e4907f13ffd1e1ddbd400980a9abd7c8df189bf578a5ad"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -906,7 +906,7 @@ dependencies = [
 [[package]]
 name = "kahypar"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-kahypar#8ab70ce62558d5c419292eea62ffb51a8b3d045d"
+source = "git+https://github.com/Ectras/rust-kahypar#5caa96a318c2e46db2be0552ea5a1d0ae64c080e"
 dependencies = [
  "kahypar-sys",
 ]
@@ -914,7 +914,7 @@ dependencies = [
 [[package]]
 name = "kahypar-sys"
 version = "0.1.0"
-source = "git+https://github.com/Ectras/rust-kahypar#8ab70ce62558d5c419292eea62ffb51a8b3d045d"
+source = "git+https://github.com/Ectras/rust-kahypar#5caa96a318c2e46db2be0552ea5a1d0ae64c080e"
 dependencies = [
  "bindgen 0.65.1",
  "cmake",
@@ -1676,7 +1676,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
