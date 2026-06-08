@@ -80,7 +80,7 @@ cx q[1], q[2];
 The library requires a few dependencies to be installed on the system.
 Those can be installed with
 ```shell
-sudo apt install libhdf5-dev openmpi-bin libopenmpi-dev libboost-program-options-dev
+sudo apt install libhdf5-dev openmpi-bin libopenmpi-dev
 ```
 Furthermore, for building the library, `cmake` and a C++ compiler must be installed on the system.
 

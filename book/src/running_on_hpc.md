@@ -20,7 +20,7 @@ This is common in HPC centers.
 ## Running on a cluster
 Usually, HPC clusters use a cluster management system, most commonly SLURM.
 Here, the steps to running this library are similar to:
-1. Load modules for the required dependencies (HDF5, Boost, Python, ...)
+1. Load modules for the required dependencies (HDF5, Python, ...)
 2. Optionally create a virtual Python environment and install the Python dependencies for cotengra
 3. Build the code using `cargo build -r` (assuming the login nodes have the same architecture as the compute nodes)
 4. Write a SLURM script that calls `mpirun` on the compiled binary
