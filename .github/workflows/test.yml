@@ -37,7 +37,7 @@ jobs:
         with:
           submodules: true
       - name: Install stable
-        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # tag=v1.16.1
+        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # tag=v1.17.0
         with:
           toolchain: stable
       - name: cargo generate-lockfile
@@ -92,11 +92,11 @@ jobs:
         with:
           submodules: true
       - name: Install stable
-        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # tag=v1.16.1
+        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # tag=v1.17.0
         with:
           toolchain: stable  
       - name: Install nightly for -Zdirect-minimal-versions
-        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # tag=v1.16.1
+        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # tag=v1.17.0
         with:
           toolchain: nightly
       - name: rustup default stable
@@ -136,7 +136,7 @@ jobs:
         with:
           submodules: true
       - name: Install stable
-        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # tag=v1.16.1
+        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # tag=v1.17.0
         with:
           toolchain: stable
       - name: cargo generate-lockfile
@@ -166,7 +166,7 @@ jobs:
         with:
           submodules: true
       - name: Install nightly
-        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # tag=v1.16.1
+        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # tag=v1.17.0
         with:
           toolchain: nightly
           components: llvm-tools-preview
