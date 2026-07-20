@@ -15,7 +15,7 @@ rust-version = "1.85"
 cotengra = ["dep:rustengra"]
 
 [dependencies]
-mpi = { version = "0.8.1", features = ["complex", "derive"] }
+mpi = { version = "0.8.2", features = ["complex", "derive"] }
 hdf5-metno = { version = "0.12.4", features = ["complex"] }
 itertools = "0.14.0"
 num-complex = { version = "0.4.6", features = ["serde"] }
