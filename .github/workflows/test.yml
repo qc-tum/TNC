@@ -77,11 +77,13 @@ jobs:
     name: minimal-versions (stable)
     env:
       OMPI_MCA_rmaps_base_oversubscribe: true
+      CXXFLAGS: "-mno-avx512f -mno-avx512bw -mno-avx512vl"
+      CFLAGS: "-mno-avx512f -mno-avx512bw -mno-avx512vl"
     steps:
       - name: Install system requirements
         run: |
           sudo apt-get update
-          sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev
+          sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev gdb
       - name: Install python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # tag=v6.3.0
         with:
