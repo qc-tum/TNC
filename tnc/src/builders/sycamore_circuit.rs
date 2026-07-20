@@ -84,7 +84,10 @@ mod tests {
         let circuit = sycamore_circuit(3, 3, &mut rng);
         let (tn, _) = circuit.into_amplitude_network(&"0".repeat(3));
 
-        let rank_counts = tn.tensors().iter().counts_by(|t| t.legs().len());
+        let rank_counts = tn
+            .tensors()
+            .iter()
+            .counts_by(|t| t.as_leaf().unwrap().legs().len());
         assert_eq!(rank_counts.len(), 3);
         // 3 initial state, 3 final state
         assert_eq!(rank_counts[&1], 6);

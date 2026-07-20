@@ -43,7 +43,7 @@ fn main() {
     let statevector = permutator.apply(final_tensor);
 
     // Get the actual data
-    let data = statevector.into_tensor_data().into_data();
+    let data = statevector.into_data().into_data();
 
     // Print the data
     println!("Resulting statevector is: {:?}", data.flatten());

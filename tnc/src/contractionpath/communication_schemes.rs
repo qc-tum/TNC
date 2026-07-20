@@ -11,7 +11,7 @@ use crate::contractionpath::paths::weighted_branchbound::WeightedBranchBound;
 use crate::contractionpath::paths::{ContractionPathResult, CostType, Pathfinder};
 use crate::contractionpath::SimplePath;
 use crate::tensornetwork::partitioning::{communication_partitioning, PartitioningStrategy};
-use crate::tensornetwork::tensor::Tensor;
+use crate::tensornetwork::tensor::{CompositeTensor, LeafTensor};
 
 /// The scheme used to find a contraction path for the final fan-in of tensors
 /// between MPI ranks.
@@ -48,7 +48,7 @@ impl fmt::Display for CommunicationScheme {
 impl CommunicationScheme {
     pub(crate) fn communication_path<R>(
         &self,
-        children_tensors: &[Tensor],
+        children_tensors: &[LeafTensor],
         latency_map: &FxHashMap<usize, f64>,
         rng: Option<&mut R>,
     ) -> SimplePath
@@ -72,21 +72,24 @@ impl CommunicationScheme {
     }
 }
 
-fn greedy(children_tensors: &[Tensor], _latency_map: &FxHashMap<usize, f64>) -> SimplePath {
-    let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
+fn greedy(children_tensors: &[LeafTensor], _latency_map: &FxHashMap<usize, f64>) -> SimplePath {
+    let communication_tensors = CompositeTensor::new(children_tensors.to_vec());
     let mut opt = Cotengrust::new(OptMethod::Greedy);
     let result = opt.find_path(&communication_tensors);
     result.replace_path().into_simple()
 }
 
-fn bipartition(children_tensors: &[Tensor], _latency_map: &FxHashMap<usize, f64>) -> SimplePath {
+fn bipartition(
+    children_tensors: &[LeafTensor],
+    _latency_map: &FxHashMap<usize, f64>,
+) -> SimplePath {
     let children_tensors = children_tensors.iter().cloned().enumerate().collect_vec();
     let imbalance = 0.03;
     tensor_bipartition(&children_tensors, imbalance)
 }
 
 fn bipartition_sweep<R>(
-    children_tensors: &[Tensor],
+    children_tensors: &[LeafTensor],
     latency_map: &FxHashMap<usize, f64>,
     rng: &mut R,
 ) -> SimplePath
@@ -120,18 +123,18 @@ where
 }
 
 fn weighted_branchbound(
-    children_tensors: &[Tensor],
+    children_tensors: &[LeafTensor],
     latency_map: &FxHashMap<usize, f64>,
 ) -> SimplePath {
-    let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
+    let communication_tensors = CompositeTensor::new(children_tensors.to_vec());
 
     let mut opt = WeightedBranchBound::new(Some(10), 5., latency_map.clone(), CostType::Flops);
     let result = opt.find_path(&communication_tensors);
     result.replace_path().into_simple()
 }
 
-fn branchbound(children_tensors: &[Tensor]) -> SimplePath {
-    let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
+fn branchbound(children_tensors: &[LeafTensor]) -> SimplePath {
+    let communication_tensors = CompositeTensor::new(children_tensors.to_vec());
     let latency_map = (0..children_tensors.len()).map(|i| (i, 0.0)).collect();
 
     let mut opt = WeightedBranchBound::new(Some(10), 5., latency_map, CostType::Flops);
@@ -142,9 +145,9 @@ fn branchbound(children_tensors: &[Tensor]) -> SimplePath {
 /// Uses recursive bipartitioning to identify a communication scheme for final tensors
 /// Returns root id of subtree, parallel contraction cost as f64, resultant tensor and prior contraction sequence
 fn tensor_bipartition_recursive(
-    children_tensor: &[(usize, Tensor)],
+    children_tensor: &[(usize, LeafTensor)],
     imbalance: f64,
-) -> (usize, Tensor, SimplePath) {
+) -> (usize, LeafTensor, SimplePath) {
     let k = 2;
     let min = true;
 
@@ -203,13 +206,13 @@ fn tensor_bipartition_recursive(
 
 /// Repeatedly bipartitions tensor network to obtain communication scheme
 /// Assumes that all tensors contracted do so in parallel
-fn tensor_bipartition(children_tensor: &[(usize, Tensor)], imbalance: f64) -> SimplePath {
+fn tensor_bipartition(children_tensor: &[(usize, LeafTensor)], imbalance: f64) -> SimplePath {
     let (_, _, contraction_path) = tensor_bipartition_recursive(children_tensor, imbalance);
     contraction_path
 }
 
-fn random_greedy(children_tensors: &[Tensor]) -> SimplePath {
-    let communication_tensors = Tensor::new_composite(children_tensors.to_vec());
+fn random_greedy(children_tensors: &[LeafTensor]) -> SimplePath {
+    let communication_tensors = CompositeTensor::new(children_tensors.to_vec());
 
     let mut opt = Cotengrust::new(OptMethod::RandomGreedy(100));
     let result = opt.find_path(&communication_tensors);
@@ -223,9 +226,7 @@ mod tests {
     use itertools::Itertools;
     use rustc_hash::FxHashMap;
 
-    use crate::{
-        contractionpath::contraction_cost::communication_path_cost, tensornetwork::tensor::Tensor,
-    };
+    use crate::contractionpath::contraction_cost::communication_path_cost;
 
     fn setup_simple_partition_data() -> FxHashMap<usize, f64> {
         FxHashMap::from_iter([(0, 40.), (1, 30.), (2, 50.)])
@@ -234,13 +235,13 @@ mod tests {
     /// Tensor ids in contraction tree included in variable name for easy tracking
     /// This example prioritizes contracting tensor1 & tensor 2 using the greedy cost function
     /// However, the partition cost of tensor 2 is very high, which makes contracting it later more attractive by reducing wait-time
-    fn setup_simple() -> Vec<Tensor> {
+    fn setup_simple() -> Vec<LeafTensor> {
         let bond_dims =
             FxHashMap::from_iter([(0, 2), (1, 2), (2, 2), (3, 2), (4, 2), (5, 2), (6, 2)]);
 
-        let tensor0 = Tensor::new_from_map(vec![3, 4, 5], &bond_dims);
-        let tensor1 = Tensor::new_from_map(vec![0, 1, 3, 4], &bond_dims);
-        let tensor2 = Tensor::new_from_map(vec![0, 1, 2, 5, 6], &bond_dims);
+        let tensor0 = LeafTensor::new_from_map(vec![3, 4, 5], &bond_dims);
+        let tensor1 = LeafTensor::new_from_map(vec![0, 1, 3, 4], &bond_dims);
+        let tensor2 = LeafTensor::new_from_map(vec![0, 1, 2, 5, 6], &bond_dims);
         vec![tensor0, tensor1, tensor2]
     }
 

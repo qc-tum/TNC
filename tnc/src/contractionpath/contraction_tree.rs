@@ -9,7 +9,7 @@ use crate::contractionpath::contraction_tree::node::{
 };
 use crate::contractionpath::paths::validate_path;
 use crate::contractionpath::{ContractionPath, SimplePath, SimplePathRef};
-use crate::tensornetwork::tensor::Tensor;
+use crate::tensornetwork::tensor::{CompositeTensor, LeafTensor};
 
 pub mod balancing;
 mod node;
@@ -18,8 +18,11 @@ mod utils;
 /// Struct representing the full contraction path of a given [`Tensor`] object.
 #[derive(Default, Debug, Clone)]
 pub struct ContractionTree {
+    /// Map of node ids to the actual nodes.
     nodes: FxHashMap<usize, NodeRef>,
+    /// Map of tree level to the node ids on this level.
     partitions: FxHashMap<usize, Vec<usize>>,
+    /// Reference to the root node.
     root: WeakNodeRef,
 }
 
@@ -42,7 +45,7 @@ impl ContractionTree {
     /// Populates `nodes` and `partitions` with the tree structure of the contraction
     /// `path`.
     fn from_contraction_path_recurse(
-        tensor: &Tensor,
+        tensor: &CompositeTensor,
         path: &ContractionPath,
         nodes: &mut FxHashMap<usize, NodeRef>,
         partitions: &mut FxHashMap<usize, Vec<usize>>,
@@ -52,7 +55,7 @@ impl ContractionTree {
 
         // Obtain tree structure from composite tensors
         for (path_id, path) in path.nested.iter().sorted_by_key(|&(path_id, _)| *path_id) {
-            let composite_tensor = tensor.tensor(*path_id);
+            let composite_tensor = tensor.tensor(*path_id).as_composite().unwrap();
             let mut new_prefix = prefix.to_owned();
             new_prefix.push(*path_id);
             Self::from_contraction_path_recurse(
@@ -96,7 +99,7 @@ impl ContractionTree {
     /// represents all intermediate tensors and costs of given contraction path and
     /// tensor network.
     #[must_use]
-    pub fn from_contraction_path(tensor: &Tensor, path: &ContractionPath) -> Self {
+    pub fn from_contraction_path(tensor: &CompositeTensor, path: &ContractionPath) -> Self {
         validate_path(path);
         let mut nodes = FxHashMap::default();
         let mut partitions = FxHashMap::default();
@@ -256,17 +259,20 @@ impl ContractionTree {
 
     fn tree_weights_recurse(
         node: &Node,
-        tn: &Tensor,
+        tn: &CompositeTensor,
         weights: &mut FxHashMap<usize, f64>,
-        scratch: &mut FxHashMap<usize, Tensor>,
-        cost_function: fn(&Tensor, &Tensor) -> f64,
+        scratch: &mut FxHashMap<usize, LeafTensor>,
+        cost_function: fn(&LeafTensor, &LeafTensor) -> f64,
     ) {
         if node.is_leaf() {
             let Some(tensor_index) = &node.tensor_index() else {
                 panic!("All leaf nodes should have a tensor index")
             };
             weights.insert(node.id(), 0f64);
-            scratch.insert(node.id(), tn.nested_tensor(tensor_index).clone());
+            scratch.insert(
+                node.id(),
+                tn.nested_tensor(tensor_index).as_leaf().unwrap().clone(),
+            );
             return;
         }
 
@@ -297,8 +303,8 @@ impl ContractionTree {
     pub fn tree_weights(
         &self,
         node_id: usize,
-        tn: &Tensor,
-        cost_function: fn(&Tensor, &Tensor) -> f64,
+        tn: &CompositeTensor,
+        cost_function: fn(&LeafTensor, &LeafTensor) -> f64,
     ) -> FxHashMap<usize, f64> {
         let mut weights = FxHashMap::default();
         let mut scratch = FxHashMap::default();
@@ -369,13 +375,16 @@ impl ContractionTree {
     ///
     /// # Returns
     /// Empty tensor with legs (dimensions) of data after fully contracted.
-    pub fn tensor(&self, node_id: usize, tensor: &Tensor) -> Tensor {
+    pub fn tensor(&self, node_id: usize, tensor: &CompositeTensor) -> LeafTensor {
         let leaf_nodes = self.leaf_ids(node_id);
-        let mut new_tensor = Tensor::default();
+        let mut new_tensor = LeafTensor::default();
 
         for leaf_id in leaf_nodes {
             new_tensor = &new_tensor
-                ^ tensor.nested_tensor(self.node(leaf_id).tensor_index().as_ref().unwrap());
+                ^ tensor
+                    .nested_tensor(self.node(leaf_id).tensor_index().as_ref().unwrap())
+                    .as_leaf()
+                    .unwrap();
         }
         new_tensor
     }
@@ -384,15 +393,18 @@ impl ContractionTree {
 fn populate_subtree_tensor_map_recursive(
     contraction_tree: &ContractionTree,
     node_id: usize,
-    node_tensor_map: &mut FxHashMap<usize, Tensor>,
-    tensor_network: &Tensor,
+    node_tensor_map: &mut FxHashMap<usize, LeafTensor>,
+    tensor_network: &CompositeTensor,
     height_limit: Option<usize>,
-) -> (Tensor, usize) {
+) -> (LeafTensor, usize) {
     let node = contraction_tree.node(node_id);
 
     if node.is_leaf() {
         let tensor_index = node.tensor_index().unwrap();
-        let t = tensor_network.nested_tensor(tensor_index);
+        let t = tensor_network
+            .nested_tensor(tensor_index)
+            .as_leaf()
+            .unwrap();
         node_tensor_map.insert(node.id(), t.clone());
         (t.clone(), 0)
     } else {
@@ -438,9 +450,9 @@ fn populate_subtree_tensor_map_recursive(
 fn populate_subtree_tensor_map(
     contraction_tree: &ContractionTree,
     node_id: usize,
-    tensor_network: &Tensor,
+    tensor_network: &CompositeTensor,
     height_limit: Option<usize>,
-) -> FxHashMap<usize, Tensor> {
+) -> FxHashMap<usize, LeafTensor> {
     let mut node_tensor_map = FxHashMap::default();
     let _ = populate_subtree_tensor_map_recursive(
         contraction_tree,
@@ -464,8 +476,8 @@ fn populate_subtree_tensor_map(
 fn populate_leaf_node_tensor_map(
     contraction_tree: &ContractionTree,
     node_id: usize,
-    tensor_network: &Tensor,
-) -> FxHashMap<usize, Tensor> {
+    tensor_network: &CompositeTensor,
+) -> FxHashMap<usize, LeafTensor> {
     let mut node_tensor_map = FxHashMap::default();
     for leaf_node_id in contraction_tree.leaf_ids(node_id) {
         node_tensor_map.insert(
@@ -493,21 +505,21 @@ mod tests {
     use crate::path;
     use crate::tensornetwork::tensor::{EdgeIndex, Tensor};
 
-    fn setup_simple() -> (Tensor, ContractionPath, FxHashMap<EdgeIndex, u64>) {
+    fn setup_simple() -> (CompositeTensor, ContractionPath, FxHashMap<EdgeIndex, u64>) {
         let bond_dims =
             FxHashMap::from_iter([(0, 5), (1, 2), (2, 6), (3, 8), (4, 1), (5, 3), (6, 4)]);
         (
-            Tensor::new_composite(vec![
-                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
+            CompositeTensor::new(vec![
+                LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
             ]),
             path![(0, 1), (2, 0)],
             bond_dims,
         )
     }
 
-    fn setup_complex() -> (Tensor, ContractionPath, FxHashMap<EdgeIndex, u64>) {
+    fn setup_complex() -> (CompositeTensor, ContractionPath, FxHashMap<EdgeIndex, u64>) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -522,20 +534,20 @@ mod tests {
             (10, 5),
         ]);
         (
-            Tensor::new_composite(vec![
-                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-                Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-                Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-                Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+            CompositeTensor::new(vec![
+                LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
+                LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims),
+                LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims),
+                LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims),
             ]),
             path![(1, 5), (0, 1), (3, 4), (2, 3), (0, 2)],
             bond_dims,
         )
     }
 
-    fn setup_unbalanced() -> (Tensor, ContractionPath) {
+    fn setup_unbalanced() -> (CompositeTensor, ContractionPath) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -551,19 +563,19 @@ mod tests {
             (11, 17),
         ]);
         (
-            Tensor::new_composite(vec![
-                Tensor::new_from_map(vec![4, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
-                Tensor::new_from_map(vec![4, 5, 6], &bond_dims),
-                Tensor::new_from_map(vec![6, 8, 9], &bond_dims),
-                Tensor::new_from_map(vec![10, 8, 9], &bond_dims),
-                Tensor::new_from_map(vec![5, 1, 0], &bond_dims),
+            CompositeTensor::new(vec![
+                LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims),
+                LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims),
+                LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims),
+                LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims),
+                LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims),
             ]),
             path![(0, 1), (2, 0), (3, 2), (4, 3), (5, 4)],
         )
     }
 
-    fn setup_nested() -> (Tensor, ContractionPath) {
+    fn setup_nested() -> (CompositeTensor, ContractionPath) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -579,24 +591,24 @@ mod tests {
             (11, 17),
         ]);
 
-        let t0 = Tensor::new_from_map(vec![4, 3, 2], &bond_dims);
-        let t1 = Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims);
-        let t2 = Tensor::new_from_map(vec![4, 5, 6], &bond_dims);
-        let t3 = Tensor::new_from_map(vec![6, 8, 9], &bond_dims);
-        let t4 = Tensor::new_from_map(vec![5, 1, 0], &bond_dims);
-        let t5 = Tensor::new_from_map(vec![10, 8, 9], &bond_dims);
+        let t0 = LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims);
+        let t1 = LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims);
+        let t2 = LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims);
+        let t3 = LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims);
+        let t4 = LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims);
+        let t5 = LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims);
 
-        let t01 = Tensor::new_composite(vec![t0, t1]);
-        let t23 = Tensor::new_composite(vec![t2, t3]);
-        let t45 = Tensor::new_composite(vec![t4, t5]);
-        let tensor_network = Tensor::new_composite(vec![t01, t23, t45]);
+        let t01 = CompositeTensor::new(vec![t0, t1]);
+        let t23 = CompositeTensor::new(vec![t2, t3]);
+        let t45 = CompositeTensor::new(vec![t4, t5]);
+        let tensor_network = CompositeTensor::new(vec![t01, t23, t45]);
         (
             tensor_network,
             path![{(0, [(0, 1)]), (1, [(0, 1)]), (2, [(0, 1)])}, (0, 1), (0, 2)],
         )
     }
 
-    fn setup_double_nested() -> (Tensor, ContractionPath) {
+    fn setup_double_nested() -> (CompositeTensor, ContractionPath) {
         let bond_dims = FxHashMap::from_iter([
             (0, 27),
             (1, 18),
@@ -612,18 +624,20 @@ mod tests {
             (11, 17),
         ]);
 
-        let t0 = Tensor::new_from_map(vec![4, 3, 2], &bond_dims);
-        let t1 = Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims);
-        let t2 = Tensor::new_from_map(vec![4, 5, 6], &bond_dims);
-        let t3 = Tensor::new_from_map(vec![6, 8, 9], &bond_dims);
-        let t4 = Tensor::new_from_map(vec![5, 1, 0], &bond_dims);
-        let t5 = Tensor::new_from_map(vec![10, 8, 9], &bond_dims);
+        let t0 = LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims);
+        let t1 = LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims);
+        let t2 = LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims);
+        let t3 = LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims);
+        let t4 = LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims);
+        let t5 = LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims);
 
-        let t01 = Tensor::new_composite(vec![t0, t1]);
-        let t012 = Tensor::new_composite(vec![t01, t2]);
-        let t34 = Tensor::new_composite(vec![t3, t4]);
-        let t345 = Tensor::new_composite(vec![t34, t5]);
-        let tensor_network = Tensor::new_composite(vec![t012, t345]);
+        let t01 = CompositeTensor::new(vec![t0, t1]);
+        let t01: Tensor = t01.into();
+        let t012 = CompositeTensor::new(vec![t01, t2.into()]);
+        let t34 = CompositeTensor::new(vec![t3, t4]);
+        let t34: Tensor = t34.into();
+        let t345 = CompositeTensor::new(vec![t34, t5.into()]);
+        let tensor_network = CompositeTensor::new(vec![t012, t345]);
         (
             tensor_network,
             path![
@@ -963,11 +977,11 @@ mod tests {
         populate_subtree_tensor_map_recursive(&tree, 4, &mut node_tensor_map, &tensor, None);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
-            (0, Tensor::new_from_map(vec![4, 3, 2], &bond_dims)),
-            (1, Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
-            (2, Tensor::new_from_map(vec![4, 5, 6], &bond_dims)),
-            (3, Tensor::new_from_map(vec![4, 0, 1], &bond_dims)),
-            (4, Tensor::new_from_map(vec![5, 6, 0, 1], &bond_dims)),
+            (0, LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims)),
+            (1, LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
+            (2, LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims)),
+            (3, LeafTensor::new_from_map(vec![4, 0, 1], &bond_dims)),
+            (4, LeafTensor::new_from_map(vec![5, 6, 0, 1], &bond_dims)),
         ]);
 
         for (key, value) in ref_node_tensor_map {
@@ -983,17 +997,17 @@ mod tests {
         populate_subtree_tensor_map_recursive(&tree, 10, &mut node_tensor_map, &tensor, None);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
-            (0, Tensor::new_from_map(vec![4, 3, 2], &bond_dims)),
-            (1, Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
-            (2, Tensor::new_from_map(vec![4, 5, 6], &bond_dims)),
-            (3, Tensor::new_from_map(vec![6, 8, 9], &bond_dims)),
-            (4, Tensor::new_from_map(vec![10, 8, 9], &bond_dims)),
-            (5, Tensor::new_from_map(vec![5, 1, 0], &bond_dims)),
-            (6, Tensor::new_from_map(vec![3, 2, 5], &bond_dims)),
-            (7, Tensor::new_from_map(vec![4, 5], &bond_dims)),
-            (8, Tensor::new_from_map(vec![6, 10], &bond_dims)),
-            (9, Tensor::new_from_map(vec![4, 5, 10], &bond_dims)),
-            (10, Tensor::new_from_map(vec![10], &bond_dims)),
+            (0, LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims)),
+            (1, LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
+            (2, LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims)),
+            (3, LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims)),
+            (4, LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims)),
+            (5, LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims)),
+            (6, LeafTensor::new_from_map(vec![3, 2, 5], &bond_dims)),
+            (7, LeafTensor::new_from_map(vec![4, 5], &bond_dims)),
+            (8, LeafTensor::new_from_map(vec![6, 10], &bond_dims)),
+            (9, LeafTensor::new_from_map(vec![4, 5, 10], &bond_dims)),
+            (10, LeafTensor::new_from_map(vec![10], &bond_dims)),
         ]);
 
         for (key, value) in ref_node_tensor_map {
@@ -1008,14 +1022,14 @@ mod tests {
         let node_tensor_map = populate_subtree_tensor_map(&tree, 10, &tensor, Some(1));
 
         let ref_node_tensor_map = FxHashMap::from_iter([
-            (0, Tensor::new_from_map(vec![4, 3, 2], &bond_dims)),
-            (1, Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
-            (2, Tensor::new_from_map(vec![4, 5, 6], &bond_dims)),
-            (3, Tensor::new_from_map(vec![6, 8, 9], &bond_dims)),
-            (4, Tensor::new_from_map(vec![10, 8, 9], &bond_dims)),
-            (5, Tensor::new_from_map(vec![5, 1, 0], &bond_dims)),
-            (6, Tensor::new_from_map(vec![3, 2, 5], &bond_dims)),
-            (8, Tensor::new_from_map(vec![6, 10], &bond_dims)),
+            (0, LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims)),
+            (1, LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
+            (2, LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims)),
+            (3, LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims)),
+            (4, LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims)),
+            (5, LeafTensor::new_from_map(vec![5, 1, 0], &bond_dims)),
+            (6, LeafTensor::new_from_map(vec![3, 2, 5], &bond_dims)),
+            (8, LeafTensor::new_from_map(vec![6, 10], &bond_dims)),
         ]);
 
         for (key, value) in ref_node_tensor_map {
@@ -1031,9 +1045,9 @@ mod tests {
         let node_tensor_map = populate_leaf_node_tensor_map(&tree, 4, &tensor);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
-            (0, Tensor::new_from_map(vec![4, 3, 2], &bond_dims)),
-            (1, Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
-            (2, Tensor::new_from_map(vec![4, 5, 6], &bond_dims)),
+            (0, LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims)),
+            (1, LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
+            (2, LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims)),
         ]);
 
         for (key, value) in ref_node_tensor_map {
@@ -1048,11 +1062,11 @@ mod tests {
         let node_tensor_map = populate_subtree_tensor_map(&tree, 10, &tensor, None);
 
         let ref_node_tensor_map = FxHashMap::from_iter([
-            (0, Tensor::new_from_map(vec![4, 3, 2], &bond_dims)),
-            (1, Tensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
-            (2, Tensor::new_from_map(vec![4, 5, 6], &bond_dims)),
-            (3, Tensor::new_from_map(vec![6, 8, 9], &bond_dims)),
-            (4, Tensor::new_from_map(vec![10, 8, 9], &bond_dims)),
+            (0, LeafTensor::new_from_map(vec![4, 3, 2], &bond_dims)),
+            (1, LeafTensor::new_from_map(vec![0, 1, 3, 2], &bond_dims)),
+            (2, LeafTensor::new_from_map(vec![4, 5, 6], &bond_dims)),
+            (3, LeafTensor::new_from_map(vec![6, 8, 9], &bond_dims)),
+            (4, LeafTensor::new_from_map(vec![10, 8, 9], &bond_dims)),
         ]);
 
         for (key, value) in ref_node_tensor_map {
