@@ -682,6 +682,7 @@ struct GreedyBalance {
     iterations: usize,
     balancing_scheme: BalancingScheme,
 }
+#[allow(dead_code)]
 fn objective_function(a: &Tensor, b: &Tensor) -> f64 {
     a.size() + b.size() - (a ^ b).size()
 }
