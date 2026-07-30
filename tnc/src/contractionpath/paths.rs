@@ -83,34 +83,3 @@ pub enum CostType {
     /// Size of the biggest contraction.
     Size,
 }
-
-pub(crate) fn validate_path(path: &ContractionPath) {
-    let mut contracted = Vec::<usize>::new();
-    for nested in path.nested.values() {
-        validate_path(nested);
-    }
-
-    for (u, v) in &path.toplevel {
-        assert!(
-            !contracted.contains(u),
-            "Contracting already contracted tensors: {u:?}, path: {path:?}"
-        );
-        contracted.push(*v);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    use crate::path;
-
-    #[test]
-    #[should_panic(
-        expected = "Contracting already contracted tensors: 1, path: ContractionPath { nested: {}, toplevel: [(0, 1), (1, 2)] }"
-    )]
-    fn test_validate_paths() {
-        let invalid_path = path![(0, 1), (1, 2)];
-        validate_path(&invalid_path);
-    }
-}

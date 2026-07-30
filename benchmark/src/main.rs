@@ -31,9 +31,6 @@ use tnc::contractionpath::communication_schemes::CommunicationScheme;
 use tnc::contractionpath::contraction_cost::{
     communication_path_cost, compute_memory_requirements, contract_size_tensors_bytes,
 };
-use tnc::contractionpath::contraction_tree::balancing::{
-    balance_partitions_iter, BalanceSettings, BalancingScheme,
-};
 use tnc::contractionpath::paths::cotengrust::{Cotengrust, OptMethod};
 use tnc::contractionpath::paths::hyperoptimization::{HyperOptions, Hyperoptimizer};
 use tnc::contractionpath::paths::tree_annealing::TreeAnnealing;
@@ -670,65 +667,6 @@ impl MethodRun for Iad {
 
         let (partitioned_tensor, contraction_path, parallel_flops, sum_flops) =
             compute_solution(tensor, &partitioning, communication_scheme, Some(rng));
-        (
-            partitioned_tensor,
-            contraction_path,
-            parallel_flops,
-            sum_flops,
-        )
-    }
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-struct GreedyBalance {
-    iterations: usize,
-    balancing_scheme: BalancingScheme,
-}
-#[allow(dead_code)]
-fn objective_function(a: &LeafTensor, b: &LeafTensor) -> f64 {
-    a.size() + b.size() - (a ^ b).size()
-}
-impl MethodRun for GreedyBalance {
-    fn name(&self) -> String {
-        match &self.balancing_scheme {
-            BalancingScheme::AlternatingIntermediateTensors { .. } => "GreedyIntermediate".into(),
-            BalancingScheme::AlternatingTreeTensors { .. } => "GreedyTree".into(),
-            _ => panic!(),
-        }
-    }
-
-    fn run(
-        &self,
-        tensor: &CompositeTensor,
-        _num_partitions: i32,
-        initial_partitioning: &[usize],
-        communication_scheme: CommunicationScheme,
-        rng: &mut StdRng,
-    ) -> (CompositeTensor, ContractionPath, f64, f64) {
-        let (initial_partitioned_tensor, initial_contraction_path, _, _) = compute_solution(
-            tensor,
-            initial_partitioning,
-            communication_scheme,
-            Some(rng),
-        );
-
-        let balance_settings = BalanceSettings::new(
-            1,
-            self.iterations,
-            objective_function,
-            communication_scheme,
-            self.balancing_scheme,
-            None,
-        );
-        let (best_iteration, partitioned_tensor, contraction_path, max_costs) =
-            balance_partitions_iter(
-                &initial_partitioned_tensor,
-                &initial_contraction_path,
-                balance_settings,
-                rng,
-            );
-        let (parallel_flops, sum_flops) = max_costs[best_iteration];
         (
             partitioned_tensor,
             contraction_path,
