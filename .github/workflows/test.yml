@@ -122,6 +122,19 @@ jobs:
       - name: Install system requirements
         run: |
           brew install hdf5 open-mpi
+      - name: Inspect open-mpi installation
+        run: |
+          brew --prefix open-mpi
+          ls -l /opt/homebrew/opt/open-mpi
+          echo $MPI_PKG_CONFIG
+          echo $MPICC
+          echo $MPI_HOME
+          echo $LIBRARY_PATH
+          echo $LDFLAGS
+          echo $RUSTFLAGS
+          echo $PKG_CONFIG_PATH
+          mpicc --showme
+          mpicc --showme:link
       - name: Install python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # tag=v6.3.0
         with:
