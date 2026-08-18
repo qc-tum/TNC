@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use ndarray instead of own implementation for tensors. This means more features (slicing, arbitrary memory layout, ...) and interoperability.
 - Implement `approx` instead of `float-cmp` for tensors and tensor data
 - `find_path` now takes the tensor network as argument and returns a results struct
+- `into_expectation_network` now takes a custom observable
 
 ### Removed
 - Function `contract_size_tensors_exact` (since there is no explicit transpose, the normal contraction size estimate is sufficient)
