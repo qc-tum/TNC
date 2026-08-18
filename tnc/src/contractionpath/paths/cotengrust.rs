@@ -38,8 +38,7 @@ impl Cotengrust {
     /// Finds a contraction path for a "classical" tensor network, i.e. the inputs
     /// are all leaf tensors.
     fn optimize_single(&self, inputs: &[LeafTensor], output: &LeafTensor) -> SimplePath {
-        // Check if the inputs are empty (cotengrust does not handle this gracefully)
-        if inputs.is_empty() {
+        if inputs.len() <= 1 {
             return SimplePath::default();
         }
 
