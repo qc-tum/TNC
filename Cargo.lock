@@ -225,11 +225,11 @@ dependencies = [
 
 [[package]]
 name = "bit-set"
-version = "0.8.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08807e080ed7f9d5433fa9b275196cfc35414f66a0c79d864dc51a0d825231a3"
+checksum = "09ec2f926cc3060f09db9ebc5b52823d85268d24bb917e472c0c4bea35780a7d"
 dependencies = [
- "bit-vec 0.8.0",
+ "bit-vec 0.9.1",
 ]
 
 [[package]]
@@ -240,9 +240,12 @@ checksum = "349f9b6a179ed607305526ca489b34ad0a41aed5f7980fa90eb03160b69598fb"
 
 [[package]]
 name = "bit-vec"
-version = "0.8.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e764a1d40d510daf35e07be9eb06e75770908c27d411ee6c92109c9840eaaf7"
+checksum = "b71798fca2c1fe1086445a7258a4bc81e6e49dcd24c8d0dd9a1e57395b603f51"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bitflags"
@@ -437,13 +440,13 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "cotengrust"
-version = "0.2.0"
-source = "git+https://github.com/Ectras/cotengrust.git?branch=rust_extension#2998e9887fd9fa9e93863f8344a5878624e39293"
+version = "0.2.1"
+source = "git+https://github.com/Ectras/cotengrust.git?branch=rust_extension#d36225c32964ea7de72fee2a066c66118e9fc90a"
 dependencies = [
- "bit-set 0.8.0",
+ "bit-set 0.10.0",
+ "fastrand",
  "num-traits",
  "ordered-float",
- "rand 0.9.2",
  "rustc-hash 2.1.1",
 ]
 
@@ -571,6 +574,12 @@ dependencies = [
  "num-traits",
  "primal-sieve",
 ]
+
+[[package]]
+name = "fastrand"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "find-msvc-tools"
@@ -1211,9 +1220,9 @@ dependencies = [
 
 [[package]]
 name = "ordered-float"
-version = "5.1.0"
+version = "5.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f4779c6901a562440c3786d08192c6fbda7c1c2060edd10006b05ee35d10f2d"
+checksum = "b7d950ca161dc355eaf28f82b11345ed76c6e1f6eb1f4f4479e0323b9e2fbd0e"
 dependencies = [
  "num-traits",
 ]
