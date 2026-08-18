@@ -135,11 +135,6 @@ impl Circuit {
         TensorData::new_from_data(&[2], vec![Complex64::ZERO, Complex64::ONE])
     }
 
-    /// The Z gate.
-    fn z() -> TensorData {
-        TensorData::Gate((String::from("z"), vec![], false))
-    }
-
     /// Creates a new edge id.
     fn new_edge(&mut self) -> usize {
         let edge = self.next_edge;
@@ -287,14 +282,18 @@ impl Circuit {
 
     /// Creates the adjoint tensor of a given `tensor`. This not only modifies the
     /// data, but also the order of legs and the bond dims vec. The legs of the new
-    /// tensor are offset by `leg_offset`.
-    fn tensor_adjoint(tensor: &LeafTensor, leg_offset: usize) -> LeafTensor {
+    /// tensor are offset by `leg_offset`, unless they are in `direct_connections`.
+    fn tensor_adjoint(
+        tensor: &LeafTensor,
+        leg_offset: usize,
+        edge_connections: &FxHashMap<usize, usize>,
+    ) -> LeafTensor {
         // Transpose legs and shape of tensor
         let half = tensor.legs().len() / 2;
         let legs = tensor.legs()[half..]
             .iter()
             .chain(&tensor.legs()[..half])
-            .map(|l| l + leg_offset)
+            .map(|l| edge_connections.get(l).copied().unwrap_or(*l + leg_offset))
             .collect();
         let bond_dims = tensor.bond_dims()[half..]
             .iter()
@@ -310,30 +309,39 @@ impl Circuit {
     }
 
     /// Converts the circuit to a tensor network that computes the expectation value
-    /// with respect to standard observables (`Z`) on all qubits.
+    /// with respect to the given `observable` acting on the `indices`.
     ///
     /// The tensor network is roughly twice the size of the circuit, as it needs to
     /// compute the adjoint of the circuit as well.
-    pub fn into_expectation_value_network(mut self) -> CompositeTensor {
-        let offset = self.next_edge;
-        self.tensor_network
-            .reserve(self.tensor_network.len() + self.num_qubits());
+    pub fn into_expectation_value_network(
+        mut self,
+        observable: TensorData,
+        indices: &[Qubit],
+    ) -> CompositeTensor {
+        self.tensor_network.reserve(self.tensor_network.len() + 1);
 
-        // Add the mirrored tensor network
+        let open_edges_before_obs = self.open_edges.clone();
+
+        // Add the observable
+        self.append_gate(observable, indices);
+
+        // Get a map of leg connections, mapping open leg ids to the corresponding leg ids the adjoint tensors should connect to.
+        // This is either the same for legs unaffected by the observable, or the output legs of the observable.
+        let edge_connections = open_edges_before_obs
+            .iter()
+            .copied()
+            .zip(self.open_edges)
+            .collect::<FxHashMap<_, _>>();
+
+        // Add the mirrored tensor network (without the last tensor, which is the observable)
+        let offset = self.next_edge;
         let mut adjoint_tensors = Vec::with_capacity(self.tensor_network.len());
-        for tensor in self.tensor_network.tensors() {
+        for tensor in self.tensor_network.tensors().iter().rev().skip(1) {
             let tensor = tensor.as_leaf().unwrap();
-            let adjoint = Self::tensor_adjoint(tensor, offset);
+            let adjoint = Self::tensor_adjoint(tensor, offset, &edge_connections);
             adjoint_tensors.push(adjoint);
         }
         self.tensor_network.push_tensors(adjoint_tensors);
-
-        // Add the layer of observables
-        for e in self.open_edges {
-            let mut t = LeafTensor::new_from_const(vec![e, e + offset], 2);
-            t.set_tensor_data(Self::z());
-            self.tensor_network.push_tensor(t);
-        }
 
         self.tensor_network
     }
@@ -399,7 +407,7 @@ mod tests {
 
     #[test]
     fn rx_expectation_value() {
-        let qubits = 2;
+        let qubits = 3;
         let mut circuit = Circuit::default();
         let qr = circuit.allocate_register("q", qubits);
         circuit.append_gate(
@@ -410,7 +418,20 @@ mod tests {
             TensorData::Gate((String::from("rx"), vec![FRAC_PI_3], false)),
             &[qr.qubit(1)],
         );
-        let tensor_network = circuit.into_expectation_value_network();
+        circuit.append_gate(
+            TensorData::Gate((String::from("rx"), vec![FRAC_1_SQRT_2], false)),
+            &[qr.qubit(2)],
+        );
+        // ZZ observable
+        let o = Complex64::ONE;
+        let z = Complex64::ZERO;
+        let m = -Complex64::ONE;
+        let observable = TensorData::new_from_data(
+            &[2, 2, 2, 2],
+            vec![o, z, z, z, z, m, z, z, z, z, m, z, z, z, z, o],
+        );
+        let tensor_network =
+            circuit.into_expectation_value_network(observable, &[qr.qubit(0), qr.qubit(1)]);
 
         let mut opt = Cotengrust::new(OptMethod::Greedy);
         let result = opt.find_path(&tensor_network);
