@@ -112,7 +112,7 @@ impl Permutor {
 
 /// A quantum circuit builder that constructs a tensor network representing a quantum
 /// circuit.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Circuit {
     /// The last open edges on each qubit.
     open_edges: Vec<EdgeIndex>,
@@ -405,11 +405,20 @@ mod tests {
         assert_abs_diff_eq!(&result, &tn_ref);
     }
 
+    fn zz_observable() -> TensorData {
+        let o = Complex64::ONE;
+        let z = Complex64::ZERO;
+        let m = -Complex64::ONE;
+        TensorData::new_from_data(
+            &[2, 2, 2, 2],
+            vec![o, z, z, z, z, m, z, z, z, z, m, z, z, z, z, o],
+        )
+    }
+
     #[test]
-    fn rx_expectation_value() {
-        let qubits = 3;
+    fn rx_expectation_value_2q() {
         let mut circuit = Circuit::default();
-        let qr = circuit.allocate_register("q", qubits);
+        let qr = circuit.allocate_register("q", 2);
         circuit.append_gate(
             TensorData::Gate((String::from("rx"), vec![FRAC_PI_4], false)),
             &[qr.qubit(0)],
@@ -418,18 +427,8 @@ mod tests {
             TensorData::Gate((String::from("rx"), vec![FRAC_PI_3], false)),
             &[qr.qubit(1)],
         );
-        circuit.append_gate(
-            TensorData::Gate((String::from("rx"), vec![FRAC_1_SQRT_2], false)),
-            &[qr.qubit(2)],
-        );
-        // ZZ observable
-        let o = Complex64::ONE;
-        let z = Complex64::ZERO;
-        let m = -Complex64::ONE;
-        let observable = TensorData::new_from_data(
-            &[2, 2, 2, 2],
-            vec![o, z, z, z, z, m, z, z, z, z, m, z, z, z, z, o],
-        );
+        let observable = zz_observable();
+        let qr = circuit.register("q").unwrap();
         let tensor_network =
             circuit.into_expectation_value_network(observable, &[qr.qubit(0), qr.qubit(1)]);
 
@@ -446,6 +445,56 @@ mod tests {
         ));
 
         assert_abs_diff_eq!(&result, &tn_ref);
+    }
+
+    fn three_qubits_rx_circuit() -> Circuit {
+        let mut circuit = Circuit::default();
+        let qr = circuit.allocate_register("q", 3);
+        circuit.append_gate(
+            TensorData::Gate((String::from("rx"), vec![FRAC_PI_4], false)),
+            &[qr.qubit(0)],
+        );
+        circuit.append_gate(
+            TensorData::Gate((String::from("rx"), vec![FRAC_PI_3], false)),
+            &[qr.qubit(1)],
+        );
+        circuit.append_gate(
+            TensorData::Gate((String::from("rx"), vec![FRAC_1_SQRT_2], false)),
+            &[qr.qubit(2)],
+        );
+        circuit
+    }
+
+    #[test]
+    fn rx_expectation_value_3q() {
+        let circuit = three_qubits_rx_circuit();
+        let observable = zz_observable();
+        for (indices, expval) in [
+            ([0, 1], 0.3535533905932739),
+            ([0, 2], 0.5375741099526127),
+            ([1, 2], 0.3801222985378152),
+        ] {
+            let circuit = circuit.clone();
+            let qr = circuit.register("q").unwrap();
+            let tensor_network = circuit.into_expectation_value_network(
+                observable.clone(),
+                &[qr.qubit(indices[0]), qr.qubit(indices[1])],
+            );
+
+            let mut opt = Cotengrust::new(OptMethod::Greedy);
+            let result = opt.find_path(&tensor_network);
+            let path = result.replace_path();
+
+            let result = contract_tensor_network(tensor_network, &path);
+
+            let mut tn_ref = LeafTensor::default();
+            tn_ref.set_tensor_data(TensorData::new_from_data(
+                &[],
+                vec![Complex64::new(expval, 0.0)],
+            ));
+
+            assert_abs_diff_eq!(&result, &tn_ref);
+        }
     }
 
     #[test]
