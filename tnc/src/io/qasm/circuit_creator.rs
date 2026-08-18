@@ -15,7 +15,7 @@ impl CircuitCreator {
     /// returns the list of quantum arguments for each single call.
     fn broadcast(
         qargs: &[Argument],
-        registers: &FxHashMap<String, QuantumRegister<'_>>,
+        registers: &FxHashMap<String, QuantumRegister>,
     ) -> Vec<Vec<Argument>> {
         // Get the size of all register arguments (i.e. those without qubit index specified)
         let sizes = qargs
@@ -71,7 +71,7 @@ impl CircuitCreator {
                     count,
                 } => {
                     // Allocate a new register in |0> state
-                    let register = circuit.allocate_register((*count).try_into().unwrap());
+                    let register = circuit.allocate_register(name, (*count).try_into().unwrap());
                     registers.insert_new(name.to_owned(), register);
                 }
 

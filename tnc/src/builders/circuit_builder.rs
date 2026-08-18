@@ -1,56 +1,46 @@
 //! Building a tensor network from a quantum circuit.
 
-use std::marker::PhantomData;
-
 use itertools::Itertools;
 use num_complex::Complex64;
 use permutation::Permutation;
+use rustc_hash::FxHashMap;
 
 use crate::{
     tensornetwork::{
         tensor::{CompositeTensor, EdgeIndex, LeafTensor},
         tensordata::TensorData,
     },
-    utils::traits::PermutationToVec,
+    utils::traits::{HashMapInsertNew, PermutationToVec},
 };
 
 /// A quantum register, i.e., an array of qubits. Similar to the Qiskit / QASM
 /// idea, quantum registers group qubits (for instance, one qreg for ancillas), and
 /// a circuit can act on multiple qregs.
-#[derive(Debug)]
-pub struct QuantumRegister<'a> {
+#[derive(Debug, Clone, Copy)]
+pub struct QuantumRegister {
     base: usize,
     size: usize,
-    phantom: PhantomData<&'a Circuit>,
 }
 
-impl QuantumRegister<'_> {
+impl QuantumRegister {
     /// Creates a new quantum register without any associated circuit. This is mainly
     /// for testing.
     #[cfg(test)]
     pub(crate) fn new(size: usize) -> Self {
-        QuantumRegister {
-            base: 0,
-            size,
-            phantom: PhantomData,
-        }
+        QuantumRegister { base: 0, size }
     }
 
     /// Returns the qubit at a given index.
-    pub fn qubit(&self, index: usize) -> Qubit<'_> {
+    pub fn qubit(&self, index: usize) -> Qubit {
         assert!(index < self.size);
         Qubit {
             index: self.base + index,
-            phantom: PhantomData,
         }
     }
 
     /// Returns an iterator over all qubits in this register.
-    pub fn qubits(&self) -> impl Iterator<Item = Qubit<'_>> {
-        (self.base..self.base + self.size).map(|i| Qubit {
-            index: i,
-            phantom: PhantomData,
-        })
+    pub fn qubits(&self) -> impl Iterator<Item = Qubit> {
+        (self.base..self.base + self.size).map(|i| Qubit { index: i })
     }
 
     /// Returns the size of the register.
@@ -67,9 +57,8 @@ impl QuantumRegister<'_> {
 }
 
 /// A single qubit from a quantum register.
-pub struct Qubit<'a> {
+pub struct Qubit {
     index: usize,
-    phantom: PhantomData<&'a Circuit>,
 }
 
 /// A struct holding a permutation to be applied to a tensor.
@@ -123,7 +112,7 @@ impl Permutor {
 
 /// A quantum circuit builder that constructs a tensor network representing a quantum
 /// circuit.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Circuit {
     /// The last open edges on each qubit.
     open_edges: Vec<EdgeIndex>,
@@ -131,6 +120,8 @@ pub struct Circuit {
     next_edge: usize,
     /// The tensor network representing the circuit.
     tensor_network: CompositeTensor,
+    /// Mapping quantum register names to their respective registers.
+    registers: FxHashMap<String, QuantumRegister>,
 }
 
 impl Circuit {
@@ -142,11 +133,6 @@ impl Circuit {
     /// The |1> state.
     fn ket1() -> TensorData {
         TensorData::new_from_data(&[2], vec![Complex64::ZERO, Complex64::ONE])
-    }
-
-    /// The Z gate.
-    fn z() -> TensorData {
-        TensorData::Gate((String::from("z"), vec![], false))
     }
 
     /// Creates a new edge id.
@@ -162,8 +148,8 @@ impl Circuit {
     /// ```
     /// # use tnc::builders::circuit_builder::Circuit;
     /// let mut circuit = Circuit::default();
-    /// let q1 = circuit.allocate_register(2);
-    /// let q2 = circuit.allocate_register(3);
+    /// let q1 = circuit.allocate_register("a", 2);
+    /// let q2 = circuit.allocate_register("b", 3);
     /// assert_eq!(circuit.num_qubits(), 5);
     /// ```
     #[inline]
@@ -173,9 +159,13 @@ impl Circuit {
 
     /// Allocates a new quantum register. The qubits are initialized in the |0>
     /// state.
-    pub fn allocate_register<'a>(&mut self, size: usize) -> QuantumRegister<'a> {
+    pub fn allocate_register<S>(&mut self, name: S, size: usize) -> QuantumRegister
+    where
+        S: Into<String>,
+    {
         let previous_qubits = self.num_qubits();
 
+        // Add the ket0 tensors for the new qubits
         self.open_edges.reserve(size);
         self.tensor_network.reserve(size);
         for _ in 0..size {
@@ -186,11 +176,29 @@ impl Circuit {
             self.tensor_network.push_tensor(ket0);
         }
 
-        QuantumRegister {
+        // Store the register in the map
+        let qr = QuantumRegister {
             base: previous_qubits,
             size,
-            phantom: PhantomData,
-        }
+        };
+        self.registers.insert_new(name.into(), qr);
+
+        qr
+    }
+
+    /// Returns the quantum registers allocated in this circuit.
+    pub fn registers(&self) -> &FxHashMap<String, QuantumRegister> {
+        &self.registers
+    }
+
+    /// Returns the quantum register with the given name, if it exists.
+    pub fn register(&self, name: &str) -> Option<QuantumRegister> {
+        self.registers.get(name).copied()
+    }
+
+    /// Returns a flat iterator over all qubits in the circuit.
+    pub fn qubits(&self) -> impl Iterator<Item = Qubit> {
+        (0..self.num_qubits()).map(|index| Qubit { index })
     }
 
     /// Appends a gate to the circuit on the specified qubits.
@@ -274,14 +282,18 @@ impl Circuit {
 
     /// Creates the adjoint tensor of a given `tensor`. This not only modifies the
     /// data, but also the order of legs and the bond dims vec. The legs of the new
-    /// tensor are offset by `leg_offset`.
-    fn tensor_adjoint(tensor: &LeafTensor, leg_offset: usize) -> LeafTensor {
+    /// tensor are offset by `leg_offset`, unless they are in `direct_connections`.
+    fn tensor_adjoint(
+        tensor: &LeafTensor,
+        leg_offset: usize,
+        edge_connections: &FxHashMap<usize, usize>,
+    ) -> LeafTensor {
         // Transpose legs and shape of tensor
         let half = tensor.legs().len() / 2;
         let legs = tensor.legs()[half..]
             .iter()
             .chain(&tensor.legs()[..half])
-            .map(|l| l + leg_offset)
+            .map(|l| edge_connections.get(l).copied().unwrap_or(*l + leg_offset))
             .collect();
         let bond_dims = tensor.bond_dims()[half..]
             .iter()
@@ -297,30 +309,39 @@ impl Circuit {
     }
 
     /// Converts the circuit to a tensor network that computes the expectation value
-    /// with respect to standard observables (`Z`) on all qubits.
+    /// with respect to the given `observable` acting on the `indices`.
     ///
     /// The tensor network is roughly twice the size of the circuit, as it needs to
     /// compute the adjoint of the circuit as well.
-    pub fn into_expectation_value_network(mut self) -> CompositeTensor {
-        let offset = self.next_edge;
-        self.tensor_network
-            .reserve(self.tensor_network.len() + self.num_qubits());
+    pub fn into_expectation_value_network(
+        mut self,
+        observable: TensorData,
+        indices: &[Qubit],
+    ) -> CompositeTensor {
+        self.tensor_network.reserve(self.tensor_network.len() + 1);
 
-        // Add the mirrored tensor network
+        let open_edges_before_obs = self.open_edges.clone();
+
+        // Add the observable
+        self.append_gate(observable, indices);
+
+        // Get a map of leg connections, mapping open leg ids to the corresponding leg ids the adjoint tensors should connect to.
+        // This is either the same for legs unaffected by the observable, or the output legs of the observable.
+        let edge_connections = open_edges_before_obs
+            .iter()
+            .copied()
+            .zip(self.open_edges)
+            .collect::<FxHashMap<_, _>>();
+
+        // Add the mirrored tensor network (without the last tensor, which is the observable)
+        let offset = self.next_edge;
         let mut adjoint_tensors = Vec::with_capacity(self.tensor_network.len());
-        for tensor in self.tensor_network.tensors() {
+        for tensor in self.tensor_network.tensors().iter().rev().skip(1) {
             let tensor = tensor.as_leaf().unwrap();
-            let adjoint = Self::tensor_adjoint(tensor, offset);
+            let adjoint = Self::tensor_adjoint(tensor, offset, &edge_connections);
             adjoint_tensors.push(adjoint);
         }
         self.tensor_network.push_tensors(adjoint_tensors);
-
-        // Add the layer of observables
-        for e in self.open_edges {
-            let mut t = LeafTensor::new_from_const(vec![e, e + offset], 2);
-            t.set_tensor_data(Self::z());
-            self.tensor_network.push_tensor(t);
-        }
 
         self.tensor_network
     }
@@ -362,7 +383,7 @@ mod tests {
     fn hadamards_amplitude() {
         let qubits = 5;
         let mut circuit = Circuit::default();
-        let qr = circuit.allocate_register(qubits);
+        let qr = circuit.allocate_register("q", qubits);
         for q in qr.qubits() {
             circuit.append_gate(TensorData::Gate((String::from("h"), vec![], false)), &[q]);
         }
@@ -384,11 +405,20 @@ mod tests {
         assert_abs_diff_eq!(&result, &tn_ref);
     }
 
+    fn zz_observable() -> TensorData {
+        let o = Complex64::ONE;
+        let z = Complex64::ZERO;
+        let m = -Complex64::ONE;
+        TensorData::new_from_data(
+            &[2, 2, 2, 2],
+            vec![o, z, z, z, z, m, z, z, z, z, m, z, z, z, z, o],
+        )
+    }
+
     #[test]
-    fn rx_expectation_value() {
-        let qubits = 2;
+    fn rx_expectation_value_2q() {
         let mut circuit = Circuit::default();
-        let qr = circuit.allocate_register(qubits);
+        let qr = circuit.allocate_register("q", 2);
         circuit.append_gate(
             TensorData::Gate((String::from("rx"), vec![FRAC_PI_4], false)),
             &[qr.qubit(0)],
@@ -397,7 +427,10 @@ mod tests {
             TensorData::Gate((String::from("rx"), vec![FRAC_PI_3], false)),
             &[qr.qubit(1)],
         );
-        let tensor_network = circuit.into_expectation_value_network();
+        let observable = zz_observable();
+        let qr = circuit.register("q").unwrap();
+        let tensor_network =
+            circuit.into_expectation_value_network(observable, &[qr.qubit(0), qr.qubit(1)]);
 
         let mut opt = Cotengrust::new(OptMethod::Greedy);
         let result = opt.find_path(&tensor_network);
@@ -414,11 +447,61 @@ mod tests {
         assert_abs_diff_eq!(&result, &tn_ref);
     }
 
+    fn three_qubits_rx_circuit() -> Circuit {
+        let mut circuit = Circuit::default();
+        let qr = circuit.allocate_register("q", 3);
+        circuit.append_gate(
+            TensorData::Gate((String::from("rx"), vec![FRAC_PI_4], false)),
+            &[qr.qubit(0)],
+        );
+        circuit.append_gate(
+            TensorData::Gate((String::from("rx"), vec![FRAC_PI_3], false)),
+            &[qr.qubit(1)],
+        );
+        circuit.append_gate(
+            TensorData::Gate((String::from("rx"), vec![FRAC_1_SQRT_2], false)),
+            &[qr.qubit(2)],
+        );
+        circuit
+    }
+
+    #[test]
+    fn rx_expectation_value_3q() {
+        let circuit = three_qubits_rx_circuit();
+        let observable = zz_observable();
+        for (indices, expval) in [
+            ([0, 1], 0.3535533905932739),
+            ([0, 2], 0.5375741099526127),
+            ([1, 2], 0.3801222985378152),
+        ] {
+            let circuit = circuit.clone();
+            let qr = circuit.register("q").unwrap();
+            let tensor_network = circuit.into_expectation_value_network(
+                observable.clone(),
+                &[qr.qubit(indices[0]), qr.qubit(indices[1])],
+            );
+
+            let mut opt = Cotengrust::new(OptMethod::Greedy);
+            let result = opt.find_path(&tensor_network);
+            let path = result.replace_path();
+
+            let result = contract_tensor_network(tensor_network, &path);
+
+            let mut tn_ref = LeafTensor::default();
+            tn_ref.set_tensor_data(TensorData::new_from_data(
+                &[],
+                vec![Complex64::new(expval, 0.0)],
+            ));
+
+            assert_abs_diff_eq!(&result, &tn_ref);
+        }
+    }
+
     #[test]
     #[should_panic(expected = "Qubit arguments must be unique")]
     fn duplicate_qubit_arg() {
         let mut circuit = Circuit::default();
-        let qr = circuit.allocate_register(2);
+        let qr = circuit.allocate_register("q", 2);
         circuit.append_gate(
             TensorData::Gate((String::from("cx"), vec![], true)),
             &[qr.qubit(1), qr.qubit(1)],
@@ -428,7 +511,7 @@ mod tests {
     #[test]
     fn dimension_order() {
         let mut circuit = Circuit::default();
-        let qr = circuit.allocate_register(1);
+        let qr = circuit.allocate_register("q", 1);
         circuit.append_gate(
             TensorData::new_from_data(
                 &[2, 2],

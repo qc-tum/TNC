@@ -44,7 +44,7 @@ where
 
     // Initialize circuit
     let mut circuit = Circuit::default();
-    let qreg = circuit.allocate_register(qubits);
+    let qreg = circuit.allocate_register("q", qubits);
 
     // Add interleaved layers of random single-qubit gates and two-qubit gates
     for round in 0..=depth {

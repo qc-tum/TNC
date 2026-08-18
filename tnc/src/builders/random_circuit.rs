@@ -56,7 +56,7 @@ where
 
     // Initialize circuit with random qubit states
     let mut circuit = Circuit::default();
-    let qr = circuit.allocate_register(qubits);
+    let qr = circuit.allocate_register("q", qubits);
 
     for _ in 1..rounds {
         for i in 0..qubits {
