@@ -71,7 +71,7 @@ impl CircuitCreator {
                     count,
                 } => {
                     // Allocate a new register in |0> state
-                    let register = circuit.allocate_register((*count).try_into().unwrap());
+                    let register = circuit.allocate_register(name, (*count).try_into().unwrap());
                     registers.insert_new(name.to_owned(), register);
                 }
 

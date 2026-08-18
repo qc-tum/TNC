@@ -3,19 +3,20 @@
 use itertools::Itertools;
 use num_complex::Complex64;
 use permutation::Permutation;
+use rustc_hash::FxHashMap;
 
 use crate::{
     tensornetwork::{
         tensor::{CompositeTensor, EdgeIndex, LeafTensor},
         tensordata::TensorData,
     },
-    utils::traits::PermutationToVec,
+    utils::traits::{HashMapInsertNew, PermutationToVec},
 };
 
 /// A quantum register, i.e., an array of qubits. Similar to the Qiskit / QASM
 /// idea, quantum registers group qubits (for instance, one qreg for ancillas), and
 /// a circuit can act on multiple qregs.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct QuantumRegister {
     base: usize,
     size: usize,
@@ -119,6 +120,8 @@ pub struct Circuit {
     next_edge: usize,
     /// The tensor network representing the circuit.
     tensor_network: CompositeTensor,
+    /// Mapping quantum register names to their respective registers.
+    registers: FxHashMap<String, QuantumRegister>,
 }
 
 impl Circuit {
@@ -150,8 +153,8 @@ impl Circuit {
     /// ```
     /// # use tnc::builders::circuit_builder::Circuit;
     /// let mut circuit = Circuit::default();
-    /// let q1 = circuit.allocate_register(2);
-    /// let q2 = circuit.allocate_register(3);
+    /// let q1 = circuit.allocate_register("a", 2);
+    /// let q2 = circuit.allocate_register("b", 3);
     /// assert_eq!(circuit.num_qubits(), 5);
     /// ```
     #[inline]
@@ -161,9 +164,13 @@ impl Circuit {
 
     /// Allocates a new quantum register. The qubits are initialized in the |0>
     /// state.
-    pub fn allocate_register(&mut self, size: usize) -> QuantumRegister {
+    pub fn allocate_register<S>(&mut self, name: S, size: usize) -> QuantumRegister
+    where
+        S: Into<String>,
+    {
         let previous_qubits = self.num_qubits();
 
+        // Add the ket0 tensors for the new qubits
         self.open_edges.reserve(size);
         self.tensor_network.reserve(size);
         for _ in 0..size {
@@ -174,10 +181,29 @@ impl Circuit {
             self.tensor_network.push_tensor(ket0);
         }
 
-        QuantumRegister {
+        // Store the register in the map
+        let qr = QuantumRegister {
             base: previous_qubits,
             size,
-        }
+        };
+        self.registers.insert_new(name.into(), qr);
+
+        qr
+    }
+
+    /// Returns the quantum registers allocated in this circuit.
+    pub fn registers(&self) -> &FxHashMap<String, QuantumRegister> {
+        &self.registers
+    }
+
+    /// Returns the quantum register with the given name, if it exists.
+    pub fn register(&self, name: &str) -> Option<QuantumRegister> {
+        self.registers.get(name).copied()
+    }
+
+    /// Returns a flat iterator over all qubits in the circuit.
+    pub fn qubits(&self) -> impl Iterator<Item = Qubit> {
+        (0..self.num_qubits()).map(|index| Qubit { index })
     }
 
     /// Appends a gate to the circuit on the specified qubits.
@@ -349,7 +375,7 @@ mod tests {
     fn hadamards_amplitude() {
         let qubits = 5;
         let mut circuit = Circuit::default();
-        let qr = circuit.allocate_register(qubits);
+        let qr = circuit.allocate_register("q", qubits);
         for q in qr.qubits() {
             circuit.append_gate(TensorData::Gate((String::from("h"), vec![], false)), &[q]);
         }
@@ -375,7 +401,7 @@ mod tests {
     fn rx_expectation_value() {
         let qubits = 2;
         let mut circuit = Circuit::default();
-        let qr = circuit.allocate_register(qubits);
+        let qr = circuit.allocate_register("q", qubits);
         circuit.append_gate(
             TensorData::Gate((String::from("rx"), vec![FRAC_PI_4], false)),
             &[qr.qubit(0)],
@@ -405,7 +431,7 @@ mod tests {
     #[should_panic(expected = "Qubit arguments must be unique")]
     fn duplicate_qubit_arg() {
         let mut circuit = Circuit::default();
-        let qr = circuit.allocate_register(2);
+        let qr = circuit.allocate_register("q", 2);
         circuit.append_gate(
             TensorData::Gate((String::from("cx"), vec![], true)),
             &[qr.qubit(1), qr.qubit(1)],
@@ -415,7 +441,7 @@ mod tests {
     #[test]
     fn dimension_order() {
         let mut circuit = Circuit::default();
-        let qr = circuit.allocate_register(1);
+        let qr = circuit.allocate_register("q", 1);
         circuit.append_gate(
             TensorData::new_from_data(
                 &[2, 2],
