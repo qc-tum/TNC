@@ -1,7 +1,5 @@
 //! Building a tensor network from a quantum circuit.
 
-use std::marker::PhantomData;
-
 use itertools::Itertools;
 use num_complex::Complex64;
 use permutation::Permutation;
@@ -18,39 +16,30 @@ use crate::{
 /// idea, quantum registers group qubits (for instance, one qreg for ancillas), and
 /// a circuit can act on multiple qregs.
 #[derive(Debug)]
-pub struct QuantumRegister<'a> {
+pub struct QuantumRegister {
     base: usize,
     size: usize,
-    phantom: PhantomData<&'a Circuit>,
 }
 
-impl QuantumRegister<'_> {
+impl QuantumRegister {
     /// Creates a new quantum register without any associated circuit. This is mainly
     /// for testing.
     #[cfg(test)]
     pub(crate) fn new(size: usize) -> Self {
-        QuantumRegister {
-            base: 0,
-            size,
-            phantom: PhantomData,
-        }
+        QuantumRegister { base: 0, size }
     }
 
     /// Returns the qubit at a given index.
-    pub fn qubit(&self, index: usize) -> Qubit<'_> {
+    pub fn qubit(&self, index: usize) -> Qubit {
         assert!(index < self.size);
         Qubit {
             index: self.base + index,
-            phantom: PhantomData,
         }
     }
 
     /// Returns an iterator over all qubits in this register.
-    pub fn qubits(&self) -> impl Iterator<Item = Qubit<'_>> {
-        (self.base..self.base + self.size).map(|i| Qubit {
-            index: i,
-            phantom: PhantomData,
-        })
+    pub fn qubits(&self) -> impl Iterator<Item = Qubit> {
+        (self.base..self.base + self.size).map(|i| Qubit { index: i })
     }
 
     /// Returns the size of the register.
@@ -67,9 +56,8 @@ impl QuantumRegister<'_> {
 }
 
 /// A single qubit from a quantum register.
-pub struct Qubit<'a> {
+pub struct Qubit {
     index: usize,
-    phantom: PhantomData<&'a Circuit>,
 }
 
 /// A struct holding a permutation to be applied to a tensor.
@@ -173,7 +161,7 @@ impl Circuit {
 
     /// Allocates a new quantum register. The qubits are initialized in the |0>
     /// state.
-    pub fn allocate_register<'a>(&mut self, size: usize) -> QuantumRegister<'a> {
+    pub fn allocate_register(&mut self, size: usize) -> QuantumRegister {
         let previous_qubits = self.num_qubits();
 
         self.open_edges.reserve(size);
@@ -189,7 +177,6 @@ impl Circuit {
         QuantumRegister {
             base: previous_qubits,
             size,
-            phantom: PhantomData,
         }
     }
 
