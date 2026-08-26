@@ -30,23 +30,23 @@ struct PartitioningFitness<'a> {
 impl PartitioningFitness<'_> {
     fn calculate_fitness(&self, partitioning: &[usize]) -> NotNan<f64> {
         // Construct the tensor network and contraction path from the partitioning
-        let (partitioned_tn, path, cost, _) =
+        let (partitioned_tn, path, parallel_cost, _) =
             compute_solution::<StdRng>(self.tensor, partitioning, self.communication_scheme, None);
 
-        // Compute memory usage
-        let mem = compute_memory_requirements(
-            partitioned_tn.tensors(),
-            &path,
-            contract_size_tensors_bytes,
-        );
-
         // If the memory limit is exceeded, return infinity
-        let score = if self.memory_limit.is_some_and(|limit| mem > limit) {
-            f64::INFINITY
-        } else {
-            cost
-        };
-        NotNan::new(score).unwrap()
+        if let Some(limit) = self.memory_limit {
+            // Compute memory usage
+            let mem = compute_memory_requirements(
+                partitioned_tn.tensors(),
+                &path,
+                contract_size_tensors_bytes,
+            );
+
+            if mem > limit {
+                return NotNan::new(f64::INFINITY).unwrap();
+            }
+        }
+        NotNan::new(parallel_cost).unwrap()
     }
 }
 
