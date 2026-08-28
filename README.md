@@ -106,7 +106,7 @@ cargo run --example local_contraction
 ## Getting started
 
 To familiarize yourself with the code, it is recommended to look at the [Examples] and the [Documentation].
-Some aspects of the library are also covered in more detail in the [Tutorial].
+Some aspects of the library are also covered in more detail in the [Guide].
 If you want to contribute, please take a loot at the [Contribution guide](https://github.com/qc-tum/TNC/blob/main/CONTRIBUTING.md).
 
 ## Publications
