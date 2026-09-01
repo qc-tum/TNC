@@ -49,7 +49,7 @@ jobs:
         with:
           mdbook-version: 0.5.2
       - name: Install mbBook-linkcheck2
-        uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # tag=v2.85.11
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # tag=v2.87.1
         with:
           tool: mdbook-linkcheck2
       - name: Download doc artifact
