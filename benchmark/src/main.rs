@@ -25,7 +25,7 @@ use mpi::traits::{Communicator, CommunicatorCollectives};
 use protocol::Protocol;
 use rand::distr::StandardUniform;
 use rand::rngs::StdRng;
-use rand::{Rng, RngCore, SeedableRng};
+use rand::{Rng, RngExt, SeedableRng};
 use results::{OptimizationResult, RunResult, Writer};
 use tnc::contractionpath::communication_schemes::CommunicationScheme;
 use tnc::contractionpath::contraction_cost::{
