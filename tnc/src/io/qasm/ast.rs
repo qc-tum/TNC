@@ -30,7 +30,7 @@ pub enum BinOp {
     Sub,
     Mul,
     Div,
-    BitXor,
+    Power,
 }
 
 impl Display for BinOp {
@@ -40,7 +40,7 @@ impl Display for BinOp {
             Self::Sub => "-",
             Self::Mul => "*",
             Self::Div => "/",
-            Self::BitXor => "^",
+            Self::Power => "^",
         };
         write!(f, "{symbol}")
     }
@@ -52,7 +52,7 @@ impl BinOp {
             Self::Sub => 2,
             Self::Add => 3,
             Self::Mul | Self::Div => 1,
-            Self::BitXor => 4,
+            Self::Power => 0,
         }
     }
 }
@@ -240,10 +240,16 @@ impl ops::BitXor<&Expr> for &Expr {
     type Output = Expr;
 
     fn bitxor(self, rhs: &Expr) -> Self::Output {
-        if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
-            Expr::Int(a ^ b)
-        } else {
-            panic!("Cannot apply bitxor on non-int types");
+        match (self, rhs) {
+            (Expr::Int(a), Expr::Int(b)) if *b >= 0 => {
+                // Only for non-negative exponents, as result is float otherwise
+                Expr::Int(a.pow((*b).try_into().unwrap()) as _)
+            }
+            _ => {
+                let a: f64 = self.try_into().unwrap();
+                let b: f64 = rhs.try_into().unwrap();
+                Expr::Float(a.powf(b))
+            }
         }
     }
 }
