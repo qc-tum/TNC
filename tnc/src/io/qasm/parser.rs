@@ -254,7 +254,7 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
         let rhs = self.visit(&**ctx.rhs.as_ref().unwrap());
         let rhs = cast!(rhs, ReturnVal::Expression);
         let op = if ctx.CARET().is_some() {
-            BinOp::BitXor
+            BinOp::Power
         } else {
             panic!("Unhandled operator");
         };

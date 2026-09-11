@@ -38,7 +38,7 @@ pub fn fold_expr(expr: &mut Expr) {
                     BinOp::Sub => lhs.as_ref() - rhs.as_ref(),
                     BinOp::Mul => lhs.as_ref() * rhs.as_ref(),
                     BinOp::Div => lhs.as_ref() / rhs.as_ref(),
-                    BinOp::BitXor => lhs.as_ref() ^ rhs.as_ref(),
+                    BinOp::Power => lhs.as_ref() ^ rhs.as_ref(),
                 };
             }
         }
@@ -276,27 +276,23 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Cannot apply bitxor on non-int types")]
-    fn xor_float_fail() {
-        // 1.0 ^ 2 fails
+    fn power_mixed() {
+        // 1.5 ^ 2 fails
         let mut a = Expr::Binary(
-            BinOp::BitXor,
-            Box::new(Expr::Float(1.0)),
+            BinOp::Power,
+            Box::new(Expr::Float(1.5)),
             Box::new(Expr::Int(2)),
         );
         fold_expr(&mut a);
+        assert_eq!(a, Expr::Float(2.25));
     }
 
     #[test]
-    fn xor_int() {
+    fn power_int() {
         // 5 ^ 2
-        let mut a = Expr::Binary(
-            BinOp::BitXor,
-            Box::new(Expr::Int(5)),
-            Box::new(Expr::Int(2)),
-        );
+        let mut a = Expr::Binary(BinOp::Power, Box::new(Expr::Int(5)), Box::new(Expr::Int(2)));
         fold_expr(&mut a);
-        assert_eq!(a, Expr::Int(7));
+        assert_eq!(a, Expr::Int(25));
     }
 
     #[test]
