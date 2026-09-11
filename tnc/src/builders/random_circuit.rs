@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use rand::distr::Bernoulli;
 use rand::seq::IndexedRandom;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use rustc_hash::FxHashMap;
 
 use crate::builders::circuit_builder::Circuit;
