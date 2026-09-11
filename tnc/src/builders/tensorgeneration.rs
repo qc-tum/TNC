@@ -1,8 +1,8 @@
 use itertools::Itertools;
 use ndarray::Dim;
 use num_complex::Complex64;
-use rand::distr::Uniform;
 use rand::Rng;
+use rand::{distr::Uniform, RngExt};
 
 use crate::tensornetwork::tensordata::{DataTensor, TensorData};
 
@@ -13,7 +13,7 @@ use crate::tensornetwork::tensordata::{DataTensor, TensorData};
 /// ```
 /// # use tnc::builders::tensorgeneration::random_sparse_tensor_data_with_rng;
 /// let shape = vec![5, 4, 3];
-/// random_sparse_tensor_data_with_rng(&shape, None, &mut rand::thread_rng());
+/// random_sparse_tensor_data_with_rng(&shape, None, &mut rand::rng());
 /// ```
 pub fn random_sparse_tensor_data_with_rng<R>(
     dims: &[usize],

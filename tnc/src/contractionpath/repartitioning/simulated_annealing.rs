@@ -7,7 +7,7 @@ use std::{
 
 use itertools::Itertools;
 use ordered_float::NotNan;
-use rand::{rngs::StdRng, seq::IteratorRandom, Rng, SeedableRng};
+use rand::{rngs::StdRng, seq::IteratorRandom, Rng, RngExt, SeedableRng};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 

@@ -2,7 +2,7 @@ use std::fmt;
 
 use itertools::Itertools;
 use rand::distr::Uniform;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use rustc_hash::FxHashMap;
 
 use crate::contractionpath::contraction_cost::communication_path_cost;
