@@ -29,17 +29,17 @@ mod tests {
             BinOp::Mul,
             Box::new(Expr::Binary(
                 BinOp::Add,
-                Box::new(Expr::Int(2)),
-                Box::new(Expr::Int(3)),
+                Box::new(Expr::Const(2.0)),
+                Box::new(Expr::Const(3.0)),
             )),
-            Box::new(Expr::Float(4.0)),
+            Box::new(Expr::Const(4.0)),
         );
 
         // Argument 2
         let y = Expr::Binary(
             BinOp::Add,
-            Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(2)))),
-            Box::new(Expr::Int(2)),
+            Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Const(2.0)))),
+            Box::new(Expr::Const(2.0)),
         );
 
         // Gate call with the two arguments
@@ -51,8 +51,8 @@ mod tests {
         // Check modified AST
         if let Statement::GateCall(data) = gc {
             assert_eq!(data.args.len(), 2);
-            assert_eq!(data.args[0], Expr::Float(20.0));
-            assert_eq!(data.args[1], Expr::Int(0));
+            assert_eq!(data.args[0], Expr::Const(20.0));
+            assert_eq!(data.args[1], Expr::Const(0.0));
         } else {
             panic!("Expected a gate call");
         }
@@ -75,20 +75,20 @@ mod tests {
                     vec![
                         Expr::Binary(
                             BinOp::Mul,
-                            Box::new(Expr::Int(3)),
-                            Box::new(Expr::Float(0.5)),
+                            Box::new(Expr::Const(3.0)),
+                            Box::new(Expr::Const(0.5)),
                         ),
                         Expr::Binary(
                             BinOp::Div,
-                            Box::new(Expr::Float(3.6)),
-                            Box::new(Expr::Float(-2.4)),
+                            Box::new(Expr::Const(3.6)),
+                            Box::new(Expr::Const(-2.4)),
                         ),
                     ],
                     Vec::new(),
                 ),
                 Statement::gate_call(
                     String::from("b"),
-                    vec![Expr::Function(FuncType::Sqrt, Box::new(Expr::Int(4)))],
+                    vec![Expr::Function(FuncType::Sqrt, Box::new(Expr::Const(4.0)))],
                     Vec::new(),
                 ),
             ],
@@ -102,8 +102,8 @@ mod tests {
         // Check first call
         if let Statement::GateCall(data) = &program.statements[0] {
             assert_eq!(data.args.len(), 2);
-            assert_eq!(data.args[0], Expr::Float(1.5));
-            assert_eq!(data.args[1], Expr::Float(3.6 / -2.4));
+            assert_eq!(data.args[0], Expr::Const(1.5));
+            assert_eq!(data.args[1], Expr::Const(3.6 / -2.4));
         } else {
             panic!("Expected a gate call");
         }
@@ -111,7 +111,7 @@ mod tests {
         // Check second call
         if let Statement::GateCall(data) = &program.statements[1] {
             assert_eq!(data.args.len(), 1);
-            assert_eq!(data.args[0], Expr::Float(4f64.sqrt()));
+            assert_eq!(data.args[0], Expr::Const(4f64.sqrt()));
         } else {
             panic!("Expected a gate call");
         }

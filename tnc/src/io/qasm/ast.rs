@@ -85,8 +85,7 @@ impl Display for FuncType {
 /// A mathematical expression.
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Int(i32),
-    Float(f64),
+    Const(f64),
     Variable(String),
     Unary(UnOp, Box<Expr>),
     Binary(BinOp, Box<Expr>, Box<Expr>),
@@ -96,8 +95,7 @@ pub enum Expr {
 impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Int(x) => write!(f, "{x}"),
-            Self::Float(x) => write!(f, "{x}"),
+            Self::Const(x) => write!(f, "{x}"),
             Self::Variable(x) => write!(f, "{x}"),
             Self::Unary(op, inner) => {
                 let need_parens = matches!(**inner, Self::Binary(_, _, _));
@@ -141,8 +139,7 @@ impl Display for Expr {
 impl PartialEq for Expr {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Int(l0), Self::Int(r0)) => l0 == r0,
-            (Self::Float(l0), Self::Float(r0)) => abs_diff_eq!(*l0, *r0),
+            (Self::Const(l0), Self::Const(r0)) => abs_diff_eq!(*l0, *r0),
             (Self::Variable(l0), Self::Variable(r0)) => l0 == r0,
             (Self::Unary(l0, l1), Self::Unary(r0, r1)) => l0 == r0 && l1 == r1,
             (Self::Binary(l0, l1, l2), Self::Binary(r0, r1, r2)) => {
@@ -157,14 +154,14 @@ impl PartialEq for Expr {
 impl Default for Expr {
     // Default needed for take()
     fn default() -> Self {
-        Self::Int(-1)
+        Self::Const(-1.0)
     }
 }
 
 impl Expr {
     /// Returns whether the expression is a literal.
     pub const fn is_const(&self) -> bool {
-        matches!(self, Self::Int(_) | Self::Float(_))
+        matches!(self, Self::Const(_))
     }
 }
 
@@ -173,8 +170,7 @@ impl TryFrom<&Expr> for f64 {
 
     fn try_from(value: &Expr) -> Result<Self, Self::Error> {
         match value {
-            Expr::Int(x) => Ok((*x).into()),
-            Expr::Float(x) => Ok(*x),
+            Expr::Const(x) => Ok(*x),
             _ => Err(()),
         }
     }
@@ -184,13 +180,9 @@ impl ops::Add<&Expr> for &Expr {
     type Output = Expr;
 
     fn add(self, rhs: &Expr) -> Self::Output {
-        if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
-            Expr::Int(a + b)
-        } else {
-            let a: f64 = self.try_into().unwrap();
-            let b: f64 = rhs.try_into().unwrap();
-            Expr::Float(a + b)
-        }
+        let a: f64 = self.try_into().unwrap();
+        let b: f64 = rhs.try_into().unwrap();
+        Expr::Const(a + b)
     }
 }
 
@@ -198,13 +190,9 @@ impl ops::Sub<&Expr> for &Expr {
     type Output = Expr;
 
     fn sub(self, rhs: &Expr) -> Self::Output {
-        if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
-            Expr::Int(a - b)
-        } else {
-            let a: f64 = self.try_into().unwrap();
-            let b: f64 = rhs.try_into().unwrap();
-            Expr::Float(a - b)
-        }
+        let a: f64 = self.try_into().unwrap();
+        let b: f64 = rhs.try_into().unwrap();
+        Expr::Const(a - b)
     }
 }
 
@@ -212,13 +200,9 @@ impl ops::Mul<&Expr> for &Expr {
     type Output = Expr;
 
     fn mul(self, rhs: &Expr) -> Self::Output {
-        if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
-            Expr::Int(a * b)
-        } else {
-            let a: f64 = self.try_into().unwrap();
-            let b: f64 = rhs.try_into().unwrap();
-            Expr::Float(a * b)
-        }
+        let a: f64 = self.try_into().unwrap();
+        let b: f64 = rhs.try_into().unwrap();
+        Expr::Const(a * b)
     }
 }
 
@@ -226,13 +210,9 @@ impl ops::Div<&Expr> for &Expr {
     type Output = Expr;
 
     fn div(self, rhs: &Expr) -> Self::Output {
-        if let (Expr::Int(a), Expr::Int(b)) = (self, rhs) {
-            Expr::Int(a / b)
-        } else {
-            let a: f64 = self.try_into().unwrap();
-            let b: f64 = rhs.try_into().unwrap();
-            Expr::Float(a / b)
-        }
+        let a: f64 = self.try_into().unwrap();
+        let b: f64 = rhs.try_into().unwrap();
+        Expr::Const(a / b)
     }
 }
 
@@ -240,17 +220,9 @@ impl ops::BitXor<&Expr> for &Expr {
     type Output = Expr;
 
     fn bitxor(self, rhs: &Expr) -> Self::Output {
-        match (self, rhs) {
-            (Expr::Int(a), Expr::Int(b)) if *b >= 0 => {
-                // Only for non-negative exponents, as result is float otherwise
-                Expr::Int(a.pow((*b).try_into().unwrap()) as _)
-            }
-            _ => {
-                let a: f64 = self.try_into().unwrap();
-                let b: f64 = rhs.try_into().unwrap();
-                Expr::Float(a.powf(b))
-            }
-        }
+        let a: f64 = self.try_into().unwrap();
+        let b: f64 = rhs.try_into().unwrap();
+        Expr::Const(a.powf(b))
     }
 }
 
@@ -505,7 +477,7 @@ mod tests {
                                 Box::new(Expr::Variable(String::from("a"))),
                                 Box::new(Expr::Variable(String::from("b"))),
                             ),
-                            Expr::Int(0),
+                            Expr::Const(0.0),
                             Expr::Variable(String::from("b")),
                         ],
                         vec![Argument(String::from("q"), None)],
@@ -518,24 +490,24 @@ mod tests {
                     Some(vec![
                         Statement::gate_call(
                             "x",
-                            vec![Expr::Variable(String::from("a")), Expr::Int(0)],
+                            vec![Expr::Variable(String::from("a")), Expr::Const(0.0)],
                             vec![Argument(String::from("q2"), None)],
                         ),
                         Statement::gate_call(
                             "U",
-                            vec![Expr::Int(1), Expr::Int(2), Expr::Int(3)],
+                            vec![Expr::Const(1.0), Expr::Const(2.0), Expr::Const(3.0)],
                             vec![Argument(String::from("q1"), None)],
                         ),
                         Statement::gate_call(
                             "x",
-                            vec![Expr::Int(1), Expr::Variable(String::from("a"))],
+                            vec![Expr::Const(1.0), Expr::Variable(String::from("a"))],
                             vec![Argument(String::from("q1"), None)],
                         ),
                     ]),
                 ),
                 Statement::gate_call(
                     "y",
-                    vec![Expr::Int(2)],
+                    vec![Expr::Const(2.0)],
                     vec![
                         Argument(String::from("q"), Some(0)),
                         Argument(String::from("q"), Some(1)),
@@ -576,15 +548,15 @@ measure q[1] -> c[0];
                 BinOp::Div,
                 Box::new(Expr::Binary(
                     BinOp::Mul,
-                    Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Int(4)))),
-                    Box::new(Expr::Function(FuncType::Sin, Box::new(Expr::Int(2)))),
+                    Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Const(4.0)))),
+                    Box::new(Expr::Function(FuncType::Sin, Box::new(Expr::Const(2.0)))),
                 )),
                 Box::new(Expr::Binary(
                     BinOp::Sub,
-                    Box::new(Expr::Int(2)),
+                    Box::new(Expr::Const(2.0)),
                     Box::new(Expr::Function(
                         FuncType::Cos,
-                        Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Float(1.3)))),
+                        Box::new(Expr::Unary(UnOp::Neg, Box::new(Expr::Const(1.3)))),
                     )),
                 )),
             )),
@@ -597,13 +569,14 @@ measure q[1] -> c[0];
     fn display2() {
         let expr = Expr::Binary(
             BinOp::Sub,
-            Box::new(Expr::Int(5)),
+            Box::new(Expr::Const(5.0)),
             Box::new(Expr::Binary(
                 BinOp::Add,
-                Box::new(Expr::Int(2)),
-                Box::new(Expr::Int(3)),
+                Box::new(Expr::Const(2.0)),
+                Box::new(Expr::Const(3.0)),
             )),
         );
-        println!("{expr}");
+        let out = format!("{expr}");
+        assert_eq!(out, "5 - (2 + 3)");
     }
 }

@@ -290,11 +290,11 @@ impl Qasm2ParserVisitorCompat<'_> for AstBuilderVisitor {
 
     fn visit_literalExpression(&mut self, ctx: &LiteralExpressionContext) -> Self::Return {
         let expr = if let Some(val) = ctx.Float() {
-            Expr::Float(val.get_text().parse::<f64>().unwrap())
+            Expr::Const(val.get_text().parse::<f64>().unwrap())
         } else if let Some(val) = ctx.Integer() {
-            Expr::Int(val.get_text().parse::<i32>().unwrap())
+            Expr::Const(val.get_text().parse::<f64>().unwrap())
         } else if ctx.PI().is_some() {
-            Expr::Float(std::f64::consts::PI)
+            Expr::Const(std::f64::consts::PI)
         } else if let Some(val) = ctx.Identifier() {
             Expr::Variable(val.get_text())
         } else {
@@ -364,7 +364,7 @@ bar(sin(0), 1+2) a[1];
                         Some(vec![
                             Statement::gate_call(
                                 "U",
-                                vec![Expr::Float(3.10), Expr::Int(0), Expr::Int(0)],
+                                vec![Expr::Const(3.10), Expr::Const(0.0), Expr::Const(0.0)],
                                 vec![Argument(String::from("q2"), None)]
                             ),
                             Statement::gate_call(
@@ -384,7 +384,7 @@ bar(sin(0), 1+2) a[1];
                         Some(vec![Statement::gate_call(
                             "U",
                             vec![
-                                Expr::Int(0),
+                                Expr::Const(0.0),
                                 Expr::Variable(String::from("x")),
                                 Expr::Variable(String::from("y"))
                             ],
@@ -402,11 +402,11 @@ bar(sin(0), 1+2) a[1];
                     Statement::gate_call(
                         "bar",
                         vec![
-                            Expr::Function(FuncType::Sin, Box::new(Expr::Int(0))),
+                            Expr::Function(FuncType::Sin, Box::new(Expr::Const(0.0))),
                             Expr::Binary(
                                 BinOp::Add,
-                                Box::new(Expr::Int(1)),
-                                Box::new(Expr::Int(2))
+                                Box::new(Expr::Const(1.0)),
+                                Box::new(Expr::Const(2.0))
                             )
                         ],
                         vec![Argument(String::from("a"), Some(1))]

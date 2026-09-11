@@ -185,7 +185,7 @@ mod tests {
                                 Box::new(Expr::Variable(String::from("a"))),
                                 Box::new(Expr::Variable(String::from("b"))),
                             ),
-                            Expr::Int(0),
+                            Expr::Const(0.0),
                             Expr::Variable(String::from("b")),
                         ],
                         vec![Argument(String::from("q"), None)],
@@ -198,24 +198,24 @@ mod tests {
                     Some(vec![
                         Statement::gate_call(
                             "bar",
-                            vec![Expr::Variable(String::from("a")), Expr::Int(0)],
+                            vec![Expr::Variable(String::from("a")), Expr::Const(0.0)],
                             vec![Argument(String::from("q2"), None)],
                         ),
                         Statement::gate_call(
                             "U",
-                            vec![Expr::Int(1), Expr::Int(2), Expr::Int(3)],
+                            vec![Expr::Const(1.0), Expr::Const(2.0), Expr::Const(3.0)],
                             vec![Argument(String::from("q1"), None)],
                         ),
                         Statement::gate_call(
                             "bar",
-                            vec![Expr::Int(1), Expr::Variable(String::from("a"))],
+                            vec![Expr::Const(1.0), Expr::Variable(String::from("a"))],
                             vec![Argument(String::from("q1"), None)],
                         ),
                     ]),
                 ),
                 Statement::gate_call(
                     "foo",
-                    vec![Expr::Int(2)],
+                    vec![Expr::Const(2.0)],
                     vec![
                         Argument(String::from("q"), Some(0)),
                         Argument(String::from("q"), Some(1)),
@@ -236,17 +236,17 @@ mod tests {
                         vec![
                             Expr::Binary(
                                 BinOp::Add,
-                                Box::new(Expr::Int(2)),
-                                Box::new(Expr::Int(0))
+                                Box::new(Expr::Const(2.0)),
+                                Box::new(Expr::Const(0.0))
                             ),
-                            Expr::Int(0),
-                            Expr::Int(0)
+                            Expr::Const(0.0),
+                            Expr::Const(0.0)
                         ],
                         vec![Argument(String::from("q"), Some(1))]
                     ),
                     Statement::gate_call(
                         "U",
-                        vec![Expr::Int(1), Expr::Int(2), Expr::Int(3)],
+                        vec![Expr::Const(1.0), Expr::Const(2.0), Expr::Const(3.0)],
                         vec![Argument(String::from("q"), Some(0))]
                     ),
                     Statement::gate_call(
@@ -254,11 +254,11 @@ mod tests {
                         vec![
                             Expr::Binary(
                                 BinOp::Add,
-                                Box::new(Expr::Int(1)),
-                                Box::new(Expr::Int(2))
+                                Box::new(Expr::Const(1.0)),
+                                Box::new(Expr::Const(2.0))
                             ),
-                            Expr::Int(0),
-                            Expr::Int(2)
+                            Expr::Const(0.0),
+                            Expr::Const(2.0)
                         ],
                         vec![Argument(String::from("q"), Some(0))]
                     )
@@ -287,9 +287,9 @@ mod tests {
         let a = String::from("a");
         let b = String::from("b");
         let c = String::from("c");
-        let expr_a = Expr::Int(2);
-        let expr_b = Expr::Unary(UnOp::Neg, Box::new(Expr::Int(4)));
-        let expr_c = Expr::Int(42);
+        let expr_a = Expr::Const(2.0);
+        let expr_b = Expr::Unary(UnOp::Neg, Box::new(Expr::Const(4.0)));
+        let expr_c = Expr::Const(42.0);
         let mut context = FxHashMap::default();
         context.insert(&a, &expr_a);
         context.insert(&b, &expr_b);
