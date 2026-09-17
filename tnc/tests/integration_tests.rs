@@ -28,7 +28,8 @@ fn test_partitioned_contraction_random() {
     let mut rng = StdRng::seed_from_u64(52);
     let k = 15;
 
-    let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Eagle);
+    let r_tn =
+        random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Eagle).into_ket0_network();
     let ref_tn = r_tn.clone();
     let mut ref_opt = Cotengrust::new(OptMethod::RandomGreedy(10));
     let result = ref_opt.find_path(&ref_tn);
@@ -49,7 +50,8 @@ fn test_partitioned_contraction() {
     let mut rng = StdRng::seed_from_u64(52);
     let k = 15;
 
-    let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Osprey);
+    let r_tn =
+        random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Osprey).into_ket0_network();
     let ref_tn = r_tn.clone();
     let mut ref_opt = Cotengrust::new(OptMethod::Greedy);
     let result = ref_opt.find_path(&ref_tn);
@@ -70,7 +72,8 @@ fn test_partitioned_contraction_mixed() {
     let mut rng = StdRng::seed_from_u64(52);
     let k = 15;
 
-    let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Condor);
+    let r_tn =
+        random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Condor).into_ket0_network();
     let ref_tn = r_tn.clone();
     let mut ref_opt = Cotengrust::new(OptMethod::Greedy);
     let result = ref_opt.find_path(&ref_tn);
@@ -131,7 +134,8 @@ fn test_partitioned_contraction_need_mpi() {
 
     let (ref_tn, partitioned_tn, path) = if rank == 0 {
         let k = 10;
-        let r_tn = random_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+        let r_tn = random_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey)
+            .into_ket0_network();
         let ref_tn = r_tn.clone();
         let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
         let partitioned_tn = partition_tensor_network(r_tn, &partitioning);
@@ -230,19 +234,13 @@ fn qft_2qubits_expectation() {
     h q[0];
     swap q[0],q[1];";
 
-    // ZZ observable
-    let o = Complex64::ONE;
-    let z = Complex64::ZERO;
-    let m = -Complex64::ONE;
-    let observable = TensorData::new_from_data(
-        &[2, 2, 2, 2],
-        vec![o, z, z, z, z, m, z, z, z, z, m, z, z, z, z, o],
-    );
-
+    let z = TensorData::Gate((String::from("z"), vec![], false));
     let circuit = import_qasm(code);
     let qr = circuit.register("q").unwrap();
-    let tensor_network =
-        circuit.into_expectation_value_network(observable, &[qr.qubit(0), qr.qubit(1)]);
+    let tensor_network = circuit.into_expectation_value_network(vec![
+        (z.clone(), vec![qr.qubit(0)]),
+        (z, vec![qr.qubit(1)]),
+    ]);
 
     let mut opt = Cotengrust::new(OptMethod::RandomGreedy(3));
     let result = opt.find_path(&tensor_network);

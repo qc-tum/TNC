@@ -1,10 +1,9 @@
 use std::time::Duration;
 
-use ndarray::{linalg::kron, Array2};
 use num_complex::Complex64;
 use rand::{rngs::StdRng, SeedableRng};
 use tnc::{
-    builders::sycamore_circuit::sycamore_circuit,
+    builders::{circuit_builder::Qubit, sycamore_circuit::sycamore_circuit},
     contractionpath::{
         communication_schemes::CommunicationScheme,
         contraction_cost::{communication_path_cost, contract_path_cost},
@@ -86,22 +85,17 @@ fn rebalance(
     partitioning
 }
 
-fn z_chain(qubits: usize) -> TensorData {
-    let mut matrix = Array2::eye(1);
-    let z = Array2::from_shape_vec(
-        (2, 2),
+fn z_chain(qubits: impl Iterator<Item = Qubit>) -> Vec<(TensorData, Vec<Qubit>)> {
+    let z = TensorData::new_from_data(
+        &[2, 2],
         vec![
             Complex64::ONE,
             Complex64::ZERO,
             Complex64::ZERO,
             -Complex64::ONE,
         ],
-    )
-    .unwrap();
-    for _ in 0..qubits {
-        matrix = kron(&matrix, &z);
-    }
-    TensorData::Matrix(matrix.into_dyn())
+    );
+    qubits.map(|q| (z.clone(), vec![q])).collect()
 }
 
 fn main() {
@@ -111,9 +105,8 @@ fn main() {
     let circuit = sycamore_circuit(qubits, 10, &mut rng);
 
     // Create a tensor network that computes the expectation value
-    let observable = z_chain(qubits);
-    let indices = circuit.qubits().collect::<Vec<_>>();
-    let tensor = circuit.into_expectation_value_network(observable, &indices);
+    let observables = z_chain(circuit.qubits());
+    let tensor = circuit.into_expectation_value_network(observables);
 
     // Find a partitioning into 8 partitions
     let naive_partitioning = find_partitioning(&tensor, 8, PartitioningStrategy::MinCut, true);
