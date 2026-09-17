@@ -85,6 +85,7 @@ impl AbsDiffEq for TensorData {
             ) => {
                 name_l == name_r
                     && adjoint_l == adjoint_r
+                    && angles_l.len() == angles_r.len()
                     && angles_l
                         .iter()
                         .zip(angles_r)
