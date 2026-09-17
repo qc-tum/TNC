@@ -28,7 +28,8 @@ fn test_partitioned_contraction_random() {
     let mut rng = StdRng::seed_from_u64(52);
     let k = 15;
 
-    let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Eagle);
+    let r_tn =
+        random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Eagle).into_ket0_network();
     let ref_tn = r_tn.clone();
     let mut ref_opt = Cotengrust::new(OptMethod::RandomGreedy(10));
     let result = ref_opt.find_path(&ref_tn);
@@ -49,7 +50,8 @@ fn test_partitioned_contraction() {
     let mut rng = StdRng::seed_from_u64(52);
     let k = 15;
 
-    let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Osprey);
+    let r_tn =
+        random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Osprey).into_ket0_network();
     let ref_tn = r_tn.clone();
     let mut ref_opt = Cotengrust::new(OptMethod::Greedy);
     let result = ref_opt.find_path(&ref_tn);
@@ -70,7 +72,8 @@ fn test_partitioned_contraction_mixed() {
     let mut rng = StdRng::seed_from_u64(52);
     let k = 15;
 
-    let r_tn = random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Condor);
+    let r_tn =
+        random_circuit(k, 10, 0.5, 0.5, &mut rng, ConnectivityLayout::Condor).into_ket0_network();
     let ref_tn = r_tn.clone();
     let mut ref_opt = Cotengrust::new(OptMethod::Greedy);
     let result = ref_opt.find_path(&ref_tn);
@@ -131,7 +134,8 @@ fn test_partitioned_contraction_need_mpi() {
 
     let (ref_tn, partitioned_tn, path) = if rank == 0 {
         let k = 10;
-        let r_tn = random_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey);
+        let r_tn = random_circuit(k, 10, 0.4, 0.4, &mut rng, ConnectivityLayout::Osprey)
+            .into_ket0_network();
         let ref_tn = r_tn.clone();
         let partitioning = find_partitioning(&r_tn, size, PartitioningStrategy::MinCut, true);
         let partitioned_tn = partition_tensor_network(r_tn, &partitioning);

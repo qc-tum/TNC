@@ -280,6 +280,14 @@ impl Circuit {
         self.into_amplitude_network(&"*".repeat(qubits))
     }
 
+    /// Converts the circuit to a tensor network that computes the amplitude for the
+    /// |0> state. Useful for testing and benchmarking.
+    pub fn into_ket0_network(self) -> CompositeTensor {
+        let qubits = self.num_qubits();
+        let (tn, _) = self.into_amplitude_network(&"0".repeat(qubits));
+        tn
+    }
+
     /// Creates the adjoint tensor of a given `tensor`. This not only modifies the
     /// data, but also the order of legs and the bond dims vec. The legs of the new
     /// tensor are offset by `leg_offset`, unless they are in `direct_connections`.
