@@ -58,7 +58,7 @@ where
         if round < depth {
             // Add two-qubit gates with round-specific connectivity.
             let layer = rounds.next().unwrap()();
-            for (i, j) in layer {
+            for &(i, j) in layer {
                 if i > qubits || j > qubits {
                     continue;
                 }

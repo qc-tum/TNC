@@ -4,6 +4,7 @@ use std::ops::{BitAnd, BitOr, BitXor, BitXorAssign, Sub};
 
 use approx::AbsDiffEq;
 use bytemuck::{TransparentWrapper, TransparentWrapperAlloc};
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
@@ -369,19 +370,15 @@ impl CompositeTensor {
         let num_tensors = self.len();
         let mut uf = UnionFind::new(num_tensors);
 
-        for t1_id in 0..num_tensors {
-            for t2_id in (t1_id + 1)..num_tensors {
-                let t1 = self
-                    .tensor(t1_id)
-                    .as_leaf()
-                    .expect("Expected all children to be leaves");
-                let t2 = self
-                    .tensor(t2_id)
-                    .as_leaf()
-                    .expect("Expected all children to be leaves");
-                if !(t1 & t2).legs().is_empty() {
-                    uf.union(t1_id, t2_id);
-                }
+        for ((t1_id, t1), (t2_id, t2)) in self
+            .tensors()
+            .iter()
+            .map(|t| t.as_leaf().expect("Expected all children to be leaves"))
+            .enumerate()
+            .tuple_combinations()
+        {
+            if t1.legs().iter().any(|leg| t2.legs().contains(leg)) {
+                uf.union(t1_id, t2_id);
             }
         }
 

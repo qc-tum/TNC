@@ -167,8 +167,8 @@ pub fn partition_tensor_network(tn: CompositeTensor, partitioning: &[usize]) -> 
         zip(partition_ids.iter().copied(), 0..partition_ids.len()).collect::<FxHashMap<_, _>>();
 
     let mut partitions = vec![CompositeTensor::default(); partition_ids.len()];
-    for (partition_id, tensor) in zip(partitioning, tn.tensors()) {
-        partitions[partition_dict[partition_id]].push_tensor(tensor.clone());
+    for (partition_id, tensor) in zip(partitioning, tn.into_tensors()) {
+        partitions[partition_dict[partition_id]].push_tensor(tensor);
     }
     CompositeTensor::new(partitions)
 }

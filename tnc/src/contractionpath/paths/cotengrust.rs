@@ -131,7 +131,7 @@ impl Pathfinder for Cotengrust {
                     nested_paths.insert(index, result.ssa_path().clone());
                     composite.external_tensor()
                 }
-                TensorType::Leaf => t.clone().into_leaf().unwrap(),
+                TensorType::Leaf => t.as_leaf().unwrap().clone(),
             })
             .collect_vec();
 

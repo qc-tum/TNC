@@ -135,8 +135,8 @@ impl WeightedBranchBound {
         }
 
         let mut candidates = BinaryHeap::with_capacity(remaining.len() * (remaining.len() - 1) / 2);
-        for pair in remaining.iter().copied().combinations(2) {
-            let candidate = self.assess_candidate(pair[0], pair[1], size, remaining.len());
+        for (i, j) in remaining.iter().copied().tuple_combinations() {
+            let candidate = self.assess_candidate(i, j, size, remaining.len());
             if let Some(new_candidate) = candidate {
                 candidates.push(new_candidate);
             }

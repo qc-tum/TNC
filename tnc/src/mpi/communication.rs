@@ -206,6 +206,7 @@ pub fn intermediate_reduce_tensor_network(
     debug!(rank, path:serde; "Reducing tensor network (intermediate)");
 
     let mut final_rank = 0;
+    let pair_path = ContractionPath::single(0, 1);
     for (x, y) in path {
         let receiver = communication.tensor_mapping.rank(*x);
         let sender = communication.tensor_mapping.rank(*y);
@@ -222,7 +223,7 @@ pub fn intermediate_reduce_tensor_network(
                 CompositeTensor::new(vec![std::mem::take(local_tensor), received_tensor]);
 
             // Contract tensors
-            let result = contract_tensor_network(tensor_network, &ContractionPath::single(0, 1));
+            let result = contract_tensor_network(tensor_network, &pair_path);
             *local_tensor = result;
         }
         if sender == rank {

@@ -66,8 +66,8 @@ fn read_tensor(file: &File) -> Result<CompositeTensor> {
             continue;
         }
         let tensor = gr.dataset(&tensor_name)?;
-        let bond_ids = tensor.attr("bids").unwrap().read_1d::<usize>()?;
-        let tensor_dataset = gr.dataset(&tensor_name).unwrap().read_dyn::<Complex64>()?;
+        let bond_ids = tensor.attr("bids")?.read_1d::<usize>()?;
+        let tensor_dataset = tensor.read_dyn::<Complex64>()?;
         let tensor_shape = tensor_dataset.shape();
         let bond_dims = tensor_shape.iter().map(|s| *s as u64).collect();
         let mut new_tensor = LeafTensor::new(bond_ids.to_vec(), bond_dims);
@@ -82,10 +82,7 @@ fn read_data(file: &File) -> Result<DataTensor> {
     let gr = file.group("/tensors")?;
     let tensor_name = gr.member_names()?;
 
-    let tensor_dataset = gr
-        .dataset(&tensor_name[0])
-        .unwrap()
-        .read_dyn::<Complex64>()?;
+    let tensor_dataset = gr.dataset(&tensor_name[0])?.read_dyn::<Complex64>()?;
     Ok(tensor_dataset)
 }
 

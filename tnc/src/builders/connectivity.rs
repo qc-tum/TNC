@@ -147,8 +147,8 @@ fn sycamore_connect() -> Vec<(usize, usize)> {
     ]
 }
 
-pub(super) fn sycamore_a() -> Vec<(usize, usize)> {
-    vec![
+pub(super) fn sycamore_a() -> &'static [(usize, usize)] {
+    &[
         (31, 32),
         (29, 24),
         (40, 26),
@@ -176,8 +176,8 @@ pub(super) fn sycamore_a() -> Vec<(usize, usize)> {
     ]
 }
 
-pub(super) fn sycamore_b() -> Vec<(usize, usize)> {
-    vec![
+pub(super) fn sycamore_b() -> &'static [(usize, usize)] {
+    &[
         (32, 37),
         (24, 21),
         (26, 18),
@@ -200,8 +200,8 @@ pub(super) fn sycamore_b() -> Vec<(usize, usize)> {
     ]
 }
 
-pub(super) fn sycamore_c() -> Vec<(usize, usize)> {
-    vec![
+pub(super) fn sycamore_c() -> &'static [(usize, usize)] {
+    &[
         (52, 32),
         (31, 24),
         (29, 26),
@@ -228,8 +228,8 @@ pub(super) fn sycamore_c() -> Vec<(usize, usize)> {
     ]
 }
 
-pub(super) fn sycamore_d() -> Vec<(usize, usize)> {
-    vec![
+pub(super) fn sycamore_d() -> &'static [(usize, usize)] {
+    &[
         (32, 21),
         (24, 18),
         (26, 25),
@@ -257,8 +257,8 @@ pub(super) fn sycamore_d() -> Vec<(usize, usize)> {
     dead_code,
     reason = "Might be needed for more advanced Sycamore test cases"
 )]
-pub(super) fn sycamore_e() -> Vec<(usize, usize)> {
-    vec![
+pub(super) fn sycamore_e() -> &'static [(usize, usize)] {
+    &[
         (52, 32),
         (29, 26),
         (24, 18),
@@ -288,8 +288,8 @@ pub(super) fn sycamore_e() -> Vec<(usize, usize)> {
     dead_code,
     reason = "Might be needed for more advanced Sycamore test cases"
 )]
-pub(super) fn sycamore_f() -> Vec<(usize, usize)> {
-    vec![
+pub(super) fn sycamore_f() -> &'static [(usize, usize)] {
+    &[
         (31, 24),
         (32, 21),
         (37, 22),
@@ -318,8 +318,8 @@ pub(super) fn sycamore_f() -> Vec<(usize, usize)> {
     dead_code,
     reason = "Might be needed for more advanced Sycamore test cases"
 )]
-pub(super) fn sycamore_g() -> Vec<(usize, usize)> {
-    vec![
+pub(super) fn sycamore_g() -> &'static [(usize, usize)] {
+    &[
         (27, 38),
         (28, 39),
         (14, 4),
@@ -348,8 +348,8 @@ pub(super) fn sycamore_g() -> Vec<(usize, usize)> {
     dead_code,
     reason = "Might be needed for more advanced Sycamore test cases"
 )]
-pub(super) fn sycamore_h() -> Vec<(usize, usize)> {
-    vec![
+pub(super) fn sycamore_h() -> &'static [(usize, usize)] {
+    &[
         (14, 36),
         (13, 27),
         (17, 28),

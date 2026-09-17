@@ -138,8 +138,8 @@ impl BranchBound {
         }
 
         let mut candidates = BinaryHeap::<Candidate>::new();
-        for i in remaining.iter().copied().combinations(2) {
-            let candidate = self.assess_candidate(i[0], i[1], flops, size, remaining.len());
+        for (i, j) in remaining.iter().copied().tuple_combinations() {
+            let candidate = self.assess_candidate(i, j, flops, size, remaining.len());
             if let Some(new_candidate) = candidate {
                 candidates.push(new_candidate);
             }
