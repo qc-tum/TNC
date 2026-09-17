@@ -136,11 +136,11 @@ where
         ),
         (
             TensorData::Gate((String::from("sy"), Vec::new(), false)),
-            TensorData::Gate((String::from("sx"), Vec::new(), true)),
+            TensorData::Gate((String::from("sy"), Vec::new(), true)),
         ),
         (
             TensorData::Gate((String::from("sz"), Vec::new(), false)),
-            TensorData::Gate((String::from("sx"), Vec::new(), true)),
+            TensorData::Gate((String::from("sz"), Vec::new(), true)),
         ),
     ];
 
