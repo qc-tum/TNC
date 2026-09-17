@@ -1,5 +1,6 @@
-use std::{iter::zip, mem::take};
+use std::mem::take;
 
+use itertools::zip_eq;
 use rustc_hash::FxHashMap;
 
 use crate::io::qasm::{
@@ -33,8 +34,8 @@ impl GateInliner {
     fn get_body(call: &GateCallData, callee: &GateDeclarationData) -> Vec<Statement> {
         if let Some(body) = &callee.body {
             // Map the names in the declaration to the actual values passed in the call
-            let name_to_expr = zip(&callee.params, &call.args).collect::<FxHashMap<_, _>>();
-            let name_to_qreg = zip(&callee.qubits, &call.qargs).collect::<FxHashMap<_, _>>();
+            let name_to_expr = zip_eq(&callee.params, &call.args).collect::<FxHashMap<_, _>>();
+            let name_to_qreg = zip_eq(&callee.qubits, &call.qargs).collect::<FxHashMap<_, _>>();
 
             let mut statements = Vec::with_capacity(body.len());
             for statement in body {
