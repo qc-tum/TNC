@@ -81,8 +81,8 @@ pub fn is_gate_known(gate: &str) -> bool {
 /// For example, both `(8,8)` or `(2,2,2,2,2,2)` are okay. If given `(2,2,2,2,2,2)`,
 /// the permutation applied will be `(3,4,5,0,1,2)`.
 fn matrix_transpose_inplace(data: &mut DataTensor) {
-    if data.ndim() > 0 {
-        assert!(data.ndim().is_power_of_two());
+    if data.ndim() > 1 {
+        assert_eq!(data.ndim() % 2, 0);
         let half = data.ndim() / 2;
         let perm = (half..data.ndim()).chain(0..half).collect_vec();
         let used_data = std::mem::take(data);
