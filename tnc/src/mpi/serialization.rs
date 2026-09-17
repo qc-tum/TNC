@@ -1,3 +1,5 @@
+use bytemuck::{cast_slice_mut, zeroed_vec};
+
 use crate::{mpi::mpi_types::MessageBinaryBlob, tensornetwork::tensor::Tensor};
 
 /// Serializes data to a byte array.
@@ -44,24 +46,20 @@ pub fn serialize_tensor(tensor: &Tensor) -> Vec<MessageBinaryBlob> {
     // Get the total message size in bytes
     let total_size = serialized_size(tensor);
 
-    // Allocate a buffer of blobs
-    let element_size = std::mem::size_of::<MessageBinaryBlob>();
-    let elements = total_size.div_ceil(element_size);
-    let mut buffer = Vec::<MessageBinaryBlob>::with_capacity(elements);
+    // Get the number of blobs needed
+    const BLOB_SIZE: usize = std::mem::size_of::<MessageBinaryBlob>();
+    let num_blobs = total_size.div_ceil(BLOB_SIZE);
+    assert!(num_blobs <= i32::MAX as usize);
+
+    // Allocate a buffer of blobs. Hopefully the OS gives us fresh zeroed pages,
+    // which would be cheap (no explicit zeroing needed).
+    let mut buffer = zeroed_vec::<MessageBinaryBlob>(num_blobs);
 
     // Get a bytes view of the buffer
-    let write_view = unsafe {
-        std::slice::from_raw_parts_mut(
-            buffer.as_mut_ptr().cast::<u8>(),
-            buffer.capacity() * element_size,
-        )
-    };
+    let write_view = cast_slice_mut(&mut buffer);
 
     // Serialize legs and data into the buffer
     serialize_into(write_view, tensor);
-
-    // Update the buffer length
-    unsafe { buffer.set_len(buffer.capacity()) };
 
     buffer
 }

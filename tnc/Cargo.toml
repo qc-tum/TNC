@@ -37,7 +37,7 @@ rustengra = { git = "https://github.com/Ectras/rustengra.git", optional = true }
 cotengrust = { git = "https://github.com/Ectras/cotengrust.git", branch = "rust_extension" }
 approx = { version = "0.5.1", features = ["num-complex"] }
 tblis = { git = "https://github.com/Ectras/rust-tblis.git" }
-bytemuck = { version = "1.24.0", features = ["derive", "extern_crate_alloc"] }
+bytemuck = { version = "1.24.0", features = ["derive", "extern_crate_alloc", "min_const_generics"] }
 
 [dev-dependencies]
 serde_json = "1.0.133"

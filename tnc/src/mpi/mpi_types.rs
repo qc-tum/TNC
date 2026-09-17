@@ -1,3 +1,4 @@
+use bytemuck::{Pod, Zeroable};
 use mpi::{traits::Equivalence, Rank};
 use serde::{Deserialize, Serialize};
 
@@ -78,7 +79,7 @@ impl<'a> IntoIterator for &'a RankTensorMapping {
 ///
 /// The size of this type is 192 bytes, which allows for messages of
 /// `192 B * 2^31 = 412 GB`.
-#[derive(Debug, Clone, PartialEq, Eq, Equivalence)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Equivalence, Pod, Zeroable)]
 #[repr(transparent)]
 pub struct MessageBinaryBlob([u8; 192]);
 
