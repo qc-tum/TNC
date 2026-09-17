@@ -230,19 +230,13 @@ fn qft_2qubits_expectation() {
     h q[0];
     swap q[0],q[1];";
 
-    // ZZ observable
-    let o = Complex64::ONE;
-    let z = Complex64::ZERO;
-    let m = -Complex64::ONE;
-    let observable = TensorData::new_from_data(
-        &[2, 2, 2, 2],
-        vec![o, z, z, z, z, m, z, z, z, z, m, z, z, z, z, o],
-    );
-
+    let z = TensorData::Gate((String::from("z"), vec![], false));
     let circuit = import_qasm(code);
     let qr = circuit.register("q").unwrap();
-    let tensor_network =
-        circuit.into_expectation_value_network(observable, &[qr.qubit(0), qr.qubit(1)]);
+    let tensor_network = circuit.into_expectation_value_network(vec![
+        (z.clone(), vec![qr.qubit(0)]),
+        (z, vec![qr.qubit(1)]),
+    ]);
 
     let mut opt = Cotengrust::new(OptMethod::RandomGreedy(3));
     let result = opt.find_path(&tensor_network);
