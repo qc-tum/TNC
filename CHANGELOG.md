@@ -16,16 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use ndarray instead of own implementation for tensors. This means more features (slicing, arbitrary memory layout, ...) and interoperability.
 - Implement `approx` instead of `float-cmp` for tensors and tensor data
 - `find_path` now takes the tensor network as argument and returns a result struct
-- `into_expectation_network` now takes a custom observable
+- `into_expectation_network` now takes a custom observable (specified as product of operators)
 
 ### Fixed
 - QASM2 import now uses float division and power instead of integer division and bitxor
-- Fixed wrong adjoints of single qubit gates in `random_circuit_with_(set_)observable`
 
 ### Removed
 - Function `contract_size_tensors_exact` (since there is no explicit transpose, the normal contraction size estimate is sufficient)
 - Functions `get_best_path`, `get_best_flops`, ... from `FindPath` trait. They exist on the struct returned by `find_path` now
 - Greedy balancing (inferior to other methods like simulated annealing)
+- Functions `random_circuit_with_(set_)observable`, they have been replaced by `random_observable` which can be used together with `circuit.into_expectation_network` to get the same result
 
 ## [1.0.1] - 2026-05-26
 
