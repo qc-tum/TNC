@@ -24,7 +24,7 @@ const LOG_SCALE_FACTOR: f64 = 1e5;
 /// The usize associated with each Tensor indicates its partionining.
 ///
 /// # Arguments
-/// * `tensor_network` - [`Tensor`] to be partitionined
+/// * `tensor_network` - [`CompositeTensor`] to be partitionined
 /// * `k` - imbalance parameter for `KaHyPar`
 /// * `partition_strategy` - The strategy to pass to `KaHyPar`
 /// * `min` - if `true` performs `min_cut` to partition tensor network, if `false`, uses `max_cut`
