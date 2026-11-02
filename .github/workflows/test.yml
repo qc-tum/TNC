@@ -22,6 +22,7 @@ jobs:
     name: test (stable)
     env:
       OMPI_MCA_rmaps_base_oversubscribe: true
+      PRTE_MCA_rmaps_default_mapping_policy: ":oversubscribe"
     steps:
       - name: Install system requirements
         run: |
@@ -77,6 +78,7 @@ jobs:
     name: minimal-versions (stable)
     env:
       OMPI_MCA_rmaps_base_oversubscribe: true
+      PRTE_MCA_rmaps_default_mapping_policy: ":oversubscribe"
       CXXFLAGS: "-mno-avx512f -mno-avx512bw -mno-avx512vl"
       CFLAGS: "-mno-avx512f -mno-avx512bw -mno-avx512vl"
     steps:
@@ -153,6 +155,7 @@ jobs:
     name: coverage (nightly)
     env:
       OMPI_MCA_rmaps_base_oversubscribe: true
+      PRTE_MCA_rmaps_default_mapping_policy: ":oversubscribe"
     steps:
       - name: Install system requirements
         run: |
