@@ -29,7 +29,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev
       - name: Install python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # tag=v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # tag=v7.1.0
         with:
           python-version: '3.12'
       - name: Install python dependencies
@@ -87,7 +87,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev gdb
       - name: Install python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # tag=v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # tag=v7.1.0
         with:
           python-version: '3.12'
       - name: Install python dependencies
@@ -131,7 +131,7 @@ jobs:
         run: |
           brew install hdf5 openmpi
       - name: Install python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # tag=v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # tag=v7.1.0
         with:
           python-version: '3.12'
       - name: Install python dependencies
@@ -162,7 +162,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libhdf5-dev openmpi-bin libopenmpi-dev
       - name: Install python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # tag=v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # tag=v7.1.0
         with:
           python-version: '3.12'
       - name: Install python dependencies
@@ -176,7 +176,7 @@ jobs:
           toolchain: nightly
           components: llvm-tools-preview
       - name: cargo install cargo-llvm-cov
-        uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # tag=v2.87.21
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # tag=v2.88.0
         with:
           tool: cargo-llvm-cov
       - name: cargo generate-lockfile

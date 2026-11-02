@@ -33,7 +33,7 @@ jobs:
       - name: Add redirect
         run: echo '<meta http-equiv="refresh" content="0;url=tnc/index.html">' > target/doc/index.html
       - name: Upload doc artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # tag=v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # tag=v7.0.2
         with:
           name: doc
           path: target/doc
@@ -49,11 +49,11 @@ jobs:
         with:
           mdbook-version: 0.5.2
       - name: Install mbBook-linkcheck2
-        uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # tag=v2.87.21
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # tag=v2.88.0
         with:
           tool: mdbook-linkcheck2
       - name: Download doc artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # tag=v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # tag=v8.0.2
         with:
           name: doc
           path: book/src/doc
