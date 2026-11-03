@@ -110,7 +110,7 @@ Some aspects of the library are also covered in more detail in the [Guide].
 If you want to contribute, please take a loot at the [Contribution guide](https://github.com/qc-tum/TNC/blob/main/CONTRIBUTING.md).
 
 ## Publications
-- <i>Optimizing Tensor Network Partitioning using Simulated Annealing</i>, Geiger et al. (2025): <https://arxiv.org/abs/2507.20667>
+- <i>Utilizing Partitioning for Distributed Tensor Network Contraction</i>, Geiger et al. (2026): <https://epubs.siam.org/doi/10.1137/25M1788488>
 - <i>TNC: Distributed Tensor Network Contractions in Rust</i>, Geiger et al. (2026): <https://joss.theoj.org/papers/10.21105/joss.09598>
 
 [Examples]: https://github.com/qc-tum/TNC/tree/main/tnc/examples
