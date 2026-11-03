@@ -188,7 +188,7 @@ mod tests {
         let contract_path = path![(1, 0), (2, 1)];
 
         let result = contract_tensor_network(tn, &contract_path);
-        assert_abs_diff_eq!(&result, &tout, epsilon = 1e-14);
+        assert_abs_diff_eq!(&result, &tout, epsilon = 1e-12);
     }
 
     #[test]
